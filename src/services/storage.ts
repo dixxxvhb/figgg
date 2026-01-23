@@ -101,6 +101,14 @@ function migrateCompetitionDancerIds(storedDances: CompetitionDance[]): Competit
   });
 }
 
+// Migration: Force use initial students data with class enrollments
+// This completely replaces stored students with code-defined students to ensure
+// class enrollments are correct.
+function migrateStudents(_storedStudents: typeof initialStudents): typeof initialStudents {
+  // Always return initial students with their class enrollments
+  return initialStudents;
+}
+
 export function loadData(): AppData {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -119,19 +127,23 @@ export function loadData(): AppData {
         : defaults.competitionDances;
       migratedDances = migrateCompetitionDancerIds(migratedDances);
 
-      // Merge students - use stored students if they exist, otherwise use initial
-      const students = parsed.students?.length > 0 ? parsed.students : defaults.students;
+      // Merge students - migrate to add new students and update classIds
+      const students = parsed.students?.length > 0
+        ? migrateStudents(parsed.students)
+        : defaults.students;
 
       // Merge with defaults to ensure all fields exist
-      // Use default competitions/dances if stored is empty (to seed initial data)
+      // CRITICAL: Force use of initial classes and students to ensure IDs match
       return {
         ...defaults,
         ...parsed,
+        // FORCE initial classes - stored classes have old uuid IDs that don't match student classIds
+        classes: initialClasses,
         // Use migrated competitions
         competitions: migratedCompetitions,
         // Use migrated dances with costume data and dancerIds
         competitionDances: migratedDances,
-        // Use merged students
+        // FORCE initial students with correct classIds
         students,
       };
     }
@@ -201,14 +213,19 @@ function migrateCloudData(cloudData: AppData): AppData {
     : defaults.competitionDances;
   migratedDances = migrateCompetitionDancerIds(migratedDances);
 
-  // Merge students
-  const students = (cloudData.students?.length ?? 0) > 0 ? cloudData.students : defaults.students;
+  // Merge students - migrate to add new students and update classIds
+  const students = (cloudData.students?.length ?? 0) > 0
+    ? migrateStudents(cloudData.students!)
+    : defaults.students;
 
   return {
     ...defaults,
     ...cloudData,
+    // FORCE initial classes - stored classes have old uuid IDs that don't match student classIds
+    classes: initialClasses,
     competitions: migratedCompetitions,
     competitionDances: migratedDances,
+    // FORCE initial students with correct classIds
     students,
   };
 }

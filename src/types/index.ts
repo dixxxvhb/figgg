@@ -38,6 +38,7 @@ export interface Class {
   musicLinks: MusicLink[];
   studentIds?: string[]; // Enrolled students
   level?: 'beginner' | 'intermediate' | 'advanced'; // Class difficulty
+  competitionDanceId?: string; // For rehearsal classes - links to CompetitionDance for roster
 }
 
 export interface LiveNote {
@@ -213,6 +214,7 @@ export interface CalendarEvent {
   endTime: string;
   location?: string;
   description?: string;
+  linkedDanceIds?: string[]; // Competition dance IDs linked to this event for attendance
 }
 
 export interface AppSettings {

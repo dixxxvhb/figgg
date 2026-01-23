@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Calendar, MapPin, Clock, Trophy } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, MapPin, Clock, Trophy, Users } from 'lucide-react';
 import { format, addWeeks, startOfWeek, addDays, isWithinInterval, parseISO } from 'date-fns';
 import { useAppData } from '../hooks/useAppData';
 import { DayOfWeek, CalendarEvent } from '../types';
@@ -55,9 +55,20 @@ export function Schedule() {
     .filter(c => c.day === selectedDay)
     .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
 
-  // For weekends, we might have placeholder classes that we want to hide if we have calendar events
-  const showPlaceholderClasses = isWeekend && calendarEventsForDay.length === 0;
-  const displayClasses = isWeekend && calendarEventsForDay.length > 0 ? [] : dayClasses;
+  // Count students enrolled in each class (or dancers in competition dance for rehearsals)
+  const getStudentCount = (classId: string) => {
+    const cls = data.classes.find(c => c.id === classId);
+    // For rehearsal classes, count from competition dance
+    if (cls?.competitionDanceId) {
+      const dance = data.competitionDances?.find(d => d.id === cls.competitionDanceId);
+      return dance?.dancerIds?.length || 0;
+    }
+    // Regular classes - count from student enrollments
+    return (data.students || []).filter(s => s.classIds?.includes(classId)).length;
+  };
+
+  // Show all classes for the day (including weekend rehearsals)
+  const displayClasses = dayClasses;
 
   return (
     <div className="max-w-lg mx-auto px-4 py-6 pb-24">
@@ -204,8 +215,8 @@ export function Schedule() {
         </div>
       )}
 
-      {/* Weekend message when no calendar connected and no competitions */}
-      {isWeekend && calendarEventsForDay.length === 0 && competitionsForDay.length === 0 && !data.settings?.calendarUrl && (
+      {/* Weekend message when no calendar connected, no competitions, and no classes */}
+      {isWeekend && calendarEventsForDay.length === 0 && competitionsForDay.length === 0 && displayClasses.length === 0 && !data.settings?.calendarUrl && (
         <div className="bg-white rounded-xl p-6 mb-4 text-center border border-blush-200">
           <div className="w-12 h-12 bg-blush-100 rounded-full flex items-center justify-center mx-auto mb-3">
             <Calendar className="text-forest-500" size={24} />
@@ -228,6 +239,7 @@ export function Schedule() {
         ) : displayClasses.length === 0 ? null : (
           displayClasses.map(cls => {
             const studio = getStudio(cls.studioId);
+            const studentCount = getStudentCount(cls.id);
             return (
               <Link
                 key={cls.id}
@@ -240,7 +252,15 @@ export function Schedule() {
                     style={{ backgroundColor: studio?.color || '#9ca3af' }}
                   />
                   <div className="flex-1">
-                    <div className="font-medium text-forest-700">{cls.name}</div>
+                    <div className="flex items-center justify-between">
+                      <div className="font-medium text-forest-700">{cls.name}</div>
+                      {studentCount > 0 && (
+                        <div className="flex items-center gap-1 text-sm text-forest-500 bg-forest-50 px-2 py-0.5 rounded-full">
+                          <Users size={14} />
+                          <span>{studentCount}</span>
+                        </div>
+                      )}
+                    </div>
                     <div className="text-sm text-forest-400 mt-1">
                       {formatTimeDisplay(cls.startTime)} - {formatTimeDisplay(cls.endTime)}
                     </div>

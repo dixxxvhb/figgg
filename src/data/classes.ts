@@ -1,10 +1,9 @@
 import { Class } from '../types';
-import { v4 as uuid } from 'uuid';
 
 export const initialClasses: Class[] = [
   // MONDAY - Arts with Heart
   {
-    id: uuid(),
+    id: 'class-awh-mon-0930',
     name: 'Beginner/Intermediate Lyrical',
     day: 'monday',
     startTime: '09:30',
@@ -14,7 +13,7 @@ export const initialClasses: Class[] = [
     choreographyNotes: '',
     curriculum: [
       {
-        id: uuid(),
+        id: 'cur-1-1',
         title: 'Warm-Up',
         items: [
           'Conditioning/small warm-up',
@@ -24,7 +23,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-1-2',
         title: 'Technique Focus',
         items: [
           'Chaîné turns: Head spotting, sharper arms',
@@ -35,7 +34,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-1-3',
         title: 'Across the Floor',
         items: [
           'Chassé → passé jump',
@@ -45,7 +44,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-1-4',
         title: 'Combo/Creative',
         items: ['BREATH combo', 'Improv'],
       },
@@ -53,7 +52,7 @@ export const initialClasses: Class[] = [
     musicLinks: [],
   },
   {
-    id: uuid(),
+    id: 'class-awh-mon-1030',
     name: 'Theater Dance',
     day: 'monday',
     startTime: '10:30',
@@ -63,7 +62,7 @@ export const initialClasses: Class[] = [
     choreographyNotes: '',
     curriculum: [
       {
-        id: uuid(),
+        id: 'cur-2-1',
         title: 'Center Warm-Up',
         items: [
           'Chassé',
@@ -74,7 +73,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-2-2',
         title: 'Technique',
         items: ['Pas de bourrée', 'Pirouettes', 'Battements'],
       },
@@ -82,7 +81,7 @@ export const initialClasses: Class[] = [
     musicLinks: [],
   },
   {
-    id: uuid(),
+    id: 'class-awh-mon-1130',
     name: 'Beginner/Intermediate Ballet',
     day: 'monday',
     startTime: '11:30',
@@ -92,7 +91,7 @@ export const initialClasses: Class[] = [
     choreographyNotes: '',
     curriculum: [
       {
-        id: uuid(),
+        id: 'cur-3-1',
         title: 'Floor Barre',
         items: [
           'Pliés',
@@ -104,7 +103,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-3-2',
         title: 'Standing/Center',
         items: [
           'Tendu back, front, and passé',
@@ -120,7 +119,7 @@ export const initialClasses: Class[] = [
 
   // TUESDAY - Arts with Heart (Morning)
   {
-    id: uuid(),
+    id: 'class-awh-tue-0930',
     name: 'Beginner Lyrical',
     day: 'tuesday',
     startTime: '09:30',
@@ -130,7 +129,7 @@ export const initialClasses: Class[] = [
     choreographyNotes: '',
     curriculum: [
       {
-        id: uuid(),
+        id: 'cur-4-1',
         title: 'Warm-Up',
         items: [
           'Sun salutations: 8 total (4 slow, 3 fast, 1 really slow)',
@@ -140,7 +139,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-4-2',
         title: 'Technique',
         items: [
           'Chaîné → roll',
@@ -155,7 +154,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-4-3',
         title: 'Small Across the Floor Combo',
         items: [
           'Chassé → step → leap → down and out → push back through second → candlestick → push forward → roll back onto knees → back roll → stand up',
@@ -165,7 +164,7 @@ export const initialClasses: Class[] = [
     musicLinks: [],
   },
   {
-    id: uuid(),
+    id: 'class-awh-tue-1015',
     name: 'Beginner Ballet',
     day: 'tuesday',
     startTime: '10:15',
@@ -175,7 +174,7 @@ export const initialClasses: Class[] = [
     choreographyNotes: '',
     curriculum: [
       {
-        id: uuid(),
+        id: 'cur-5-1',
         title: 'Barre (One Hand)',
         items: [
           'Pliés: Introduce fourth position, relevé balance',
@@ -187,12 +186,12 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-5-2',
         title: 'Floor Stretch',
         items: ['Small standing stretch', 'Floor stretch after grand battement'],
       },
       {
-        id: uuid(),
+        id: 'cur-5-3',
         title: 'Center',
         items: [
           'Tendu back and forward',
@@ -205,7 +204,7 @@ export const initialClasses: Class[] = [
     musicLinks: [],
   },
   {
-    id: uuid(),
+    id: 'class-awh-tue-1115',
     name: 'Intermediate/Advanced Lyrical',
     day: 'tuesday',
     startTime: '11:15',
@@ -215,12 +214,12 @@ export const initialClasses: Class[] = [
     choreographyNotes: '',
     curriculum: [
       {
-        id: uuid(),
+        id: 'cur-6-1',
         title: 'Warm-Up/Stretch',
         items: ['Stretch', 'Back leg/hip work (hands and knees, down dog)'],
       },
       {
-        id: uuid(),
+        id: 'cur-6-2',
         title: 'Strength & Flexibility',
         items: [
           'Penché exercises',
@@ -230,7 +229,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-6-3',
         title: 'Turns',
         items: [
           'Piqué fouetté',
@@ -238,12 +237,12 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-6-4',
         title: 'Leaps',
         items: ['Switch leaps'],
       },
       {
-        id: uuid(),
+        id: 'cur-6-5',
         title: 'Acro',
         items: ['Acro skills (if time)'],
       },
@@ -251,7 +250,7 @@ export const initialClasses: Class[] = [
     musicLinks: [],
   },
   {
-    id: uuid(),
+    id: 'class-awh-tue-1200',
     name: 'Intermediate/Advanced Ballet',
     day: 'tuesday',
     startTime: '12:00',
@@ -261,7 +260,7 @@ export const initialClasses: Class[] = [
     choreographyNotes: '',
     curriculum: [
       {
-        id: uuid(),
+        id: 'cur-7-1',
         title: 'Barre - Pliés',
         items: [
           'Slow, luscious with full stretch at end',
@@ -269,7 +268,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-7-2',
         title: 'Barre - Tendu from First',
         items: [
           'Plié → extend → pull in (for 2) → slide to second → stretch → pull in straight legs',
@@ -282,7 +281,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-7-3',
         title: 'Barre - Tendu from Fifth',
         items: [
           'Front, front, piqué piqué piqué, swing',
@@ -294,7 +293,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-7-4',
         title: 'Barre - Dégagé',
         items: [
           '1-2-3 hold, 1-2-3 and out, 1 and in, down and change',
@@ -309,7 +308,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-7-5',
         title: 'Barre - Rond de Jambe',
         items: [
           '1, 2, triplet',
@@ -325,7 +324,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-7-6',
         title: 'Barre - Frappé',
         items: [
           'Prepare side',
@@ -338,7 +337,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-7-7',
         title: 'Barre - Grand Battement',
         items: [
           '1 battement, small piqué UP close',
@@ -347,7 +346,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-7-8',
         title: 'Center - Small Jumps',
         items: [
           'First, first, first, balance',
@@ -361,7 +360,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-7-9',
         title: 'Center - Jumps with Beats',
         items: [
           'Second beat behind',
@@ -374,7 +373,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-7-10',
         title: 'Turns Across Floor',
         items: [
           'Piqué, piqué',
@@ -385,7 +384,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-7-11',
         title: 'Grand Allégro',
         items: [
           'Piqué turn → développé écarté → tombé pas de bourrée → précipité → step jeté attitude → cut → piqué arabesque → chassé → (1) cabriole → chassé → tour jeté → assemblé',
@@ -399,7 +398,7 @@ export const initialClasses: Class[] = [
 
   // TUESDAY - Celebration Arts Academy (Afternoon/Evening)
   {
-    id: uuid(),
+    id: 'class-caa-tue-1550',
     name: 'Jazz 1',
     day: 'tuesday',
     startTime: '15:50',
@@ -409,22 +408,22 @@ export const initialClasses: Class[] = [
     choreographyNotes: 'Starting straight line with poses and some together stuff. Walking section with some solos. Go from there.',
     curriculum: [
       {
-        id: uuid(),
+        id: 'cur-8-1',
         title: 'Warm-Up',
         items: ['Jump power and strength', 'Down dog hips', 'Second position strength'],
       },
       {
-        id: uuid(),
+        id: 'cur-8-2',
         title: 'Abs',
         items: ['Leg beats in banana position', 'Roll up and down'],
       },
       {
-        id: uuid(),
+        id: 'cur-8-3',
         title: 'Stretch',
         items: ['Finding second', 'Back strength', 'Active stretching/strength building'],
       },
       {
-        id: uuid(),
+        id: 'cur-8-4',
         title: 'Center',
         items: [
           'Battement/holds/leg turns',
@@ -432,7 +431,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-8-5',
         title: 'Across the Floor',
         items: [
           'Piqué fouetté',
@@ -447,7 +446,7 @@ export const initialClasses: Class[] = [
     musicLinks: [],
   },
   {
-    id: uuid(),
+    id: 'class-caa-tue-1650',
     name: 'Ballet 10+',
     day: 'tuesday',
     startTime: '16:50',
@@ -457,12 +456,12 @@ export const initialClasses: Class[] = [
     choreographyNotes: 'Entering in two groups. Center work: call and response, back and forth. "Love love me, love love me". "I\'ve been trying for so long" – start some crosses.',
     curriculum: [
       {
-        id: uuid(),
+        id: 'cur-9-1',
         title: 'Barre - Pliés',
         items: ['With balance', 'Full stretch at end'],
       },
       {
-        id: uuid(),
+        id: 'cur-9-2',
         title: 'Barre - Tendu from First',
         items: [
           'Half, full, half, close → point, flex, point, close (en croix)',
@@ -472,7 +471,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-9-3',
         title: 'Barre - Tendu from Fifth',
         items: [
           'Out, in, up, down (en croix)',
@@ -481,17 +480,17 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-9-4',
         title: 'Barre - Tendu Piqué',
         items: ['Piqué up, down (each position)', 'Add relevé', 'Passé balance'],
       },
       {
-        id: uuid(),
+        id: 'cur-9-5',
         title: 'Barre - Dégagé (Both Hands)',
         items: ['First (4x), fifth (4x), first (4x)', 'Small jump, small jump'],
       },
       {
-        id: uuid(),
+        id: 'cur-9-6',
         title: 'Barre - Dégagé (One Hand, Fifth)',
         items: [
           'Slow and tight all the way around',
@@ -499,12 +498,12 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-9-7',
         title: 'Barre - Rond de Jambe (Facing Mirror)',
         items: ['Tendu front and around → lift to arabesque', 'Introduce attitude'],
       },
       {
-        id: uuid(),
+        id: 'cur-9-8',
         title: 'Center - Adagio from Fifth',
         items: [
           'Coupé → lift to passé → promenade',
@@ -513,7 +512,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-9-9',
         title: 'Center - Tendu from Fifth',
         items: [
           '4 back, 4 forward',
@@ -524,12 +523,12 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-9-10',
         title: 'Across the Floor',
         items: ['Chaîné → piqué', 'Pas de chat, sauté de chat', 'ASSEMBLÉ (We did it!)'],
       },
       {
-        id: uuid(),
+        id: 'cur-9-11',
         title: 'New Concepts to Introduce',
         items: [
           'Sous-sus',
@@ -546,7 +545,7 @@ export const initialClasses: Class[] = [
     musicLinks: [],
   },
   {
-    id: uuid(),
+    id: 'class-caa-tue-1750',
     name: 'Jazz 10+',
     day: 'tuesday',
     startTime: '17:50',
@@ -556,12 +555,12 @@ export const initialClasses: Class[] = [
     choreographyNotes: 'Everyone out starting with claps and unison. Simple technique skills. Maybe one line at a time. Some unison, start small. Don\'t move until "OOOOOO I CAN TAKE IT".',
     curriculum: [
       {
-        id: uuid(),
+        id: 'cur-10-1',
         title: 'Warm-Up',
         items: ['Hands and knees pulses (back and side)', 'Down dog balances'],
       },
       {
-        id: uuid(),
+        id: 'cur-10-2',
         title: 'Across the Floor Warm-Up',
         items: [
           'Squat hops (forward and backward)',
@@ -571,7 +570,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-10-3',
         title: 'Center',
         items: [
           'Pirouettes: Quarter → half → full → single → double',
@@ -587,7 +586,7 @@ export const initialClasses: Class[] = [
     musicLinks: [],
   },
   {
-    id: uuid(),
+    id: 'class-caa-tue-1850',
     name: 'Ballet 2/3',
     day: 'tuesday',
     startTime: '18:50',
@@ -599,7 +598,7 @@ export const initialClasses: Class[] = [
     musicLinks: [],
   },
   {
-    id: uuid(),
+    id: 'class-caa-tue-1950',
     name: 'Jazz 2/3',
     day: 'tuesday',
     startTime: '19:50',
@@ -609,12 +608,12 @@ export const initialClasses: Class[] = [
     choreographyNotes: '',
     curriculum: [
       {
-        id: uuid(),
+        id: 'cur-12-1',
         title: 'Warm-Up - Across the Floor',
         items: ['Cardio heavy', 'Tinsica prep', 'Handstand walks/whack'],
       },
       {
-        id: uuid(),
+        id: 'cur-12-2',
         title: 'Warm-Up - Floor',
         items: [
           'Hands and knees leg pulses',
@@ -624,36 +623,36 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-12-3',
         title: 'Abs',
         items: ['Ridiculous (challenging)'],
       },
       {
-        id: uuid(),
+        id: 'cur-12-4',
         title: 'Center',
         items: ['Pas de bourrée center combo'],
       },
       {
-        id: uuid(),
+        id: 'cur-12-5',
         title: 'Across the Floor',
         items: ['Pas de bourrée with direction changes (fun, boppy)'],
       },
       {
-        id: uuid(),
+        id: 'cur-12-6',
         title: 'Combo 1',
         items: [
           'Axel → double turn → illusion → tilt to floor → over to plank → pull it in → penché → roll',
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-12-7',
         title: 'Combo 2',
         items: [
           'Step → battement (front, side, back) → chassé → fouetté to penché → hands hop across → layout → step left leap → développé tilt → coupé jump → floor → stand up → back attitude plié → whack → assemblé jump',
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-12-8',
         title: 'Combo 3',
         items: [
           'Piqué double → piqué low and turning leap → piqué around the world (two backwards) → low and turning switch',
@@ -665,7 +664,7 @@ export const initialClasses: Class[] = [
 
   // WEDNESDAY - Celebration Arts Academy
   {
-    id: uuid(),
+    id: 'class-caa-wed-1845',
     name: 'Contemporary 2',
     day: 'wednesday',
     startTime: '18:45',
@@ -675,24 +674,24 @@ export const initialClasses: Class[] = [
     choreographyNotes: '',
     curriculum: [
       {
-        id: uuid(),
+        id: 'cur-13-1',
         title: 'Floor Warm-Up',
         items: ['Night Air music'],
       },
       {
-        id: uuid(),
+        id: 'cur-13-2',
         title: 'Center Back and Flow Work/Stretch',
         items: [],
       },
       {
-        id: uuid(),
+        id: 'cur-13-3',
         title: 'Parallel Plié Sequence',
         items: [
           'Circle and contract → open, close, lift → spread side → plié → arms front → reach, reach, down and up → slice down, circle around → open, close, open, close, open, close with spin → reset other side',
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-13-4',
         title: 'Plié (Fancy Arms)',
         items: [
           'Balances and lots of deep legs',
@@ -705,19 +704,19 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-13-5',
         title: 'Tendu',
         items: ['Under/over curves'],
       },
       {
-        id: uuid(),
+        id: 'cur-13-6',
         title: 'Dégagé/Rond de Jambe (Combined)',
         items: [
           'Dégagés with arms → lift, sit → inside rond → lift, sit, inside rond → up, up, down → rond, rond, rond → spin → reset',
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-13-7',
         title: 'Across the Floor',
         items: [
           'Prances slow (for feet) / small jumps',
@@ -728,7 +727,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-13-8',
         title: 'Center Combo (If Time)',
         items: [],
       },
@@ -736,7 +735,7 @@ export const initialClasses: Class[] = [
     musicLinks: [],
   },
   {
-    id: uuid(),
+    id: 'class-caa-wed-1950',
     name: 'Contemporary 1',
     day: 'wednesday',
     startTime: '19:50',
@@ -746,7 +745,7 @@ export const initialClasses: Class[] = [
     choreographyNotes: '',
     curriculum: [
       {
-        id: uuid(),
+        id: 'cur-14-1',
         title: 'Warm-Up',
         items: [
           'Night Air music',
@@ -756,7 +755,7 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-14-2',
         title: 'Across the Floor',
         items: [
           'Jumps for the feet',
@@ -768,17 +767,17 @@ export const initialClasses: Class[] = [
         ],
       },
       {
-        id: uuid(),
+        id: 'cur-14-3',
         title: '"Contempify" (Adding Contemporary Quality)',
         items: ['Piqué fouetté', 'Step battement', 'Waltz'],
       },
       {
-        id: uuid(),
+        id: 'cur-14-4',
         title: 'Partner Improv',
         items: ['"Go this way"', 'Support system'],
       },
       {
-        id: uuid(),
+        id: 'cur-14-5',
         title: 'Group Improv',
         items: [],
       },
@@ -786,9 +785,9 @@ export const initialClasses: Class[] = [
     musicLinks: [],
   },
 
-  // THURSDAY - Starbound Performers
+  // THURSDAY - Starbound Performers (Competition Team Rehearsal)
   {
-    id: uuid(),
+    id: 'class-starbound-thu-1730',
     name: 'Acro & Competition Prep',
     day: 'thursday',
     startTime: '17:30',
@@ -800,7 +799,6 @@ export const initialClasses: Class[] = [
     musicLinks: [],
   },
 
-  // SATURDAY & SUNDAY - Competition Days (schedule comes from calendar sync)
 ];
 
 export function getClassesByDay(classes: Class[], day: string): Class[] {
