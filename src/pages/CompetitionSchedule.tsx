@@ -240,10 +240,11 @@ export function CompetitionSchedule() {
                                 </span>
                               </div>
                             </div>
-                            <div className="text-right ml-3">
-                              <div className="text-lg font-bold text-gray-900">{entry.scheduledTime}</div>
-                              <div className="text-xs text-amber-600 font-medium mt-0.5">
-                                Call: {entry.callTime}
+                            <div className="text-right ml-3 flex flex-col items-end gap-1">
+                              <div className="text-sm text-gray-500">Show: {entry.scheduledTime}</div>
+                              <div className="bg-amber-500 text-white px-3 py-1.5 rounded-lg">
+                                <div className="text-[10px] uppercase tracking-wide opacity-90">Call Time</div>
+                                <div className="text-lg font-bold -mt-0.5">{entry.callTime}</div>
                               </div>
                             </div>
                           </div>
@@ -282,15 +283,14 @@ export function CompetitionSchedule() {
                     .map(dancer => (
                       <div key={dancer.name} className="flex items-center justify-between px-4 py-3">
                         <div>
-                          <div className="font-medium text-gray-900">{dancer.name}</div>
-                          <div className="text-xs text-gray-500">
-                            First: {dancer.dates[date].firstDance}
+                          <div className="font-semibold text-gray-900 text-lg">{dancer.name}</div>
+                          <div className="text-sm text-gray-500">
+                            First dance: {dancer.dates[date].firstDance}
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-lg font-bold text-amber-600">
-                            {dancer.dates[date].callTime}
-                          </div>
+                        <div className="bg-amber-500 text-white px-4 py-2 rounded-lg text-center">
+                          <div className="text-[10px] uppercase tracking-wide opacity-90">Call</div>
+                          <div className="text-xl font-bold -mt-0.5">{dancer.dates[date].callTime}</div>
                         </div>
                       </div>
                     ))}

@@ -150,6 +150,19 @@ export function useAppData() {
     setData(loadData());
   }, []);
 
+  // Listen for cloud sync events and refresh data automatically
+  useEffect(() => {
+    const handleCloudSync = () => {
+      setData(loadData());
+    };
+
+    window.addEventListener('cloud-sync-complete', handleCloudSync);
+
+    return () => {
+      window.removeEventListener('cloud-sync-complete', handleCloudSync);
+    };
+  }, []);
+
   // Student management
   const addStudent = useCallback((studentData: Omit<Student, 'id' | 'createdAt' | 'skillNotes'>) => {
     const newStudent: Student = {
