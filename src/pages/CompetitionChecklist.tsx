@@ -61,24 +61,6 @@ export function CompetitionChecklist() {
     return getScheduleForCompetition(competitionId);
   }, [competitionId]);
 
-  // Group schedule by date
-  const scheduleByDate = useMemo(() => {
-    const grouped: Record<string, typeof schedule> = {};
-    schedule.forEach(entry => {
-      if (!grouped[entry.performanceDate]) {
-        grouped[entry.performanceDate] = [];
-      }
-      grouped[entry.performanceDate].push(entry);
-    });
-    // Sort each day's entries by entry number
-    Object.keys(grouped).forEach(date => {
-      grouped[date].sort((a, b) => a.entryNumber - b.entryNumber);
-    });
-    return grouped;
-  }, [schedule]);
-
-  const scheduleDates = Object.keys(scheduleByDate).sort();
-
   // Get schedule entry for a specific dance
   const getScheduleForDance = (danceId: string) => {
     return schedule.find(entry => entry.danceId === danceId);
@@ -237,65 +219,18 @@ export function CompetitionChecklist() {
         </div>
       </div>
 
-      {/* Schedule Section - If schedule data exists */}
+      {/* Link to Schedule */}
       {schedule.length > 0 && (
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-3">
+        <Link
+          to={`/competition/${competitionId}/schedule`}
+          className="flex items-center justify-between bg-forest-50 rounded-xl border border-forest-200 p-4 mb-6 hover:bg-forest-100 transition-colors"
+        >
+          <div className="flex items-center gap-2">
             <Calendar size={18} className="text-forest-600" />
-            <h2 className="font-semibold text-gray-900">Performance Schedule</h2>
+            <span className="font-medium text-forest-700">View Performance Schedule</span>
           </div>
-
-          {scheduleDates.map(date => {
-            const dayEntries = scheduleByDate[date];
-            const earliestCallTime = dayEntries[0]?.callTime;
-
-            return (
-              <div key={date} className="bg-white rounded-xl border border-gray-200 mb-3 overflow-hidden">
-                <div className="bg-forest-50 px-4 py-2 border-b border-gray-200">
-                  <div className="font-medium text-forest-700">
-                    {format(parseISO(date), 'EEEE, MMMM d, yyyy')}
-                  </div>
-                  <div className="text-sm text-forest-600">
-                    Earliest call time: {earliestCallTime}
-                  </div>
-                </div>
-                <div className="divide-y divide-gray-100">
-                  {dayEntries.map(entry => {
-                    const dance = competitionDances.find(d => d.id === entry.danceId);
-                    return (
-                      <div key={entry.id} className="px-4 py-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-mono bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
-                                #{entry.entryNumber}
-                              </span>
-                              <span className="font-medium text-gray-900">
-                                {dance?.registrationName || entry.danceId}
-                              </span>
-                            </div>
-                            <div className="text-xs text-gray-500 mt-0.5">
-                              {entry.category} • {entry.style} • {entry.level}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-sm font-medium text-gray-900">{entry.scheduledTime}</div>
-                            <div className="text-xs text-amber-600 font-medium">Call: {entry.callTime}</div>
-                          </div>
-                        </div>
-                        {entry.dancers.length <= 4 && (
-                          <div className="text-xs text-gray-400 mt-1">
-                            {entry.dancers.join(', ')}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+          <ArrowLeft size={18} className="text-forest-500 rotate-180" />
+        </Link>
       )}
 
       {/* Progress Bar */}
