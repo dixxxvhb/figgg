@@ -1,16 +1,39 @@
-import { useState, useEffect, useCallback } from 'react';
-import { AppData, Class, WeekNotes, Project, Competition } from '../types';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { AppData, Class, WeekNotes, Project, Competition, CompetitionDance } from '../types';
 import { loadData, saveData, updateClass as saveClass, saveWeekNotes as persistWeekNotes } from '../services/storage';
 import { getWeekStart, formatWeekOf } from '../utils/time';
+import { fetchCalendarEvents } from '../services/calendar';
 import { v4 as uuid } from 'uuid';
+
+// Hardcoded Band calendar URL - this won't change
+const BAND_CALENDAR_URL = 'https://api.band.us/ical?token=aAAxADU0MWQxZTdiZjdhYWQwMmJlOTMxNmIyYWJjZjA4NTAwN2Q1ZWNlODYwZDg3YTZiODdjYmI4YmQ3ZmI4YmRmZWIAMQA1NjA4NTEyNQ';
 
 export function useAppData() {
   const [data, setData] = useState<AppData>(() => loadData());
+  const hasAutoSynced = useRef(false);
 
   // Save whenever data changes
   useEffect(() => {
     saveData(data);
   }, [data]);
+
+  // Auto-sync calendar on app load (always uses hardcoded Band calendar)
+  useEffect(() => {
+    if (hasAutoSynced.current) return;
+
+    hasAutoSynced.current = true;
+
+    // Sync calendar in the background
+    fetchCalendarEvents(BAND_CALENDAR_URL)
+      .then(events => {
+        if (events.length > 0) {
+          setData(prev => ({ ...prev, calendarEvents: events }));
+        }
+      })
+      .catch(err => {
+        console.error('Auto calendar sync failed:', err);
+      });
+  }, []);
 
   const updateClass = useCallback((updatedClass: Class) => {
     setData(prev => ({
@@ -104,6 +127,35 @@ export function useAppData() {
     }));
   }, []);
 
+  const updateCompetitionDance = useCallback((dance: CompetitionDance) => {
+    setData(prev => {
+      const dances = prev.competitionDances || [];
+      const index = dances.findIndex(d => d.id === dance.id);
+      if (index !== -1) {
+        const updated = [...dances];
+        updated[index] = dance;
+        return { ...prev, competitionDances: updated };
+      }
+      return { ...prev, competitionDances: [...dances, dance] };
+    });
+  }, []);
+
+  const deleteCompetitionDance = useCallback((danceId: string) => {
+    setData(prev => ({
+      ...prev,
+      competitionDances: (prev.competitionDances || []).filter(d => d.id !== danceId),
+    }));
+  }, []);
+
+  const updateStudio = useCallback((studioId: string, updates: Partial<{ address: string; coordinates: { lat: number; lng: number } }>) => {
+    setData(prev => ({
+      ...prev,
+      studios: prev.studios.map(s =>
+        s.id === studioId ? { ...s, ...updates } : s
+      ),
+    }));
+  }, []);
+
   const refreshData = useCallback(() => {
     setData(loadData());
   }, []);
@@ -120,6 +172,9 @@ export function useAppData() {
     deleteProject,
     updateCompetition,
     deleteCompetition,
+    updateCompetitionDance,
+    deleteCompetitionDance,
+    updateStudio,
     refreshData,
   };
 }

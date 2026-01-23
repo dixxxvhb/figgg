@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Lock } from 'lucide-react';
 import { authenticate } from '../services/storage';
 import { Button } from '../components/common/Button';
 
@@ -22,14 +21,23 @@ export function Login({ onSuccess }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center bg-forest-600 px-4">
+      {/* Decorative elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-20 left-10 w-32 h-32 bg-blush-200/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-20 right-10 w-40 h-40 bg-blush-200/10 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blush-200/5 rounded-full blur-3xl" />
+      </div>
+
+      <div className="w-full max-w-sm relative z-10">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-violet-100 rounded-full mb-4">
-            <Lock className="text-violet-600" size={28} />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Dance Notes</h1>
-          <p className="text-gray-500 mt-1">Enter your password to continue</p>
+          <img
+            src="/images/logo.png"
+            alt="DWD Collective"
+            className="w-32 h-32 mx-auto mb-4 object-contain"
+          />
+          <h1 className="text-3xl font-bold text-white">DWD Collective</h1>
+          <p className="text-blush-200/80 mt-2">Enter your password to continue</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -42,22 +50,26 @@ export function Login({ onSuccess }: LoginProps) {
                 setError(false);
               }}
               placeholder="Password"
-              className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent ${
-                error ? 'border-red-300 bg-red-50' : 'border-gray-300'
+              className={`w-full px-4 py-4 border-2 rounded-xl focus:ring-2 focus:ring-blush-200 focus:border-transparent bg-white/10 backdrop-blur text-white placeholder-blush-200/50 ${
+                error ? 'border-red-400 bg-red-500/10' : 'border-blush-200/30'
               }`}
               autoFocus
             />
             {error && (
-              <p className="text-red-500 text-sm mt-2">Incorrect password</p>
+              <p className="text-red-300 text-sm mt-2">Incorrect password</p>
             )}
           </div>
 
-          <Button type="submit" className="w-full" size="lg">
+          <Button
+            type="submit"
+            className="w-full bg-blush-200 hover:bg-blush-100 text-forest-700 font-semibold shadow-lg"
+            size="lg"
+          >
             Unlock
           </Button>
         </form>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
+        <p className="text-center text-xs text-blush-200/50 mt-6">
           Default password: dance2024
         </p>
       </div>

@@ -18,11 +18,11 @@ export function TodaySchedule({ classes, studios }: TodayScheduleProps) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200">
-      <div className="p-4 border-b border-gray-100">
-        <h3 className="font-semibold text-gray-900">Today's Schedule</h3>
+    <div className="bg-white rounded-xl border border-blush-200 shadow-sm">
+      <div className="p-4 border-b border-blush-100">
+        <h3 className="font-semibold text-forest-700">Today's Schedule</h3>
       </div>
-      <div className="divide-y divide-gray-100">
+      <div className="divide-y divide-blush-100">
         {classes.map(cls => {
           const studio = getStudio(cls.studioId);
           const startMinutes = timeToMinutes(cls.startTime);
@@ -34,32 +34,32 @@ export function TodaySchedule({ classes, studios }: TodayScheduleProps) {
             <Link
               key={cls.id}
               to={`/class/${cls.id}`}
-              className={`flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors ${
+              className={`flex items-center gap-4 p-4 hover:bg-blush-50 transition-colors ${
                 isPast ? 'opacity-50' : ''
               }`}
             >
               {/* Time */}
               <div className="w-20 text-sm">
-                <div className={isCurrent ? 'text-violet-600 font-medium' : 'text-gray-600'}>
+                <div className={isCurrent ? 'text-forest-600 font-medium' : 'text-forest-500'}>
                   {formatTimeDisplay(cls.startTime)}
                 </div>
-                <div className="text-gray-400">
+                <div className="text-forest-400">
                   {formatTimeDisplay(cls.endTime)}
                 </div>
               </div>
 
               {/* Studio Color Bar */}
               <div
-                className="w-1 h-12 rounded-full"
+                className="w-1.5 h-12 rounded-full"
                 style={{ backgroundColor: studio?.color || '#9ca3af' }}
               />
 
               {/* Class Info */}
               <div className="flex-1 min-w-0">
-                <div className={`font-medium truncate ${isCurrent ? 'text-violet-600' : 'text-gray-900'}`}>
+                <div className={`font-medium truncate ${isCurrent ? 'text-forest-600' : 'text-forest-700'}`}>
                   {cls.name}
                 </div>
-                <div className="text-sm text-gray-500 truncate">
+                <div className="text-sm text-forest-400 truncate">
                   {studio?.shortName}
                   {cls.recitalSong && ` · ${cls.recitalSong}`}
                 </div>
@@ -67,12 +67,12 @@ export function TodaySchedule({ classes, studios }: TodayScheduleProps) {
 
               {/* Status */}
               {isCurrent && (
-                <div className="bg-violet-100 text-violet-700 text-xs font-medium px-2 py-1 rounded-full">
+                <div className="bg-blush-200 text-forest-700 text-xs font-bold px-2 py-1 rounded-full">
                   NOW
                 </div>
               )}
               {isPast && (
-                <div className="text-gray-400 text-xs">Done</div>
+                <div className="text-forest-400 text-xs">Done</div>
               )}
             </Link>
           );

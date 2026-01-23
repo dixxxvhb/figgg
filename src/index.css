@@ -1,11 +1,53 @@
 @import "tailwindcss";
 
+@theme {
+  /* Forest greens */
+  --color-forest-50: #E8F0ED;
+  --color-forest-100: #D1E1DB;
+  --color-forest-200: #A3C3B7;
+  --color-forest-300: #75A593;
+  --color-forest-400: #47876F;
+  --color-forest-500: #2A5A47;
+  --color-forest-600: #1B3B2F;
+  --color-forest-700: #122820;
+  --color-forest-800: #0A1511;
+  --color-forest-900: #050A08;
+
+  /* Blush pinks */
+  --color-blush-50: #FFFFFF;
+  --color-blush-100: #FBF0F1;
+  --color-blush-200: #F2D4D7;
+  --color-blush-300: #E8B8BD;
+  --color-blush-400: #DE9CA3;
+  --color-blush-500: #D48089;
+  --color-blush-600: #CA646F;
+  --color-blush-700: #B84A56;
+  --color-blush-800: #923A44;
+  --color-blush-900: #6C2B32;
+
+  /* Studio colors */
+  --color-studio-awh: #E85D9C;
+  --color-studio-caa: #4A9B8C;
+  --color-studio-starbound: #D4A574;
+}
+
 :root {
-  --color-primary: #8b5cf6;
-  --color-primary-dark: #7c3aed;
-  --color-awh: #ec4899;
-  --color-caa: #3b82f6;
-  --color-starbound: #f59e0b;
+  /* DWD Collective Brand Colors */
+  --color-forest: #1B3B2F;
+  --color-forest-light: #2A5A47;
+  --color-forest-dark: #122820;
+  --color-blush: #F2D4D7;
+  --color-blush-dark: #E8B8BD;
+  --color-blush-light: #FBF0F1;
+
+  /* Studio Colors */
+  --color-awh: #E85D9C;
+  --color-caa: #4A9B8C;
+  --color-starbound: #D4A574;
+
+  /* Legacy mapping */
+  --color-primary: var(--color-forest);
+  --color-primary-dark: var(--color-forest-dark);
 }
 
 * {
@@ -17,9 +59,33 @@ body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-blush-light);
 }
 
 #root {
   min-height: 100vh;
   min-height: 100dvh;
+}
+
+/* Custom scrollbar for the elegant feel */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-blush-light);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-blush-dark);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-forest-light);
+}
+
+/* Safe area padding for mobile */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }

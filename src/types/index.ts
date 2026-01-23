@@ -52,12 +52,21 @@ export interface OrganizedNotes {
   choreographyProgress: string;
 }
 
+export interface MediaItem {
+  id: string;
+  type: 'image' | 'video';
+  url: string; // base64 data URL
+  timestamp: string;
+  name: string;
+}
+
 export interface ClassWeekNotes {
   classId: string;
   plan: string;
   liveNotes: LiveNote[];
   organizedNotes?: OrganizedNotes;
   isOrganized: boolean;
+  media?: MediaItem[];
 }
 
 export interface WeekNotes {
@@ -75,11 +84,34 @@ export interface Exercise {
   tags: string[];
 }
 
+export type TermCategory =
+  | 'ballet-positions'
+  | 'ballet-barre'
+  | 'ballet-center'
+  | 'ballet-jumps'
+  | 'ballet-turns'
+  | 'jazz'
+  | 'modern'
+  | 'contemporary'
+  | 'tap'
+  | 'hip-hop'
+  | 'acro'
+  | 'general'
+  | 'choreographer';
+
 export interface TerminologyEntry {
   id: string;
-  incorrect: string;
-  correct: string;
-  definition?: string;
+  term: string;
+  pronunciation?: string;
+  alternateSpellings?: string[];
+  definition: string;
+  category: TermCategory;
+  style?: string; // For choreographers: their primary style
+  notableWorks?: string[]; // For choreographers
+  era?: string; // For choreographers
+  // Legacy fields for backwards compatibility
+  incorrect?: string;
+  correct?: string;
 }
 
 export interface Project {
@@ -95,10 +127,44 @@ export interface Project {
 export interface Competition {
   id: string;
   name: string;
-  date: string; // ISO date
+  date: string; // ISO date (start)
+  endDate?: string; // ISO date (end)
   location: string;
-  dances: string[];
+  address?: string;
+  dances: string[]; // IDs of CompetitionDance
   notes: string;
+  website?: string;
+}
+
+export type DanceCategory = 'production' | 'large-group' | 'small-group' | 'trio' | 'duet' | 'solo';
+export type DanceStyle = 'jazz' | 'contemporary' | 'lyrical' | 'musical-theatre' | 'tap' | 'hip-hop' | 'acro' | 'open';
+export type DanceLevel = 'beginner' | 'intermediate' | 'advanced';
+
+export interface CompetitionDance {
+  id: string;
+  registrationName: string; // Name used for registration
+  songTitle: string;
+  style: DanceStyle;
+  category: DanceCategory;
+  level: DanceLevel;
+  choreographers: string[];
+  dancers: string[];
+  duration: string; // "2:24"
+  startPosition: string; // "on stage" or "off stage"
+  props: string;
+  studioId: string; // Which studio this dance belongs to
+  notes: string;
+  media: MediaItem[];
+  // Weekly rehearsal tracking
+  rehearsalNotes: RehearsalNote[];
+}
+
+export interface RehearsalNote {
+  id: string;
+  date: string; // ISO date
+  notes: string;
+  workOn: string[]; // Things to work on next week
+  media: MediaItem[];
 }
 
 export interface CalendarEvent {
@@ -124,6 +190,7 @@ export interface AppData {
   terminology: TerminologyEntry[];
   projects: Project[];
   competitions: Competition[];
+  competitionDances: CompetitionDance[];
   calendarEvents: CalendarEvent[];
   settings: AppSettings;
 }

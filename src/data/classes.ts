@@ -800,45 +800,7 @@ export const initialClasses: Class[] = [
     musicLinks: [],
   },
 
-  // FRIDAY - Starbound Performers
-  {
-    id: uuid(),
-    name: 'Competition Rehearsal',
-    day: 'friday',
-    startTime: '16:30',
-    endTime: '19:30',
-    studioId: 'starbound',
-    recitalSong: '',
-    choreographyNotes: 'Schedule changes weekly. Mostly cleaning competition dances. Choreographing personal pieces.',
-    curriculum: [],
-    musicLinks: [],
-  },
-
-  // SATURDAY & SUNDAY - Competition Days
-  {
-    id: uuid(),
-    name: 'Competition Rehearsal',
-    day: 'saturday',
-    startTime: '09:00',
-    endTime: '17:00',
-    studioId: 'starbound',
-    recitalSong: '',
-    choreographyNotes: 'Schedule changes weekly.',
-    curriculum: [],
-    musicLinks: [],
-  },
-  {
-    id: uuid(),
-    name: 'Competition Rehearsal',
-    day: 'sunday',
-    startTime: '09:00',
-    endTime: '17:00',
-    studioId: 'starbound',
-    recitalSong: '',
-    choreographyNotes: 'Schedule changes weekly.',
-    curriculum: [],
-    musicLinks: [],
-  },
+  // SATURDAY & SUNDAY - Competition Days (schedule comes from calendar sync)
 ];
 
 export function getClassesByDay(classes: Class[], day: string): Class[] {

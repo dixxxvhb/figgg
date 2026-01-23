@@ -1,16 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Tag, Clock, CheckCircle, Lightbulb, AlertCircle, Music2 } from 'lucide-react';
+import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, Music2, Camera, Video, X, Image, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAppData } from '../hooks/useAppData';
 import { LiveNote, ClassWeekNotes } from '../types';
-import { formatTimeDisplay, getWeekStart, formatWeekOf, getCurrentTimeMinutes, timeToMinutes, getMinutesRemaining } from '../utils/time';
-import { Button } from '../components/common/Button';
+import { formatTimeDisplay, getCurrentTimeMinutes, getMinutesRemaining } from '../utils/time';
 import { v4 as uuid } from 'uuid';
 
 const QUICK_TAGS = [
-  { id: 'covered', label: 'Covered', icon: CheckCircle, color: 'bg-green-100 text-green-700' },
-  { id: 'observation', label: 'Student Note', icon: Lightbulb, color: 'bg-yellow-100 text-yellow-700' },
+  { id: 'covered', label: 'Covered', icon: CheckCircle, color: 'bg-forest-100 text-forest-700' },
+  { id: 'observation', label: 'Student Note', icon: Lightbulb, color: 'bg-blush-200 text-blush-700' },
   { id: 'reminder', label: 'Next Week', icon: AlertCircle, color: 'bg-blue-100 text-blue-700' },
   { id: 'choreography', label: 'Choreo', icon: Music2, color: 'bg-purple-100 text-purple-700' },
 ];
@@ -19,6 +18,7 @@ export function LiveNotes() {
   const { classId } = useParams<{ classId: string }>();
   const navigate = useNavigate();
   const { data, getCurrentWeekNotes, saveWeekNotes } = useAppData();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const cls = data.classes.find(c => c.id === classId);
   const studio = cls ? data.studios.find(s => s.id === cls.studioId) : null;
@@ -34,6 +34,7 @@ export function LiveNotes() {
     plan: '',
     liveNotes: [],
     isOrganized: false,
+    media: [],
   };
 
   // Update time remaining
@@ -53,8 +54,8 @@ export function LiveNotes() {
   if (!cls) {
     return (
       <div className="max-w-lg mx-auto px-4 py-6">
-        <p>Class not found</p>
-        <Link to="/schedule" className="text-violet-600">Back to schedule</Link>
+        <p className="text-forest-600">Class not found</p>
+        <Link to="/schedule" className="text-forest-500 hover:text-forest-600">Back to schedule</Link>
       </div>
     );
   }
@@ -94,6 +95,65 @@ export function LiveNotes() {
     }
   };
 
+  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        const mediaItem = {
+          id: uuid(),
+          type: file.type.startsWith('video/') ? 'video' as const : 'image' as const,
+          url: dataUrl,
+          timestamp: new Date().toISOString(),
+          name: file.name,
+        };
+
+        const updatedClassNotes: ClassWeekNotes = {
+          ...classNotes,
+          media: [...(classNotes.media || []), mediaItem],
+        };
+
+        const updatedWeekNotes = {
+          ...weekNotes,
+          classNotes: {
+            ...weekNotes.classNotes,
+            [classId || '']: updatedClassNotes,
+          },
+        };
+
+        setWeekNotes(updatedWeekNotes);
+        saveWeekNotes(updatedWeekNotes);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Clear the input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const deleteMedia = (mediaId: string) => {
+    const updatedClassNotes: ClassWeekNotes = {
+      ...classNotes,
+      media: (classNotes.media || []).filter(m => m.id !== mediaId),
+    };
+
+    const updatedWeekNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [classId || '']: updatedClassNotes,
+      },
+    };
+
+    setWeekNotes(updatedWeekNotes);
+    saveWeekNotes(updatedWeekNotes);
+  };
+
   const deleteNote = (noteId: string) => {
     const updatedClassNotes: ClassWeekNotes = {
       ...classNotes,
@@ -113,7 +173,6 @@ export function LiveNotes() {
   };
 
   const endClass = () => {
-    // Mark as organized and navigate back
     const updatedClassNotes: ClassWeekNotes = {
       ...classNotes,
       isOrganized: true,
@@ -132,26 +191,23 @@ export function LiveNotes() {
   };
 
   return (
-    <div className="flex flex-col h-screen max-h-screen">
+    <div className="flex flex-col h-screen max-h-screen bg-blush-100">
       {/* Header */}
-      <div
-        className="px-4 py-3 text-white"
-        style={{ backgroundColor: studio?.color || '#8b5cf6' }}
-      >
+      <div className="px-4 py-3 bg-forest-600 text-white">
         <div className="flex items-center justify-between max-w-lg mx-auto">
           <div className="flex items-center gap-3">
-            <Link to={`/class/${classId}`} className="p-1">
+            <Link to={`/class/${classId}`} className="p-1 hover:bg-forest-500 rounded-lg transition-colors">
               <ArrowLeft size={20} />
             </Link>
             <div>
               <div className="font-semibold">{cls.name}</div>
-              <div className="text-sm opacity-80">
+              <div className="text-sm text-blush-200">
                 {formatTimeDisplay(cls.startTime)} - {formatTimeDisplay(cls.endTime)}
               </div>
             </div>
           </div>
           {timeRemaining !== null && timeRemaining > 0 && (
-            <div className="flex items-center gap-1 bg-white/20 px-3 py-1 rounded-full">
+            <div className="flex items-center gap-1 bg-blush-200 text-forest-700 px-3 py-1 rounded-full">
               <Clock size={14} />
               <span className="text-sm font-medium">{timeRemaining}m left</span>
             </div>
@@ -161,8 +217,41 @@ export function LiveNotes() {
 
       {/* Notes List */}
       <div className="flex-1 overflow-y-auto p-4 max-w-lg mx-auto w-full">
-        {classNotes.liveNotes.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
+        {/* Media Gallery */}
+        {classNotes.media && classNotes.media.length > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center gap-2 text-sm text-forest-500 mb-2">
+              <Image size={14} />
+              <span>Photos & Videos</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {classNotes.media.map(item => (
+                <div key={item.id} className="relative aspect-square rounded-xl overflow-hidden bg-white border border-blush-200">
+                  {item.type === 'image' ? (
+                    <img src={item.url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <video src={item.url} className="w-full h-full object-cover" />
+                  )}
+                  <button
+                    onClick={() => deleteMedia(item.id)}
+                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                  >
+                    <X size={12} />
+                  </button>
+                  {item.type === 'video' && (
+                    <div className="absolute bottom-1 left-1 bg-black/50 text-white px-1.5 py-0.5 rounded text-xs">
+                      <Video size={10} className="inline mr-1" />
+                      Video
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {classNotes.liveNotes.length === 0 && (!classNotes.media || classNotes.media.length === 0) ? (
+          <div className="text-center py-12 text-forest-400">
             <p>No notes yet</p>
             <p className="text-sm mt-1">Start typing below to add notes</p>
           </div>
@@ -173,7 +262,7 @@ export function LiveNotes() {
               return (
                 <div
                   key={note.id}
-                  className="bg-white rounded-xl border border-gray-200 p-4"
+                  className="bg-white rounded-xl border border-blush-200 p-4 shadow-sm group relative"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
@@ -183,10 +272,19 @@ export function LiveNotes() {
                           {tag.label}
                         </span>
                       )}
-                      <p className="text-gray-900">{note.text}</p>
+                      <p className="text-forest-700">{note.text}</p>
                     </div>
-                    <div className="text-xs text-gray-400">
-                      {format(new Date(note.timestamp), 'h:mm a')}
+                    <div className="flex items-start gap-2">
+                      <div className="text-xs text-forest-400">
+                        {format(new Date(note.timestamp), 'h:mm a')}
+                      </div>
+                      <button
+                        onClick={() => deleteNote(note.id)}
+                        className="p-1 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Delete note"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -197,7 +295,7 @@ export function LiveNotes() {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-gray-200 bg-white p-4 pb-safe">
+      <div className="border-t border-blush-200 bg-white p-4 pb-safe">
         <div className="max-w-lg mx-auto">
           {/* Quick Tags */}
           <div className="flex gap-2 mb-3 overflow-x-auto pb-2">
@@ -205,10 +303,10 @@ export function LiveNotes() {
               <button
                 key={tag.id}
                 onClick={() => setSelectedTag(selectedTag === tag.id ? undefined : tag.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-all ${
                   selectedTag === tag.id
-                    ? tag.color
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? tag.color + ' shadow-sm'
+                    : 'bg-blush-100 text-forest-600 hover:bg-blush-200'
                 }`}
               >
                 <tag.icon size={14} />
@@ -225,12 +323,29 @@ export function LiveNotes() {
               onChange={(e) => setNoteText(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Add a note..."
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+              className="flex-1 px-4 py-3 border border-blush-200 rounded-xl focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-blush-50"
             />
+
+            {/* Media Upload Button */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              onChange={handleMediaUpload}
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="px-3 py-3 bg-blush-100 text-forest-600 rounded-xl hover:bg-blush-200 transition-colors"
+            >
+              <Camera size={20} />
+            </button>
+
             <button
               onClick={addNote}
               disabled={!noteText.trim()}
-              className="px-4 py-3 bg-violet-600 text-white rounded-xl disabled:opacity-50"
+              className="px-4 py-3 bg-forest-600 text-white rounded-xl disabled:opacity-50 hover:bg-forest-500 transition-colors"
             >
               <Send size={20} />
             </button>
@@ -239,7 +354,7 @@ export function LiveNotes() {
           {/* End Class Button */}
           <button
             onClick={endClass}
-            className="w-full mt-3 py-3 text-violet-600 font-medium"
+            className="w-full mt-3 py-3 text-forest-600 font-medium hover:text-forest-700 hover:bg-blush-100 rounded-xl transition-colors"
           >
             End Class & Save Notes
           </button>

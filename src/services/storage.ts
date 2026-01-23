@@ -1,8 +1,10 @@
-import { AppData, Class, WeekNotes, Project, Competition, CalendarEvent, AppSettings } from '../types';
+import { AppData, Class, WeekNotes, Project, Competition, CalendarEvent, AppSettings, CompetitionDance } from '../types';
 import { studios } from '../data/studios';
 import { initialClasses } from '../data/classes';
 import { terminology } from '../data/terminology';
 import { initialProjects } from '../data/projects';
+import { initialCompetitions } from '../data/competitions';
+import { initialCompetitionDances } from '../data/competitionDances';
 
 const STORAGE_KEY = 'dance-teaching-app-data';
 const AUTH_KEY = 'dance-teaching-app-auth';
@@ -15,7 +17,8 @@ function getDefaultData(): AppData {
     exercises: [],
     terminology,
     projects: initialProjects,
-    competitions: [],
+    competitions: initialCompetitions,
+    competitionDances: initialCompetitionDances,
     calendarEvents: [],
     settings: {},
   };
@@ -26,10 +29,16 @@ export function loadData(): AppData {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
+      const defaults = getDefaultData();
       // Merge with defaults to ensure all fields exist
+      // Use default competitions/dances if stored is empty (to seed initial data)
       return {
-        ...getDefaultData(),
+        ...defaults,
         ...parsed,
+        // Keep default competitions if stored competitions is empty
+        competitions: parsed.competitions?.length > 0 ? parsed.competitions : defaults.competitions,
+        // Keep default competition dances if stored is empty
+        competitionDances: parsed.competitionDances?.length > 0 ? parsed.competitionDances : defaults.competitionDances,
       };
     }
   } catch (error) {

@@ -1,5 +1,17 @@
 import { CalendarEvent } from '../types';
-import { v4 as uuid } from 'uuid';
+
+// Generate a stable ID based on event content so IDs persist across syncs
+function generateStableId(title: string, date: string, startTime: string): string {
+  const str = `${title}-${date}-${startTime}`;
+  // Simple hash function
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return `cal-${Math.abs(hash).toString(36)}`;
+}
 
 // Parse ICS (iCalendar) format
 export async function fetchCalendarEvents(icsUrl: string): Promise<CalendarEvent[]> {
@@ -33,9 +45,15 @@ function parseICS(icsText: string): CalendarEvent[] {
     }
 
     if (line.startsWith('BEGIN:VEVENT')) {
-      currentEvent = { id: uuid() };
+      currentEvent = {};
     } else if (line.startsWith('END:VEVENT') && currentEvent) {
       if (currentEvent.title && currentEvent.date) {
+        // Generate stable ID based on content so it persists across syncs
+        currentEvent.id = generateStableId(
+          currentEvent.title,
+          currentEvent.date,
+          currentEvent.startTime || '00:00'
+        );
         events.push(currentEvent as CalendarEvent);
       }
       currentEvent = null;

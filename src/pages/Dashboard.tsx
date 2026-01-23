@@ -26,8 +26,8 @@ export function Dashboard() {
     <div className="max-w-lg mx-auto px-4 py-6 pb-24">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{dayName}</h1>
-        <p className="text-gray-500">{dateStr}</p>
+        <h1 className="text-2xl font-bold text-forest-600">{dayName}</h1>
+        <p className="text-forest-400">{dateStr}</p>
       </div>
 
       {/* Current/Next Class */}

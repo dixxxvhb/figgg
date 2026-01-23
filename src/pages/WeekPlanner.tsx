@@ -100,7 +100,7 @@ export function WeekPlanner() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 pb-24">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <button
           onClick={() => setWeekOffset(w => w - 1)}
           className="p-2 hover:bg-gray-100 rounded-lg"
@@ -109,20 +109,22 @@ export function WeekPlanner() {
         </button>
         <div className="text-center">
           <div className="font-semibold text-gray-900">{weekLabel}</div>
-          {weekOffset !== 0 && (
-            <button
-              onClick={() => setWeekOffset(0)}
-              className="text-sm text-violet-600"
-            >
-              Go to this week
-            </button>
-          )}
         </div>
         <button
           onClick={() => setWeekOffset(w => w + 1)}
           className="p-2 hover:bg-gray-100 rounded-lg"
         >
           <ChevronRight size={20} />
+        </button>
+      </div>
+
+      {/* Today Button */}
+      <div className="flex justify-center mb-6">
+        <button
+          onClick={() => setWeekOffset(0)}
+          className="px-4 py-2 bg-forest-600 text-white rounded-full text-sm font-medium hover:bg-forest-700 transition-colors shadow-sm"
+        >
+          Today
         </button>
       </div>
 
@@ -193,7 +195,7 @@ export function WeekPlanner() {
                         <div className="flex-1 min-w-0">
                           <Link
                             to={`/class/${cls.id}`}
-                            className="font-medium text-gray-900 hover:text-violet-600"
+                            className="font-medium text-gray-900 hover:text-forest-600"
                           >
                             {cls.name}
                           </Link>
@@ -214,10 +216,10 @@ export function WeekPlanner() {
                           onChange={(e) => updatePlan(cls.id, e.target.value)}
                           placeholder="Plan for this class..."
                           rows={2}
-                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent resize-none"
+                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent resize-none"
                         />
                         {classNotes?.liveNotes && classNotes.liveNotes.length > 0 && (
-                          <div className="mt-2 text-xs text-violet-600">
+                          <div className="mt-2 text-xs text-forest-600">
                             {classNotes.liveNotes.length} note{classNotes.liveNotes.length !== 1 ? 's' : ''} from class
                           </div>
                         )}
