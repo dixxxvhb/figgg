@@ -4,7 +4,7 @@ import { CurrentClassCard } from '../components/Dashboard/CurrentClassCard';
 import { TodaySchedule } from '../components/Dashboard/TodaySchedule';
 import { QuickStats } from '../components/Dashboard/QuickStats';
 import { useCurrentClass } from '../hooks/useCurrentClass';
-import { useLocation } from '../hooks/useLocation';
+import { useLocation as useStudioLocation } from '../hooks/useLocation';
 import { useAppData } from '../hooks/useAppData';
 import { getCurrentDayOfWeek } from '../utils/time';
 import { getClassesByDay } from '../data/classes';
@@ -14,7 +14,7 @@ export function Dashboard() {
   const currentDay = getCurrentDayOfWeek();
   const todayClasses = getClassesByDay(data.classes, currentDay);
   const classInfo = useCurrentClass(data.classes);
-  const { isNearCurrentStudio } = useLocation(
+  const { isNearCurrentStudio } = useStudioLocation(
     data.studios,
     classInfo.class?.studioId
   );

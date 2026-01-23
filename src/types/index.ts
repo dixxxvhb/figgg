@@ -101,6 +101,21 @@ export interface Competition {
   notes: string;
 }
 
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string; // ISO date
+  startTime: string;
+  endTime: string;
+  location?: string;
+  description?: string;
+}
+
+export interface AppSettings {
+  calendarUrl?: string; // ICS feed URL
+  password?: string;
+}
+
 export interface AppData {
   studios: Studio[];
   classes: Class[];
@@ -109,6 +124,8 @@ export interface AppData {
   terminology: TerminologyEntry[];
   projects: Project[];
   competitions: Competition[];
+  calendarEvents: CalendarEvent[];
+  settings: AppSettings;
 }
 
 export interface UserLocation {

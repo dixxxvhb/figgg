@@ -1,4 +1,4 @@
-import { AppData, Class, WeekNotes, Project, Competition } from '../types';
+import { AppData, Class, WeekNotes, Project, Competition, CalendarEvent, AppSettings } from '../types';
 import { studios } from '../data/studios';
 import { initialClasses } from '../data/classes';
 import { terminology } from '../data/terminology';
@@ -16,6 +16,8 @@ function getDefaultData(): AppData {
     terminology,
     projects: initialProjects,
     competitions: [],
+    calendarEvents: [],
+    settings: {},
   };
 }
 
@@ -85,6 +87,23 @@ export function updateCompetitions(competitions: Competition[]): void {
   const data = loadData();
   data.competitions = competitions;
   saveData(data);
+}
+
+export function updateCalendarEvents(events: CalendarEvent[]): void {
+  const data = loadData();
+  data.calendarEvents = events;
+  saveData(data);
+}
+
+export function updateSettings(settings: Partial<AppSettings>): void {
+  const data = loadData();
+  data.settings = { ...data.settings, ...settings };
+  saveData(data);
+}
+
+export function getSettings(): AppSettings {
+  const data = loadData();
+  return data.settings || {};
 }
 
 // Simple password auth
