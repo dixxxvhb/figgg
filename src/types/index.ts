@@ -166,7 +166,8 @@ export interface CompetitionDance {
   category: DanceCategory;
   level: DanceLevel;
   choreographers: string[];
-  dancers: string[];
+  dancers: string[]; // Display names (kept for backwards compatibility)
+  dancerIds?: string[]; // Student IDs for linking to student records
   duration: string; // "2:24"
   startPosition: string; // "on stage" or "off stage"
   props: string;

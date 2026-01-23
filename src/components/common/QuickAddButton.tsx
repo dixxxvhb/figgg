@@ -131,9 +131,6 @@ export function QuickAddButton() {
     e.target.value = '';
   };
 
-  // Check if we're in the "during" or "before" status for current class
-  const isCurrentOrUpcoming = classInfo.status === 'during' || classInfo.status === 'before';
-
   return (
     <>
       {/* Hidden file input */}

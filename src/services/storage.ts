@@ -5,6 +5,7 @@ import { terminology } from '../data/terminology';
 import { initialProjects } from '../data/projects';
 import { initialCompetitions } from '../data/competitions';
 import { initialCompetitionDances } from '../data/competitionDances';
+import { students as initialStudents } from '../data/students';
 import { debouncedCloudSave, fetchCloudData, saveCloudData, flushPendingSave } from './cloudStorage';
 
 // Set up page unload handler to flush pending saves
@@ -37,6 +38,7 @@ function getDefaultData(): AppData {
     competitionDances: initialCompetitionDances,
     calendarEvents: [],
     settings: {},
+    students: initialStudents,
   };
 }
 
@@ -78,6 +80,27 @@ function migrateCompetitionDanceCostumes(storedDances: CompetitionDance[]): Comp
   });
 }
 
+// Migration: Add dancerIds to competition dances (links to student records)
+function migrateCompetitionDancerIds(storedDances: CompetitionDance[]): CompetitionDance[] {
+  return storedDances.map(dance => {
+    // If this dance already has dancerIds, keep it
+    if (dance.dancerIds && dance.dancerIds.length > 0) {
+      return dance;
+    }
+
+    // Find the matching dance in initialCompetitionDances to get dancerIds
+    const initialDance = initialCompetitionDances.find(d => d.id === dance.id);
+    if (initialDance?.dancerIds) {
+      return {
+        ...dance,
+        dancerIds: initialDance.dancerIds,
+      };
+    }
+
+    return dance;
+  });
+}
+
 export function loadData(): AppData {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -90,10 +113,14 @@ export function loadData(): AppData {
         ? migrateCompetitionIds(parsed.competitions)
         : defaults.competitions;
 
-      // Migrate competition dances to add costume data
-      const migratedDances = parsed.competitionDances?.length > 0
+      // Migrate competition dances to add costume data and dancerIds
+      let migratedDances = parsed.competitionDances?.length > 0
         ? migrateCompetitionDanceCostumes(parsed.competitionDances)
         : defaults.competitionDances;
+      migratedDances = migrateCompetitionDancerIds(migratedDances);
+
+      // Merge students - use stored students if they exist, otherwise use initial
+      const students = parsed.students?.length > 0 ? parsed.students : defaults.students;
 
       // Merge with defaults to ensure all fields exist
       // Use default competitions/dances if stored is empty (to seed initial data)
@@ -102,8 +129,10 @@ export function loadData(): AppData {
         ...parsed,
         // Use migrated competitions
         competitions: migratedCompetitions,
-        // Use migrated dances with costume data
+        // Use migrated dances with costume data and dancerIds
         competitionDances: migratedDances,
+        // Use merged students
+        students,
       };
     }
   } catch {
@@ -166,16 +195,21 @@ function migrateCloudData(cloudData: AppData): AppData {
     ? migrateCompetitionIds(cloudData.competitions)
     : defaults.competitions;
 
-  // Migrate competition dances to add costume data
-  const migratedDances = cloudData.competitionDances?.length > 0
+  // Migrate competition dances to add costume data and dancerIds
+  let migratedDances = cloudData.competitionDances?.length > 0
     ? migrateCompetitionDanceCostumes(cloudData.competitionDances)
     : defaults.competitionDances;
+  migratedDances = migrateCompetitionDancerIds(migratedDances);
+
+  // Merge students
+  const students = (cloudData.students?.length ?? 0) > 0 ? cloudData.students : defaults.students;
 
   return {
     ...defaults,
     ...cloudData,
     competitions: migratedCompetitions,
     competitionDances: migratedDances,
+    students,
   };
 }
 

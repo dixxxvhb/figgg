@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Class, Studio, CurrentClassInfo, DayOfWeek } from '../types';
+import { Class, CurrentClassInfo, DayOfWeek } from '../types';
 import { getCurrentDayOfWeek, getCurrentTimeMinutes, getClassStatus, getMinutesUntilClass, getMinutesRemaining, timeToMinutes } from '../utils/time';
 import { getStudioById } from '../data/studios';
 

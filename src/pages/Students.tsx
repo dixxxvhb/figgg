@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Plus, User, Phone, Mail, ChevronRight, X, Trash2, Award, AlertTriangle, TrendingUp, MessageSquare, Calendar } from 'lucide-react';
+import { Search, Plus, User, Phone, Mail, ChevronRight, X, Trash2, Award, AlertTriangle, TrendingUp, MessageSquare, Calendar, Music } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAppData } from '../hooks/useAppData';
-import { Student, SkillNote, Class } from '../types';
+import { Student, SkillNote, Class, CompetitionDance } from '../types';
 import { Button } from '../components/common/Button';
 import { v4 as uuid } from 'uuid';
 
@@ -24,7 +24,7 @@ export function Students() {
   const [viewingStudent, setViewingStudent] = useState<Student | null>(null);
 
   // Get students from data
-  const students = data.students || [];
+  const students = useMemo(() => data.students || [], [data.students]);
 
   // Filter students
   const filteredStudents = useMemo(() => {
@@ -179,6 +179,7 @@ export function Students() {
         <StudentDetailModal
           student={viewingStudent}
           classes={data.classes}
+          competitionDances={data.competitionDances || []}
           onEdit={() => {
             setEditingStudent(viewingStudent);
             setViewingStudent(null);
@@ -405,6 +406,7 @@ function StudentModal({
 function StudentDetailModal({
   student,
   classes,
+  competitionDances,
   onEdit,
   onDelete,
   onClose,
@@ -412,6 +414,7 @@ function StudentDetailModal({
 }: {
   student: Student;
   classes: Class[];
+  competitionDances: CompetitionDance[];
   onEdit: () => void;
   onDelete: () => void;
   onClose: () => void;
@@ -422,6 +425,11 @@ function StudentDetailModal({
   const [noteCategory, setNoteCategory] = useState<SkillNote['category']>('improvement');
 
   const enrolledClasses = classes.filter(c => student.classIds.includes(c.id));
+
+  // Find all competition dances this student is in
+  const studentDances = competitionDances.filter(dance =>
+    dance.dancerIds?.includes(student.id)
+  );
 
   const addSkillNote = () => {
     if (!noteText.trim()) return;
@@ -505,6 +513,38 @@ function StudentDetailModal({
                     onClick={onClose}
                   >
                     {cls.name}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Competition Dances */}
+          <div>
+            <div className="text-sm font-medium text-gray-500 mb-2 flex items-center gap-2">
+              <Music size={14} />
+              Competition Dances ({studentDances.length})
+            </div>
+            {studentDances.length === 0 ? (
+              <div className="text-sm text-gray-400">Not in any competition dances</div>
+            ) : (
+              <div className="space-y-2">
+                {studentDances.map(dance => (
+                  <Link
+                    key={dance.id}
+                    to={`/dance/${dance.id}`}
+                    className="block bg-blush-50 rounded-lg p-3 hover:bg-blush-100 transition-colors"
+                    onClick={onClose}
+                  >
+                    <div className="font-medium text-forest-700">{dance.registrationName}</div>
+                    <div className="text-xs text-forest-500 flex items-center gap-2 mt-1">
+                      <span className="bg-blush-200 text-forest-600 px-2 py-0.5 rounded-full">
+                        {dance.category}
+                      </span>
+                      <span className="capitalize">{dance.style}</span>
+                      <span>•</span>
+                      <span>{dance.duration}</span>
+                    </div>
                   </Link>
                 ))}
               </div>

@@ -19,6 +19,7 @@ import { FormationBuilder } from './pages/FormationBuilder';
 import { Students } from './pages/Students';
 import { CompetitionChecklist } from './pages/CompetitionChecklist';
 import { CompetitionSchedule } from './pages/CompetitionSchedule';
+import { CompetitionHub } from './pages/CompetitionHub';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { SaveStatus } from './components/common/SaveStatus';
 import { SyncProvider } from './contexts/SyncContext';
@@ -68,6 +69,7 @@ function App() {
                   <Route path="/event/:eventId" element={<CalendarEventDetail />} />
                   <Route path="/event/:eventId/notes" element={<EventNotes />} />
                   <Route path="/plan" element={<WeekPlanner />} />
+                  <Route path="/competitions" element={<CompetitionHub />} />
                   <Route path="/dances" element={<CompetitionDances />} />
                   <Route path="/dance/:danceId" element={<DanceDetail />} />
                   <Route path="/competition/:competitionId/checklist" element={<CompetitionChecklist />} />

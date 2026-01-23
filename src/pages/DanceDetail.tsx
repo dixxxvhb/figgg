@@ -7,9 +7,10 @@ import {
 } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import { Button } from '../components/common/Button';
-import { CompetitionDance, RehearsalNote, MediaItem, DanceLevel, DanceStyle } from '../types';
+import { RehearsalNote, MediaItem, DanceLevel, DanceStyle } from '../types';
 import { v4 as uuid } from 'uuid';
 import { processMediaFile } from '../utils/mediaCompression';
+import { getStudentById } from '../data/students';
 
 const levelColors: Record<DanceLevel, string> = {
   'beginner': 'bg-emerald-100 text-emerald-700',
@@ -42,6 +43,7 @@ export function DanceDetail() {
   const [editingRehearsalId, setEditingRehearsalId] = useState<string | null>(null);
   const [editRehearsalNotes, setEditRehearsalNotes] = useState('');
   const [editWorkOn, setEditWorkOn] = useState<string[]>(['']);
+  const [mediaUploadError, setMediaUploadError] = useState<string | null>(null);
 
   const dance = data.competitionDances?.find(d => d.id === danceId);
 
@@ -67,8 +69,6 @@ export function DanceDetail() {
     setEditedDance(dance);
     setIsEditing(false);
   };
-
-  const [mediaUploadError, setMediaUploadError] = useState<string | null>(null);
 
   const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -394,14 +394,32 @@ export function DanceDetail() {
       <div className="bg-white rounded-xl border border-forest-200 p-4 mb-6">
         <h2 className="font-semibold text-forest-700 mb-3 flex items-center gap-2">
           <Users size={18} />
-          Dancers
+          Dancers ({displayDance.dancerIds?.length || displayDance.dancers.length})
         </h2>
         <div className="flex flex-wrap gap-2">
-          {displayDance.dancers.map((dancer, i) => (
-            <span key={i} className="bg-blush-100 text-forest-600 px-3 py-1 rounded-full text-sm">
-              {dancer}
-            </span>
-          ))}
+          {displayDance.dancerIds ? (
+            // Link to student profiles if we have dancerIds
+            displayDance.dancerIds.map((studentId) => {
+              const student = getStudentById(studentId);
+              if (!student) return null;
+              return (
+                <Link
+                  key={studentId}
+                  to={`/students?highlight=${studentId}`}
+                  className="bg-blush-100 text-forest-600 px-3 py-1 rounded-full text-sm hover:bg-blush-200 transition-colors"
+                >
+                  {student.nickname || student.name.split(' ')[0]}
+                </Link>
+              );
+            })
+          ) : (
+            // Fallback to display names only
+            displayDance.dancers.map((dancer, i) => (
+              <span key={i} className="bg-blush-100 text-forest-600 px-3 py-1 rounded-full text-sm">
+                {dancer}
+              </span>
+            ))
+          )}
         </div>
       </div>
 
@@ -461,6 +479,12 @@ export function DanceDetail() {
           onChange={handleMediaUpload}
           className="hidden"
         />
+
+        {mediaUploadError && (
+          <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+            {mediaUploadError}
+          </div>
+        )}
 
         {displayDance.media && displayDance.media.length > 0 ? (
           <div className="grid grid-cols-3 gap-2">

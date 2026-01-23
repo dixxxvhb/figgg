@@ -1,16 +1,78 @@
-import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Calendar, Library, Settings, FileText, Star, Play, Grid3X3, Cloud, CloudOff, Loader2, Check, Users } from 'lucide-react';
-import { useAppData } from '../../hooks/useAppData';
-import { useCurrentClass } from '../../hooks/useCurrentClass';
+import {
+  Home,
+  Calendar,
+  Settings,
+  FileText,
+  Users,
+  Cloud,
+  CloudOff,
+  Loader2,
+  Check,
+  Trophy,
+  Music,
+  Grid3X3,
+  BookOpen
+} from 'lucide-react';
 import { useSyncStatus } from '../../contexts/SyncContext';
 
-const navItems = [
+// Determine which section we're in based on path
+function getActiveSection(pathname: string): 'home' | 'teaching' | 'competition' | 'choreography' {
+  if (pathname === '/') return 'home';
+  if (
+    pathname.startsWith('/schedule') ||
+    pathname.startsWith('/class') ||
+    pathname.startsWith('/students') ||
+    pathname.startsWith('/plan') ||
+    pathname.startsWith('/event')
+  ) {
+    return 'teaching';
+  }
+  if (
+    pathname.startsWith('/competitions') ||
+    pathname.startsWith('/dances') ||
+    pathname.startsWith('/dance/') ||
+    pathname.startsWith('/competition/')
+  ) {
+    return 'competition';
+  }
+  if (
+    pathname.startsWith('/formations') ||
+    pathname.startsWith('/library')
+  ) {
+    return 'choreography';
+  }
+  return 'home';
+}
+
+// Navigation items for each section
+const teachingNav = [
   { path: '/', icon: Home, label: 'Home' },
   { path: '/schedule', icon: Calendar, label: 'Schedule' },
-  { path: '/plan', icon: FileText, label: 'Plan' },
-  { path: '/dances', icon: Star, label: 'Dances' },
   { path: '/students', icon: Users, label: 'Students' },
+  { path: '/plan', icon: FileText, label: 'Plan' },
+  { path: '/settings', icon: Settings, label: 'Settings' },
+];
+
+const competitionNav = [
+  { path: '/', icon: Home, label: 'Home' },
+  { path: '/competitions', icon: Trophy, label: 'Comps' },
+  { path: '/dances', icon: Music, label: 'Dances' },
+  { path: '/settings', icon: Settings, label: 'Settings' },
+];
+
+const choreographyNav = [
+  { path: '/', icon: Home, label: 'Home' },
+  { path: '/formations', icon: Grid3X3, label: 'Formations' },
+  { path: '/library', icon: BookOpen, label: 'Library' },
+  { path: '/settings', icon: Settings, label: 'Settings' },
+];
+
+const homeNav = [
+  { path: '/', icon: Home, label: 'Home' },
+  { path: '/schedule', icon: Calendar, label: 'Schedule' },
+  { path: '/competitions', icon: Trophy, label: 'Comps' },
+  { path: '/formations', icon: Grid3X3, label: 'Formations' },
   { path: '/settings', icon: Settings, label: 'Settings' },
 ];
 
@@ -35,16 +97,41 @@ function SyncIndicator() {
   );
 }
 
+// Section indicator pill
+function SectionIndicator({ section }: { section: 'home' | 'teaching' | 'competition' | 'choreography' }) {
+  if (section === 'home') return null;
+  
+  const config = {
+    teaching: { label: 'Teaching', bg: 'bg-forest-100', text: 'text-forest-700', icon: Calendar },
+    competition: { label: 'Competition', bg: 'bg-rose-100', text: 'text-rose-700', icon: Trophy },
+    choreography: { label: 'Choreography', bg: 'bg-purple-100', text: 'text-purple-700', icon: Grid3X3 },
+  };
+
+  const { label, bg, text, icon: Icon } = config[section];
+
+  return (
+    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${bg} ${text}`}>
+      <Icon size={12} />
+      <span className="hidden sm:inline">{label}</span>
+    </div>
+  );
+}
+
 export function Header() {
   const location = useLocation();
-  const { data } = useAppData();
-  const classInfo = useCurrentClass(data.classes);
+  const activeSection = getActiveSection(location.pathname);
 
-  // Show quick jump if there's a current or upcoming class and we're not already on class pages
-  const showQuickJump = classInfo.class &&
-    (classInfo.status === 'during' || classInfo.status === 'before') &&
-    !location.pathname.includes('/class/') &&
-    !location.pathname.includes('/notes');
+  // Get nav items based on active section
+  const getNavItems = () => {
+    switch (activeSection) {
+      case 'teaching': return teachingNav;
+      case 'competition': return competitionNav;
+      case 'choreography': return choreographyNav;
+      default: return homeNav;
+    }
+  };
+
+  const navItems = getNavItems();
 
   return (
     <header className="bg-forest-600 border-b border-forest-700 sticky top-0 z-50">
@@ -62,38 +149,15 @@ export function Header() {
           <div className="flex items-center gap-2">
             {/* Sync Status */}
             <SyncIndicator />
-            {/* Formation Builder Button */}
-            <Link
-              to="/formations"
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                location.pathname.startsWith('/formations')
-                  ? 'bg-purple-500 text-white'
-                  : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-              }`}
-            >
-              <Grid3X3 size={14} />
-              <span className="hidden sm:inline">Formations</span>
-            </Link>
+            
+            {/* Section Indicator */}
+            <SectionIndicator section={activeSection} />
 
-            {/* Quick Jump to Current Class */}
-            {showQuickJump && classInfo.class && (
-              <Link
-                to={`/class/${classInfo.class.id}/notes`}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blush-200 text-forest-700 rounded-full text-sm font-medium hover:bg-blush-100 transition-colors"
-              >
-                <Play size={14} />
-                <span className="hidden sm:inline">
-                  {classInfo.status === 'during' ? 'Live' : 'Start'}
-                </span>
-                <span className="max-w-[100px] truncate">
-                  {classInfo.class.name.split(' ').slice(0, 2).join(' ')}
-                </span>
-              </Link>
-            )}
-
+            {/* Desktop Nav */}
             <nav className="hidden md:flex items-center gap-1">
               {navItems.map(({ path, icon: Icon, label }) => {
-                const isActive = location.pathname === path;
+                const isActive = location.pathname === path || 
+                  (path !== '/' && location.pathname.startsWith(path));
                 return (
                   <Link
                     key={path}
@@ -119,12 +183,26 @@ export function Header() {
 
 export function MobileNav() {
   const location = useLocation();
+  const activeSection = getActiveSection(location.pathname);
+
+  // Get nav items based on active section
+  const getNavItems = () => {
+    switch (activeSection) {
+      case 'teaching': return teachingNav;
+      case 'competition': return competitionNav;
+      case 'choreography': return choreographyNav;
+      default: return homeNav;
+    }
+  };
+
+  const navItems = getNavItems();
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-forest-600 border-t border-forest-500 z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }}>
       <div className="flex justify-around items-center h-16">
         {navItems.map(({ path, icon: Icon, label }) => {
-          const isActive = location.pathname === path;
+          const isActive = location.pathname === path || 
+            (path !== '/' && location.pathname.startsWith(path));
           return (
             <Link
               key={path}

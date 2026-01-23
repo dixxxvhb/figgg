@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, Play, Calendar, Video, Plus, Trash2, FileText, Image, Edit2, Save, X } from 'lucide-react';
+import { ArrowLeft, Clock, MapPin, Play, Calendar, Video, Plus, Trash2, FileText, Image, Edit2, Save } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import { formatTimeDisplay } from '../utils/time';
 import { Button } from '../components/common/Button';

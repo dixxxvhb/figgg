@@ -1,7 +1,7 @@
 import { differenceInDays, format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { Class, Project, Competition } from '../../types';
-import { Calendar, Trophy, ListOrdered, ClipboardList } from 'lucide-react';
+import { Trophy, ListOrdered, ClipboardList } from 'lucide-react';
 import { getScheduleForCompetition } from '../../data/competitionSchedules';
 
 interface QuickStatsProps {
