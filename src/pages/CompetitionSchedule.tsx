@@ -3,7 +3,6 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, Clock, Users, User, Scissors, ChevronDown, ChevronUp } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useAppData } from '../hooks/useAppData';
-import { PullToRefresh } from '../components/common/PullToRefresh';
 import { getScheduleForCompetition, getEarliestCallTimeForDancer } from '../data/competitionSchedules';
 import { DanceCategory, CompetitionDance } from '../types';
 
@@ -148,7 +147,6 @@ export function CompetitionSchedule() {
   }
 
   return (
-    <PullToRefresh>
     <div className="max-w-lg mx-auto px-4 py-6 pb-24">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
@@ -325,6 +323,5 @@ export function CompetitionSchedule() {
         </div>
       </div>
     </div>
-    </PullToRefresh>
   );
 }

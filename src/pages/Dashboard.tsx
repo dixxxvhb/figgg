@@ -3,7 +3,6 @@ import { format } from 'date-fns';
 import { CurrentClassCard } from '../components/Dashboard/CurrentClassCard';
 import { TodaySchedule } from '../components/Dashboard/TodaySchedule';
 import { QuickStats } from '../components/Dashboard/QuickStats';
-import { PullToRefresh } from '../components/common/PullToRefresh';
 import { useCurrentClass } from '../hooks/useCurrentClass';
 import { useLocation as useStudioLocation } from '../hooks/useLocation';
 import { useAppData } from '../hooks/useAppData';
@@ -30,7 +29,6 @@ export function Dashboard() {
   const dateStr = format(new Date(), 'MMMM d');
 
   return (
-    <PullToRefresh>
     <div className="max-w-lg mx-auto px-4 py-6 pb-24">
       {/* Header */}
       <div className="mb-6">
@@ -58,6 +56,5 @@ export function Dashboard() {
       {/* Today's Full Schedule */}
       <TodaySchedule classes={todayClasses} studios={data.studios} />
     </div>
-    </PullToRefresh>
   );
 }

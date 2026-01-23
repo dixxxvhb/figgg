@@ -7,7 +7,6 @@ import {
 } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import { Button } from '../components/common/Button';
-import { PullToRefresh } from '../components/common/PullToRefresh';
 import { CompetitionDance, RehearsalNote, MediaItem, DanceLevel, DanceStyle } from '../types';
 import { v4 as uuid } from 'uuid';
 import { processMediaFile } from '../utils/mediaCompression';
@@ -238,7 +237,6 @@ export function DanceDetail() {
   };
 
   return (
-    <PullToRefresh>
     <div className="max-w-lg mx-auto px-4 py-6 pb-24">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
@@ -761,6 +759,5 @@ export function DanceDetail() {
         )}
       </div>
     </div>
-    </PullToRefresh>
   );
 }
