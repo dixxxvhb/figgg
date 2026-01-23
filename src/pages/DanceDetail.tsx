@@ -9,6 +9,7 @@ import { useAppData } from '../hooks/useAppData';
 import { Button } from '../components/common/Button';
 import { CompetitionDance, RehearsalNote, MediaItem, DanceLevel, DanceStyle } from '../types';
 import { v4 as uuid } from 'uuid';
+import { processMediaFile } from '../utils/mediaCompression';
 
 const levelColors: Record<DanceLevel, string> = {
   'beginner': 'bg-emerald-100 text-emerald-700',
@@ -64,17 +65,29 @@ export function DanceDetail() {
     setIsEditing(false);
   };
 
-  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [mediaUploadError, setMediaUploadError] = useState<string | null>(null);
+
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || !editedDance) return;
 
-    Array.from(files).forEach(file => {
-      const reader = new FileReader();
-      reader.onload = () => {
+    setMediaUploadError(null);
+
+    for (const file of Array.from(files)) {
+      try {
+        const result = await processMediaFile(file);
+
+        if ('error' in result) {
+          setMediaUploadError(result.error);
+          continue;
+        }
+
+        const { dataUrl } = result;
+
         const newMedia: MediaItem = {
           id: uuid(),
           type: file.type.startsWith('video/') ? 'video' : 'image',
-          url: reader.result as string,
+          url: dataUrl,
           timestamp: new Date().toISOString(),
           name: file.name,
         };
@@ -82,9 +95,11 @@ export function DanceDetail() {
           ...prev,
           media: [...(prev.media || []), newMedia],
         } : prev);
-      };
-      reader.readAsDataURL(file);
-    });
+      } catch (error) {
+        console.error('Upload failed:', error);
+        setMediaUploadError('Failed to process file. Please try again.');
+      }
+    }
 
     e.target.value = '';
   };
@@ -128,17 +143,27 @@ export function DanceDetail() {
     setExpandedNotes([newNote.id]);
   };
 
-  const handleRehearsalMediaUpload = (e: React.ChangeEvent<HTMLInputElement>, rehearsalId: string) => {
+  const handleRehearsalMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>, rehearsalId: string) => {
     const files = e.target.files;
     if (!files || !dance) return;
 
-    Array.from(files).forEach(file => {
-      const reader = new FileReader();
-      reader.onload = () => {
+    setMediaUploadError(null);
+
+    for (const file of Array.from(files)) {
+      try {
+        const result = await processMediaFile(file);
+
+        if ('error' in result) {
+          setMediaUploadError(result.error);
+          continue;
+        }
+
+        const { dataUrl } = result;
+
         const newMedia: MediaItem = {
           id: uuid(),
           type: file.type.startsWith('video/') ? 'video' : 'image',
-          url: reader.result as string,
+          url: dataUrl,
           timestamp: new Date().toISOString(),
           name: file.name,
         };
@@ -153,9 +178,11 @@ export function DanceDetail() {
         };
 
         updateCompetitionDance(updatedDance);
-      };
-      reader.readAsDataURL(file);
-    });
+      } catch (error) {
+        console.error('Upload failed:', error);
+        setMediaUploadError('Failed to process file. Please try again.');
+      }
+    }
 
     e.target.value = '';
     setActiveRehearsalId(null);

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { format } from 'date-fns';
 import { CurrentClassCard } from '../components/Dashboard/CurrentClassCard';
 import { TodaySchedule } from '../components/Dashboard/TodaySchedule';
@@ -11,8 +11,14 @@ import { getClassesByDay } from '../data/classes';
 
 export function Dashboard() {
   const { data } = useAppData();
-  const currentDay = getCurrentDayOfWeek();
-  const todayClasses = getClassesByDay(data.classes, currentDay);
+
+  // Memoize expensive computations
+  const currentDay = useMemo(() => getCurrentDayOfWeek(), []);
+  const todayClasses = useMemo(
+    () => getClassesByDay(data.classes, currentDay),
+    [data.classes, currentDay]
+  );
+
   const classInfo = useCurrentClass(data.classes);
   const { isNearCurrentStudio } = useStudioLocation(
     data.studios,

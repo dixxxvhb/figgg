@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Copy, Eye, Edit3 } from 'lucide-react';
 import { format, addWeeks, startOfWeek, addDays } from 'date-fns';
 import { useAppData } from '../hooks/useAppData';
 import { formatTimeDisplay, formatWeekOf, timeToMinutes } from '../utils/time';
-import { DayOfWeek, ClassWeekNotes } from '../types';
+import { DayOfWeek, ClassWeekNotes, WeekNotes } from '../types';
 import { Button } from '../components/common/Button';
 import { v4 as uuid } from 'uuid';
 
@@ -21,12 +21,23 @@ export function WeekPlanner() {
 
   const weekLabel = format(viewingWeekStart, "'Week of' MMM d");
   const lastWeekLabel = format(lastWeekStart, "'Week of' MMM d");
+  const viewingWeekOf = formatWeekOf(viewingWeekStart);
 
-  const currentWeekNotes = getWeekNotes(formatWeekOf(viewingWeekStart)) || {
-    id: uuid(),
-    weekOf: formatWeekOf(viewingWeekStart),
-    classNotes: {},
+  // Get initial week notes and keep in local state
+  const getInitialWeekNotes = (): WeekNotes => {
+    return getWeekNotes(viewingWeekOf) || {
+      id: uuid(),
+      weekOf: viewingWeekOf,
+      classNotes: {},
+    };
   };
+
+  const [currentWeekNotes, setCurrentWeekNotes] = useState<WeekNotes>(getInitialWeekNotes);
+
+  // Sync when weekOffset changes or when data changes from cloud
+  useEffect(() => {
+    setCurrentWeekNotes(getInitialWeekNotes());
+  }, [weekOffset, data.weekNotes, viewingWeekOf]);
 
   const lastWeekNotes = getWeekNotes(formatWeekOf(lastWeekStart));
 
@@ -58,6 +69,11 @@ export function WeekPlanner() {
     return grouped;
   }, [data.classes]);
 
+  const saveNotes = (updatedNotes: WeekNotes) => {
+    setCurrentWeekNotes(updatedNotes);
+    saveWeekNotes(updatedNotes);
+  };
+
   const copyFromLastWeek = () => {
     if (!lastWeekNotes) return;
 
@@ -75,7 +91,7 @@ export function WeekPlanner() {
       };
     });
 
-    saveWeekNotes(newNotes);
+    saveNotes(newNotes);
   };
 
   const updatePlan = (classId: string, plan: string) => {
@@ -94,7 +110,7 @@ export function WeekPlanner() {
       },
     };
 
-    saveWeekNotes(updatedNotes);
+    saveNotes(updatedNotes);
   };
 
   return (

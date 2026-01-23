@@ -1,35 +1,61 @@
-import React, { useState, useRef } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, Play, Calendar, Edit2, Save, X, Video, Plus, Trash2 } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { ArrowLeft, Clock, MapPin, Play, Calendar, Video, Plus, Trash2, FileText, Image } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import { formatTimeDisplay } from '../utils/time';
 import { Button } from '../components/common/Button';
-import { MediaItem } from '../types';
+import { DropdownMenu } from '../components/common/DropdownMenu';
+import { MediaItem, ClassWeekNotes } from '../types';
 import { v4 as uuid } from 'uuid';
+import { processMediaFile } from '../utils/mediaCompression';
 
 export function CalendarEventDetail() {
   const { eventId } = useParams<{ eventId: string }>();
-  const navigate = useNavigate();
   const { data, getCurrentWeekNotes, saveWeekNotes } = useAppData();
-  const [isEditingNotes, setIsEditingNotes] = useState(false);
 
   const event = data.calendarEvents?.find(e => e.id === eventId);
-  const weekNotes = getCurrentWeekNotes();
-  const eventNotes = weekNotes.classNotes[eventId || ''];
 
-  const [editedPlan, setEditedPlan] = useState(eventNotes?.plan || '');
+  // Get initial week notes and keep in local state
+  const [weekNotes, setWeekNotes] = useState(() => getCurrentWeekNotes());
+
+  // Sync weekNotes when data changes (e.g., from cloud sync)
+  useEffect(() => {
+    setWeekNotes(getCurrentWeekNotes());
+  }, [data.weekNotes]);
+
+  const eventNotes: ClassWeekNotes | undefined = weekNotes.classNotes[eventId || ''];
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const saveNotes = (updatedNotes: typeof weekNotes) => {
+    setWeekNotes(updatedNotes);
+    saveWeekNotes(updatedNotes);
+  };
+
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !eventId) return;
 
     setIsUploading(true);
+    setUploadError(null);
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
+    try {
+      const result = await processMediaFile(file);
+
+      if ('error' in result) {
+        setUploadError(result.error);
+        setIsUploading(false);
+        e.target.value = '';
+        return;
+      }
+
+      const { dataUrl, warning } = result;
+      if (warning) {
+        console.warn(warning);
+      }
 
       const newMedia: MediaItem = {
         id: uuid(),
@@ -52,11 +78,13 @@ export function CalendarEventDetail() {
           },
         },
       };
-      saveWeekNotes(updatedNotes);
-      setIsUploading(false);
-    };
+      saveNotes(updatedNotes);
+    } catch (error) {
+      console.error('Upload failed:', error);
+      setUploadError('Failed to process file. Please try again.');
+    }
 
-    reader.readAsDataURL(file);
+    setIsUploading(false);
     e.target.value = '';
   };
 
@@ -73,7 +101,78 @@ export function CalendarEventDetail() {
         },
       },
     };
-    saveWeekNotes(updatedNotes);
+    saveNotes(updatedNotes);
+  };
+
+  const handleDeleteAllMedia = () => {
+    if (!eventId) return;
+    if (!confirm('Delete all photos and videos for this event?')) return;
+
+    const existingNotes = eventNotes || {
+      classId: eventId,
+      plan: '',
+      liveNotes: [],
+      isOrganized: false,
+      media: [],
+    };
+
+    const updatedNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [eventId]: {
+          ...existingNotes,
+          media: [],
+        },
+      },
+    };
+    saveNotes(updatedNotes);
+  };
+
+  const handleDeleteAllNotes = () => {
+    if (!eventId) return;
+    if (!confirm('Delete all notes for this event?')) return;
+
+    const existingNotes = eventNotes || {
+      classId: eventId,
+      plan: '',
+      liveNotes: [],
+      isOrganized: false,
+      media: [],
+    };
+
+    const updatedNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [eventId]: {
+          ...existingNotes,
+          liveNotes: [],
+          plan: '',
+        },
+      },
+    };
+    saveNotes(updatedNotes);
+  };
+
+  const handleClearEventData = () => {
+    if (!eventId) return;
+    if (!confirm('Clear all data for this event? This includes notes, plan, and media.')) return;
+
+    const updatedNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [eventId]: {
+          classId: eventId,
+          plan: '',
+          liveNotes: [],
+          isOrganized: false,
+          media: [],
+        },
+      },
+    };
+    saveNotes(updatedNotes);
   };
 
   if (!event) {
@@ -85,21 +184,28 @@ export function CalendarEventDetail() {
     );
   }
 
-  const handleSavePlan = () => {
+  const updatePlan = (plan: string) => {
+    if (!eventId) return;
+
+    const existingNotes = eventNotes || {
+      classId: eventId,
+      plan: '',
+      liveNotes: [],
+      isOrganized: false,
+      media: [],
+    };
+
     const updatedNotes = {
       ...weekNotes,
       classNotes: {
         ...weekNotes.classNotes,
-        [eventId || '']: {
-          classId: eventId || '',
-          plan: editedPlan,
-          liveNotes: eventNotes?.liveNotes || [],
-          isOrganized: eventNotes?.isOrganized || false,
+        [eventId]: {
+          ...existingNotes,
+          plan,
         },
       },
     };
-    saveWeekNotes(updatedNotes);
-    setIsEditingNotes(false);
+    saveNotes(updatedNotes);
   };
 
   return (
@@ -116,6 +222,28 @@ export function CalendarEventDetail() {
           </div>
           <h1 className="text-xl font-bold">{event.title}</h1>
         </div>
+        <DropdownMenu
+          items={[
+            {
+              label: 'Delete all media',
+              icon: <Image size={16} />,
+              onClick: handleDeleteAllMedia,
+              danger: true,
+            },
+            {
+              label: 'Delete all notes',
+              icon: <FileText size={16} />,
+              onClick: handleDeleteAllNotes,
+              danger: true,
+            },
+            {
+              label: 'Clear event data',
+              icon: <Trash2 size={16} />,
+              onClick: handleClearEventData,
+              danger: true,
+            },
+          ]}
+        />
       </div>
 
       {/* Event Info */}
@@ -185,6 +313,18 @@ export function CalendarEventDetail() {
           </button>
         </div>
 
+        {uploadError && (
+          <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            {uploadError}
+            <button
+              onClick={() => setUploadError(null)}
+              className="ml-2 text-red-500 hover:text-red-700"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {eventNotes?.media && eventNotes.media.length > 0 ? (
           <div className="grid grid-cols-2 gap-3">
             {eventNotes.media.map(media => (
@@ -225,43 +365,14 @@ export function CalendarEventDetail() {
 
       {/* Plan/Prep Notes */}
       <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <label className="block text-sm font-medium text-gray-700">Plan / Prep Notes</label>
-          {isEditingNotes ? (
-            <div className="flex gap-2">
-              <button onClick={() => setIsEditingNotes(false)} className="p-1 text-gray-400">
-                <X size={16} />
-              </button>
-              <button onClick={handleSavePlan} className="p-1 text-forest-600">
-                <Save size={16} />
-              </button>
-            </div>
-          ) : (
-            <button onClick={() => setIsEditingNotes(true)} className="p-1 text-gray-400">
-              <Edit2 size={16} />
-            </button>
-          )}
-        </div>
-        {isEditingNotes ? (
-          <textarea
-            value={editedPlan}
-            onChange={(e) => setEditedPlan(e.target.value)}
-            placeholder="What do you need to prepare or remember for this event?"
-            rows={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent"
-          />
-        ) : (
-          <div
-            onClick={() => setIsEditingNotes(true)}
-            className="bg-gray-50 rounded-lg p-3 min-h-[80px] cursor-pointer hover:bg-gray-100"
-          >
-            {eventNotes?.plan ? (
-              <p className="text-gray-700 whitespace-pre-wrap">{eventNotes.plan}</p>
-            ) : (
-              <p className="text-gray-400">Tap to add notes...</p>
-            )}
-          </div>
-        )}
+        <label className="block text-sm font-medium text-gray-700 mb-2">Plan / Prep Notes</label>
+        <textarea
+          value={eventNotes?.plan || ''}
+          onChange={(e) => updatePlan(e.target.value)}
+          placeholder="What do you need to prepare or remember for this event?"
+          rows={4}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent"
+        />
       </div>
 
       {/* Previous Notes */}

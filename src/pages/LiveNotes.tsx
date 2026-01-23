@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, Music2, Camera, Video, X, Image, Trash2 } from 'lucide-react';
+import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, Music2, Camera, Video, X, Image, Trash2, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAppData } from '../hooks/useAppData';
+import { DropdownMenu } from '../components/common/DropdownMenu';
 import { LiveNote, ClassWeekNotes } from '../types';
 import { formatTimeDisplay, getCurrentTimeMinutes, getMinutesRemaining } from '../utils/time';
 import { v4 as uuid } from 'uuid';
+import { processMediaFile } from '../utils/mediaCompression';
 
 const QUICK_TAGS = [
   { id: 'covered', label: 'Covered', icon: CheckCircle, color: 'bg-forest-100 text-forest-700' },
@@ -27,6 +29,11 @@ export function LiveNotes() {
   const [selectedTag, setSelectedTag] = useState<string | undefined>();
   const [weekNotes, setWeekNotes] = useState(() => getCurrentWeekNotes());
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+
+  // Sync weekNotes when data changes (e.g., from cloud sync)
+  useEffect(() => {
+    setWeekNotes(getCurrentWeekNotes());
+  }, [data.weekNotes]);
 
   // Get or create class notes for this week
   const classNotes: ClassWeekNotes = weekNotes.classNotes[classId || ''] || {
@@ -95,14 +102,28 @@ export function LiveNotes() {
     }
   };
 
-  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
-    Array.from(files).forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const dataUrl = event.target?.result as string;
+    setUploadError(null);
+
+    for (const file of Array.from(files)) {
+      try {
+        const result = await processMediaFile(file);
+
+        if ('error' in result) {
+          setUploadError(result.error);
+          continue;
+        }
+
+        const { dataUrl, warning } = result;
+        if (warning) {
+          console.warn(warning);
+        }
+
         const mediaItem = {
           id: uuid(),
           type: file.type.startsWith('video/') ? 'video' as const : 'image' as const,
@@ -126,9 +147,11 @@ export function LiveNotes() {
 
         setWeekNotes(updatedWeekNotes);
         saveWeekNotes(updatedWeekNotes);
-      };
-      reader.readAsDataURL(file);
-    });
+      } catch (error) {
+        console.error('Upload failed:', error);
+        setUploadError('Failed to process file. Please try again.');
+      }
+    }
 
     // Clear the input
     if (fileInputRef.current) {
@@ -190,6 +213,67 @@ export function LiveNotes() {
     navigate(`/class/${classId}`);
   };
 
+  const clearAllNotes = () => {
+    if (!confirm('Delete all notes for this class?')) return;
+
+    const updatedClassNotes: ClassWeekNotes = {
+      ...classNotes,
+      liveNotes: [],
+    };
+
+    const updatedWeekNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [classId || '']: updatedClassNotes,
+      },
+    };
+
+    setWeekNotes(updatedWeekNotes);
+    saveWeekNotes(updatedWeekNotes);
+  };
+
+  const clearAllMedia = () => {
+    if (!confirm('Delete all photos and videos?')) return;
+
+    const updatedClassNotes: ClassWeekNotes = {
+      ...classNotes,
+      media: [],
+    };
+
+    const updatedWeekNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [classId || '']: updatedClassNotes,
+      },
+    };
+
+    setWeekNotes(updatedWeekNotes);
+    saveWeekNotes(updatedWeekNotes);
+  };
+
+  const clearAll = () => {
+    if (!confirm('Clear all notes and media?')) return;
+
+    const updatedClassNotes: ClassWeekNotes = {
+      ...classNotes,
+      liveNotes: [],
+      media: [],
+    };
+
+    const updatedWeekNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [classId || '']: updatedClassNotes,
+      },
+    };
+
+    setWeekNotes(updatedWeekNotes);
+    saveWeekNotes(updatedWeekNotes);
+  };
+
   return (
     <div className="flex flex-col h-screen max-h-screen bg-blush-100">
       {/* Header */}
@@ -212,11 +296,47 @@ export function LiveNotes() {
               <span className="text-sm font-medium">{timeRemaining}m left</span>
             </div>
           )}
+          <DropdownMenu
+            className="text-white"
+            items={[
+              {
+                label: 'Clear all media',
+                icon: <Image size={16} />,
+                onClick: clearAllMedia,
+                danger: true,
+              },
+              {
+                label: 'Clear all notes',
+                icon: <FileText size={16} />,
+                onClick: clearAllNotes,
+                danger: true,
+              },
+              {
+                label: 'Clear everything',
+                icon: <Trash2 size={16} />,
+                onClick: clearAll,
+                danger: true,
+              },
+            ]}
+          />
         </div>
       </div>
 
       {/* Notes List */}
       <div className="flex-1 overflow-y-auto p-4 max-w-lg mx-auto w-full">
+        {/* Upload Error */}
+        {uploadError && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            {uploadError}
+            <button
+              onClick={() => setUploadError(null)}
+              className="ml-2 text-red-500 hover:text-red-700"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* Media Gallery */}
         {classNotes.media && classNotes.media.length > 0 && (
           <div className="mb-4">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, Trophy } from 'lucide-react';
 import { format } from 'date-fns';
@@ -25,11 +25,18 @@ export function EventNotes() {
   const [selectedTag, setSelectedTag] = useState<string | undefined>();
   const [weekNotes, setWeekNotes] = useState(() => getCurrentWeekNotes());
 
-  const eventNotes: ClassWeekNotes = weekNotes.classNotes[eventId || ''] || {
+  // Sync weekNotes when data changes (e.g., from cloud sync)
+  useEffect(() => {
+    setWeekNotes(getCurrentWeekNotes());
+  }, [data.weekNotes]);
+
+  const existingNotes = weekNotes.classNotes[eventId || ''];
+  const eventNotes: ClassWeekNotes = existingNotes || {
     classId: eventId || '',
     plan: '',
     liveNotes: [],
     isOrganized: false,
+    media: [],
   };
 
   if (!event) {
@@ -67,6 +74,7 @@ export function EventNotes() {
     setWeekNotes(updatedWeekNotes);
     saveWeekNotes(updatedWeekNotes);
     setNoteText('');
+    setSelectedTag(undefined);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

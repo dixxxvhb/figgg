@@ -157,6 +157,8 @@ export interface CompetitionDance {
   media: MediaItem[];
   // Weekly rehearsal tracking
   rehearsalNotes: RehearsalNote[];
+  // Stage formations
+  formations?: Formation[];
 }
 
 export interface RehearsalNote {
@@ -165,6 +167,21 @@ export interface RehearsalNote {
   notes: string;
   workOn: string[]; // Things to work on next week
   media: MediaItem[];
+}
+
+export interface DancerPosition {
+  id: string;
+  name: string;
+  x: number; // percentage 0-100
+  y: number; // percentage 0-100
+  color: string;
+}
+
+export interface Formation {
+  id: string;
+  name: string;
+  count: string; // e.g., "1-8", "9-16"
+  dancers: DancerPosition[];
 }
 
 export interface CalendarEvent {

@@ -1,8 +1,9 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Calendar, Library, Settings, FileText, Star, Play, Grid3X3 } from 'lucide-react';
+import { Home, Calendar, Library, Settings, FileText, Star, Play, Grid3X3, Cloud, CloudOff, Loader2, Check } from 'lucide-react';
 import { useAppData } from '../../hooks/useAppData';
 import { useCurrentClass } from '../../hooks/useCurrentClass';
+import { useSyncStatus } from '../../contexts/SyncContext';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Home' },
@@ -12,6 +13,27 @@ const navItems = [
   { path: '/library', icon: Library, label: 'Library' },
   { path: '/settings', icon: Settings, label: 'Settings' },
 ];
+
+// Sync status indicator component
+function SyncIndicator() {
+  const { status } = useSyncStatus();
+
+  const indicators = {
+    idle: { icon: Cloud, color: 'text-blush-300/60', title: 'Synced' },
+    syncing: { icon: Loader2, color: 'text-blush-200 animate-spin', title: 'Syncing...' },
+    success: { icon: Check, color: 'text-green-400', title: 'Saved' },
+    error: { icon: CloudOff, color: 'text-red-400', title: 'Sync failed' },
+    offline: { icon: CloudOff, color: 'text-amber-400', title: 'Offline' },
+  };
+
+  const { icon: Icon, color, title } = indicators[status];
+
+  return (
+    <div className={`p-1.5 ${color}`} title={title}>
+      <Icon size={16} />
+    </div>
+  );
+}
 
 export function Header() {
   const location = useLocation();
@@ -38,6 +60,8 @@ export function Header() {
           </Link>
 
           <div className="flex items-center gap-2">
+            {/* Sync Status */}
+            <SyncIndicator />
             {/* Formation Builder Button */}
             <Link
               to="/formations"

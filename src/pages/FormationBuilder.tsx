@@ -3,21 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Copy, ChevronLeft, ChevronRight, Play, Pause, Users, Grid3X3, RotateCcw, HelpCircle, X, Lightbulb, MousePointer, Move } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import { v4 as uuid } from 'uuid';
-
-interface DancerPosition {
-  id: string;
-  name: string;
-  x: number; // percentage 0-100
-  y: number; // percentage 0-100
-  color: string;
-}
-
-interface Formation {
-  id: string;
-  name: string;
-  count: string; // e.g., "1-8", "9-16"
-  dancers: DancerPosition[];
-}
+import { DancerPosition, Formation } from '../types';
 
 const DANCER_COLORS = [
   '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
@@ -75,7 +61,7 @@ const FORMATION_TEMPLATES = [
 
 export function FormationBuilder() {
   const { danceId } = useParams<{ danceId?: string }>();
-  const { data } = useAppData();
+  const { data, updateCompetitionDance } = useAppData();
 
   const dance = danceId ? data.competitionDances?.find(d => d.id === danceId) : null;
 
@@ -86,17 +72,45 @@ export function FormationBuilder() {
   const [onboardingStep, setOnboardingStep] = useState(0);
 
   // Initialize with dancers from the dance or default names
-  const initialDancers: DancerPosition[] = (dance?.dancers || ['Dancer 1', 'Dancer 2', 'Dancer 3', 'Dancer 4']).map((name, i) => ({
-    id: uuid(),
-    name: typeof name === 'string' ? name : `Dancer ${i + 1}`,
-    x: 20 + (i % 4) * 20,
-    y: 30 + Math.floor(i / 4) * 25,
-    color: DANCER_COLORS[i % DANCER_COLORS.length],
-  }));
+  const createInitialDancers = (): DancerPosition[] => {
+    return (dance?.dancers || ['Dancer 1', 'Dancer 2', 'Dancer 3', 'Dancer 4']).map((name, i) => ({
+      id: uuid(),
+      name: typeof name === 'string' ? name : `Dancer ${i + 1}`,
+      x: 20 + (i % 4) * 20,
+      y: 30 + Math.floor(i / 4) * 25,
+      color: DANCER_COLORS[i % DANCER_COLORS.length],
+    }));
+  };
 
-  const [formations, setFormations] = useState<Formation[]>([
-    { id: uuid(), name: 'Opening', count: '1-8', dancers: initialDancers }
-  ]);
+  // Initialize formations from saved data or create default
+  const getInitialFormations = (): Formation[] => {
+    if (dance?.formations && dance.formations.length > 0) {
+      return dance.formations;
+    }
+    return [{ id: uuid(), name: 'Opening', count: '1-8', dancers: createInitialDancers() }];
+  };
+
+  const [formations, setFormations] = useState<Formation[]>(getInitialFormations);
+
+  // Sync formations when dance data changes from cloud
+  useEffect(() => {
+    if (dance?.formations && dance.formations.length > 0) {
+      setFormations(dance.formations);
+    }
+  }, [dance?.formations]);
+
+  // Auto-save formations when they change
+  useEffect(() => {
+    if (dance && danceId) {
+      const timeoutId = setTimeout(() => {
+        updateCompetitionDance({
+          ...dance,
+          formations: formations,
+        });
+      }, 500); // Debounce by 500ms
+      return () => clearTimeout(timeoutId);
+    }
+  }, [formations, dance, danceId]);
   const [currentFormationIndex, setCurrentFormationIndex] = useState(0);
   const [selectedDancer, setSelectedDancer] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
