@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { authenticate } from '../services/storage';
 import { Button } from '../components/common/Button';
+import { DancerPortal } from './DancerPortal';
+import { User } from 'lucide-react';
 
 interface LoginProps {
   onSuccess: () => void;
@@ -9,6 +11,7 @@ interface LoginProps {
 export function Login({ onSuccess }: LoginProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
+  const [showDancerPortal, setShowDancerPortal] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,6 +22,11 @@ export function Login({ onSuccess }: LoginProps) {
       setPassword('');
     }
   };
+
+  // Show dancer portal if selected
+  if (showDancerPortal) {
+    return <DancerPortal onBack={() => setShowDancerPortal(false)} />;
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-forest-600 px-4">
@@ -68,6 +76,20 @@ export function Login({ onSuccess }: LoginProps) {
             Unlock
           </Button>
         </form>
+
+        {/* Dancer Portal Button */}
+        <div className="mt-8 pt-6 border-t border-blush-200/20">
+          <button
+            onClick={() => setShowDancerPortal(true)}
+            className="w-full flex items-center justify-center gap-3 py-4 px-4 rounded-xl bg-white/5 hover:bg-white/10 border-2 border-blush-200/20 hover:border-blush-200/40 transition-all text-white"
+          >
+            <User size={20} className="text-blush-200" />
+            <span className="font-medium">I'm a Dancer</span>
+          </button>
+          <p className="text-center text-blush-200/50 text-sm mt-2">
+            View your classes, dances & schedule
+          </p>
+        </div>
 
       </div>
     </div>
