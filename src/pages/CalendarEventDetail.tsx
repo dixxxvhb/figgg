@@ -1,19 +1,51 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, Play, Calendar, Video, Plus, Trash2, FileText, Image, Edit2, Save } from 'lucide-react';
+import { ArrowLeft, Clock, MapPin, Play, Calendar, Video, Plus, Trash2, FileText, Image, Edit2, Save, Users, UserCheck, UserX, Clock3, ChevronDown, ChevronUp, Music, X } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import { formatTimeDisplay } from '../utils/time';
 import { Button } from '../components/common/Button';
 import { DropdownMenu } from '../components/common/DropdownMenu';
-import { MediaItem, ClassWeekNotes } from '../types';
+import { MediaItem, ClassWeekNotes, CalendarEvent } from '../types';
 import { v4 as uuid } from 'uuid';
 import { processMediaFile } from '../utils/mediaCompression';
+import { autoLinkDancesToEvent, forceAutoLinkDances } from '../utils/danceLinker';
 
 export function CalendarEventDetail() {
   const { eventId } = useParams<{ eventId: string }>();
-  const { data, getCurrentWeekNotes, saveWeekNotes } = useAppData();
+  const { data, getCurrentWeekNotes, saveWeekNotes, updateCalendarEvent } = useAppData();
 
   const event = data.calendarEvents?.find(e => e.id === eventId);
+
+  const [showRoster, setShowRoster] = useState(false);
+  const [showLinkDances, setShowLinkDances] = useState(false);
+
+  // Auto-link dances when event is loaded (if not already linked)
+  // Also tracks if we've already tried auto-linking this event in this session
+  const [autoLinkAttempted, setAutoLinkAttempted] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (event && data.competitionDances && autoLinkAttempted !== event.id) {
+      setAutoLinkAttempted(event.id);
+
+      // Debug logging
+      console.log('=== AUTO-LINK DEBUG ===');
+      console.log('Event title:', event.title);
+      console.log('Event description:', event.description);
+      console.log('Current linkedDanceIds:', event.linkedDanceIds);
+
+      // If no dances linked yet, try auto-linking
+      if (!event.linkedDanceIds || event.linkedDanceIds.length === 0) {
+        const updatedEvent = forceAutoLinkDances(event, data.competitionDances);
+        console.log('Detected dances:', updatedEvent.linkedDanceIds);
+        if (updatedEvent.linkedDanceIds && updatedEvent.linkedDanceIds.length > 0) {
+          console.log('Updating event with linked dances');
+          updateCalendarEvent(updatedEvent);
+        } else {
+          console.log('No dances detected');
+        }
+      }
+    }
+  }, [event?.id, data.competitionDances]); // Run when event ID changes
 
   // Get initial week notes and keep in local state
   const [weekNotes, setWeekNotes] = useState(() => getCurrentWeekNotes());
@@ -327,6 +359,21 @@ export function CalendarEventDetail() {
         </Button>
       </Link>
 
+      {/* Roster & Attendance Section */}
+      <EventRoster
+        event={event}
+        eventId={eventId || ''}
+        data={data}
+        weekNotes={weekNotes}
+        eventNotes={eventNotes}
+        showRoster={showRoster}
+        setShowRoster={setShowRoster}
+        showLinkDances={showLinkDances}
+        setShowLinkDances={setShowLinkDances}
+        saveNotes={saveNotes}
+        updateCalendarEvent={updateCalendarEvent}
+      />
+
       {/* Videos & Photos Section */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
@@ -485,6 +532,298 @@ export function CalendarEventDetail() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Event Roster Component for attendance tracking
+function EventRoster({
+  event,
+  eventId,
+  data,
+  weekNotes,
+  eventNotes,
+  showRoster,
+  setShowRoster,
+  showLinkDances,
+  setShowLinkDances,
+  saveNotes,
+  updateCalendarEvent,
+}: {
+  event: CalendarEvent;
+  eventId: string;
+  data: any;
+  weekNotes: any;
+  eventNotes: ClassWeekNotes | undefined;
+  showRoster: boolean;
+  setShowRoster: (show: boolean) => void;
+  showLinkDances: boolean;
+  setShowLinkDances: (show: boolean) => void;
+  saveNotes: (notes: any) => void;
+  updateCalendarEvent: (event: CalendarEvent) => void;
+}) {
+  // Get linked dances and their dancers
+  const linkedDances = useMemo(() => {
+    if (!event.linkedDanceIds || event.linkedDanceIds.length === 0) return [];
+    return (data.competitionDances || []).filter((d: any) =>
+      event.linkedDanceIds?.includes(d.id)
+    );
+  }, [event.linkedDanceIds, data.competitionDances]);
+
+  // Get unique dancers from all linked dances
+  const dancers = useMemo(() => {
+    const dancerIdSet = new Set<string>();
+    linkedDances.forEach((dance: any) => {
+      (dance.dancerIds || []).forEach((id: string) => dancerIdSet.add(id));
+    });
+    return (data.students || []).filter((s: any) => dancerIdSet.has(s.id));
+  }, [linkedDances, data.students]);
+
+  // Attendance from weekNotes
+  const attendance = eventNotes?.attendance || { present: [], absent: [], late: [] };
+
+  const getAttendanceStatus = (studentId: string): 'present' | 'absent' | 'late' | 'unmarked' => {
+    if (attendance.present.includes(studentId)) return 'present';
+    if (attendance.absent.includes(studentId)) return 'absent';
+    if (attendance.late.includes(studentId)) return 'late';
+    return 'unmarked';
+  };
+
+  const updateAttendance = (studentId: string, status: 'present' | 'absent' | 'late' | 'unmarked') => {
+    const existingNotes = eventNotes || {
+      classId: eventId,
+      plan: '',
+      liveNotes: [],
+      isOrganized: false,
+      media: [],
+    };
+
+    const newPresent = (existingNotes.attendance?.present || []).filter(id => id !== studentId);
+    const newAbsent = (existingNotes.attendance?.absent || []).filter(id => id !== studentId);
+    const newLate = (existingNotes.attendance?.late || []).filter(id => id !== studentId);
+
+    if (status === 'present') newPresent.push(studentId);
+    else if (status === 'absent') newAbsent.push(studentId);
+    else if (status === 'late') newLate.push(studentId);
+
+    const updatedNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [eventId]: {
+          ...existingNotes,
+          attendance: {
+            present: newPresent,
+            absent: newAbsent,
+            late: newLate,
+          },
+        },
+      },
+    };
+    saveNotes(updatedNotes);
+  };
+
+  const toggleDanceLink = (danceId: string) => {
+    const currentLinks = event.linkedDanceIds || [];
+    const newLinks = currentLinks.includes(danceId)
+      ? currentLinks.filter(id => id !== danceId)
+      : [...currentLinks, danceId];
+
+    updateCalendarEvent({
+      ...event,
+      linkedDanceIds: newLinks,
+    });
+  };
+
+  // All available dances for linking
+  const allDances = data.competitionDances || [];
+
+  // Handle auto-detect button
+  const handleAutoDetect = () => {
+    const updatedEvent = forceAutoLinkDances(event, allDances);
+    console.log('Manual auto-detect triggered');
+    console.log('Event:', event.title, event.description);
+    console.log('Detected:', updatedEvent.linkedDanceIds);
+    updateCalendarEvent(updatedEvent);
+  };
+
+  return (
+    <div className="mb-6">
+      <button
+        onClick={() => setShowRoster(!showRoster)}
+        className="w-full flex items-center justify-between p-4 bg-white rounded-xl border border-forest-200 hover:border-forest-300 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-forest-100 flex items-center justify-center">
+            <Users size={20} className="text-forest-600" />
+          </div>
+          <div className="text-left">
+            <div className="font-medium text-forest-700">
+              Rehearsal Roster ({dancers.length})
+            </div>
+            <div className="text-sm text-forest-500">
+              {linkedDances.length === 0
+                ? 'Tap to link dances'
+                : `${linkedDances.length} dance${linkedDances.length === 1 ? '' : 's'} linked`}
+              {attendance.present.length > 0 && ` • ${attendance.present.length} present`}
+              {attendance.late.length > 0 && `, ${attendance.late.length} late`}
+              {attendance.absent.length > 0 && `, ${attendance.absent.length} absent`}
+            </div>
+          </div>
+        </div>
+        {showRoster ? (
+          <ChevronUp size={20} className="text-forest-400" />
+        ) : (
+          <ChevronDown size={20} className="text-forest-400" />
+        )}
+      </button>
+
+      {showRoster && (
+        <div className="mt-3 bg-white rounded-xl border border-forest-200 overflow-hidden">
+          {/* Linked Dances */}
+          <div className="p-3 border-b border-forest-100">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm font-medium text-forest-600 flex items-center gap-2">
+                <Music size={14} />
+                Linked Dances
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAutoDetect}
+                  className="text-xs text-blush-600 bg-blush-100 px-2 py-1 rounded-lg hover:bg-blush-200"
+                >
+                  Auto-detect
+                </button>
+                <button
+                  onClick={() => setShowLinkDances(!showLinkDances)}
+                  className="text-xs text-forest-600 bg-forest-100 px-2 py-1 rounded-lg hover:bg-forest-200"
+                >
+                  {showLinkDances ? 'Done' : '+ Add/Remove'}
+                </button>
+              </div>
+            </div>
+
+            {showLinkDances ? (
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {allDances.map((dance: any) => {
+                  const isLinked = event.linkedDanceIds?.includes(dance.id);
+                  return (
+                    <button
+                      key={dance.id}
+                      onClick={() => toggleDanceLink(dance.id)}
+                      className={`w-full flex items-center justify-between p-2 rounded-lg text-left text-sm transition-colors ${
+                        isLinked
+                          ? 'bg-forest-100 text-forest-700'
+                          : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      <span>{dance.registrationName}</span>
+                      <span className="text-xs text-gray-400">
+                        {dance.dancerIds?.length || 0} dancers
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : linkedDances.length > 0 ? (
+              <div className="flex flex-wrap gap-1">
+                {linkedDances.map((dance: any) => (
+                  <span
+                    key={dance.id}
+                    className="text-xs bg-forest-100 text-forest-700 px-2 py-1 rounded-full"
+                  >
+                    {dance.registrationName}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400">No dances linked. Tap "+ Add/Remove" to link dances for attendance.</p>
+            )}
+          </div>
+
+          {/* Quick stats bar */}
+          {dancers.length > 0 && (
+            <div className="flex border-b border-forest-100 text-sm">
+              <div className="flex-1 text-center py-2 bg-green-50">
+                <span className="text-green-600 font-medium">{attendance.present.length}</span>
+                <span className="text-green-500 ml-1">Present</span>
+              </div>
+              <div className="flex-1 text-center py-2 bg-amber-50 border-x border-forest-100">
+                <span className="text-amber-600 font-medium">{attendance.late.length}</span>
+                <span className="text-amber-500 ml-1">Late</span>
+              </div>
+              <div className="flex-1 text-center py-2 bg-red-50">
+                <span className="text-red-600 font-medium">{attendance.absent.length}</span>
+                <span className="text-red-500 ml-1">Absent</span>
+              </div>
+            </div>
+          )}
+
+          {/* Student list */}
+          {dancers.length === 0 ? (
+            <div className="p-6 text-center text-gray-500">
+              <Users size={32} className="mx-auto mb-2 text-gray-300" />
+              <p>Link dances above to see the roster</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-forest-100">
+              {dancers.map((student: any) => {
+                const status = getAttendanceStatus(student.id);
+                return (
+                  <div key={student.id} className="flex items-center p-3 gap-3">
+                    <Link
+                      to={`/students?highlight=${student.id}`}
+                      className="flex-1 min-w-0"
+                    >
+                      <div className="font-medium text-forest-700 truncate">
+                        {student.nickname || student.name.split(' ')[0]}
+                      </div>
+                      <div className="text-xs text-forest-400 truncate">
+                        {student.name}
+                      </div>
+                    </Link>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => updateAttendance(student.id, status === 'present' ? 'unmarked' : 'present')}
+                        className={`p-2 rounded-lg transition-colors ${
+                          status === 'present'
+                            ? 'bg-green-500 text-white'
+                            : 'bg-gray-100 text-gray-400 hover:bg-green-100 hover:text-green-600'
+                        }`}
+                        title="Present"
+                      >
+                        <UserCheck size={18} />
+                      </button>
+                      <button
+                        onClick={() => updateAttendance(student.id, status === 'late' ? 'unmarked' : 'late')}
+                        className={`p-2 rounded-lg transition-colors ${
+                          status === 'late'
+                            ? 'bg-amber-500 text-white'
+                            : 'bg-gray-100 text-gray-400 hover:bg-amber-100 hover:text-amber-600'
+                        }`}
+                        title="Late"
+                      >
+                        <Clock3 size={18} />
+                      </button>
+                      <button
+                        onClick={() => updateAttendance(student.id, status === 'absent' ? 'unmarked' : 'absent')}
+                        className={`p-2 rounded-lg transition-colors ${
+                          status === 'absent'
+                            ? 'bg-red-500 text-white'
+                            : 'bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600'
+                        }`}
+                        title="Absent"
+                      >
+                        <UserX size={18} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>

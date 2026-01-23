@@ -62,7 +62,8 @@ function parseICS(icsText: string): CalendarEvent[] {
       const value = valueParts.join(':');
 
       if (key.startsWith('SUMMARY')) {
-        currentEvent.title = value;
+        // Unescape ICS format characters
+        currentEvent.title = value.replace(/\\n/g, '\n').replace(/\\,/g, ',').replace(/\\;/g, ';');
       } else if (key.startsWith('DTSTART')) {
         const { date, time } = parseDTValue(key, value);
         currentEvent.date = date;
