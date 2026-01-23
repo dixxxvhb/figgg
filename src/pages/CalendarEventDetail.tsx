@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, Play, Calendar, Video, Plus, Trash2, FileText, Image } from 'lucide-react';
+import { ArrowLeft, Clock, MapPin, Play, Calendar, Video, Plus, Trash2, FileText, Image, Edit2, Save, X } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import { formatTimeDisplay } from '../utils/time';
 import { Button } from '../components/common/Button';
@@ -27,6 +27,8 @@ export function CalendarEventDetail() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editNoteText, setEditNoteText] = useState('');
 
   const saveNotes = (updatedNotes: typeof weekNotes) => {
     setWeekNotes(updatedNotes);
@@ -202,6 +204,51 @@ export function CalendarEventDetail() {
         [eventId]: {
           ...existingNotes,
           plan,
+        },
+      },
+    };
+    saveNotes(updatedNotes);
+  };
+
+  const startEditingNote = (noteId: string, text: string) => {
+    setEditingNoteId(noteId);
+    setEditNoteText(text);
+  };
+
+  const cancelEditingNote = () => {
+    setEditingNoteId(null);
+    setEditNoteText('');
+  };
+
+  const saveNoteEdit = () => {
+    if (!eventId || !editingNoteId || !eventNotes) return;
+
+    const updatedNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [eventId]: {
+          ...eventNotes,
+          liveNotes: eventNotes.liveNotes.map(note =>
+            note.id === editingNoteId ? { ...note, text: editNoteText } : note
+          ),
+        },
+      },
+    };
+    saveNotes(updatedNotes);
+    cancelEditingNote();
+  };
+
+  const deleteNote = (noteId: string) => {
+    if (!eventId || !eventNotes) return;
+
+    const updatedNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [eventId]: {
+          ...eventNotes,
+          liveNotes: eventNotes.liveNotes.filter(note => note.id !== noteId),
         },
       },
     };
@@ -384,10 +431,57 @@ export function CalendarEventDetail() {
           <div className="space-y-2">
             {eventNotes.liveNotes.map(note => (
               <div key={note.id} className="bg-white rounded-lg border border-gray-200 p-3">
-                <p className="text-gray-700">{note.text}</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  {new Date(note.timestamp).toLocaleTimeString()}
-                </p>
+                {editingNoteId === note.id ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={editNoteText}
+                      onChange={(e) => setEditNoteText(e.target.value)}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent text-sm"
+                      autoFocus
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={saveNoteEdit}
+                        className="flex items-center gap-1 px-3 py-1.5 bg-forest-600 text-white rounded-lg text-sm"
+                      >
+                        <Save size={14} />
+                        Save
+                      </button>
+                      <button
+                        onClick={cancelEditingNote}
+                        className="flex items-center gap-1 px-3 py-1.5 text-gray-600 hover:bg-gray-100 rounded-lg text-sm"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-gray-700">{note.text}</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <p className="text-xs text-gray-400">
+                        {new Date(note.timestamp).toLocaleTimeString()}
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => startEditingNote(note.id, note.text)}
+                          className="text-xs text-forest-600 flex items-center gap-1 hover:text-forest-700"
+                        >
+                          <Edit2 size={12} />
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => deleteNote(note.id)}
+                          className="text-xs text-red-500 flex items-center gap-1 hover:text-red-600"
+                        >
+                          <Trash2 size={12} />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
