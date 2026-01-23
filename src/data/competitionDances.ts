@@ -18,6 +18,13 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Braided Bun',
+      hairAccessories: 'Cowboy Hats',
+      tights: 'Black socks for boys and littles',
+      shoes: 'Black jazz shoes, Tap shoes',
+      accessories: ['Rope'],
+    },
   },
 
   // LARGE GROUPS
@@ -37,6 +44,12 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Braided Bun',
+      tights: 'Black under garments',
+      shoes: 'Barefoot',
+      accessories: ['Hat', 'Poncho', 'John-cape'],
+    },
   },
 
   // SMALL GROUPS
@@ -56,6 +69,12 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Braided Bun',
+      hairAccessories: 'Hair piece',
+      tights: 'Tan tights (stirrup)',
+      shoes: 'Lyrical shoes',
+    },
   },
   {
     id: 'big-noise',
@@ -73,6 +92,12 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Braid into Braided Bun',
+      hairAccessories: 'Hair piece',
+      tights: 'Tan tights',
+      shoes: 'Tan jazz shoes',
+    },
   },
   {
     id: 'screwloose',
@@ -90,6 +115,13 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Braided Bun',
+      hairAccessories: 'Head wrap bandanna',
+      tights: 'Tan tights',
+      shoes: 'Black jazz shoes',
+      notes: 'Zoe - Pig Tails',
+    },
   },
   {
     id: 'church',
@@ -107,6 +139,12 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Braided Bun',
+      tights: 'Black socks',
+      shoes: 'Tap shoes',
+      accessories: ['Jacket'],
+    },
   },
   {
     id: 'cough-syrup',
@@ -124,6 +162,10 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Braided Bun',
+      shoes: 'Barefoot',
+    },
   },
   {
     id: 'ammore',
@@ -141,6 +183,10 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Braided Bun',
+      shoes: 'Barefoot',
+    },
   },
   {
     id: 'chasing-the-sun',
@@ -158,6 +204,12 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Braid into Braided Bun',
+      hairAccessories: 'Hair piece',
+      tights: 'Tan tights',
+      shoes: 'Tan jazz shoes',
+    },
   },
 
   // TRIOS
@@ -177,6 +229,12 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'High Pony',
+      hairAccessories: 'Hair piece',
+      tights: 'Tan tights',
+      shoes: 'Tan jazz shoes',
+    },
   },
 
   // DUETS
@@ -196,6 +254,11 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Low Pony',
+      hairAccessories: 'Hair piece',
+      shoes: 'Black jazz shoes',
+    },
   },
   {
     id: 'i-wanna-go-back',
@@ -213,6 +276,12 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Low Bun / Low Pony',
+      tights: 'Tan Tights',
+      shoes: 'Lyrical shoes',
+      notes: 'Laylianna - Low Bun, Yessa - Low Pony',
+    },
   },
   {
     id: 'sisters',
@@ -230,6 +299,12 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Braid into Low Pony',
+      hairAccessories: 'Hair piece',
+      tights: 'Tan tights',
+      shoes: 'Tan jazz shoes',
+    },
   },
 
   // SOLOS
@@ -249,6 +324,12 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Braided Bun',
+      hairAccessories: 'Hair piece',
+      tights: 'Tan tights (stirrup)',
+      shoes: 'Lyrical shoes',
+    },
   },
   {
     id: 'speaking-french',
@@ -266,6 +347,12 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Braided Bun',
+      hairAccessories: 'Hair piece',
+      tights: 'Black tights',
+      shoes: 'Black jazz shoes',
+    },
   },
   {
     id: 'im-available',
@@ -283,6 +370,12 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Braided Bun',
+      hairAccessories: 'Hair piece',
+      tights: 'Tan tights',
+      shoes: 'Tan Jazz Shoes',
+    },
   },
   {
     id: 'strategy',
@@ -300,6 +393,10 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Low Pony',
+      hairAccessories: 'Hat',
+    },
   },
   {
     id: 'man-of-the-house',
@@ -317,6 +414,12 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Braid into Low Pony',
+      hairAccessories: 'Hair piece',
+      tights: 'Tan tights',
+      shoes: 'Lyrical shoes',
+    },
   },
   {
     id: 'we-cant-be-friends',
@@ -334,6 +437,11 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Low Pony',
+      tights: 'Tights',
+      shoes: 'Lyrical Shoes',
+    },
   },
   {
     id: 'im-a-woman',
@@ -351,6 +459,11 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Low Pony',
+      tights: 'Black tights',
+      shoes: 'Black jazz shoes',
+    },
   },
   {
     id: 'my-days',
@@ -368,6 +481,12 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Half up/Half Down',
+      hairAccessories: 'Hair piece',
+      tights: 'No tights',
+      shoes: 'Lyrical shoes',
+    },
   },
   {
     id: 'chariot',
@@ -385,6 +504,12 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Half up/Half Down',
+      hairAccessories: 'Hairpiece',
+      tights: 'No tights',
+      shoes: 'Socks',
+    },
   },
   {
     id: 'face',
@@ -402,6 +527,11 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Low Pony',
+      tights: 'No tights',
+      shoes: 'Foot paws',
+    },
   },
   {
     id: 'lime-in-the-coconut',
@@ -419,6 +549,11 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Half up/Half Down',
+      hairAccessories: 'Hair piece',
+      shoes: 'Barefoot',
+    },
   },
   {
     id: 'prelude-c-sharp-minor',
@@ -436,6 +571,10 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Natural',
+      tights: 'Black socks',
+    },
   },
   {
     id: 'calor',
@@ -453,6 +592,11 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Low Bun',
+      hairAccessories: 'Hair piece',
+      shoes: 'Black jazz shoes',
+    },
   },
   {
     id: 'gentlemen-arent-nice',
@@ -470,6 +614,10 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Low Pony',
+      shoes: 'Black jazz shoes',
+    },
   },
   {
     id: 'papa-was-a-rollin-stone',
@@ -487,6 +635,32 @@ export const initialCompetitionDances: CompetitionDance[] = [
     notes: '',
     media: [],
     rehearsalNotes: [],
+    costume: {
+      hair: 'Slick Back',
+      hairAccessories: 'Hat',
+      tights: 'Black socks',
+      shoes: 'Black Jazz Shoes',
+    },
+  },
+  {
+    id: 'monologue-remi',
+    registrationName: 'Monologue',
+    songTitle: 'Monologue',
+    style: 'open',
+    category: 'solo',
+    level: 'advanced',
+    choreographers: ['Dixon'],
+    dancers: ['Remi'],
+    duration: '2:30',
+    startPosition: 'on stage',
+    props: 'none',
+    studioId: 'caa',
+    notes: '',
+    media: [],
+    rehearsalNotes: [],
+    costume: {
+      hair: 'Half up/Half Down',
+    },
   },
   {
     id: 'i-like-to-fuss',

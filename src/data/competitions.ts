@@ -2,14 +2,14 @@ import { Competition } from '../types';
 
 export const initialCompetitions: Competition[] = [
   {
-    id: 'inferno-2025',
+    id: 'inferno-2026',
     name: 'Inferno Dance Competition',
-    date: '2025-01-30',
-    endDate: '2025-02-01',
+    date: '2026-01-30',
+    endDate: '2026-02-01',
     location: 'Apopka High School, Apopka, FL',
     address: '555 Martin St, Apopka, FL 32712',
     dances: [],
-    notes: 'Registration through infernodance.com. Download Dakiki app for schedules and livestreams.',
+    notes: 'Registration through infernodance.com. Download Dakiki app for schedules and livestreams. Preliminary competition Jan 30 - Feb 1, 2026.',
     website: 'https://www.infernodance.com/',
   },
   {

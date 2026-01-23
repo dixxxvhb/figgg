@@ -36,6 +36,8 @@ export interface Class {
   choreographyNotes?: string;
   curriculum: CurriculumSection[];
   musicLinks: MusicLink[];
+  studentIds?: string[]; // Enrolled students
+  level?: 'beginner' | 'intermediate' | 'advanced'; // Class difficulty
 }
 
 export interface LiveNote {
@@ -67,6 +69,12 @@ export interface ClassWeekNotes {
   organizedNotes?: OrganizedNotes;
   isOrganized: boolean;
   media?: MediaItem[];
+  // Attendance for this class this week
+  attendance?: {
+    present: string[]; // Student IDs
+    absent: string[];
+    late: string[];
+  };
 }
 
 export interface WeekNotes {
@@ -140,6 +148,16 @@ export type DanceCategory = 'production' | 'large-group' | 'small-group' | 'trio
 export type DanceStyle = 'jazz' | 'contemporary' | 'lyrical' | 'musical-theatre' | 'tap' | 'hip-hop' | 'acro' | 'open';
 export type DanceLevel = 'beginner' | 'intermediate' | 'advanced';
 
+// Costume and accessory information for a dance
+export interface DanceCostume {
+  hair: string; // "Low Pony", "Braided Bun", etc.
+  hairAccessories?: string; // "Hair piece", "Hat", etc.
+  tights?: string; // "Tan tights", "Black tights", "No tights"
+  shoes?: string; // "Black jazz shoes", "Lyrical shoes", "Barefoot"
+  accessories?: string[]; // Additional items like "Jacket", "Hat", "Poncho"
+  notes?: string; // Special notes like "Zoe - Pig Tails"
+}
+
 export interface CompetitionDance {
   id: string;
   registrationName: string; // Name used for registration
@@ -159,6 +177,8 @@ export interface CompetitionDance {
   rehearsalNotes: RehearsalNote[];
   // Stage formations
   formations?: Formation[];
+  // Costume and hair information
+  costume?: DanceCostume;
 }
 
 export interface RehearsalNote {
@@ -199,6 +219,95 @@ export interface AppSettings {
   password?: string;
 }
 
+// ===== STUDENT MANAGEMENT =====
+
+export interface Student {
+  id: string;
+  name: string;
+  nickname?: string; // What they go by in class
+  parentName?: string;
+  parentEmail?: string;
+  parentPhone?: string;
+  birthdate?: string; // ISO date
+  notes: string; // General notes about the student
+  skillNotes: SkillNote[]; // Skill progression tracking
+  classIds: string[]; // Which classes they're enrolled in
+  createdAt: string;
+}
+
+export interface SkillNote {
+  id: string;
+  date: string; // ISO date
+  category: 'strength' | 'improvement' | 'concern' | 'achievement' | 'parent-note';
+  text: string;
+}
+
+// ===== ATTENDANCE TRACKING =====
+
+export interface AttendanceRecord {
+  id: string;
+  classId: string;
+  date: string; // ISO date
+  weekOf: string; // ISO date of Monday (links to WeekNotes)
+  present: string[]; // Student IDs who were present
+  absent: string[]; // Student IDs who were absent
+  late: string[]; // Student IDs who arrived late
+  notes?: string; // Any notes about the class that day
+}
+
+// ===== COMPETITION ENHANCEMENTS =====
+
+export interface CostumeItem {
+  id: string;
+  name: string; // "Black leotard", "Hair bow", etc.
+  quantity?: number;
+  notes?: string;
+  packed?: boolean; // For competition day checklist
+}
+
+export interface CompetitionChecklist {
+  id: string;
+  competitionId: string;
+  // Backstage essentials
+  essentials: ChecklistItem[];
+  // Per-dance items
+  danceItems: {
+    danceId: string;
+    costumes: CostumeItem[];
+    props: CostumeItem[];
+    hair?: string;
+    makeup?: string;
+    callTime?: string;
+    scheduledTime?: string; // Actual performance time from schedule
+    performanceDate?: string; // ISO date for multi-day competitions
+    entryNumber?: number; // Entry number in competition order
+    notes?: string;
+  }[];
+}
+
+// Competition schedule entry for tracking performance order
+export interface CompetitionScheduleEntry {
+  id: string;
+  competitionId: string;
+  danceId: string;
+  entryNumber: number;
+  performanceDate: string; // ISO date
+  scheduledTime: string; // "10:30 AM"
+  callTime: string; // Calculated (usually 2 hours before)
+  category: DanceCategory;
+  level: DanceLevel;
+  style: DanceStyle;
+  ageGroup: string; // "5-6", "7-8", "9-11", "12-14", "15-16", "17-19"
+  dancers: string[];
+}
+
+export interface ChecklistItem {
+  id: string;
+  name: string;
+  packed: boolean;
+  category: 'first-aid' | 'hair' | 'makeup' | 'tools' | 'snacks' | 'other';
+}
+
 export interface AppData {
   studios: Studio[];
   classes: Class[];
@@ -210,6 +319,11 @@ export interface AppData {
   competitionDances: CompetitionDance[];
   calendarEvents: CalendarEvent[];
   settings: AppSettings;
+  lastModified?: string; // ISO timestamp for sync conflict resolution
+  // New features based on teacher feedback
+  students?: Student[];
+  attendance?: AttendanceRecord[];
+  competitionChecklists?: CompetitionChecklist[];
 }
 
 export interface UserLocation {

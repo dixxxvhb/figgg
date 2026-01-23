@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, Music2, Camera, Video, X, Image, Trash2, FileText } from 'lucide-react';
-import { format } from 'date-fns';
+import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, Music2, Camera, Video, X, Image, Trash2, FileText, Users, Check, XCircle, Clock3 } from 'lucide-react';
+import { format, startOfWeek } from 'date-fns';
 import { useAppData } from '../hooks/useAppData';
 import { DropdownMenu } from '../components/common/DropdownMenu';
-import { LiveNote, ClassWeekNotes } from '../types';
-import { formatTimeDisplay, getCurrentTimeMinutes, getMinutesRemaining } from '../utils/time';
+import { LiveNote, ClassWeekNotes, Student } from '../types';
+import { formatTimeDisplay, getCurrentTimeMinutes, getMinutesRemaining, formatWeekOf } from '../utils/time';
 import { v4 as uuid } from 'uuid';
 import { processMediaFile } from '../utils/mediaCompression';
 
@@ -25,10 +25,14 @@ export function LiveNotes() {
   const cls = data.classes.find(c => c.id === classId);
   const studio = cls ? data.studios.find(s => s.id === cls.studioId) : null;
 
+  // Get enrolled students for this class
+  const enrolledStudents = (data.students || []).filter(s => s.classIds.includes(classId || ''));
+
   const [noteText, setNoteText] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | undefined>();
   const [weekNotes, setWeekNotes] = useState(() => getCurrentWeekNotes());
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [showAttendance, setShowAttendance] = useState(false);
 
   // Sync weekNotes when data changes (e.g., from cloud sync)
   useEffect(() => {
@@ -42,7 +46,11 @@ export function LiveNotes() {
     liveNotes: [],
     isOrganized: false,
     media: [],
+    attendance: { present: [], absent: [], late: [] },
   };
+
+  // Initialize attendance from classNotes or default
+  const attendance = classNotes.attendance || { present: [], absent: [], late: [] };
 
   // Update time remaining
   useEffect(() => {
@@ -100,6 +108,61 @@ export function LiveNotes() {
       e.preventDefault();
       addNote();
     }
+  };
+
+  // Attendance management
+  const markAttendance = (studentId: string, status: 'present' | 'absent' | 'late') => {
+    // Remove from all lists first
+    const newPresent = attendance.present.filter(id => id !== studentId);
+    const newAbsent = attendance.absent.filter(id => id !== studentId);
+    const newLate = attendance.late.filter(id => id !== studentId);
+
+    // Add to the appropriate list
+    if (status === 'present') newPresent.push(studentId);
+    else if (status === 'absent') newAbsent.push(studentId);
+    else if (status === 'late') newLate.push(studentId);
+
+    const updatedClassNotes: ClassWeekNotes = {
+      ...classNotes,
+      attendance: { present: newPresent, absent: newAbsent, late: newLate },
+    };
+
+    const updatedWeekNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [classId || '']: updatedClassNotes,
+      },
+    };
+
+    setWeekNotes(updatedWeekNotes);
+    saveWeekNotes(updatedWeekNotes);
+  };
+
+  const getStudentStatus = (studentId: string): 'present' | 'absent' | 'late' | null => {
+    if (attendance.present.includes(studentId)) return 'present';
+    if (attendance.absent.includes(studentId)) return 'absent';
+    if (attendance.late.includes(studentId)) return 'late';
+    return null;
+  };
+
+  const markAllPresent = () => {
+    const allIds = enrolledStudents.map(s => s.id);
+    const updatedClassNotes: ClassWeekNotes = {
+      ...classNotes,
+      attendance: { present: allIds, absent: [], late: [] },
+    };
+
+    const updatedWeekNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [classId || '']: updatedClassNotes,
+      },
+    };
+
+    setWeekNotes(updatedWeekNotes);
+    saveWeekNotes(updatedWeekNotes);
   };
 
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -367,6 +430,81 @@ export function LiveNotes() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Attendance Section */}
+        {enrolledStudents.length > 0 && (
+          <div className="mb-4">
+            <button
+              onClick={() => setShowAttendance(!showAttendance)}
+              className="flex items-center justify-between w-full bg-white rounded-xl border border-blush-200 p-3 hover:border-forest-300 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Users size={18} className="text-forest-600" />
+                <span className="font-medium text-forest-700">Attendance</span>
+                <span className="text-sm text-gray-500">
+                  ({attendance.present.length}/{enrolledStudents.length} present)
+                </span>
+              </div>
+              <span className="text-forest-600 text-sm">
+                {showAttendance ? 'Hide' : 'Show'}
+              </span>
+            </button>
+
+            {showAttendance && (
+              <div className="mt-2 bg-white rounded-xl border border-blush-200 overflow-hidden">
+                <div className="px-3 py-2 bg-forest-50 border-b border-blush-200 flex items-center justify-between">
+                  <span className="text-xs text-forest-600 font-medium">
+                    Tap to mark: <Check size={12} className="inline text-green-600" /> Present · <Clock3 size={12} className="inline text-amber-600" /> Late · <XCircle size={12} className="inline text-red-500" /> Absent
+                  </span>
+                  <button
+                    onClick={markAllPresent}
+                    className="text-xs text-forest-600 hover:text-forest-700 font-medium"
+                  >
+                    All Present
+                  </button>
+                </div>
+                <div className="divide-y divide-gray-100">
+                  {enrolledStudents.map(student => {
+                    const status = getStudentStatus(student.id);
+                    return (
+                      <div key={student.id} className="flex items-center justify-between px-3 py-2">
+                        <span className="text-sm text-gray-700">
+                          {student.nickname || student.name}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => markAttendance(student.id, 'present')}
+                            className={`p-1.5 rounded-full transition-colors ${
+                              status === 'present' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-green-100 hover:text-green-600'
+                            }`}
+                          >
+                            <Check size={14} />
+                          </button>
+                          <button
+                            onClick={() => markAttendance(student.id, 'late')}
+                            className={`p-1.5 rounded-full transition-colors ${
+                              status === 'late' ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-amber-100 hover:text-amber-600'
+                            }`}
+                          >
+                            <Clock3 size={14} />
+                          </button>
+                          <button
+                            onClick={() => markAttendance(student.id, 'absent')}
+                            className={`p-1.5 rounded-full transition-colors ${
+                              status === 'absent' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600'
+                            }`}
+                          >
+                            <XCircle size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

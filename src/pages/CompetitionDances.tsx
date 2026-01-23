@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Users, User, Clock, Music } from 'lucide-react';
+import { Search, Users, User, Clock, Music, ClipboardList, Calendar, ListOrdered } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import { DanceCategory, DanceLevel, DanceStyle } from '../types';
+import { format } from 'date-fns';
+import { getScheduleForCompetition } from '../data/competitionSchedules';
 
 const categoryOrder: DanceCategory[] = ['production', 'large-group', 'small-group', 'trio', 'duet', 'solo'];
 
@@ -73,10 +75,68 @@ export function CompetitionDances() {
     return dancers.length;
   };
 
+  // Get upcoming competitions for checklist quick access
+  const upcomingCompetitions = (data.competitions || [])
+    .filter(comp => new Date(comp.date) >= new Date())
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(0, 3);
+
   return (
     <div className="max-w-lg mx-auto px-4 py-6 pb-24">
       <h1 className="text-2xl font-bold text-forest-600 mb-2">Competition Dances</h1>
       <p className="text-forest-500/70 mb-6">CAA 2025 Season</p>
+
+      {/* Upcoming Competitions */}
+      {upcomingCompetitions.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-sm font-semibold text-forest-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+            <Calendar size={14} />
+            Upcoming Competitions
+          </h2>
+          <div className="space-y-3">
+            {upcomingCompetitions.map(comp => {
+              const hasSchedule = getScheduleForCompetition(comp.id).length > 0;
+              return (
+                <div key={comp.id} className="bg-white rounded-xl border border-forest-200 p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-forest-100 rounded-lg flex items-center justify-center">
+                      <Calendar size={18} className="text-forest-600" />
+                    </div>
+                    <div>
+                      <div className="font-medium text-forest-700">{comp.name}</div>
+                      <div className="text-xs text-forest-500">
+                        {format(new Date(comp.date), 'MMM d')} - {format(new Date(comp.endDate || comp.date), 'MMM d, yyyy')}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    {hasSchedule && (
+                      <Link
+                        to={`/competition/${comp.id}/schedule`}
+                        className="flex-1 flex items-center justify-center gap-2 py-2 bg-forest-600 text-white rounded-lg text-sm font-medium hover:bg-forest-700 transition-colors"
+                      >
+                        <ListOrdered size={16} />
+                        Schedule
+                      </Link>
+                    )}
+                    <Link
+                      to={`/competition/${comp.id}/checklist`}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        hasSchedule
+                          ? 'bg-forest-100 text-forest-700 hover:bg-forest-200'
+                          : 'bg-forest-600 text-white hover:bg-forest-700'
+                      }`}
+                    >
+                      <ClipboardList size={16} />
+                      Checklist
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative mb-4">

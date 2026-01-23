@@ -15,6 +15,9 @@ import { Login } from './pages/Login';
 import { CompetitionDances } from './pages/CompetitionDances';
 import { DanceDetail } from './pages/DanceDetail';
 import { FormationBuilder } from './pages/FormationBuilder';
+import { Students } from './pages/Students';
+import { CompetitionChecklist } from './pages/CompetitionChecklist';
+import { CompetitionSchedule } from './pages/CompetitionSchedule';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { SaveStatus } from './components/common/SaveStatus';
 import { SyncProvider } from './contexts/SyncContext';
@@ -36,10 +39,9 @@ function App() {
         fetchCalendarEvents(CALENDAR_URL).then(events => {
           if (events.length > 0) {
             updateCalendarEvents(events);
-            console.log(`Calendar synced: ${events.length} events`);
           }
-        }).catch(err => {
-          console.error('Calendar sync failed:', err);
+        }).catch(() => {
+          // Calendar sync failed silently - not critical
         });
       });
     }
@@ -66,8 +68,11 @@ function App() {
                 <Route path="/plan" element={<WeekPlanner />} />
                 <Route path="/dances" element={<CompetitionDances />} />
                 <Route path="/dance/:danceId" element={<DanceDetail />} />
+                <Route path="/competition/:competitionId/checklist" element={<CompetitionChecklist />} />
+                <Route path="/competition/:competitionId/schedule" element={<CompetitionSchedule />} />
                 <Route path="/formations" element={<FormationBuilder />} />
                 <Route path="/formations/:danceId" element={<FormationBuilder />} />
+                <Route path="/students" element={<Students />} />
                 <Route path="/library" element={<Library />} />
                 <Route path="/settings" element={<Settings />} />
               </Routes>

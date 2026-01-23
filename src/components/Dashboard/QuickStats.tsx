@@ -1,7 +1,8 @@
-import React from 'react';
 import { differenceInDays, format } from 'date-fns';
+import { Link } from 'react-router-dom';
 import { Class, Project, Competition } from '../../types';
-import { Calendar, Trophy, Sparkles } from 'lucide-react';
+import { Calendar, Trophy, ListOrdered, ClipboardList } from 'lucide-react';
+import { getScheduleForCompetition } from '../../data/competitionSchedules';
 
 interface QuickStatsProps {
   todayClasses: Class[];
@@ -41,7 +42,7 @@ export function QuickStats({ todayClasses, projects, competitions }: QuickStatsP
       {/* Next Competition Countdown */}
       {nextComp && (
         <div className="bg-gradient-to-r from-blush-200 to-blush-100 rounded-xl p-4 border border-blush-300">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 mb-3">
             <div className="w-12 h-12 bg-forest-600 rounded-full flex items-center justify-center">
               <Trophy className="text-blush-200" size={24} />
             </div>
@@ -58,6 +59,29 @@ export function QuickStats({ todayClasses, projects, competitions }: QuickStatsP
               <div className="text-3xl font-bold text-forest-600">{daysUntilNextComp}</div>
               <div className="text-xs text-forest-400">days</div>
             </div>
+          </div>
+          {/* Quick Links for Competition */}
+          <div className="flex gap-2">
+            {getScheduleForCompetition(nextComp.id).length > 0 && (
+              <Link
+                to={`/competition/${nextComp.id}/schedule`}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-forest-600 text-white rounded-lg text-sm font-medium hover:bg-forest-700 transition-colors"
+              >
+                <ListOrdered size={16} />
+                Schedule
+              </Link>
+            )}
+            <Link
+              to={`/competition/${nextComp.id}/checklist`}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                getScheduleForCompetition(nextComp.id).length > 0
+                  ? 'bg-white text-forest-700 border border-forest-300 hover:bg-forest-50'
+                  : 'bg-forest-600 text-white hover:bg-forest-700'
+              }`}
+            >
+              <ClipboardList size={16} />
+              Checklist
+            </Link>
           </div>
         </div>
       )}

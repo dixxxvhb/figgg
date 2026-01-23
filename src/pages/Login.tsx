@@ -69,9 +69,6 @@ export function Login({ onSuccess }: LoginProps) {
           </Button>
         </form>
 
-        <p className="text-center text-xs text-blush-200/50 mt-6">
-          Default password: dance2024
-        </p>
       </div>
     </div>
   );

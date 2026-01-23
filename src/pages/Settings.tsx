@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { MapPin, Download, Upload, LogOut, Check, Calendar, Sparkles, RefreshCw, AlertCircle, Cloud, CloudOff } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { MapPin, Download, Upload, LogOut, Check, Calendar, Sparkles, RefreshCw, AlertCircle, Cloud, BookOpen, Trophy, ClipboardList } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import { exportData, importData, logout, updateCalendarEvents, updateSettings, syncFromCloud, pushToCloud } from '../services/storage';
 import { fetchCalendarEvents } from '../services/calendar';
@@ -102,6 +103,40 @@ export function Settings() {
   return (
     <div className="max-w-lg mx-auto px-4 py-6 pb-24">
       <h1 className="text-2xl font-bold text-forest-700 mb-6">Settings</h1>
+
+      {/* Quick Links */}
+      <section className="mb-8">
+        <h2 className="text-lg font-semibold text-forest-700 mb-4">Quick Links</h2>
+        <div className="grid grid-cols-3 gap-3">
+          <Link
+            to="/library"
+            className="flex flex-col items-center gap-2 bg-white rounded-xl border border-blush-200 p-4 shadow-sm hover:border-forest-300 transition-colors"
+          >
+            <BookOpen size={24} className="text-forest-600" />
+            <div className="text-center">
+              <div className="font-medium text-forest-700 text-sm">Glossary</div>
+            </div>
+          </Link>
+          <Link
+            to="/library?tab=competitions"
+            className="flex flex-col items-center gap-2 bg-white rounded-xl border border-blush-200 p-4 shadow-sm hover:border-forest-300 transition-colors"
+          >
+            <Trophy size={24} className="text-forest-600" />
+            <div className="text-center">
+              <div className="font-medium text-forest-700 text-sm">Comps</div>
+            </div>
+          </Link>
+          <Link
+            to="/dances"
+            className="flex flex-col items-center gap-2 bg-white rounded-xl border border-blush-200 p-4 shadow-sm hover:border-forest-300 transition-colors"
+          >
+            <ClipboardList size={24} className="text-forest-600" />
+            <div className="text-center">
+              <div className="font-medium text-forest-700 text-sm">Checklists</div>
+            </div>
+          </Link>
+        </div>
+      </section>
 
       {/* Cloud Sync */}
       <section className="mb-8">

@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, Clock, Users, User, Music, Edit2, Save, X,
-  Plus, Trash2, Camera, Video, Play, Image as ImageIcon,
-  ChevronDown, ChevronUp, Grid3X3
+  Plus, Trash2, Camera, Play,
+  ChevronDown, ChevronUp, Grid3X3, Scissors, Footprints
 } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import { Button } from '../components/common/Button';
@@ -270,6 +270,78 @@ export function DanceDetail() {
           </div>
         )}
       </div>
+
+      {/* Costume & Hair Info */}
+      {displayDance.costume && (
+        <div className="bg-white rounded-xl border border-forest-200 p-4 mb-6">
+          <h2 className="font-semibold text-forest-700 mb-3 flex items-center gap-2">
+            <Scissors size={18} />
+            Costume & Hair
+          </h2>
+          <div className="space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Scissors size={16} className="text-purple-600" />
+              </div>
+              <div>
+                <div className="text-xs text-forest-500 uppercase tracking-wide">Hair</div>
+                <div className="text-forest-700 font-medium">{displayDance.costume.hair}</div>
+                {displayDance.costume.hairAccessories && (
+                  <div className="text-sm text-forest-500">{displayDance.costume.hairAccessories}</div>
+                )}
+              </div>
+            </div>
+
+            {displayDance.costume.tights && (
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-pink-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <span className="text-pink-600 text-xs font-bold">T</span>
+                </div>
+                <div>
+                  <div className="text-xs text-forest-500 uppercase tracking-wide">Tights</div>
+                  <div className="text-forest-700 font-medium">{displayDance.costume.tights}</div>
+                </div>
+              </div>
+            )}
+
+            {displayDance.costume.shoes && (
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Footprints size={16} className="text-amber-600" />
+                </div>
+                <div>
+                  <div className="text-xs text-forest-500 uppercase tracking-wide">Shoes</div>
+                  <div className="text-forest-700 font-medium">{displayDance.costume.shoes}</div>
+                </div>
+              </div>
+            )}
+
+            {displayDance.costume.accessories && displayDance.costume.accessories.length > 0 && (
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Plus size={16} className="text-blue-600" />
+                </div>
+                <div>
+                  <div className="text-xs text-forest-500 uppercase tracking-wide">Accessories</div>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {displayDance.costume.accessories.map((acc, i) => (
+                      <span key={i} className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-sm">
+                        {acc}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {displayDance.costume.notes && (
+              <div className="bg-amber-50 rounded-lg p-3 text-sm text-amber-800 border border-amber-200">
+                <strong>Note:</strong> {displayDance.costume.notes}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Formation Builder Link */}
       <Link

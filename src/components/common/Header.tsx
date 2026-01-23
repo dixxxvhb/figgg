@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Calendar, Library, Settings, FileText, Star, Play, Grid3X3, Cloud, CloudOff, Loader2, Check } from 'lucide-react';
+import { Home, Calendar, Library, Settings, FileText, Star, Play, Grid3X3, Cloud, CloudOff, Loader2, Check, Users } from 'lucide-react';
 import { useAppData } from '../../hooks/useAppData';
 import { useCurrentClass } from '../../hooks/useCurrentClass';
 import { useSyncStatus } from '../../contexts/SyncContext';
@@ -10,7 +10,7 @@ const navItems = [
   { path: '/schedule', icon: Calendar, label: 'Schedule' },
   { path: '/plan', icon: FileText, label: 'Plan' },
   { path: '/dances', icon: Star, label: 'Dances' },
-  { path: '/library', icon: Library, label: 'Library' },
+  { path: '/students', icon: Users, label: 'Students' },
   { path: '/settings', icon: Settings, label: 'Settings' },
 ];
 
@@ -121,7 +121,7 @@ export function MobileNav() {
   const location = useLocation();
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-forest-600 border-t border-forest-500 pb-safe z-50">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-forest-600 border-t border-forest-500 z-50" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0)' }}>
       <div className="flex justify-around items-center h-16">
         {navItems.map(({ path, icon: Icon, label }) => {
           const isActive = location.pathname === path;
@@ -129,14 +129,14 @@ export function MobileNav() {
             <Link
               key={path}
               to={path}
-              className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors ${
+              className={`flex flex-col items-center justify-center gap-0.5 min-w-[60px] min-h-[48px] px-2 py-1 rounded-lg transition-colors active:bg-forest-500 ${
                 isActive
                   ? 'text-blush-200'
                   : 'text-blush-300/60'
               }`}
             >
-              <Icon size={20} />
-              <span className="text-xs">{label}</span>
+              <Icon size={22} />
+              <span className="text-[10px] font-medium">{label}</span>
             </Link>
           );
         })}

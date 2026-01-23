@@ -5,7 +5,21 @@ import { terminology } from '../data/terminology';
 import { initialProjects } from '../data/projects';
 import { initialCompetitions } from '../data/competitions';
 import { initialCompetitionDances } from '../data/competitionDances';
-import { debouncedCloudSave, fetchCloudData, saveCloudData } from './cloudStorage';
+import { debouncedCloudSave, fetchCloudData, saveCloudData, flushPendingSave } from './cloudStorage';
+
+// Set up page unload handler to flush pending saves
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    flushPendingSave();
+  });
+
+  // Also handle visibility change (when switching tabs or apps on mobile)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      flushPendingSave();
+    }
+  });
+}
 
 const STORAGE_KEY = 'dance-teaching-app-data';
 const AUTH_KEY = 'dance-teaching-app-auth';
@@ -26,25 +40,74 @@ function getDefaultData(): AppData {
   };
 }
 
+// Migration: Update competition IDs from old format to new format
+function migrateCompetitionIds(competitions: Competition[]): Competition[] {
+  return competitions.map(comp => {
+    // Migrate inferno-2025 to inferno-2026 (date correction)
+    if (comp.id === 'inferno-2025') {
+      return {
+        ...comp,
+        id: 'inferno-2026',
+        date: '2026-01-30',
+        endDate: '2026-02-01',
+        notes: comp.notes + ' Preliminary competition Jan 30 - Feb 1, 2026.',
+      };
+    }
+    return comp;
+  });
+}
+
+// Migration: Merge costume data from initialCompetitionDances into stored dances
+function migrateCompetitionDanceCostumes(storedDances: CompetitionDance[]): CompetitionDance[] {
+  return storedDances.map(dance => {
+    // If this dance already has costume data, keep it (user may have edited)
+    if (dance.costume) {
+      return dance;
+    }
+
+    // Find the matching dance in initialCompetitionDances to get costume data
+    const initialDance = initialCompetitionDances.find(d => d.id === dance.id);
+    if (initialDance?.costume) {
+      return {
+        ...dance,
+        costume: initialDance.costume,
+      };
+    }
+
+    return dance;
+  });
+}
+
 export function loadData(): AppData {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
       const defaults = getDefaultData();
+
+      // Migrate competition IDs
+      const migratedCompetitions = parsed.competitions?.length > 0
+        ? migrateCompetitionIds(parsed.competitions)
+        : defaults.competitions;
+
+      // Migrate competition dances to add costume data
+      const migratedDances = parsed.competitionDances?.length > 0
+        ? migrateCompetitionDanceCostumes(parsed.competitionDances)
+        : defaults.competitionDances;
+
       // Merge with defaults to ensure all fields exist
       // Use default competitions/dances if stored is empty (to seed initial data)
       return {
         ...defaults,
         ...parsed,
-        // Keep default competitions if stored competitions is empty
-        competitions: parsed.competitions?.length > 0 ? parsed.competitions : defaults.competitions,
-        // Keep default competition dances if stored is empty
-        competitionDances: parsed.competitionDances?.length > 0 ? parsed.competitionDances : defaults.competitionDances,
+        // Use migrated competitions
+        competitions: migratedCompetitions,
+        // Use migrated dances with costume data
+        competitionDances: migratedDances,
       };
     }
-  } catch (error) {
-    console.error('Failed to load data:', error);
+  } catch {
+    // Failed to load data - use defaults
   }
   return getDefaultData();
 }
@@ -63,18 +126,23 @@ export const saveEvents = {
 
 export function saveData(data: AppData): void {
   try {
-    const jsonString = JSON.stringify(data);
-    const sizeInMB = (jsonString.length / (1024 * 1024)).toFixed(2);
-    console.log(`Saving data: ${sizeInMB}MB`);
+    // Add timestamp for conflict resolution
+    const dataWithTimestamp = {
+      ...data,
+      lastModified: new Date().toISOString(),
+    };
+
+    const jsonString = JSON.stringify(dataWithTimestamp);
 
     // Check if data is too large for localStorage (typically 5-10MB limit)
     if (jsonString.length > 4 * 1024 * 1024) {
+      const sizeInMB = (jsonString.length / (1024 * 1024)).toFixed(2);
       console.warn(`Data size (${sizeInMB}MB) is large, may exceed localStorage limit`);
     }
 
     localStorage.setItem(STORAGE_KEY, jsonString);
     // Also sync to cloud (debounced to avoid too many requests)
-    debouncedCloudSave(data);
+    debouncedCloudSave(dataWithTimestamp);
     saveEvents.emit('saving');
   } catch (error) {
     console.error('Failed to save data:', error);
@@ -89,17 +157,57 @@ export function saveData(data: AppData): void {
   }
 }
 
+// Apply migrations to cloud data
+function migrateCloudData(cloudData: AppData): AppData {
+  const defaults = getDefaultData();
+
+  // Migrate competition IDs
+  const migratedCompetitions = cloudData.competitions?.length > 0
+    ? migrateCompetitionIds(cloudData.competitions)
+    : defaults.competitions;
+
+  // Migrate competition dances to add costume data
+  const migratedDances = cloudData.competitionDances?.length > 0
+    ? migrateCompetitionDanceCostumes(cloudData.competitionDances)
+    : defaults.competitionDances;
+
+  return {
+    ...defaults,
+    ...cloudData,
+    competitions: migratedCompetitions,
+    competitionDances: migratedDances,
+  };
+}
+
 // Sync data from cloud - call this on app load
+// Uses timestamp-based conflict resolution: most recent wins
 export async function syncFromCloud(): Promise<AppData | null> {
   try {
     const cloudData = await fetchCloudData();
-    if (cloudData) {
-      // Save cloud data to localStorage
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudData));
-      console.log('Synced from cloud successfully');
-      return cloudData;
+    if (!cloudData) return null;
+
+    // Apply migrations to cloud data
+    const migratedCloudData = migrateCloudData(cloudData);
+
+    const localData = loadData();
+
+    // Compare timestamps for conflict resolution
+    const cloudTime = migratedCloudData.lastModified ? new Date(migratedCloudData.lastModified).getTime() : 0;
+    const localTime = localData.lastModified ? new Date(localData.lastModified).getTime() : 0;
+
+    if (cloudTime > localTime) {
+      // Cloud is newer - use migrated cloud data
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedCloudData));
+      return migratedCloudData;
+    } else if (localTime > cloudTime) {
+      // Local is newer - push local to cloud
+      debouncedCloudSave(localData);
+      return localData;
     }
-    return null;
+
+    // Same timestamp or both missing - use migrated cloud data as fallback
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedCloudData));
+    return migratedCloudData;
   } catch (error) {
     console.error('Failed to sync from cloud:', error);
     return null;

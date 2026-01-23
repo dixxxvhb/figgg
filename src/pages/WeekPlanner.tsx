@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Copy, Eye, Edit3 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Copy, Eye } from 'lucide-react';
 import { format, addWeeks, startOfWeek, addDays } from 'date-fns';
 import { useAppData } from '../hooks/useAppData';
 import { formatTimeDisplay, formatWeekOf, timeToMinutes } from '../utils/time';

@@ -1,8 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { Search, BookOpen, Trophy, ChevronDown, ChevronUp, Volume2, Star } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Search, BookOpen, Trophy, ChevronDown, ChevronUp, Volume2, Star, ClipboardList } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import { terminology, categoryLabels, searchTerminology } from '../data/terminology';
 import { TermCategory } from '../types';
+import { format } from 'date-fns';
 
 type Tab = 'terminology' | 'competitions';
 
@@ -25,7 +27,16 @@ const categoryOrder: TermCategory[] = [
 
 export function Library() {
   const { data } = useAppData();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<Tab>('terminology');
+
+  // Handle tab query parameter
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'competitions') {
+      setActiveTab('competitions');
+    }
+  }, [searchParams]);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCategories, setExpandedCategories] = useState<Set<TermCategory>>(new Set());
   const [selectedCategory, setSelectedCategory] = useState<TermCategory | 'all'>('all');
@@ -238,25 +249,46 @@ export function Library() {
               No competitions scheduled
             </div>
           ) : (
-            data.competitions.map(comp => (
-              <div key={comp.id} className="bg-white rounded-xl border border-gray-200 p-4">
-                <div className="font-medium text-gray-900">{comp.name}</div>
-                <div className="text-sm text-gray-500">{comp.date}</div>
-                <div className="text-sm text-gray-500">{comp.location}</div>
-                {comp.dances.length > 0 && (
-                  <div className="mt-2">
-                    <div className="text-xs text-gray-400 mb-1">Dances:</div>
-                    <div className="flex flex-wrap gap-1">
-                      {comp.dances.map((dance, i) => (
-                        <span key={i} className="text-xs bg-forest-100 text-forest-700 px-2 py-0.5 rounded-full">
-                          {dance}
-                        </span>
-                      ))}
+            data.competitions.map(comp => {
+              const compDate = new Date(comp.date);
+              const isUpcoming = compDate >= new Date();
+              return (
+                <div key={comp.id} className="bg-white rounded-xl border border-gray-200 p-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="font-medium text-gray-900">{comp.name}</div>
+                      <div className="text-sm text-gray-500">
+                        {format(compDate, 'EEEE, MMMM d, yyyy')}
+                      </div>
+                      <div className="text-sm text-gray-500">{comp.location}</div>
                     </div>
+                    <Link
+                      to={`/competition/${comp.id}/checklist`}
+                      className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                        isUpcoming
+                          ? 'bg-forest-100 text-forest-700 hover:bg-forest-200'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      <ClipboardList size={14} />
+                      Checklist
+                    </Link>
                   </div>
-                )}
-              </div>
-            ))
+                  {comp.dances.length > 0 && (
+                    <div className="mt-3">
+                      <div className="text-xs text-gray-400 mb-1">Dances:</div>
+                      <div className="flex flex-wrap gap-1">
+                        {comp.dances.map((dance, i) => (
+                          <span key={i} className="text-xs bg-forest-100 text-forest-700 px-2 py-0.5 rounded-full">
+                            {dance}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
           )}
         </div>
       )}

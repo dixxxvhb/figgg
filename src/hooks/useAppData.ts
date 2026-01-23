@@ -1,39 +1,29 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { AppData, Class, WeekNotes, Project, Competition, CompetitionDance } from '../types';
-import { loadData, saveData, updateClass as saveClass, saveWeekNotes as persistWeekNotes } from '../services/storage';
+import { AppData, Class, WeekNotes, Project, Competition, CompetitionDance, Student, AttendanceRecord, CompetitionChecklist } from '../types';
+import { loadData, saveData } from '../services/storage';
 import { getWeekStart, formatWeekOf } from '../utils/time';
-import { fetchCalendarEvents } from '../services/calendar';
 import { v4 as uuid } from 'uuid';
-
-// Hardcoded Band calendar URL - this won't change
-const BAND_CALENDAR_URL = 'https://api.band.us/ical?token=aAAxADU0MWQxZTdiZjdhYWQwMmJlOTMxNmIyYWJjZjA4NTAwN2Q1ZWNlODYwZDg3YTZiODdjYmI4YmQ3ZmI4YmRmZWIAMQA1NjA4NTEyNQ';
 
 export function useAppData() {
   const [data, setData] = useState<AppData>(() => loadData());
-  const hasAutoSynced = useRef(false);
+  const isInitialMount = useRef(true);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Save whenever data changes
+  // Save whenever data changes (skip initial mount to avoid double-save)
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    // Clear any pending save
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Immediate local save, debounced cloud save happens inside saveData
     saveData(data);
   }, [data]);
-
-  // Auto-sync calendar on app load (always uses hardcoded Band calendar)
-  useEffect(() => {
-    if (hasAutoSynced.current) return;
-
-    hasAutoSynced.current = true;
-
-    // Sync calendar in the background
-    fetchCalendarEvents(BAND_CALENDAR_URL)
-      .then(events => {
-        if (events.length > 0) {
-          setData(prev => ({ ...prev, calendarEvents: events }));
-        }
-      })
-      .catch(err => {
-        console.error('Auto calendar sync failed:', err);
-      });
-  }, []);
 
   const updateClass = useCallback((updatedClass: Class) => {
     setData(prev => ({
@@ -160,6 +150,73 @@ export function useAppData() {
     setData(loadData());
   }, []);
 
+  // Student management
+  const addStudent = useCallback((studentData: Omit<Student, 'id' | 'createdAt' | 'skillNotes'>) => {
+    const newStudent: Student = {
+      ...studentData,
+      id: uuid(),
+      skillNotes: [],
+      createdAt: new Date().toISOString(),
+    };
+    setData(prev => ({
+      ...prev,
+      students: [...(prev.students || []), newStudent],
+    }));
+    return newStudent;
+  }, []);
+
+  const updateStudent = useCallback((student: Student) => {
+    setData(prev => {
+      const students = prev.students || [];
+      const index = students.findIndex(s => s.id === student.id);
+      if (index !== -1) {
+        const updated = [...students];
+        updated[index] = student;
+        return { ...prev, students: updated };
+      }
+      return { ...prev, students: [...students, student] };
+    });
+  }, []);
+
+  const deleteStudent = useCallback((studentId: string) => {
+    setData(prev => ({
+      ...prev,
+      students: (prev.students || []).filter(s => s.id !== studentId),
+    }));
+  }, []);
+
+  // Attendance management
+  const saveAttendance = useCallback((record: AttendanceRecord) => {
+    setData(prev => {
+      const attendance = prev.attendance || [];
+      const index = attendance.findIndex(a => a.classId === record.classId && a.date === record.date);
+      if (index !== -1) {
+        const updated = [...attendance];
+        updated[index] = record;
+        return { ...prev, attendance: updated };
+      }
+      return { ...prev, attendance: [...attendance, record] };
+    });
+  }, []);
+
+  const getAttendanceForClass = useCallback((classId: string, weekOf: string): AttendanceRecord | undefined => {
+    return (data.attendance || []).find(a => a.classId === classId && a.weekOf === weekOf);
+  }, [data.attendance]);
+
+  // Competition checklist management
+  const updateCompetitionChecklist = useCallback((checklist: CompetitionChecklist) => {
+    setData(prev => {
+      const checklists = prev.competitionChecklists || [];
+      const index = checklists.findIndex(c => c.id === checklist.id);
+      if (index !== -1) {
+        const updated = [...checklists];
+        updated[index] = checklist;
+        return { ...prev, competitionChecklists: updated };
+      }
+      return { ...prev, competitionChecklists: [...checklists, checklist] };
+    });
+  }, []);
+
   return {
     data,
     updateClass,
@@ -176,5 +233,14 @@ export function useAppData() {
     deleteCompetitionDance,
     updateStudio,
     refreshData,
+    // Student management
+    addStudent,
+    updateStudent,
+    deleteStudent,
+    // Attendance management
+    saveAttendance,
+    getAttendanceForClass,
+    // Competition checklist
+    updateCompetitionChecklist,
   };
 }

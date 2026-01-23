@@ -737,16 +737,35 @@ export function FormationBuilder() {
                 />
               </div>
               <div>
-                <label className="block text-xs text-forest-500 mb-1">Counts</label>
-                <input
-                  type="text"
-                  value={currentFormation.count}
-                  onChange={(e) => setFormations(prev => prev.map((f, i) =>
-                    i === currentFormationIndex ? { ...f, count: e.target.value } : f
-                  ))}
-                  className="w-full px-3 py-2 border border-blush-200 rounded-lg text-sm"
-                  placeholder="1-8"
-                />
+                <label className="block text-xs text-forest-500 mb-1">Music Counts (8-count blocks)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={currentFormation.count}
+                    onChange={(e) => setFormations(prev => prev.map((f, i) =>
+                      i === currentFormationIndex ? { ...f, count: e.target.value } : f
+                    ))}
+                    className="flex-1 px-3 py-2 border border-blush-200 rounded-lg text-sm"
+                    placeholder="1-8, 9-16, etc."
+                  />
+                  <div className="flex gap-1">
+                    {['1-8', '9-16', '17-24', '25-32'].map((preset) => (
+                      <button
+                        key={preset}
+                        onClick={() => setFormations(prev => prev.map((f, i) =>
+                          i === currentFormationIndex ? { ...f, count: preset } : f
+                        ))}
+                        className={`px-2 py-1 text-xs rounded ${
+                          currentFormation.count === preset
+                            ? 'bg-forest-600 text-white'
+                            : 'bg-blush-100 text-forest-600 hover:bg-blush-200'
+                        }`}
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
