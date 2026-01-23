@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import { Button } from '../components/common/Button';
+import { PullToRefresh } from '../components/common/PullToRefresh';
 import { CompetitionDance, RehearsalNote, MediaItem, DanceLevel, DanceStyle } from '../types';
 import { v4 as uuid } from 'uuid';
 import { processMediaFile } from '../utils/mediaCompression';
@@ -39,6 +40,9 @@ export function DanceDetail() {
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const rehearsalMediaInputRef = useRef<HTMLInputElement>(null);
   const [activeRehearsalId, setActiveRehearsalId] = useState<string | null>(null);
+  const [editingRehearsalId, setEditingRehearsalId] = useState<string | null>(null);
+  const [editRehearsalNotes, setEditRehearsalNotes] = useState('');
+  const [editWorkOn, setEditWorkOn] = useState<string[]>(['']);
 
   const dance = data.competitionDances?.find(d => d.id === danceId);
 
@@ -197,6 +201,34 @@ export function DanceDetail() {
     updateCompetitionDance(updatedDance);
   };
 
+  const startEditingRehearsal = (note: RehearsalNote) => {
+    setEditingRehearsalId(note.id);
+    setEditRehearsalNotes(note.notes || '');
+    setEditWorkOn(note.workOn?.length ? [...note.workOn] : ['']);
+    setExpandedNotes(prev => prev.includes(note.id) ? prev : [...prev, note.id]);
+  };
+
+  const cancelEditingRehearsal = () => {
+    setEditingRehearsalId(null);
+    setEditRehearsalNotes('');
+    setEditWorkOn(['']);
+  };
+
+  const saveRehearsalEdit = () => {
+    if (!dance || !editingRehearsalId) return;
+
+    const updatedDance = {
+      ...dance,
+      rehearsalNotes: dance.rehearsalNotes.map(rn =>
+        rn.id === editingRehearsalId
+          ? { ...rn, notes: editRehearsalNotes, workOn: editWorkOn.filter(w => w.trim()) }
+          : rn
+      ),
+    };
+    updateCompetitionDance(updatedDance);
+    cancelEditingRehearsal();
+  };
+
   const displayDance = isEditing ? editedDance : dance;
   if (!displayDance) return null;
 
@@ -206,6 +238,7 @@ export function DanceDetail() {
   };
 
   return (
+    <PullToRefresh>
     <div className="max-w-lg mx-auto px-4 py-6 pb-24">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
@@ -566,81 +599,158 @@ export function DanceDetail() {
 
                 {expandedNotes.includes(note.id) && (
                   <div className="p-3 space-y-3">
-                    {note.notes && (
-                      <div>
-                        <div className="text-xs text-forest-500 mb-1">Notes</div>
-                        <p className="text-forest-700 whitespace-pre-wrap">{note.notes}</p>
-                      </div>
-                    )}
+                    {editingRehearsalId === note.id ? (
+                      /* Edit Mode */
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs text-forest-500 mb-1">Notes</label>
+                          <textarea
+                            value={editRehearsalNotes}
+                            onChange={(e) => setEditRehearsalNotes(e.target.value)}
+                            rows={3}
+                            className="w-full px-3 py-2 border border-forest-200 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent text-sm"
+                          />
+                        </div>
 
-                    {note.workOn && note.workOn.length > 0 && (
-                      <div>
-                        <div className="text-xs text-forest-500 mb-1">Work on next week</div>
-                        <ul className="space-y-1">
-                          {note.workOn.map((item, i) => (
-                            <li key={i} className="flex items-start gap-2 text-forest-700">
-                              <span className="text-forest-400 mt-1">•</span>
-                              {item}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {/* Rehearsal Media */}
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-xs text-forest-500">Media</div>
-                        <button
-                          onClick={() => {
-                            setActiveRehearsalId(note.id);
-                            rehearsalMediaInputRef.current?.click();
-                          }}
-                          className="text-xs text-forest-600 flex items-center gap-1"
-                        >
-                          <Camera size={12} />
-                          Add
-                        </button>
-                      </div>
-
-                      <input
-                        ref={rehearsalMediaInputRef}
-                        type="file"
-                        accept="image/*,video/*"
-                        multiple
-                        onChange={(e) => activeRehearsalId && handleRehearsalMediaUpload(e, activeRehearsalId)}
-                        className="hidden"
-                      />
-
-                      {note.media && note.media.length > 0 ? (
-                        <div className="grid grid-cols-4 gap-2">
-                          {note.media.map(item => (
-                            <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden bg-forest-100">
-                              {item.type === 'image' ? (
-                                <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <video src={item.url} className="w-full h-full object-cover" />
-                                  <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                                    <Play size={16} className="text-white" />
-                                  </div>
-                                </div>
+                        <div>
+                          <label className="block text-xs text-forest-500 mb-1">Work on next week</label>
+                          {editWorkOn.map((item, i) => (
+                            <div key={i} className="flex gap-2 mb-2">
+                              <input
+                                type="text"
+                                value={item}
+                                onChange={(e) => {
+                                  const updated = [...editWorkOn];
+                                  updated[i] = e.target.value;
+                                  setEditWorkOn(updated);
+                                }}
+                                className="flex-1 px-3 py-2 border border-forest-200 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent text-sm"
+                              />
+                              {editWorkOn.length > 1 && (
+                                <button
+                                  onClick={() => setEditWorkOn(editWorkOn.filter((_, idx) => idx !== i))}
+                                  className="p-2 text-red-500"
+                                >
+                                  <X size={14} />
+                                </button>
                               )}
                             </div>
                           ))}
+                          <button
+                            onClick={() => setEditWorkOn([...editWorkOn, ''])}
+                            className="text-xs text-forest-600 flex items-center gap-1"
+                          >
+                            <Plus size={12} />
+                            Add item
+                          </button>
                         </div>
-                      ) : (
-                        <p className="text-forest-400 text-xs">No media</p>
-                      )}
-                    </div>
 
-                    <button
-                      onClick={() => deleteRehearsalNote(note.id)}
-                      className="text-xs text-red-500 flex items-center gap-1 mt-2"
-                    >
-                      <Trash2 size={12} />
-                      Delete this rehearsal note
-                    </button>
+                        <div className="flex gap-2 pt-2">
+                          <button
+                            onClick={saveRehearsalEdit}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-forest-600 text-white rounded-lg text-sm"
+                          >
+                            <Save size={14} />
+                            Save
+                          </button>
+                          <button
+                            onClick={cancelEditingRehearsal}
+                            className="flex items-center gap-1 px-3 py-1.5 text-forest-600 hover:bg-forest-100 rounded-lg text-sm"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* View Mode */
+                      <>
+                        {note.notes && (
+                          <div>
+                            <div className="text-xs text-forest-500 mb-1">Notes</div>
+                            <p className="text-forest-700 whitespace-pre-wrap">{note.notes}</p>
+                          </div>
+                        )}
+
+                        {note.workOn && note.workOn.length > 0 && (
+                          <div>
+                            <div className="text-xs text-forest-500 mb-1">Work on next week</div>
+                            <ul className="space-y-1">
+                              {note.workOn.map((item, i) => (
+                                <li key={i} className="flex items-start gap-2 text-forest-700">
+                                  <span className="text-forest-400 mt-1">•</span>
+                                  {item}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {/* Rehearsal Media */}
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="text-xs text-forest-500">Media</div>
+                            <button
+                              onClick={() => {
+                                setActiveRehearsalId(note.id);
+                                rehearsalMediaInputRef.current?.click();
+                              }}
+                              className="text-xs text-forest-600 flex items-center gap-1"
+                            >
+                              <Camera size={12} />
+                              Add
+                            </button>
+                          </div>
+
+                          <input
+                            ref={rehearsalMediaInputRef}
+                            type="file"
+                            accept="image/*,video/*"
+                            multiple
+                            onChange={(e) => activeRehearsalId && handleRehearsalMediaUpload(e, activeRehearsalId)}
+                            className="hidden"
+                          />
+
+                          {note.media && note.media.length > 0 ? (
+                            <div className="grid grid-cols-4 gap-2">
+                              {note.media.map(item => (
+                                <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden bg-forest-100">
+                                  {item.type === 'image' ? (
+                                    <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                      <video src={item.url} className="w-full h-full object-cover" />
+                                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                        <Play size={16} className="text-white" />
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-forest-400 text-xs">No media</p>
+                          )}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-4 pt-2 border-t border-forest-100">
+                          <button
+                            onClick={() => startEditingRehearsal(note)}
+                            className="text-xs text-forest-600 flex items-center gap-1"
+                          >
+                            <Edit2 size={12} />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => deleteRehearsalNote(note.id)}
+                            className="text-xs text-red-500 flex items-center gap-1"
+                          >
+                            <Trash2 size={12} />
+                            Delete
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -651,5 +761,6 @@ export function DanceDetail() {
         )}
       </div>
     </div>
+    </PullToRefresh>
   );
 }
