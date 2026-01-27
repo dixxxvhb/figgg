@@ -15,12 +15,12 @@ export function CurrentClassCard({ classInfo, isNearStudio }: CurrentClassCardPr
 
   if (status === 'none' || !currentClass) {
     return (
-      <div className="bg-white rounded-2xl p-6 text-center border border-blush-200 shadow-sm">
-        <div className="w-12 h-12 bg-blush-100 rounded-full flex items-center justify-center mx-auto mb-3">
-          <Sparkles className="text-forest-500" size={24} />
+      <div className="bg-white dark:bg-blush-800 rounded-2xl p-6 text-center border border-blush-200 dark:border-blush-700 shadow-sm">
+        <div className="w-12 h-12 bg-blush-100 dark:bg-blush-700 rounded-full flex items-center justify-center mx-auto mb-3">
+          <Sparkles className="text-forest-500 dark:text-forest-400" size={24} />
         </div>
-        <p className="text-forest-400">No classes scheduled for today</p>
-        <Link to="/schedule" className="text-forest-600 font-medium mt-2 inline-block hover:text-forest-700">
+        <p className="text-forest-400 dark:text-blush-400">No classes scheduled for today</p>
+        <Link to="/schedule" className="text-forest-600 dark:text-forest-400 font-medium mt-2 inline-block hover:text-forest-700 dark:hover:text-forest-300">
           View full schedule →
         </Link>
       </div>
@@ -134,17 +134,17 @@ export function CurrentClassCard({ classInfo, isNearStudio }: CurrentClassCardPr
       {nextClass && (
         <Link
           to={`/class/${nextClass.id}`}
-          className="block bg-white rounded-xl p-4 hover:shadow-md transition-all border border-blush-200"
+          className="block bg-white dark:bg-blush-800 rounded-xl p-4 hover:shadow-md transition-all border border-blush-200 dark:border-blush-700"
         >
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-forest-400 text-sm">After this</div>
-              <div className="font-medium text-forest-700">{nextClass.name}</div>
-              <div className="text-sm text-forest-400">
+              <div className="text-forest-400 dark:text-blush-400 text-sm">After this</div>
+              <div className="font-medium text-forest-700 dark:text-white">{nextClass.name}</div>
+              <div className="text-sm text-forest-400 dark:text-blush-400">
                 {formatTimeDisplay(nextClass.startTime)} at {nextStudio?.shortName}
               </div>
             </div>
-            <ChevronRight size={20} className="text-blush-300" />
+            <ChevronRight size={20} className="text-blush-300 dark:text-blush-500" />
           </div>
         </Link>
       )}

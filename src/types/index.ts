@@ -146,7 +146,7 @@ export interface Competition {
 }
 
 export type DanceCategory = 'production' | 'large-group' | 'small-group' | 'trio' | 'duet' | 'solo';
-export type DanceStyle = 'jazz' | 'contemporary' | 'lyrical' | 'musical-theatre' | 'tap' | 'hip-hop' | 'acro' | 'open';
+export type DanceStyle = 'jazz' | 'contemporary' | 'lyrical' | 'musical-theatre' | 'tap' | 'hip-hop' | 'acro' | 'open' | 'monologue';
 export type DanceLevel = 'beginner' | 'intermediate' | 'advanced';
 
 // Costume and accessory information for a dance
@@ -181,6 +181,13 @@ export interface CompetitionDance {
   formations?: Formation[];
   // Costume and hair information
   costume?: DanceCostume;
+  // Competition music track (edited version for performance)
+  musicTrack?: {
+    url: string; // base64 data URL for audio file
+    name: string;
+    duration?: string; // "2:24"
+    uploadedAt: string;
+  };
 }
 
 export interface RehearsalNote {
@@ -199,11 +206,14 @@ export interface DancerPosition {
   color: string;
 }
 
+export type TransitionStyle = 'direct' | 'staggered' | 'wave-lr' | 'wave-rl' | 'cascade';
+
 export interface Formation {
   id: string;
   name: string;
   count: string; // e.g., "1-8", "9-16"
   dancers: DancerPosition[];
+  transitionStyle?: TransitionStyle; // How dancers transition TO this formation
 }
 
 export interface CalendarEvent {
@@ -218,8 +228,11 @@ export interface CalendarEvent {
 }
 
 export interface AppSettings {
-  calendarUrl?: string; // ICS feed URL
+  calendarUrl?: string; // Primary ICS feed URL
+  calendarUrls?: string[]; // Multiple calendar URLs
   password?: string;
+  fontSize?: 'normal' | 'large' | 'extra-large';
+  darkMode?: boolean;
 }
 
 // ===== STUDENT MANAGEMENT =====
@@ -228,6 +241,7 @@ export interface Student {
   id: string;
   name: string;
   nickname?: string; // What they go by in class
+  photo?: string; // base64 data URL for student photo
   parentName?: string;
   parentEmail?: string;
   parentPhone?: string;
@@ -327,6 +341,8 @@ export interface AppData {
   students?: Student[];
   attendance?: AttendanceRecord[];
   competitionChecklists?: CompetitionChecklist[];
+  // Personal self-care tracking
+  selfCare?: SelfCareData;
 }
 
 export interface UserLocation {
@@ -334,6 +350,53 @@ export interface UserLocation {
   lng: number;
   accuracy: number;
   timestamp: number;
+}
+
+// ===== ADHD TIMELINE TRACKING =====
+
+export interface ADHDSession {
+  title: string;
+  timeRange: string; // "10:00 AM" format
+  tasks: string[];
+}
+
+export interface ADHDSessions {
+  [key: string]: ADHDSession;
+}
+
+export interface ADHDTaskStates {
+  [index: number]: boolean;
+}
+
+export interface ADHDStreakData {
+  currentStreak: number;
+  longestStreak: number;
+  lastCompletedDate: string | null; // YYYY-MM-DD
+  badges: string[];
+  weeklyHistory: Record<string, number>; // date -> sessions completed
+}
+
+export interface SmartTask {
+  id: string;           // Deterministic: "smart-YYYY-MM-DD-sessionKey-category-index"
+  sessionKey: string;   // Which session this belongs to
+  text: string;
+  category: 'hydration' | 'fuel' | 'movement' | 'mental' | 'prep' | 'recovery';
+  icon: string;         // Lucide icon name
+}
+
+export interface SelfCareData {
+  sessions?: ADHDSessions;
+  sessionStates?: Record<string, ADHDTaskStates>; // session_key -> task completion
+  dose1Time?: number | null;
+  dose1Date?: string | null;
+  dose2Time?: number | null;
+  dose2Date?: string | null;
+  medType?: 'IR' | 'XR';
+  wakeTime?: string;
+  sleepTime?: string;
+  streakData?: ADHDStreakData;
+  smartTaskStates?: Record<string, boolean>;  // smartTaskId -> completed
+  smartTaskDate?: string;                      // YYYY-MM-DD, auto-resets daily
 }
 
 export interface CurrentClassInfo {

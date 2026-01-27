@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, Music2, Camera, Video, X, Image, Trash2, FileText, Users, Check, XCircle, Clock3 } from 'lucide-react';
+import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, Music2, Camera, Video, X, Image, Trash2, FileText, Users, Check, XCircle, Clock3, ChevronDown, ChevronUp, ClipboardList } from 'lucide-react';
 import { format, startOfWeek } from 'date-fns';
 import { useAppData } from '../hooks/useAppData';
 import { DropdownMenu } from '../components/common/DropdownMenu';
@@ -8,6 +8,7 @@ import { LiveNote, ClassWeekNotes, Student } from '../types';
 import { formatTimeDisplay, getCurrentTimeMinutes, getMinutesRemaining, formatWeekOf } from '../utils/time';
 import { v4 as uuid } from 'uuid';
 import { processMediaFile } from '../utils/mediaCompression';
+import { useConfirmDialog } from '../components/common/ConfirmDialog';
 
 const QUICK_TAGS = [
   { id: 'covered', label: 'Covered', icon: CheckCircle, color: 'bg-forest-100 text-forest-700' },
@@ -21,6 +22,7 @@ export function LiveNotes() {
   const navigate = useNavigate();
   const { data, getCurrentWeekNotes, saveWeekNotes } = useAppData();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
 
   const cls = data.classes.find(c => c.id === classId);
   const studio = cls ? data.studios.find(s => s.id === cls.studioId) : null;
@@ -32,7 +34,14 @@ export function LiveNotes() {
   const [selectedTag, setSelectedTag] = useState<string | undefined>();
   const [weekNotes, setWeekNotes] = useState(() => getCurrentWeekNotes());
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
-  const [showAttendance, setShowAttendance] = useState(false);
+  // Auto-expand attendance if students exist but none are marked yet
+  const [showAttendance, setShowAttendance] = useState(() => {
+    const notes = getCurrentWeekNotes().classNotes[classId || ''];
+    const att = notes?.attendance;
+    const hasMarked = att && (att.present.length > 0 || att.absent.length > 0 || att.late.length > 0);
+    return enrolledStudents.length > 0 && !hasMarked;
+  });
+  const [showPlan, setShowPlan] = useState(true); // Show plan by default during class
 
   // Sync weekNotes when data changes (e.g., from cloud sync)
   useEffect(() => {
@@ -68,7 +77,7 @@ export function LiveNotes() {
 
   if (!cls) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-6">
+      <div className="page-w px-4 py-6">
         <p className="text-forest-600">Class not found</p>
         <Link to="/schedule" className="text-forest-500 hover:text-forest-600">Back to schedule</Link>
       </div>
@@ -101,6 +110,7 @@ export function LiveNotes() {
     setWeekNotes(updatedWeekNotes);
     saveWeekNotes(updatedWeekNotes);
     setNoteText('');
+    setSelectedTag(undefined);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -273,11 +283,11 @@ export function LiveNotes() {
     };
 
     saveWeekNotes(updatedWeekNotes);
-    navigate(`/class/${classId}`);
+    navigate('/');
   };
 
-  const clearAllNotes = () => {
-    if (!confirm('Delete all notes for this class?')) return;
+  const clearAllNotes = async () => {
+    if (!(await confirm('Delete all notes for this class?'))) return;
 
     const updatedClassNotes: ClassWeekNotes = {
       ...classNotes,
@@ -296,8 +306,8 @@ export function LiveNotes() {
     saveWeekNotes(updatedWeekNotes);
   };
 
-  const clearAllMedia = () => {
-    if (!confirm('Delete all photos and videos?')) return;
+  const clearAllMedia = async () => {
+    if (!(await confirm('Delete all photos and videos?'))) return;
 
     const updatedClassNotes: ClassWeekNotes = {
       ...classNotes,
@@ -316,8 +326,8 @@ export function LiveNotes() {
     saveWeekNotes(updatedWeekNotes);
   };
 
-  const clearAll = () => {
-    if (!confirm('Clear all notes and media?')) return;
+  const clearAll = async () => {
+    if (!(await confirm('Clear all notes and media?'))) return;
 
     const updatedClassNotes: ClassWeekNotes = {
       ...classNotes,
@@ -338,10 +348,11 @@ export function LiveNotes() {
   };
 
   return (
-    <div className="flex flex-col h-screen max-h-screen bg-blush-100">
+    <div className="flex flex-col h-full bg-blush-100 dark:bg-blush-900">
+      {confirmDialog}
       {/* Header */}
       <div className="px-4 py-3 bg-forest-600 text-white">
-        <div className="flex items-center justify-between max-w-lg mx-auto">
+        <div className="flex items-center justify-between page-w">
           <div className="flex items-center gap-3">
             <Link to={`/class/${classId}`} className="p-1 hover:bg-forest-500 rounded-lg transition-colors">
               <ArrowLeft size={20} />
@@ -385,8 +396,61 @@ export function LiveNotes() {
         </div>
       </div>
 
+      {/* Plan - always visible as reference */}
+      {classNotes.plan && (
+        <div className="border-b border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/20">
+          <button
+            onClick={() => setShowPlan(!showPlan)}
+            className="flex items-center justify-between w-full px-4 py-2 page-w"
+          >
+            <div className="flex items-center gap-2">
+              <ClipboardList size={16} className="text-purple-600 dark:text-purple-400" />
+              <span className="text-sm font-medium text-purple-700 dark:text-purple-300">Class Plan</span>
+            </div>
+            {showPlan ? (
+              <ChevronUp size={16} className="text-purple-500" />
+            ) : (
+              <ChevronDown size={16} className="text-purple-500" />
+            )}
+          </button>
+          {showPlan && (
+            <div className="px-4 pb-3 page-w max-h-[40vh] overflow-y-auto">
+              <div className="bg-white dark:bg-blush-800 rounded-xl border border-purple-200 dark:border-purple-800 p-3">
+                <div className="text-sm text-forest-700 dark:text-blush-300 whitespace-pre-wrap">
+                  {classNotes.plan}
+                </div>
+                <Link
+                  to="/plan"
+                  className="inline-flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400 mt-2 hover:text-purple-700"
+                >
+                  <FileText size={12} />
+                  Edit in Week Planner
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* No Plan - Quick link to create one */}
+      {!classNotes.plan && (
+        <div className="px-4 py-2 border-b border-blush-200 dark:border-blush-700">
+          <Link
+            to="/plan"
+            className="flex items-center justify-between page-w bg-purple-50/50 dark:bg-purple-900/20 rounded-xl border border-dashed border-purple-200 dark:border-purple-800 p-3 hover:border-purple-300 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <ClipboardList size={18} className="text-purple-400" />
+              <span className="text-sm text-purple-600 dark:text-purple-400">No plan for this class yet</span>
+            </div>
+            <span className="text-xs text-purple-500">Add Plan →</span>
+          </Link>
+        </div>
+      )}
+
       {/* Notes List */}
-      <div className="flex-1 overflow-y-auto p-4 max-w-lg mx-auto w-full">
+      <div className="flex-1 overflow-y-auto p-4 page-w w-full">
+
         {/* Upload Error */}
         {uploadError && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
@@ -407,7 +471,7 @@ export function LiveNotes() {
               <Image size={14} />
               <span>Photos & Videos</span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
               {classNotes.media.map(item => (
                 <div key={item.id} className="relative aspect-square rounded-xl overflow-hidden bg-white border border-blush-200">
                   {item.type === 'image' ? (
@@ -438,12 +502,12 @@ export function LiveNotes() {
           <div className="mb-4">
             <button
               onClick={() => setShowAttendance(!showAttendance)}
-              className="flex items-center justify-between w-full bg-white rounded-xl border border-blush-200 p-3 hover:border-forest-300 transition-colors"
+              className="flex items-center justify-between w-full bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-3 hover:border-forest-300 dark:hover:border-forest-600 transition-colors"
             >
               <div className="flex items-center gap-2">
                 <Users size={18} className="text-forest-600" />
-                <span className="font-medium text-forest-700">Attendance</span>
-                <span className="text-sm text-gray-500">
+                <span className="font-medium text-forest-700 dark:text-white">Attendance</span>
+                <span className="text-sm text-blush-500 dark:text-blush-400">
                   ({attendance.present.length}/{enrolledStudents.length} present)
                 </span>
               </div>
@@ -453,8 +517,8 @@ export function LiveNotes() {
             </button>
 
             {showAttendance && (
-              <div className="mt-2 bg-white rounded-xl border border-blush-200 overflow-hidden">
-                <div className="px-3 py-2 bg-forest-50 border-b border-blush-200 flex items-center justify-between">
+              <div className="mt-2 bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 overflow-hidden">
+                <div className="px-3 py-2 bg-forest-50 dark:bg-blush-700 border-b border-blush-200 dark:border-blush-700 flex items-center justify-between">
                   <span className="text-xs text-forest-600 font-medium">
                     Tap to mark: <Check size={12} className="inline text-green-600" /> Present · <Clock3 size={12} className="inline text-amber-600" /> Late · <XCircle size={12} className="inline text-red-500" /> Absent
                   </span>
@@ -465,19 +529,19 @@ export function LiveNotes() {
                     All Present
                   </button>
                 </div>
-                <div className="divide-y divide-gray-100">
+                <div className="divide-y divide-blush-100 dark:divide-blush-700">
                   {enrolledStudents.map(student => {
                     const status = getStudentStatus(student.id);
                     return (
                       <div key={student.id} className="flex items-center justify-between px-3 py-2">
-                        <span className="text-sm text-gray-700">
+                        <span className="text-sm text-blush-700 dark:text-blush-300">
                           {student.nickname || student.name}
                         </span>
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => markAttendance(student.id, 'present')}
                             className={`p-1.5 rounded-full transition-colors ${
-                              status === 'present' ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-green-100 hover:text-green-600'
+                              status === 'present' ? 'bg-green-500 text-white' : 'bg-blush-100 dark:bg-blush-700 text-blush-400 hover:bg-green-100 dark:hover:bg-green-900/30 hover:text-green-600'
                             }`}
                           >
                             <Check size={14} />
@@ -485,7 +549,7 @@ export function LiveNotes() {
                           <button
                             onClick={() => markAttendance(student.id, 'late')}
                             className={`p-1.5 rounded-full transition-colors ${
-                              status === 'late' ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-amber-100 hover:text-amber-600'
+                              status === 'late' ? 'bg-amber-500 text-white' : 'bg-blush-100 dark:bg-blush-700 text-blush-400 hover:bg-amber-100 dark:hover:bg-amber-900/30 hover:text-amber-600'
                             }`}
                           >
                             <Clock3 size={14} />
@@ -493,7 +557,7 @@ export function LiveNotes() {
                           <button
                             onClick={() => markAttendance(student.id, 'absent')}
                             className={`p-1.5 rounded-full transition-colors ${
-                              status === 'absent' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-400 hover:bg-red-100 hover:text-red-600'
+                              status === 'absent' ? 'bg-red-500 text-white' : 'bg-blush-100 dark:bg-blush-700 text-blush-400 hover:bg-red-100 dark:hover:bg-red-900/30 hover:text-red-600'
                             }`}
                           >
                             <XCircle size={14} />
@@ -520,7 +584,7 @@ export function LiveNotes() {
               return (
                 <div
                   key={note.id}
-                  className="bg-white rounded-xl border border-blush-200 p-4 shadow-sm group relative"
+                  className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4 shadow-sm group relative"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
@@ -530,15 +594,15 @@ export function LiveNotes() {
                           {tag.label}
                         </span>
                       )}
-                      <p className="text-forest-700">{note.text}</p>
+                      <p className="text-forest-700 dark:text-blush-200">{note.text}</p>
                     </div>
                     <div className="flex items-start gap-2">
-                      <div className="text-xs text-forest-400">
+                      <div className="text-xs text-forest-400 dark:text-blush-500">
                         {format(new Date(note.timestamp), 'h:mm a')}
                       </div>
                       <button
                         onClick={() => deleteNote(note.id)}
-                        className="p-1 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="p-1.5 text-blush-400 hover:text-red-500 active:text-red-600 transition-colors rounded-lg"
                         title="Delete note"
                       >
                         <Trash2 size={14} />
@@ -553,8 +617,8 @@ export function LiveNotes() {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-blush-200 bg-white p-4 pb-safe">
-        <div className="max-w-lg mx-auto">
+      <div className="border-t border-blush-200 dark:border-blush-700 bg-white dark:bg-blush-800 p-4 pb-safe">
+        <div className="page-w">
           {/* Quick Tags */}
           <div className="flex gap-2 mb-3 overflow-x-auto pb-2">
             {QUICK_TAGS.map(tag => (
@@ -564,7 +628,7 @@ export function LiveNotes() {
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-all ${
                   selectedTag === tag.id
                     ? tag.color + ' shadow-sm'
-                    : 'bg-blush-100 text-forest-600 hover:bg-blush-200'
+                    : 'bg-blush-100 dark:bg-blush-700 text-forest-600 dark:text-blush-300 hover:bg-blush-200 dark:hover:bg-blush-600'
                 }`}
               >
                 <tag.icon size={14} />
@@ -581,7 +645,8 @@ export function LiveNotes() {
               onChange={(e) => setNoteText(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Add a note..."
-              className="flex-1 px-4 py-3 border border-blush-200 rounded-xl focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-blush-50"
+              aria-label="Add a note"
+              className="flex-1 px-4 py-3 border border-blush-200 dark:border-blush-600 rounded-xl focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-blush-50 dark:bg-blush-800 text-blush-900 dark:text-white placeholder-blush-400 dark:placeholder-blush-500"
             />
 
             {/* Media Upload Button */}
@@ -592,10 +657,11 @@ export function LiveNotes() {
               multiple
               onChange={handleMediaUpload}
               className="hidden"
+              aria-label="Upload media"
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="px-3 py-3 bg-blush-100 text-forest-600 rounded-xl hover:bg-blush-200 transition-colors"
+              className="px-3 py-3 bg-blush-100 dark:bg-blush-700 text-forest-600 dark:text-blush-300 rounded-xl hover:bg-blush-200 dark:hover:bg-blush-600 transition-colors"
             >
               <Camera size={20} />
             </button>

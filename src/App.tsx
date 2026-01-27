@@ -1,85 +1,92 @@
-import { useState, useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Header, MobileNav } from './components/common/Header';
 import { QuickAddButton } from './components/common/QuickAddButton';
 import { PullToRefresh } from './components/common/PullToRefresh';
 import { Dashboard } from './pages/Dashboard';
 import { Schedule } from './pages/Schedule';
-import { ClassDetail } from './pages/ClassDetail';
-import { LiveNotes } from './pages/LiveNotes';
-import { CalendarEventDetail } from './pages/CalendarEventDetail';
-import { EventNotes } from './pages/EventNotes';
-import { WeekPlanner } from './pages/WeekPlanner';
-import { Library } from './pages/Library';
-import { Settings } from './pages/Settings';
-import { Login } from './pages/Login';
-import { CompetitionDances } from './pages/CompetitionDances';
-import { DanceDetail } from './pages/DanceDetail';
-import { FormationBuilder } from './pages/FormationBuilder';
-import { Students } from './pages/Students';
-import { CompetitionChecklist } from './pages/CompetitionChecklist';
-import { CompetitionSchedule } from './pages/CompetitionSchedule';
-import { CompetitionHub } from './pages/CompetitionHub';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { SaveStatus } from './components/common/SaveStatus';
+import { LoadingSpinner } from './components/common/LoadingSpinner';
 import { SyncProvider } from './contexts/SyncContext';
-import { isAuthenticated, updateCalendarEvents, syncFromCloud } from './services/storage';
-import { fetchCalendarEvents } from './services/calendar';
+import { loadData } from './services/storage';
 
-// Hardcoded calendar URL - always syncs on app load
-const CALENDAR_URL = 'https://api.band.us/ical?token=aAAxADU0MWQxZTdiZjdhYWQwMDBiMWY3ZTNjNWFhYmY3YzViNTE5YTRjYmU';
+// Lazy-loaded routes (not needed on initial load)
+const ClassDetail = lazy(() => import('./pages/ClassDetail').then(m => ({ default: m.ClassDetail })));
+const LiveNotes = lazy(() => import('./pages/LiveNotes').then(m => ({ default: m.LiveNotes })));
+const CalendarEventDetail = lazy(() => import('./pages/CalendarEventDetail').then(m => ({ default: m.CalendarEventDetail })));
+const EventNotes = lazy(() => import('./pages/EventNotes').then(m => ({ default: m.EventNotes })));
+const WeekPlanner = lazy(() => import('./pages/WeekPlanner').then(m => ({ default: m.WeekPlanner })));
+const CompetitionHub = lazy(() => import('./pages/CompetitionHub').then(m => ({ default: m.CompetitionHub })));
+const DanceDetail = lazy(() => import('./pages/DanceDetail').then(m => ({ default: m.DanceDetail })));
+const FormationBuilder = lazy(() => import('./pages/FormationBuilder').then(m => ({ default: m.FormationBuilder })));
+const Students = lazy(() => import('./pages/Students').then(m => ({ default: m.Students })));
+const Library = lazy(() => import('./pages/Library').then(m => ({ default: m.Library })));
+const SelfCare = lazy(() => import('./pages/SelfCare').then(m => ({ default: m.SelfCare })));
+const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 
 function App() {
-  const [authenticated, setAuthenticated] = useState(isAuthenticated());
-
-  // Sync from cloud and calendar on app load
+  // Apply display settings on app load
   useEffect(() => {
-    if (authenticated) {
-      // First sync from cloud to get latest data
-      syncFromCloud().then(() => {
-        // Then sync calendar
-        fetchCalendarEvents(CALENDAR_URL).then(events => {
-          if (events.length > 0) {
-            updateCalendarEvents(events);
-          }
-        }).catch(() => {
-          // Calendar sync failed silently - not critical
-        });
-      });
-    }
-  }, [authenticated]);
+    const data = loadData();
+    const settings = data?.settings;
 
-  if (!authenticated) {
-    return <Login onSuccess={() => setAuthenticated(true)} />;
-  }
+    // Apply font size
+    const root = document.documentElement;
+    switch (settings?.fontSize) {
+      case 'large':
+        root.style.fontSize = '18px';
+        break;
+      case 'extra-large':
+        root.style.fontSize = '20px';
+        break;
+      default:
+        root.style.fontSize = '16px';
+    }
+
+    // Apply dark mode
+    if (settings?.darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
+  // Cloud sync and calendar sync are now handled entirely by SyncProvider
+  // No duplicate sync calls from App.tsx
 
   return (
     <ErrorBoundary>
       <SyncProvider>
         <BrowserRouter>
-          <div className="min-h-screen bg-blush-100">
+          <div className="min-h-screen bg-blush-50 dark:bg-blush-900 transition-colors">
+            <a href="#main-content" className="skip-link">
+              Skip to main content
+            </a>
             <Header />
-            <main className="h-[calc(100vh-120px)] overflow-hidden">
+            <main id="main-content" className="h-[calc(100dvh-120px)] lg:h-[calc(100dvh-56px)] overflow-hidden">
               <PullToRefresh>
-                <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/schedule" element={<Schedule />} />
-                  <Route path="/class/:classId" element={<ClassDetail />} />
-                  <Route path="/class/:classId/notes" element={<LiveNotes />} />
-                  <Route path="/event/:eventId" element={<CalendarEventDetail />} />
-                  <Route path="/event/:eventId/notes" element={<EventNotes />} />
-                  <Route path="/plan" element={<WeekPlanner />} />
-                  <Route path="/competitions" element={<CompetitionHub />} />
-                  <Route path="/dances" element={<CompetitionDances />} />
-                  <Route path="/dance/:danceId" element={<DanceDetail />} />
-                  <Route path="/competition/:competitionId/checklist" element={<CompetitionChecklist />} />
-                  <Route path="/competition/:competitionId/schedule" element={<CompetitionSchedule />} />
-                  <Route path="/formations" element={<FormationBuilder />} />
-                  <Route path="/formations/:danceId" element={<FormationBuilder />} />
-                  <Route path="/students" element={<Students />} />
-                  <Route path="/library" element={<Library />} />
-                  <Route path="/settings" element={<Settings />} />
-                </Routes>
+                <Suspense fallback={<LoadingSpinner />}>
+                  <ErrorBoundary>
+                    <Routes>
+                      <Route path="/" element={<Dashboard />} />
+                      <Route path="/schedule" element={<Schedule />} />
+                      <Route path="/class/:classId" element={<ClassDetail />} />
+                      <Route path="/class/:classId/notes" element={<LiveNotes />} />
+                      <Route path="/event/:eventId" element={<CalendarEventDetail />} />
+                      <Route path="/event/:eventId/notes" element={<EventNotes />} />
+                      <Route path="/plan" element={<WeekPlanner />} />
+                      <Route path="/competitions" element={<CompetitionHub />} />
+                      <Route path="/dance/:danceId" element={<DanceDetail />} />
+                      <Route path="/formations" element={<FormationBuilder />} />
+                      <Route path="/formations/:danceId" element={<FormationBuilder />} />
+                      <Route path="/students" element={<Students />} />
+                      <Route path="/library" element={<Library />} />
+                      <Route path="/me" element={<SelfCare />} />
+                      <Route path="/settings" element={<Settings />} />
+                    </Routes>
+                  </ErrorBoundary>
+                </Suspense>
               </PullToRefresh>
             </main>
             <MobileNav />

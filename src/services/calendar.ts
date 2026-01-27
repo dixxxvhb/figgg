@@ -16,12 +16,20 @@ function generateStableId(title: string, date: string, startTime: string): strin
 // Parse ICS (iCalendar) format
 export async function fetchCalendarEvents(icsUrl: string): Promise<CalendarEvent[]> {
   try {
-    // Use a CORS proxy for external URLs
-    const proxyUrl = icsUrl.startsWith('http')
-      ? `https://api.allorigins.win/raw?url=${encodeURIComponent(icsUrl)}`
-      : icsUrl;
+    // Use our own Netlify Function as a CORS proxy instead of third-party services
+    const token = localStorage.getItem('dance-teaching-app-token') || '';
+    const proxyUrl = `/.netlify/functions/calendarProxy?url=${encodeURIComponent(icsUrl)}`;
 
-    const response = await fetch(proxyUrl);
+    const response = await fetch(proxyUrl, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Calendar proxy returned ${response.status}`);
+    }
+
     const icsText = await response.text();
     return parseICS(icsText);
   } catch (error) {
@@ -72,7 +80,7 @@ function parseICS(icsText: string): CalendarEvent[] {
         const { time } = parseDTValue(key, value);
         currentEvent.endTime = time;
       } else if (key.startsWith('LOCATION')) {
-        currentEvent.location = value;
+        currentEvent.location = value.replace(/\\n/g, '\n').replace(/\\,/g, ',').replace(/\\;/g, ';');
       } else if (key.startsWith('DESCRIPTION')) {
         currentEvent.description = value.replace(/\\n/g, '\n').replace(/\\,/g, ',');
       }
@@ -84,11 +92,12 @@ function parseICS(icsText: string): CalendarEvent[] {
 
 function parseDTValue(key: string, value: string): { date: string; time: string } {
   // Handle different date formats
-  // DTSTART:20240122T173000Z
-  // DTSTART;VALUE=DATE:20240122
-  // DTSTART;TZID=America/New_York:20240122T173000
+  // DTSTART:20240122T173000Z       (UTC)
+  // DTSTART;VALUE=DATE:20240122    (date only)
+  // DTSTART;TZID=America/New_York:20240122T173000  (local time)
 
   const isDateOnly = key.includes('VALUE=DATE');
+  const isUTC = value.endsWith('Z');
 
   // Remove any timezone suffix
   const cleanValue = value.replace(/Z$/, '');
@@ -104,14 +113,24 @@ function parseDTValue(key: string, value: string): { date: string; time: string 
     };
   } else {
     // Date and time: YYYYMMDDTHHMMSS
-    const year = cleanValue.slice(0, 4);
-    const month = cleanValue.slice(4, 6);
-    const day = cleanValue.slice(6, 8);
-    const hour = cleanValue.slice(9, 11);
-    const minute = cleanValue.slice(11, 13);
+    const year = parseInt(cleanValue.slice(0, 4));
+    const month = parseInt(cleanValue.slice(4, 6)) - 1; // JS months 0-indexed
+    const day = parseInt(cleanValue.slice(6, 8));
+    const hour = parseInt(cleanValue.slice(9, 11));
+    const minute = parseInt(cleanValue.slice(11, 13));
+
+    if (isUTC) {
+      // Convert UTC to local time
+      const utcDate = new Date(Date.UTC(year, month, day, hour, minute));
+      return {
+        date: `${utcDate.getFullYear()}-${String(utcDate.getMonth() + 1).padStart(2, '0')}-${String(utcDate.getDate()).padStart(2, '0')}`,
+        time: `${String(utcDate.getHours()).padStart(2, '0')}:${String(utcDate.getMinutes()).padStart(2, '0')}`,
+      };
+    }
+
     return {
-      date: `${year}-${month}-${day}`,
-      time: `${hour}:${minute}`,
+      date: `${String(year)}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+      time: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`,
     };
   }
 }

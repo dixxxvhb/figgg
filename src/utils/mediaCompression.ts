@@ -41,8 +41,6 @@ export async function compressImage(file: File): Promise<string> {
 
         const originalSize = (e.target?.result as string).length;
         const compressedSize = compressedDataUrl.length;
-        console.log(`Image compressed: ${(originalSize / 1024).toFixed(0)}KB → ${(compressedSize / 1024).toFixed(0)}KB (${((1 - compressedSize / originalSize) * 100).toFixed(0)}% reduction)`);
-
         resolve(compressedDataUrl);
       };
       img.onerror = () => reject(new Error('Failed to load image'));
@@ -55,7 +53,7 @@ export async function compressImage(file: File): Promise<string> {
 
 // For videos, we can't easily compress them client-side
 // Instead, we'll check the file size and warn if too large
-export const MAX_VIDEO_SIZE_MB = 5;
+export const MAX_VIDEO_SIZE_MB = 3;
 
 export function checkVideoSize(file: File): { ok: boolean; sizeMB: number } {
   const sizeMB = file.size / (1024 * 1024);
@@ -94,8 +92,8 @@ export async function processMediaFile(file: File): Promise<{ dataUrl: string; w
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (e) => {
-        const warning = check.sizeMB > 3
-          ? `Large video (${check.sizeMB}MB) may affect sync speed`
+        const warning = check.sizeMB > 2
+          ? `Large video (${check.sizeMB}MB) may affect storage and sync speed`
           : undefined;
         resolve({ dataUrl: e.target?.result as string, warning });
       };

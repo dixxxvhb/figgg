@@ -152,12 +152,12 @@ export function QuickAddButton() {
 
       {/* Floating Menu */}
       {isOpen && (
-        <div className="fixed bottom-24 right-4 left-4 z-50 max-w-sm ml-auto">
-          <div className="bg-white rounded-xl shadow-lg p-4 animate-fade-in">
+        <div className="fixed bottom-24 lg:bottom-10 right-4 left-4 z-50 max-w-sm ml-auto">
+          <div className="bg-white dark:bg-blush-800 rounded-xl shadow-lg p-4 animate-fade-in border border-blush-200 dark:border-blush-700">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-forest-700">Add Rehearsal Video</h3>
+              <h3 className="font-semibold text-forest-700 dark:text-white">Add Rehearsal Video</h3>
               {uploadSuccess && (
-                <div className="flex items-center gap-1 text-green-600 text-sm">
+                <div className="flex items-center gap-1 text-green-600 dark:text-green-400 text-sm">
                   <Check size={16} />
                   Saved!
                 </div>
@@ -166,27 +166,27 @@ export function QuickAddButton() {
 
             {isUploading ? (
               <div className="text-center py-6">
-                <div className="w-8 h-8 border-2 border-forest-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                <div className="text-sm text-forest-500">Uploading...</div>
+                <div className="w-8 h-8 border-2 border-forest-600 dark:border-forest-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                <div className="text-sm text-forest-500 dark:text-blush-300">Uploading...</div>
               </div>
             ) : (
               <div className="space-y-3">
                 {/* Current/Next Class */}
                 {currentClass && (
                   <div>
-                    <div className="text-xs text-forest-400 mb-1">
+                    <div className="text-xs text-forest-400 dark:text-blush-400 mb-1">
                       {classInfo.status === 'during' ? 'Current Class' : 'Next Class'}
                     </div>
                     <button
                       onClick={() => handleSelectTarget(currentClass.id, 'class')}
-                      className="w-full flex items-center gap-3 p-3 bg-forest-50 hover:bg-forest-100 rounded-lg transition-colors text-left"
+                      className="w-full flex items-center gap-3 p-3 bg-forest-50 dark:bg-forest-900/30 hover:bg-forest-100 dark:hover:bg-forest-900/50 rounded-lg transition-colors text-left"
                     >
                       <div className="w-10 h-10 bg-forest-600 rounded-lg flex items-center justify-center">
                         <Video size={20} className="text-white" />
                       </div>
                       <div>
-                        <div className="font-medium text-forest-700">{currentClass.name}</div>
-                        <div className="text-xs text-forest-500">Add video to class notes</div>
+                        <div className="font-medium text-forest-700 dark:text-white">{currentClass.name}</div>
+                        <div className="text-xs text-forest-500 dark:text-blush-400">Add video to class notes</div>
                       </div>
                     </button>
                   </div>
@@ -195,20 +195,20 @@ export function QuickAddButton() {
                 {/* Competition Dances */}
                 {competitionDances.length > 0 && (
                   <div>
-                    <div className="text-xs text-blush-500 mb-1">Competition Dances</div>
+                    <div className="text-xs text-blush-500 dark:text-blush-400 mb-1">Competition Dances</div>
                     <div className="space-y-2 max-h-40 overflow-y-auto">
                       {competitionDances.slice(0, 5).map(dance => (
                         <button
                           key={dance.id}
                           onClick={() => handleSelectTarget(dance.id, 'dance')}
-                          className="w-full flex items-center gap-3 p-3 bg-blush-50 hover:bg-blush-100 rounded-lg transition-colors text-left"
+                          className="w-full flex items-center gap-3 p-3 bg-blush-50 dark:bg-blush-700 hover:bg-blush-100 dark:hover:bg-blush-600 rounded-lg transition-colors text-left"
                         >
-                          <div className="w-10 h-10 bg-blush-400 rounded-lg flex items-center justify-center">
+                          <div className="w-10 h-10 bg-blush-400 dark:bg-blush-500 rounded-lg flex items-center justify-center">
                             <Video size={20} className="text-white" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="font-medium text-forest-700 truncate">{dance.registrationName}</div>
-                            <div className="text-xs text-forest-500">{dance.dancers?.slice(0, 3).join(', ')}{dance.dancers?.length > 3 ? '...' : ''}</div>
+                            <div className="font-medium text-forest-700 dark:text-white truncate">{dance.registrationName}</div>
+                            <div className="text-xs text-forest-500 dark:text-blush-400">{dance.dancers?.slice(0, 3).join(', ')}{dance.dancers?.length > 3 ? '...' : ''}</div>
                           </div>
                         </button>
                       ))}
@@ -219,20 +219,20 @@ export function QuickAddButton() {
                 {/* Today's Events */}
                 {todayEvents.length > 0 && (
                   <div>
-                    <div className="text-xs text-forest-400 mb-1">Today's Events</div>
+                    <div className="text-xs text-forest-400 dark:text-blush-400 mb-1">Today's Events</div>
                     <div className="space-y-2">
                       {todayEvents.slice(0, 2).map(event => (
                         <button
                           key={event.id}
                           onClick={() => handleSelectTarget(event.id, 'event')}
-                          className="w-full flex items-center gap-3 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-left"
+                          className="w-full flex items-center gap-3 p-3 bg-blush-50 dark:bg-blush-700 hover:bg-blush-100 dark:hover:bg-blush-600 rounded-lg transition-colors text-left"
                         >
-                          <div className="w-10 h-10 bg-gray-400 rounded-lg flex items-center justify-center">
+                          <div className="w-10 h-10 bg-blush-400 dark:bg-blush-500 rounded-lg flex items-center justify-center">
                             <Video size={20} className="text-white" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="font-medium text-forest-700 truncate">{event.title}</div>
-                            <div className="text-xs text-forest-500">Add video</div>
+                            <div className="font-medium text-forest-700 dark:text-white truncate">{event.title}</div>
+                            <div className="text-xs text-forest-500 dark:text-blush-400">Add video</div>
                           </div>
                         </button>
                       ))}
@@ -241,7 +241,7 @@ export function QuickAddButton() {
                 )}
 
                 {!currentClass && competitionDances.length === 0 && todayEvents.length === 0 && (
-                  <div className="text-center py-4 text-forest-500 text-sm">
+                  <div className="text-center py-4 text-forest-500 dark:text-blush-400 text-sm">
                     No classes or dances to add video to right now
                   </div>
                 )}
@@ -254,7 +254,7 @@ export function QuickAddButton() {
       {/* Main FAB Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed bottom-20 right-4 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all ${
+        className={`fixed bottom-20 right-4 lg:bottom-6 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all ${
           isOpen
             ? 'bg-forest-700'
             : 'bg-forest-600 hover:bg-forest-700'

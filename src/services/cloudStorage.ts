@@ -2,25 +2,51 @@ import { AppData } from '../types';
 import { saveEvents } from './storage';
 
 const API_BASE = '/.netlify/functions';
+const TOKEN_KEY = 'dance-teaching-app-token';
 
-// Get the password from localStorage (set during login)
-// Falls back to default password for users who logged in before password storage was added
+// Cache for the auth token - initialized lazily
+let tokenCache: string | null = null;
+
+// Get the session token, initializing it if needed
 function getAuthToken(): string {
-  const stored = localStorage.getItem('dance-teaching-app-password');
-  if (stored) return stored;
-
-  // If user is authenticated but password not stored, use default and store it
-  const isAuth = localStorage.getItem('dance-teaching-app-auth') === 'true';
-  if (isAuth) {
-    const defaultPassword = 'dance2024';
-    localStorage.setItem('dance-teaching-app-password', defaultPassword);
-    return defaultPassword;
+  if (tokenCache) return tokenCache;
+  const stored = localStorage.getItem(TOKEN_KEY);
+  if (stored) {
+    tokenCache = stored;
+    return stored;
   }
-
   return '';
 }
 
+// Initialize the auth token by calling the server login endpoint
+// Called once on app startup
+export async function initAuthToken(): Promise<void> {
+  if (getAuthToken()) return; // Already have a token
+
+  try {
+    const password = import.meta.env.VITE_APP_PASSWORD || 'dance2024';
+    const response = await fetch(`${API_BASE}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+
+    if (response.ok) {
+      const { token } = await response.json();
+      if (token) {
+        localStorage.setItem(TOKEN_KEY, token);
+        tokenCache = token;
+      }
+    }
+  } catch {
+    // Offline or server unreachable - cloud sync will fail gracefully
+  }
+}
+
 export async function fetchCloudData(): Promise<AppData | null> {
+  // Ensure token is initialized before making API calls
+  await initAuthToken();
+
   try {
     const response = await fetch(`${API_BASE}/getData`, {
       method: 'GET',
@@ -32,6 +58,9 @@ export async function fetchCloudData(): Promise<AppData | null> {
 
     if (!response.ok) {
       if (response.status === 401) {
+        // Token may be stale, clear it so it re-initializes next time
+        localStorage.removeItem(TOKEN_KEY);
+        tokenCache = null;
         return null;
       }
       throw new Error(`HTTP ${response.status}`);
@@ -59,7 +88,10 @@ export async function saveCloudData(data: AppData): Promise<boolean> {
 
     if (!response.ok) {
       if (response.status === 401) {
-        saveEvents.emit('error', 'Not authenticated. Please log in again.');
+        // Token may be stale, clear and retry
+        localStorage.removeItem(TOKEN_KEY);
+        tokenCache = null;
+        saveEvents.emit('error', 'Auth token expired. Will retry on next sync.');
         return false;
       }
       if (response.status === 413) {
@@ -104,9 +136,11 @@ export function flushPendingSave(): void {
   }
   if (pendingData) {
     // Use sendBeacon for reliable save on page unload
+    // sendBeacon can't set custom headers, so pass token as query param
+    const token = getAuthToken();
     const jsonString = JSON.stringify(pendingData);
     const blob = new Blob([jsonString], { type: 'application/json' });
-    navigator.sendBeacon('/.netlify/functions/saveData', blob);
+    navigator.sendBeacon(`/.netlify/functions/saveData?token=${encodeURIComponent(token)}`, blob);
     pendingData = null;
   }
 }

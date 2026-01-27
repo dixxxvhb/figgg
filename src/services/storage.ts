@@ -23,8 +23,6 @@ if (typeof window !== 'undefined') {
 }
 
 const STORAGE_KEY = 'dance-teaching-app-data';
-const AUTH_KEY = 'dance-teaching-app-auth';
-const PASSWORD_KEY = 'dance-teaching-app-password';
 
 function getDefaultData(): AppData {
   return {
@@ -316,7 +314,12 @@ export function updateCompetitions(competitions: Competition[]): void {
 
 export function updateCalendarEvents(events: CalendarEvent[]): void {
   const data = loadData();
-  data.calendarEvents = events;
+  // Deduplicate by ID (same title+date+time from different calendars)
+  const seen = new Map<string, CalendarEvent>();
+  for (const event of events) {
+    seen.set(event.id, event);
+  }
+  data.calendarEvents = Array.from(seen.values());
   saveData(data);
 }
 
@@ -329,29 +332,6 @@ export function updateSettings(settings: Partial<AppSettings>): void {
 export function getSettings(): AppSettings {
   const data = loadData();
   return data.settings || {};
-}
-
-// Simple password auth
-export function isAuthenticated(): boolean {
-  return localStorage.getItem(AUTH_KEY) === 'true';
-}
-
-export function authenticate(password: string): boolean {
-  // In production, this would check against an environment variable via Netlify function
-  // For development, use a simple password
-  const correctPassword = import.meta.env.VITE_APP_PASSWORD || 'dance2024';
-  if (password === correctPassword) {
-    localStorage.setItem(AUTH_KEY, 'true');
-    // Store password for cloud API calls
-    localStorage.setItem(PASSWORD_KEY, password);
-    return true;
-  }
-  return false;
-}
-
-export function logout(): void {
-  localStorage.removeItem(AUTH_KEY);
-  localStorage.removeItem(PASSWORD_KEY);
 }
 
 // Export/Import for backup

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { syncFromCloud } from '../services/storage';
+import { syncFromCloud, loadData, updateCalendarEvents } from '../services/storage';
+import { fetchCalendarEvents } from '../services/calendar';
 
 type SyncStatus = 'idle' | 'syncing' | 'success' | 'error' | 'offline';
 
@@ -13,15 +14,48 @@ interface SyncContextType {
 
 const SyncContext = createContext<SyncContextType | null>(null);
 
-// Sync interval - check cloud every 30 seconds
-const SYNC_INTERVAL = 30 * 1000;
+// Default calendar URLs - always synced
+const DEFAULT_CALENDAR_URLS = [
+  'https://api.band.us/ical?token=aAAxADU0MWQxZTdiZjdhYWQwMDBiMWY3ZTNjNWFhYmY3YzViNTE5YTRjYmU',
+  'https://p157-caldav.icloud.com/published/2/MTk1MzE5NDQxMTk1MzE5NHQAH6rjzS_gyID08NDG-fjEKQfC3E7w4dd7G44gheLnuiNy7AexoNdl9WLiOmXdxEKxVknTHHKwIrJgJMYJfkY',
+];
+
+// Sync all calendar URLs (defaults + any saved in settings) in parallel
+async function syncAllCalendars() {
+  const data = loadData();
+  const urls = new Set<string>(DEFAULT_CALENDAR_URLS);
+
+  if (data.settings?.calendarUrl) urls.add(data.settings.calendarUrl);
+  if (data.settings?.calendarUrls) {
+    data.settings.calendarUrls.forEach((u: string) => urls.add(u));
+  }
+
+  // Fetch all calendars in parallel instead of sequentially
+  const results = await Promise.allSettled(
+    Array.from(urls).map(url => fetchCalendarEvents(url))
+  );
+
+  const allEvents = results
+    .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof fetchCalendarEvents>>> => r.status === 'fulfilled')
+    .flatMap(r => r.value);
+
+  if (allEvents.length > 0) {
+    updateCalendarEvents(allEvents);
+  }
+}
+
+// Data sync interval: 5 minutes
+const DATA_SYNC_INTERVAL = 5 * 60 * 1000;
+// Calendar sync interval: 15 minutes
+const CALENDAR_SYNC_INTERVAL = 15 * 60 * 1000;
 
 export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatusState] = useState<SyncStatus>('idle');
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const statusRef = useRef<SyncStatus>(status);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const syncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const dataSyncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const calendarSyncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isSyncingRef = useRef(false);
 
   // Keep ref in sync with state
@@ -36,17 +70,14 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const markSynced = useCallback(() => {
     setLastSynced(new Date());
     setStatusState('success');
-    // Clear any existing timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
-    // Reset to idle after a moment
     timeoutRef.current = setTimeout(() => setStatusState('idle'), 2000);
   }, []);
 
-  // Auto-sync function
+  // Unified sync: cloud data
   const triggerSync = useCallback(async () => {
-    // Prevent concurrent syncs
     if (isSyncingRef.current || !navigator.onLine) return;
 
     isSyncingRef.current = true;
@@ -57,14 +88,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       if (result) {
         setLastSynced(new Date());
         setStatusState('success');
-        // Clear any existing timeout
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
         }
-        // Reset to idle after a moment
         timeoutRef.current = setTimeout(() => setStatusState('idle'), 2000);
-
-        // Trigger a page refresh of data by dispatching a custom event
         window.dispatchEvent(new CustomEvent('cloud-sync-complete'));
       } else {
         setStatusState('idle');
@@ -72,31 +99,26 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.error('Auto-sync failed:', error);
       setStatusState('error');
-      // Reset to idle after showing error briefly
       timeoutRef.current = setTimeout(() => setStatusState('idle'), 3000);
     } finally {
       isSyncingRef.current = false;
     }
   }, []);
 
-  // Cleanup timeout on unmount
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      if (syncIntervalRef.current) {
-        clearInterval(syncIntervalRef.current);
-      }
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (dataSyncIntervalRef.current) clearInterval(dataSyncIntervalRef.current);
+      if (calendarSyncIntervalRef.current) clearInterval(calendarSyncIntervalRef.current);
     };
   }, []);
 
-  // Check online status - only run once on mount
+  // Online/offline detection
   useEffect(() => {
     const handleOnline = () => {
       if (statusRef.current === 'offline') {
         setStatusState('idle');
-        // Sync when coming back online
         triggerSync();
       }
     };
@@ -105,7 +127,6 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Check initial status
     if (!navigator.onLine) setStatusState('offline');
 
     return () => {
@@ -114,36 +135,43 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     };
   }, [triggerSync]);
 
-  // Auto-sync on app load and periodically
+  // Data sync: on mount + every 5 minutes
   useEffect(() => {
-    // Sync immediately on mount (app load)
     triggerSync();
 
-    // Set up periodic sync
-    syncIntervalRef.current = setInterval(() => {
+    dataSyncIntervalRef.current = setInterval(() => {
       triggerSync();
-    }, SYNC_INTERVAL);
+    }, DATA_SYNC_INTERVAL);
 
     return () => {
-      if (syncIntervalRef.current) {
-        clearInterval(syncIntervalRef.current);
-      }
+      if (dataSyncIntervalRef.current) clearInterval(dataSyncIntervalRef.current);
     };
   }, [triggerSync]);
 
-  // Sync when app becomes visible (user switches back to tab/app)
+  // Calendar sync: on mount + every 15 minutes
+  useEffect(() => {
+    syncAllCalendars();
+
+    calendarSyncIntervalRef.current = setInterval(() => {
+      syncAllCalendars();
+    }, CALENDAR_SYNC_INTERVAL);
+
+    return () => {
+      if (calendarSyncIntervalRef.current) clearInterval(calendarSyncIntervalRef.current);
+    };
+  }, []);
+
+  // Sync when app becomes visible
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         triggerSync();
+        syncAllCalendars();
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [triggerSync]);
 
   return (

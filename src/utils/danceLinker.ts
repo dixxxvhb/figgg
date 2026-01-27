@@ -101,15 +101,10 @@ export function detectLinkedDances(
     .replace(/\\n/g, ' ')  // Replace escaped newlines with spaces
     .toLowerCase();
 
-  console.log('=== DETECT LINKED DANCES ===');
-  console.log('Raw text:', rawText);
-  console.log('Search text:', searchText);
-
   const linkedDanceIds = new Set<string>();
 
   // First, extract any specific dancer names mentioned
   const mentionedDancerIds = extractMentionedDancerIds(searchText);
-  console.log('Mentioned dancer IDs:', Array.from(mentionedDancerIds));
 
   // Check multi-dance patterns (like "all dancers no production", "solos", etc.)
   // If specific dancers are mentioned, filter results to only dances with those dancers

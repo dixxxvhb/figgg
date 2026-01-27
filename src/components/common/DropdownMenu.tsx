@@ -32,13 +32,13 @@ export function DropdownMenu({ items, className = '' }: DropdownMenuProps) {
     <div className={`relative ${className}`} ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        className="p-3 hover:bg-blush-100 dark:hover:bg-blush-700 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
       >
-        <MoreVertical size={20} />
+        <MoreVertical size={20} className="text-blush-600 dark:text-blush-300" />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[160px] z-50">
+        <div className="absolute right-0 top-full mt-1 bg-white dark:bg-blush-800 rounded-lg shadow-lg border border-blush-200 dark:border-blush-700 py-1 min-w-[160px] z-50">
           {items.map((item, index) => (
             <button
               key={index}
@@ -46,8 +46,10 @@ export function DropdownMenu({ items, className = '' }: DropdownMenuProps) {
                 item.onClick();
                 setIsOpen(false);
               }}
-              className={`w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-gray-50 transition-colors ${
-                item.danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700'
+              className={`w-full px-4 py-3 text-left text-sm flex items-center gap-2 transition-colors min-h-[44px] ${
+                item.danger
+                  ? 'text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30'
+                  : 'text-blush-700 dark:text-blush-200 hover:bg-blush-50 dark:hover:bg-blush-700'
               }`}
             >
               {item.icon}

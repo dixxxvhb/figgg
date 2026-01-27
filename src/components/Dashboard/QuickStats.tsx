@@ -25,46 +25,46 @@ export function QuickStats({ todayClasses, projects, competitions }: QuickStatsP
     <div className="space-y-4">
       {/* Stats Grid */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white rounded-xl p-4 text-center border border-blush-200 shadow-sm">
-          <div className="text-2xl font-bold text-forest-600">{todayClasses.length}</div>
-          <div className="text-xs text-forest-400">Classes Today</div>
+        <div className="bg-white dark:bg-blush-800 rounded-xl p-4 text-center border border-blush-200 dark:border-blush-700 shadow-sm">
+          <div className="text-2xl font-bold text-forest-600 dark:text-forest-400">{todayClasses.length}</div>
+          <div className="text-xs text-forest-400 dark:text-blush-400">Classes Today</div>
         </div>
-        <div className="bg-white rounded-xl p-4 text-center border border-blush-200 shadow-sm">
-          <div className="text-2xl font-bold text-blush-500">{inProgressProjects.length}</div>
-          <div className="text-xs text-forest-400">In Progress</div>
+        <div className="bg-white dark:bg-blush-800 rounded-xl p-4 text-center border border-blush-200 dark:border-blush-700 shadow-sm">
+          <div className="text-2xl font-bold text-blush-500 dark:text-blush-400">{inProgressProjects.length}</div>
+          <div className="text-xs text-forest-400 dark:text-blush-400">In Progress</div>
         </div>
-        <div className="bg-white rounded-xl p-4 text-center border border-blush-200 shadow-sm">
-          <div className="text-2xl font-bold text-forest-500">{upcomingCompetitions.length}</div>
-          <div className="text-xs text-forest-400">Competitions</div>
+        <div className="bg-white dark:bg-blush-800 rounded-xl p-4 text-center border border-blush-200 dark:border-blush-700 shadow-sm">
+          <div className="text-2xl font-bold text-forest-500 dark:text-forest-400">{upcomingCompetitions.length}</div>
+          <div className="text-xs text-forest-400 dark:text-blush-400">Competitions</div>
         </div>
       </div>
 
       {/* Next Competition Countdown */}
       {nextComp && (
-        <div className="bg-gradient-to-r from-blush-200 to-blush-100 rounded-xl p-4 border border-blush-300">
+        <div className="bg-gradient-to-r from-blush-200 to-blush-100 dark:from-blush-700 dark:to-blush-800 rounded-xl p-4 border border-blush-300 dark:border-blush-600">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-12 h-12 bg-forest-600 rounded-full flex items-center justify-center">
               <Trophy className="text-blush-200" size={24} />
             </div>
             <div className="flex-1">
-              <div className="text-sm text-forest-500">Next Competition</div>
-              <div className="font-semibold text-forest-700">{nextComp.name}</div>
-              <div className="text-sm text-forest-500">
+              <div className="text-sm text-forest-500 dark:text-blush-300">Next Competition</div>
+              <div className="font-semibold text-forest-700 dark:text-white">{nextComp.name}</div>
+              <div className="text-sm text-forest-500 dark:text-blush-300">
                 {format(new Date(nextComp.date), 'MMM d')}
                 {nextComp.endDate && ` - ${format(new Date(nextComp.endDate), 'MMM d')}`}
                 {' • '}{nextComp.location}
               </div>
             </div>
             <div className="text-right">
-              <div className="text-3xl font-bold text-forest-600">{daysUntilNextComp}</div>
-              <div className="text-xs text-forest-400">days</div>
+              <div className="text-3xl font-bold text-forest-600 dark:text-forest-400">{daysUntilNextComp}</div>
+              <div className="text-xs text-forest-400 dark:text-blush-400">days</div>
             </div>
           </div>
           {/* Quick Links for Competition */}
           <div className="flex gap-2">
             {getScheduleForCompetition(nextComp.id).length > 0 && (
               <Link
-                to={`/competition/${nextComp.id}/schedule`}
+                to={`/competitions?comp=${nextComp.id}&tab=schedule`}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-forest-600 text-white rounded-lg text-sm font-medium hover:bg-forest-700 transition-colors"
               >
                 <ListOrdered size={16} />
@@ -72,10 +72,10 @@ export function QuickStats({ todayClasses, projects, competitions }: QuickStatsP
               </Link>
             )}
             <Link
-              to={`/competition/${nextComp.id}/checklist`}
+              to={`/competitions?comp=${nextComp.id}&tab=checklist`}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 getScheduleForCompetition(nextComp.id).length > 0
-                  ? 'bg-white text-forest-700 border border-forest-300 hover:bg-forest-50'
+                  ? 'bg-white dark:bg-blush-600 text-forest-700 dark:text-white border border-forest-300 dark:border-blush-500 hover:bg-forest-50 dark:hover:bg-blush-500'
                   : 'bg-forest-600 text-white hover:bg-forest-700'
               }`}
             >

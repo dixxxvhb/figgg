@@ -1,9 +1,9 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Copy, ChevronLeft, ChevronRight, Play, Pause, Users, Grid3X3, RotateCcw, HelpCircle, X, Lightbulb, MousePointer, Move } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Copy, ChevronLeft, ChevronRight, Play, Pause, Users, Grid3X3, RotateCcw, HelpCircle, X, Lightbulb, Move, Eye, EyeOff, Zap } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import { v4 as uuid } from 'uuid';
-import { DancerPosition, Formation } from '../types';
+import { DancerPosition, Formation, TransitionStyle } from '../types';
 
 const DANCER_COLORS = [
   '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
@@ -59,6 +59,42 @@ const FORMATION_TEMPLATES = [
   { name: 'Cluster', icon: '⁘', positions: (n: number) => Array.from({ length: n }, (_, i) => ({ x: 40 + (Math.random() * 20), y: 35 + (Math.random() * 30) })) },
 ];
 
+const TRANSITION_TYPES: { id: TransitionStyle; name: string; description: string }[] = [
+  { id: 'direct', name: 'Direct', description: 'All dancers move together' },
+  { id: 'staggered', name: 'Staggered', description: 'Dancers start at slightly different times' },
+  { id: 'wave-lr', name: 'Wave L→R', description: 'Dancers move in a wave from left to right' },
+  { id: 'wave-rl', name: 'Wave R→L', description: 'Dancers move in a wave from right to left' },
+  { id: 'cascade', name: 'Cascade', description: 'Dancers move one after another' },
+];
+
+// Easing function for smooth animation
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+// Calculate stagger delay for each dancer based on transition type
+function getStaggerDelay(index: number, total: number, type: TransitionStyle, dancers: DancerPosition[]): number {
+  switch (type) {
+    case 'direct':
+      return 0;
+    case 'staggered':
+      return (index / total) * 0.3; // 30% max stagger
+    case 'wave-lr':
+      // Sort by x position, use that for delay
+      const sortedLR = [...dancers].sort((a, b) => a.x - b.x);
+      const posLR = sortedLR.findIndex(d => d.id === dancers[index].id);
+      return (posLR / total) * 0.5;
+    case 'wave-rl':
+      const sortedRL = [...dancers].sort((a, b) => b.x - a.x);
+      const posRL = sortedRL.findIndex(d => d.id === dancers[index].id);
+      return (posRL / total) * 0.5;
+    case 'cascade':
+      return (index / total) * 0.7; // 70% max stagger for cascade
+    default:
+      return 0;
+  }
+}
+
 export function FormationBuilder() {
   const { danceId } = useParams<{ danceId?: string }>();
   const { data, updateCompetitionDance } = useAppData();
@@ -111,16 +147,51 @@ export function FormationBuilder() {
       return () => clearTimeout(timeoutId);
     }
   }, [formations, dance, danceId]);
+
   const [currentFormationIndex, setCurrentFormationIndex] = useState(0);
   const [selectedDancer, setSelectedDancer] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showGrid, setShowGrid] = useState(true);
   const [showLabels, setShowLabels] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
+  const [showPaths, setShowPaths] = useState(true);
   const [playbackSpeed, setPlaybackSpeed] = useState(2000);
+
+  // Animation state
+  const [animationProgress, setAnimationProgress] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const animationRef = useRef<number | null>(null);
+
   const stageRef = useRef<HTMLDivElement>(null);
 
   const currentFormation = formations[currentFormationIndex];
+  const nextFormation = formations[currentFormationIndex + 1];
+
+  // Get interpolated dancer positions during transition
+  const getInterpolatedPositions = useMemo(() => {
+    if (!isTransitioning || !nextFormation) return currentFormation.dancers;
+
+    // Use the next formation's transition style (how dancers move TO the next formation)
+    const transitionStyle = nextFormation.transitionStyle || 'direct';
+
+    return currentFormation.dancers.map((dancer, index) => {
+      const nextDancer = nextFormation.dancers[index];
+      if (!nextDancer) return dancer;
+
+      // Calculate stagger delay
+      const staggerDelay = getStaggerDelay(index, currentFormation.dancers.length, transitionStyle, currentFormation.dancers);
+
+      // Adjust progress based on stagger
+      const adjustedProgress = Math.max(0, Math.min(1, (animationProgress - staggerDelay) / (1 - staggerDelay)));
+      const easedProgress = easeInOutCubic(adjustedProgress);
+
+      return {
+        ...dancer,
+        x: dancer.x + (nextDancer.x - dancer.x) * easedProgress,
+        y: dancer.y + (nextDancer.y - dancer.y) * easedProgress,
+      };
+    });
+  }, [currentFormation, nextFormation, animationProgress, isTransitioning]);
 
   // Complete onboarding
   const completeOnboarding = () => {
@@ -130,7 +201,7 @@ export function FormationBuilder() {
 
   // Handle drag
   const handleDrag = useCallback((e: React.MouseEvent | React.TouchEvent, dancerId: string) => {
-    if (!stageRef.current) return;
+    if (!stageRef.current || isPlaying) return;
 
     const stage = stageRef.current;
     const rect = stage.getBoundingClientRect();
@@ -163,7 +234,106 @@ export function FormationBuilder() {
     document.addEventListener('mouseup', handleEnd);
     document.addEventListener('touchmove', handleMove);
     document.addEventListener('touchend', handleEnd);
-  }, [currentFormationIndex]);
+  }, [currentFormationIndex, isPlaying]);
+
+  // Animated playback
+  const startPlayback = useCallback(() => {
+    if (formations.length < 2) return;
+
+    setIsPlaying(true);
+    setCurrentFormationIndex(0);
+
+    let formationIdx = 0;
+
+    const playNextTransition = () => {
+      if (formationIdx >= formations.length - 1) {
+        setIsPlaying(false);
+        setIsTransitioning(false);
+        setCurrentFormationIndex(0);
+        return;
+      }
+
+      setCurrentFormationIndex(formationIdx);
+      setIsTransitioning(true);
+      setAnimationProgress(0);
+
+      const startTime = performance.now();
+      const duration = playbackSpeed;
+
+      const animate = (currentTime: number) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(1, elapsed / duration);
+
+        setAnimationProgress(progress);
+
+        if (progress < 1) {
+          animationRef.current = requestAnimationFrame(animate);
+        } else {
+          setIsTransitioning(false);
+          formationIdx++;
+          setCurrentFormationIndex(formationIdx);
+
+          // Small pause between formations
+          setTimeout(() => {
+            if (formationIdx < formations.length - 1) {
+              playNextTransition();
+            } else {
+              setIsPlaying(false);
+              setCurrentFormationIndex(0);
+            }
+          }, 500);
+        }
+      };
+
+      animationRef.current = requestAnimationFrame(animate);
+    };
+
+    playNextTransition();
+  }, [formations.length, playbackSpeed]);
+
+  const stopPlayback = useCallback(() => {
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+    }
+    setIsPlaying(false);
+    setIsTransitioning(false);
+    setAnimationProgress(0);
+  }, []);
+
+  const togglePlayback = () => {
+    if (isPlaying) {
+      stopPlayback();
+    } else {
+      startPlayback();
+    }
+  };
+
+  // Preview single transition
+  const previewTransition = useCallback(() => {
+    if (!nextFormation) return;
+
+    setIsTransitioning(true);
+    setAnimationProgress(0);
+
+    const startTime = performance.now();
+    const duration = playbackSpeed;
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(1, elapsed / duration);
+
+      setAnimationProgress(progress);
+
+      if (progress < 1) {
+        animationRef.current = requestAnimationFrame(animate);
+      } else {
+        setIsTransitioning(false);
+        setCurrentFormationIndex(currentFormationIndex + 1);
+      }
+    };
+
+    animationRef.current = requestAnimationFrame(animate);
+  }, [nextFormation, playbackSpeed, currentFormationIndex]);
 
   // Add new formation (copies current)
   const addFormation = () => {
@@ -247,21 +417,6 @@ export function FormationBuilder() {
     })));
   };
 
-  // Playback
-  useEffect(() => {
-    if (!isPlaying) return;
-    const interval = setInterval(() => {
-      setCurrentFormationIndex(prev => {
-        if (prev >= formations.length - 1) {
-          setIsPlaying(false);
-          return 0;
-        }
-        return prev + 1;
-      });
-    }, playbackSpeed);
-    return () => clearInterval(interval);
-  }, [isPlaying, formations.length, playbackSpeed]);
-
   // Mirror formation horizontally
   const mirrorFormation = () => {
     setFormations(prev => prev.map((f, i) =>
@@ -278,14 +433,14 @@ export function FormationBuilder() {
 
       switch (e.key) {
         case 'ArrowLeft':
-          setCurrentFormationIndex(prev => Math.max(0, prev - 1));
+          if (!isPlaying) setCurrentFormationIndex(prev => Math.max(0, prev - 1));
           break;
         case 'ArrowRight':
-          setCurrentFormationIndex(prev => Math.min(formations.length - 1, prev + 1));
+          if (!isPlaying) setCurrentFormationIndex(prev => Math.min(formations.length - 1, prev + 1));
           break;
         case ' ':
           e.preventDefault();
-          setIsPlaying(p => !p);
+          togglePlayback();
           break;
         case 'g':
           setShowGrid(g => !g);
@@ -293,11 +448,23 @@ export function FormationBuilder() {
         case 'l':
           setShowLabels(l => !l);
           break;
+        case 'p':
+          setShowPaths(p => !p);
+          break;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [formations.length]);
+  }, [formations.length, isPlaying]);
+
+  // Cleanup animation on unmount
+  useEffect(() => {
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, []);
 
   // Onboarding overlay
   const onboardingSteps = [
@@ -317,26 +484,29 @@ export function FormationBuilder() {
       icon: <Lightbulb size={32} className="text-yellow-500" />,
     },
     {
-      title: "Create Multiple Formations",
-      description: "Add new formations for different parts of your dance. Press Play to preview transitions!",
+      title: "Animate Transitions",
+      description: "Add multiple formations and watch dancers smoothly transition between positions. Choose different transition styles!",
       icon: <Play size={32} className="text-green-500" />,
     },
   ];
 
+  // Positions to display (either current or interpolated during animation)
+  const displayPositions = isTransitioning ? getInterpolatedPositions : currentFormation.dancers;
+
   return (
-    <div className="min-h-screen bg-blush-100 pb-24">
+    <div className="min-h-screen bg-blush-100 dark:bg-blush-900 pb-24">
       {/* Onboarding Modal */}
       {showOnboarding && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl">
+          <div className="bg-white dark:bg-blush-800 rounded-2xl max-w-sm w-full p-6 shadow-xl">
             <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-blush-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-blush-100 dark:bg-blush-700 rounded-full flex items-center justify-center mx-auto mb-4">
                 {onboardingSteps[onboardingStep].icon}
               </div>
-              <h2 className="text-xl font-bold text-forest-700 mb-2">
+              <h2 className="text-xl font-bold text-forest-700 dark:text-white mb-2">
                 {onboardingSteps[onboardingStep].title}
               </h2>
-              <p className="text-forest-500">
+              <p className="text-forest-500 dark:text-blush-300">
                 {onboardingSteps[onboardingStep].description}
               </p>
             </div>
@@ -347,7 +517,7 @@ export function FormationBuilder() {
                 <div
                   key={i}
                   className={`w-2 h-2 rounded-full transition-colors ${
-                    i === onboardingStep ? 'bg-forest-600' : 'bg-blush-200'
+                    i === onboardingStep ? 'bg-forest-600 dark:bg-forest-400' : 'bg-blush-200 dark:bg-blush-600'
                   }`}
                 />
               ))}
@@ -356,7 +526,7 @@ export function FormationBuilder() {
             <div className="flex gap-3">
               <button
                 onClick={completeOnboarding}
-                className="flex-1 px-4 py-2 text-forest-500 hover:bg-blush-100 rounded-lg transition-colors"
+                className="flex-1 px-4 py-2 text-forest-500 dark:text-blush-300 hover:bg-blush-100 dark:hover:bg-blush-700 rounded-lg transition-colors"
               >
                 Skip
               </button>
@@ -380,42 +550,47 @@ export function FormationBuilder() {
       {/* Help Modal */}
       {showHelp && (
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowHelp(false)}>
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-white dark:bg-blush-800 rounded-2xl max-w-md w-full p-6 shadow-xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-forest-700">Keyboard Shortcuts</h2>
-              <button onClick={() => setShowHelp(false)} className="p-1 hover:bg-blush-100 rounded-lg">
+              <h2 className="text-lg font-bold text-forest-700 dark:text-white">Keyboard Shortcuts</h2>
+              <button onClick={() => setShowHelp(false)} className="p-1 hover:bg-blush-100 dark:hover:bg-blush-700 rounded-lg text-forest-600 dark:text-blush-300">
                 <X size={20} />
               </button>
             </div>
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
-                <span className="text-forest-600">Previous formation</span>
-                <kbd className="px-2 py-1 bg-blush-100 rounded text-forest-700">←</kbd>
+                <span className="text-forest-600 dark:text-blush-300">Previous formation</span>
+                <kbd className="px-2 py-1 bg-blush-100 dark:bg-blush-700 rounded text-forest-700 dark:text-white">←</kbd>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-forest-600">Next formation</span>
-                <kbd className="px-2 py-1 bg-blush-100 rounded text-forest-700">→</kbd>
+                <span className="text-forest-600 dark:text-blush-300">Next formation</span>
+                <kbd className="px-2 py-1 bg-blush-100 dark:bg-blush-700 rounded text-forest-700 dark:text-white">→</kbd>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-forest-600">Play / Pause</span>
-                <kbd className="px-2 py-1 bg-blush-100 rounded text-forest-700">Space</kbd>
+                <span className="text-forest-600 dark:text-blush-300">Play / Pause</span>
+                <kbd className="px-2 py-1 bg-blush-100 dark:bg-blush-700 rounded text-forest-700 dark:text-white">Space</kbd>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-forest-600">Toggle grid</span>
-                <kbd className="px-2 py-1 bg-blush-100 rounded text-forest-700">G</kbd>
+                <span className="text-forest-600 dark:text-blush-300">Toggle grid</span>
+                <kbd className="px-2 py-1 bg-blush-100 dark:bg-blush-700 rounded text-forest-700 dark:text-white">G</kbd>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-forest-600">Toggle labels</span>
-                <kbd className="px-2 py-1 bg-blush-100 rounded text-forest-700">L</kbd>
+                <span className="text-forest-600 dark:text-blush-300">Toggle labels</span>
+                <kbd className="px-2 py-1 bg-blush-100 dark:bg-blush-700 rounded text-forest-700 dark:text-white">L</kbd>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-forest-600 dark:text-blush-300">Toggle paths</span>
+                <kbd className="px-2 py-1 bg-blush-100 dark:bg-blush-700 rounded text-forest-700 dark:text-white">P</kbd>
               </div>
             </div>
-            <div className="mt-6 pt-4 border-t border-blush-200">
-              <h3 className="font-medium text-forest-700 mb-2">Tips</h3>
-              <ul className="text-sm text-forest-500 space-y-1">
+            <div className="mt-6 pt-4 border-t border-blush-200 dark:border-blush-700">
+              <h3 className="font-medium text-forest-700 dark:text-white mb-2">Tips</h3>
+              <ul className="text-sm text-forest-500 dark:text-blush-400 space-y-1">
                 <li>• Drag dancers to position them</li>
                 <li>• Tap a template to apply it instantly</li>
                 <li>• Add formations for different sections</li>
-                <li>• Use Mirror to flip the formation</li>
+                <li>• Use transition styles for different effects</li>
+                <li>• Show paths to see where dancers move</li>
               </ul>
             </div>
           </div>
@@ -426,7 +601,7 @@ export function FormationBuilder() {
       <div className="bg-gradient-to-r from-purple-600 to-forest-600 text-white px-4 py-3 sticky top-0 z-50">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link to={dance ? `/dance/${dance.id}` : '/dances'} className="p-1 hover:bg-white/10 rounded-lg">
+            <Link to={dance ? `/dance/${dance.id}` : '/formations'} className="p-1 hover:bg-white/10 rounded-lg">
               <ArrowLeft size={20} />
             </Link>
             <div>
@@ -441,6 +616,13 @@ export function FormationBuilder() {
               title="Help & shortcuts"
             >
               <HelpCircle size={18} />
+            </button>
+            <button
+              onClick={() => setShowPaths(!showPaths)}
+              className={`p-2 rounded-lg transition-colors ${showPaths ? 'bg-white/20' : 'hover:bg-white/10'}`}
+              title="Toggle paths (P)"
+            >
+              {showPaths ? <Eye size={18} /> : <EyeOff size={18} />}
             </button>
             <button
               onClick={() => setShowGrid(!showGrid)}
@@ -465,9 +647,9 @@ export function FormationBuilder() {
         {formations.length === 1 && currentFormation.dancers.every((d, i) =>
           Math.abs(d.x - (20 + (i % 4) * 20)) < 5 && Math.abs(d.y - (30 + Math.floor(i / 4) * 25)) < 5
         ) && (
-          <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 mb-4 flex items-start gap-3">
+          <div className="bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded-xl p-3 mb-4 flex items-start gap-3">
             <Lightbulb className="text-purple-500 flex-shrink-0 mt-0.5" size={18} />
-            <p className="text-sm text-purple-700">
+            <p className="text-sm text-purple-700 dark:text-purple-300">
               <strong>Quick start:</strong> Try tapping a template below like "Line" or "Triangle" to instantly arrange your dancers!
             </p>
           </div>
@@ -502,20 +684,94 @@ export function FormationBuilder() {
               </div>
             )}
 
+            {/* Transition paths - SVG lines showing where dancers will move */}
+            {showPaths && nextFormation && !isTransitioning && (
+              <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }}>
+                <defs>
+                  <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                    <polygon points="0 0, 6 3, 0 6" fill="rgba(255,255,255,0.4)" />
+                  </marker>
+                </defs>
+                {currentFormation.dancers.map((dancer, index) => {
+                  const nextDancer = nextFormation.dancers[index];
+                  if (!nextDancer) return null;
+
+                  // Only show path if dancer moves significantly
+                  const distance = Math.sqrt(
+                    Math.pow(nextDancer.x - dancer.x, 2) + Math.pow(nextDancer.y - dancer.y, 2)
+                  );
+                  if (distance < 3) return null;
+
+                  return (
+                    <line
+                      key={dancer.id}
+                      x1={`${dancer.x}%`}
+                      y1={`${dancer.y}%`}
+                      x2={`${nextDancer.x}%`}
+                      y2={`${nextDancer.y}%`}
+                      stroke={dancer.color}
+                      strokeWidth="2"
+                      strokeDasharray="4 4"
+                      opacity="0.5"
+                      markerEnd="url(#arrowhead)"
+                    />
+                  );
+                })}
+              </svg>
+            )}
+
+            {/* Ghost positions showing next formation */}
+            {showPaths && nextFormation && !isTransitioning && (
+              <>
+                {nextFormation.dancers.map((dancer, index) => {
+                  const currentDancer = currentFormation.dancers[index];
+                  if (!currentDancer) return null;
+
+                  return (
+                    <div
+                      key={`ghost-${dancer.id}`}
+                      className="absolute transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                      style={{
+                        left: `${dancer.x}%`,
+                        top: `${dancer.y}%`,
+                        zIndex: 4
+                      }}
+                    >
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm border-2 border-dashed opacity-40"
+                        style={{
+                          backgroundColor: currentDancer.color,
+                          borderColor: 'white'
+                        }}
+                      >
+                        {index + 1}
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
+            )}
+
             {/* Dancers */}
-            {currentFormation.dancers.map((dancer, index) => (
+            {displayPositions.map((dancer, index) => (
               <div
                 key={dancer.id}
-                className={`absolute cursor-move transform -translate-x-1/2 -translate-y-1/2 transition-all ${
-                  isPlaying ? 'duration-500' : 'duration-100'
-                } ${selectedDancer === dancer.id ? 'z-20 scale-110' : 'z-10'}`}
-                style={{ left: `${dancer.x}%`, top: `${dancer.y}%` }}
+                className={`absolute cursor-move transform -translate-x-1/2 -translate-y-1/2 ${
+                  selectedDancer === dancer.id ? 'z-20 scale-110' : 'z-10'
+                }`}
+                style={{
+                  left: `${dancer.x}%`,
+                  top: `${dancer.y}%`,
+                  transition: isTransitioning ? 'none' : 'transform 0.1s ease-out'
+                }}
                 onMouseDown={(e) => {
+                  if (isPlaying) return;
                   e.preventDefault();
                   setSelectedDancer(dancer.id);
                   handleDrag(e, dancer.id);
                 }}
                 onTouchStart={(e) => {
+                  if (isPlaying) return;
                   setSelectedDancer(dancer.id);
                   handleDrag(e, dancer.id);
                 }}
@@ -524,30 +780,85 @@ export function FormationBuilder() {
                   className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg border-2 transition-all ${
                     selectedDancer === dancer.id ? 'border-white ring-2 ring-white/50' : 'border-transparent'
                   }`}
-                  style={{ backgroundColor: dancer.color }}
+                  style={{ backgroundColor: currentFormation.dancers[index]?.color || dancer.color }}
                 >
                   {index + 1}
                 </div>
                 {showLabels && (
                   <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 text-[10px] text-white bg-black/60 px-1.5 py-0.5 rounded whitespace-nowrap max-w-[80px] truncate">
-                    {dancer.name}
+                    {currentFormation.dancers[index]?.name || dancer.name}
                   </div>
                 )}
               </div>
             ))}
 
             {/* Formation name overlay */}
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white px-3 py-1 rounded-full text-sm">
-              {currentFormation.name} ({currentFormation.count})
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2">
+              <span>{currentFormation.name} ({currentFormation.count})</span>
+              {isTransitioning && (
+                <span className="text-xs text-green-400">→ {nextFormation?.name}</span>
+              )}
             </div>
+
+            {/* Animation progress bar */}
+            {isTransitioning && (
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
+                <div
+                  className="h-full bg-green-400 transition-none"
+                  style={{ width: `${animationProgress * 100}%` }}
+                />
+              </div>
+            )}
           </div>
           <div className="text-center text-xs text-forest-400 mt-1">↓ BACKSTAGE / BACK</div>
         </div>
 
+        {/* Transition Controls - Only show when there are multiple formations */}
+        {formations.length > 1 && nextFormation && (
+          <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4 mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-medium text-forest-700 dark:text-white flex items-center gap-2">
+                <Zap size={16} className="text-yellow-500" />
+                Transition to "{nextFormation.name}"
+              </h3>
+              {!isPlaying && (
+                <button
+                  onClick={previewTransition}
+                  disabled={isTransitioning}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-purple-100 text-purple-600 rounded-lg text-sm font-medium hover:bg-purple-200 disabled:opacity-50"
+                >
+                  <Play size={14} />
+                  Preview
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              {TRANSITION_TYPES.map(type => (
+                <button
+                  key={type.id}
+                  onClick={() => setFormations(prev => prev.map((f, i) =>
+                    i === currentFormationIndex + 1 ? { ...f, transitionStyle: type.id } : f
+                  ))}
+                  className={`p-2 rounded-lg text-center transition-all ${
+                    (nextFormation.transitionStyle || 'direct') === type.id
+                      ? 'bg-forest-600 text-white'
+                      : 'bg-blush-50 dark:bg-blush-700 text-forest-600 dark:text-white hover:bg-blush-100 dark:hover:bg-blush-600'
+                  }`}
+                >
+                  <div className="text-sm font-medium">{type.name}</div>
+                  <div className={`text-xs mt-0.5 ${(nextFormation.transitionStyle || 'direct') === type.id ? 'text-white/70' : 'text-forest-400 dark:text-blush-400'}`}>
+                    {type.description}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Quick Templates - More prominent */}
-        <div className="bg-white rounded-xl border border-blush-200 p-4 mb-4">
+        <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4 mb-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-medium text-forest-700">Quick Templates</h3>
+            <h3 className="font-medium text-forest-700 dark:text-white">Quick Templates</h3>
             <button
               onClick={mirrorFormation}
               className="px-3 py-1.5 bg-purple-100 text-purple-600 rounded-lg text-sm hover:bg-purple-200 transition-colors flex items-center gap-1"
@@ -561,33 +872,34 @@ export function FormationBuilder() {
               <button
                 key={template.name}
                 onClick={() => applyTemplate(index)}
-                className="flex flex-col items-center gap-1 p-2 bg-blush-50 hover:bg-blush-100 rounded-lg transition-colors group"
+                className="flex flex-col items-center gap-1 p-2 bg-blush-50 dark:bg-blush-700 hover:bg-blush-100 dark:hover:bg-blush-600 rounded-lg transition-colors group"
               >
                 <span className="text-lg group-hover:scale-110 transition-transform">{template.icon}</span>
-                <span className="text-xs text-forest-600">{template.name}</span>
+                <span className="text-xs text-forest-600 dark:text-blush-300">{template.name}</span>
               </button>
             ))}
           </div>
         </div>
 
         {/* Formation Timeline - Simplified */}
-        <div className="bg-white rounded-xl border border-blush-200 p-4 mb-4">
+        <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4 mb-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-medium text-forest-700">
+            <h3 className="font-medium text-forest-700 dark:text-white">
               Formations
-              <span className="text-forest-400 font-normal ml-2">({currentFormationIndex + 1} of {formations.length})</span>
+              <span className="text-forest-400 dark:text-blush-400 font-normal ml-2">({currentFormationIndex + 1} of {formations.length})</span>
             </h3>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setIsPlaying(!isPlaying)}
+                onClick={togglePlayback}
+                disabled={formations.length < 2}
                 className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium ${
                   isPlaying
                     ? 'bg-red-100 text-red-600 hover:bg-red-200'
                     : 'bg-green-100 text-green-600 hover:bg-green-200'
-                }`}
+                } ${formations.length < 2 ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-                {isPlaying ? 'Stop' : 'Preview'}
+                {isPlaying ? 'Stop' : 'Play All'}
               </button>
               <button
                 onClick={addFormation}
@@ -602,34 +914,45 @@ export function FormationBuilder() {
           {/* Timeline with visual cards */}
           <div className="flex items-center gap-2 overflow-x-auto pb-2">
             <button
-              onClick={() => setCurrentFormationIndex(Math.max(0, currentFormationIndex - 1))}
-              disabled={currentFormationIndex === 0}
-              className="p-2 text-forest-400 hover:text-forest-600 disabled:opacity-30 flex-shrink-0"
+              onClick={() => !isPlaying && setCurrentFormationIndex(Math.max(0, currentFormationIndex - 1))}
+              disabled={currentFormationIndex === 0 || isPlaying}
+              className="p-2 text-forest-400 dark:text-blush-400 hover:text-forest-600 disabled:opacity-30 flex-shrink-0"
             >
               <ChevronLeft size={24} />
             </button>
 
-            <div className="flex gap-2 flex-1 overflow-x-auto">
+            <div className="flex gap-2 flex-1 overflow-x-auto items-center">
               {formations.map((formation, index) => (
-                <button
-                  key={formation.id}
-                  onClick={() => setCurrentFormationIndex(index)}
-                  className={`flex-shrink-0 w-20 p-2 rounded-lg text-center transition-all ${
-                    index === currentFormationIndex
-                      ? 'bg-forest-600 text-white shadow-md scale-105'
-                      : 'bg-blush-100 text-forest-600 hover:bg-blush-200'
-                  }`}
-                >
-                  <div className="text-lg font-bold">{index + 1}</div>
-                  <div className="text-xs opacity-70 truncate">{formation.count}</div>
-                </button>
+                <div key={formation.id} className="flex items-center">
+                  {/* Transition indicator between formations */}
+                  {index > 0 && (
+                    <div className="flex-shrink-0 px-1 text-xs text-forest-400 dark:text-blush-500">
+                      <span className="hidden sm:inline">
+                        {TRANSITION_TYPES.find(t => t.id === (formation.transitionStyle || 'direct'))?.name || 'Direct'}
+                      </span>
+                      <span className="sm:hidden">→</span>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => !isPlaying && setCurrentFormationIndex(index)}
+                    disabled={isPlaying}
+                    className={`flex-shrink-0 w-20 p-2 rounded-lg text-center transition-all ${
+                      index === currentFormationIndex
+                        ? 'bg-forest-600 text-white shadow-md scale-105'
+                        : 'bg-blush-100 dark:bg-blush-700 text-forest-600 dark:text-white hover:bg-blush-200 dark:hover:bg-blush-600'
+                    } ${isPlaying ? 'cursor-not-allowed' : ''}`}
+                  >
+                    <div className="text-lg font-bold">{index + 1}</div>
+                    <div className="text-xs opacity-70 truncate">{formation.count}</div>
+                  </button>
+                </div>
               ))}
             </div>
 
             <button
-              onClick={() => setCurrentFormationIndex(Math.min(formations.length - 1, currentFormationIndex + 1))}
-              disabled={currentFormationIndex === formations.length - 1}
-              className="p-2 text-forest-400 hover:text-forest-600 disabled:opacity-30 flex-shrink-0"
+              onClick={() => !isPlaying && setCurrentFormationIndex(Math.min(formations.length - 1, currentFormationIndex + 1))}
+              disabled={currentFormationIndex === formations.length - 1 || isPlaying}
+              className="p-2 text-forest-400 dark:text-blush-400 hover:text-forest-600 disabled:opacity-30 flex-shrink-0"
             >
               <ChevronRight size={24} />
             </button>
@@ -637,23 +960,23 @@ export function FormationBuilder() {
 
           {/* Playback speed */}
           {formations.length > 1 && (
-            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-blush-100">
-              <span className="text-xs text-forest-500">Speed:</span>
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-blush-100 dark:border-blush-700">
+              <span className="text-xs text-forest-500 dark:text-blush-400">Speed:</span>
               <button
                 onClick={() => setPlaybackSpeed(3000)}
-                className={`px-2 py-1 rounded text-xs ${playbackSpeed === 3000 ? 'bg-forest-600 text-white' : 'bg-blush-100 text-forest-600'}`}
+                className={`px-2 py-1 rounded text-xs ${playbackSpeed === 3000 ? 'bg-forest-600 text-white' : 'bg-blush-100 dark:bg-blush-700 text-forest-600 dark:text-white'}`}
               >
                 Slow
               </button>
               <button
                 onClick={() => setPlaybackSpeed(2000)}
-                className={`px-2 py-1 rounded text-xs ${playbackSpeed === 2000 ? 'bg-forest-600 text-white' : 'bg-blush-100 text-forest-600'}`}
+                className={`px-2 py-1 rounded text-xs ${playbackSpeed === 2000 ? 'bg-forest-600 text-white' : 'bg-blush-100 dark:bg-blush-700 text-forest-600 dark:text-white'}`}
               >
                 Normal
               </button>
               <button
                 onClick={() => setPlaybackSpeed(1000)}
-                className={`px-2 py-1 rounded text-xs ${playbackSpeed === 1000 ? 'bg-forest-600 text-white' : 'bg-blush-100 text-forest-600'}`}
+                className={`px-2 py-1 rounded text-xs ${playbackSpeed === 1000 ? 'bg-forest-600 text-white' : 'bg-blush-100 dark:bg-blush-700 text-forest-600 dark:text-white'}`}
               >
                 Fast
               </button>
@@ -662,9 +985,9 @@ export function FormationBuilder() {
         </div>
 
         {/* Dancer Management - Collapsible */}
-        <details className="bg-white rounded-xl border border-blush-200 mb-4 group">
+        <details className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 mb-4 group">
           <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
-            <h3 className="font-medium text-forest-700">Dancers ({currentFormation.dancers.length})</h3>
+            <h3 className="font-medium text-forest-700 dark:text-white">Dancers ({currentFormation.dancers.length})</h3>
             <div className="flex items-center gap-2">
               <button
                 onClick={(e) => {
@@ -676,7 +999,7 @@ export function FormationBuilder() {
                 <Plus size={14} />
                 Add
               </button>
-              <ChevronRight size={18} className="text-forest-400 transition-transform group-open:rotate-90" />
+              <ChevronRight size={18} className="text-forest-400 dark:text-blush-400 transition-transform group-open:rotate-90" />
             </div>
           </summary>
           <div className="px-4 pb-4">
@@ -685,7 +1008,7 @@ export function FormationBuilder() {
                 <div
                   key={dancer.id}
                   className={`flex items-center gap-2 p-2 rounded-lg border transition-colors ${
-                    selectedDancer === dancer.id ? 'border-forest-400 bg-forest-50' : 'border-blush-200'
+                    selectedDancer === dancer.id ? 'border-forest-400 bg-forest-50 dark:bg-blush-700' : 'border-blush-200 dark:border-blush-600'
                   }`}
                   onClick={() => setSelectedDancer(dancer.id)}
                 >
@@ -699,7 +1022,7 @@ export function FormationBuilder() {
                     type="text"
                     value={dancer.name}
                     onChange={(e) => renameDancer(dancer.id, e.target.value)}
-                    className="flex-1 text-sm bg-transparent border-none outline-none text-forest-700 min-w-0"
+                    className="flex-1 text-sm bg-transparent border-none outline-none text-forest-700 dark:text-white min-w-0"
                     onClick={(e) => e.stopPropagation()}
                   />
                   <button
@@ -718,26 +1041,26 @@ export function FormationBuilder() {
         </details>
 
         {/* Formation Details - Collapsible */}
-        <details className="bg-white rounded-xl border border-blush-200 group">
+        <details className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 group">
           <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
-            <h3 className="font-medium text-forest-700">Formation Settings</h3>
-            <ChevronRight size={18} className="text-forest-400 transition-transform group-open:rotate-90" />
+            <h3 className="font-medium text-forest-700 dark:text-white">Formation Settings</h3>
+            <ChevronRight size={18} className="text-forest-400 dark:text-blush-400 transition-transform group-open:rotate-90" />
           </summary>
           <div className="px-4 pb-4">
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-xs text-forest-500 mb-1">Name</label>
+                <label className="block text-xs text-forest-500 dark:text-blush-400 mb-1">Name</label>
                 <input
                   type="text"
                   value={currentFormation.name}
                   onChange={(e) => setFormations(prev => prev.map((f, i) =>
                     i === currentFormationIndex ? { ...f, name: e.target.value } : f
                   ))}
-                  className="w-full px-3 py-2 border border-blush-200 rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-blush-200 dark:border-blush-600 rounded-lg text-sm dark:bg-blush-700 dark:text-white"
                 />
               </div>
               <div>
-                <label className="block text-xs text-forest-500 mb-1">Music Counts (8-count blocks)</label>
+                <label className="block text-xs text-forest-500 dark:text-blush-400 mb-1">Music Counts (8-count blocks)</label>
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
@@ -745,7 +1068,7 @@ export function FormationBuilder() {
                     onChange={(e) => setFormations(prev => prev.map((f, i) =>
                       i === currentFormationIndex ? { ...f, count: e.target.value } : f
                     ))}
-                    className="flex-1 px-3 py-2 border border-blush-200 rounded-lg text-sm"
+                    className="flex-1 px-3 py-2 border border-blush-200 dark:border-blush-600 rounded-lg text-sm dark:bg-blush-700 dark:text-white"
                     placeholder="1-8, 9-16, etc."
                   />
                   <div className="flex gap-1">
@@ -758,7 +1081,7 @@ export function FormationBuilder() {
                         className={`px-2 py-1 text-xs rounded ${
                           currentFormation.count === preset
                             ? 'bg-forest-600 text-white'
-                            : 'bg-blush-100 text-forest-600 hover:bg-blush-200'
+                            : 'bg-blush-100 dark:bg-blush-700 text-forest-600 dark:text-white hover:bg-blush-200 dark:hover:bg-blush-600'
                         }`}
                       >
                         {preset}
@@ -772,7 +1095,7 @@ export function FormationBuilder() {
             <div className="flex gap-2">
               <button
                 onClick={duplicateFormation}
-                className="flex items-center gap-1 px-3 py-2 bg-blush-100 text-forest-600 rounded-lg text-sm hover:bg-blush-200"
+                className="flex items-center gap-1 px-3 py-2 bg-blush-100 dark:bg-blush-700 text-forest-600 dark:text-white rounded-lg text-sm hover:bg-blush-200 dark:hover:bg-blush-600"
               >
                 <Copy size={14} />
                 Duplicate

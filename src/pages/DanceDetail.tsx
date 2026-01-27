@@ -1,8 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, Clock, Users, User, Music, Edit2, Save, X,
-  Plus, Trash2, Camera, Play,
+  Plus, Trash2, Camera, Play, Pause, Upload,
   ChevronDown, ChevronUp, Grid3X3, Scissors, Footprints
 } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
@@ -11,6 +11,7 @@ import { RehearsalNote, MediaItem, DanceLevel, DanceStyle } from '../types';
 import { v4 as uuid } from 'uuid';
 import { processMediaFile } from '../utils/mediaCompression';
 import { getStudentById } from '../data/students';
+import { saveEvents } from '../services/storage';
 
 const levelColors: Record<DanceLevel, string> = {
   'beginner': 'bg-emerald-100 text-emerald-700',
@@ -27,6 +28,7 @@ const styleColors: Record<DanceStyle, string> = {
   'hip-hop': 'bg-red-100 text-red-700',
   'acro': 'bg-teal-100 text-teal-700',
   'open': 'bg-indigo-100 text-indigo-700',
+  'monologue': 'bg-violet-100 text-violet-700',
 };
 
 export function DanceDetail() {
@@ -39,11 +41,26 @@ export function DanceDetail() {
   const [newWorkOn, setNewWorkOn] = useState<string[]>(['']);
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const rehearsalMediaInputRef = useRef<HTMLInputElement>(null);
+  const musicInputRef = useRef<HTMLInputElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioProgress, setAudioProgress] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
   const [activeRehearsalId, setActiveRehearsalId] = useState<string | null>(null);
   const [editingRehearsalId, setEditingRehearsalId] = useState<string | null>(null);
   const [editRehearsalNotes, setEditRehearsalNotes] = useState('');
   const [editWorkOn, setEditWorkOn] = useState<string[]>(['']);
   const [mediaUploadError, setMediaUploadError] = useState<string | null>(null);
+
+  // Listen for save errors (e.g., storage quota exceeded)
+  useEffect(() => {
+    const unsubscribe = saveEvents.subscribe((status, message) => {
+      if (status === 'error' && message) {
+        setMediaUploadError(message);
+      }
+    });
+    return () => { unsubscribe(); };
+  }, []);
 
   const dance = data.competitionDances?.find(d => d.id === danceId);
 
@@ -51,9 +68,9 @@ export function DanceDetail() {
 
   if (!dance) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-6">
+      <div className="page-w px-4 py-6">
         <p className="text-forest-600">Dance not found</p>
-        <Link to="/dances" className="text-forest-600 underline">Back to dances</Link>
+        <Link to="/competitions?tab=dances" className="text-forest-600 underline">Back to dances</Link>
       </div>
     );
   }
@@ -113,6 +130,122 @@ export function DanceDetail() {
       ...editedDance,
       media: editedDance.media.filter(m => m.id !== mediaId),
     });
+  };
+
+  // Music track upload
+  const handleMusicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !dance) return;
+
+    // Check if it's an audio file
+    if (!file.type.startsWith('audio/')) {
+      setMediaUploadError('Please select an audio file (MP3, WAV, etc.)');
+      return;
+    }
+
+    // Max 3MB for audio (localStorage has ~5MB limit total, base64 adds ~33% overhead)
+    const maxSizeMB = 3;
+    if (file.size > maxSizeMB * 1024 * 1024) {
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      setMediaUploadError(`Audio file too large (${fileSizeMB}MB). Maximum size is ${maxSizeMB}MB. Try compressing the audio or using a shorter clip.`);
+      return;
+    }
+
+    setMediaUploadError(null);
+
+    try {
+      const reader = new FileReader();
+      reader.onerror = () => {
+        setMediaUploadError('Failed to read audio file. Please try again.');
+      };
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+
+        // Check the base64 size (roughly 33% larger than original)
+        const base64Size = dataUrl.length;
+        if (base64Size > 4 * 1024 * 1024) {
+          setMediaUploadError('Audio file is too large after encoding. Please use a smaller file.');
+          return;
+        }
+
+        // Get duration from audio element
+        const audio = new Audio(dataUrl);
+        audio.onerror = () => {
+          setMediaUploadError('Could not read audio file. Please try a different format (MP3 recommended).');
+        };
+        audio.onloadedmetadata = () => {
+          const minutes = Math.floor(audio.duration / 60);
+          const seconds = Math.floor(audio.duration % 60);
+          const durationStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+          try {
+            const updatedDance = {
+              ...dance,
+              musicTrack: {
+                url: dataUrl,
+                name: file.name,
+                duration: durationStr,
+                uploadedAt: new Date().toISOString(),
+              },
+            };
+            updateCompetitionDance(updatedDance);
+            setMediaUploadError(null);
+          } catch (saveError) {
+            console.error('Failed to save music:', saveError);
+            setMediaUploadError('Failed to save music. Storage may be full. Try removing other media first.');
+          }
+        };
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Music upload failed:', error);
+      setMediaUploadError('Failed to upload music file. Please try again.');
+    }
+
+    e.target.value = '';
+  };
+
+  const removeMusicTrack = () => {
+    if (!dance) return;
+    const updatedDance = {
+      ...dance,
+      musicTrack: undefined,
+    };
+    updateCompetitionDance(updatedDance);
+    setIsPlaying(false);
+  };
+
+  const togglePlayPause = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  const handleTimeUpdate = () => {
+    if (!audioRef.current) return;
+    setAudioProgress(audioRef.current.currentTime);
+  };
+
+  const handleLoadedMetadata = () => {
+    if (!audioRef.current) return;
+    setAudioDuration(audioRef.current.duration);
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!audioRef.current) return;
+    const time = parseFloat(e.target.value);
+    audioRef.current.currentTime = time;
+    setAudioProgress(time);
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const toggleNoteExpanded = (noteId: string) => {
@@ -237,10 +370,10 @@ export function DanceDetail() {
   };
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 pb-24">
+    <div className="page-w px-4 py-6 pb-24">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <Link to="/dances" className="p-2 hover:bg-forest-100 rounded-lg text-forest-600">
+        <Link to="/competitions?tab=dances" className="p-2 hover:bg-forest-100 rounded-lg text-forest-600">
           <ArrowLeft size={20} />
         </Link>
         <div className="flex-1">
@@ -298,6 +431,92 @@ export function DanceDetail() {
           <div className="mt-3 pt-3 border-t border-forest-500">
             <div className="text-sm text-blush-200 mb-1">Props</div>
             <div>{displayDance.props}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Competition Music Track */}
+      <div className="bg-white rounded-xl border border-forest-200 p-4 mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold text-forest-700 flex items-center gap-2">
+            <Music size={18} />
+            Competition Music
+          </h2>
+        </div>
+
+        <input
+          ref={musicInputRef}
+          type="file"
+          accept="audio/*"
+          onChange={handleMusicUpload}
+          className="hidden"
+          aria-label="Upload music track"
+        />
+
+        {dance.musicTrack ? (
+          <div className="space-y-3">
+            {/* Audio Element (hidden) */}
+            <audio
+              ref={audioRef}
+              src={dance.musicTrack.url}
+              onTimeUpdate={handleTimeUpdate}
+              onLoadedMetadata={handleLoadedMetadata}
+              onEnded={() => setIsPlaying(false)}
+            />
+
+            {/* Track Info */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={togglePlayPause}
+                className="w-14 h-14 bg-forest-600 hover:bg-forest-700 text-white rounded-full flex items-center justify-center transition-colors"
+              >
+                {isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
+              </button>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-forest-700 truncate">{dance.musicTrack.name}</div>
+                <div className="text-sm text-forest-500">
+                  {dance.musicTrack.duration || 'Unknown duration'}
+                </div>
+              </div>
+              <button
+                onClick={removeMusicTrack}
+                className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="space-y-1">
+              <input
+                type="range"
+                min={0}
+                max={audioDuration || 100}
+                value={audioProgress}
+                onChange={handleSeek}
+                className="w-full h-2 bg-forest-100 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-forest-600 [&::-webkit-slider-thumb]:rounded-full"
+              />
+              <div className="flex justify-between text-xs text-forest-500">
+                <span>{formatTime(audioProgress)}</span>
+                <span>{formatTime(audioDuration)}</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {mediaUploadError && (
+              <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+                {mediaUploadError}
+              </div>
+            )}
+            <button
+              onClick={() => musicInputRef.current?.click()}
+              className="w-full py-6 border-2 border-dashed border-forest-300 rounded-xl text-forest-500 hover:border-forest-400 hover:text-forest-600 transition-colors flex flex-col items-center gap-2"
+            >
+              <Upload size={24} />
+              <span className="text-sm font-medium">Upload Competition Music</span>
+              <span className="text-xs text-forest-400">MP3 recommended (max 3MB)</span>
+            </button>
           </div>
         )}
       </div>
@@ -436,18 +655,18 @@ export function DanceDetail() {
       </div>
 
       {/* Notes */}
-      <div className="bg-white rounded-xl border border-forest-200 p-4 mb-6">
-        <h2 className="font-semibold text-forest-700 mb-3">General Notes</h2>
+      <div className="bg-white dark:bg-blush-800 rounded-xl border border-forest-200 dark:border-blush-700 p-4 mb-6">
+        <h2 className="font-semibold text-forest-700 dark:text-white mb-3">General Notes</h2>
         {isEditing ? (
           <textarea
             value={editedDance?.notes || ''}
             onChange={(e) => setEditedDance(prev => prev ? { ...prev, notes: e.target.value } : prev)}
             placeholder="Add notes about this dance..."
             rows={4}
-            className="w-full px-3 py-2 border border-forest-200 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-forest-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-white dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400 dark:placeholder-blush-500"
           />
         ) : (
-          <p className="text-forest-600 whitespace-pre-wrap">
+          <p className="text-forest-600 dark:text-blush-300 whitespace-pre-wrap">
             {displayDance.notes || 'No notes yet'}
           </p>
         )}
@@ -478,6 +697,7 @@ export function DanceDetail() {
           multiple
           onChange={handleMediaUpload}
           className="hidden"
+          aria-label="Upload photos or videos"
         />
 
         {mediaUploadError && (
@@ -534,9 +754,9 @@ export function DanceDetail() {
 
         {/* Add New Rehearsal Form */}
         {showAddRehearsal && (
-          <div className="bg-forest-50 rounded-lg p-4 mb-4">
+          <div className="bg-forest-50 dark:bg-blush-800 rounded-lg p-4 mb-4">
             <div className="mb-3">
-              <label className="block text-sm font-medium text-forest-600 mb-1">
+              <label className="block text-sm font-medium text-forest-600 dark:text-blush-300 mb-1">
                 What did you work on?
               </label>
               <textarea
@@ -544,12 +764,12 @@ export function DanceDetail() {
                 onChange={(e) => setNewRehearsalNotes(e.target.value)}
                 placeholder="Notes from today's rehearsal..."
                 rows={3}
-                className="w-full px-3 py-2 border border-forest-200 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-forest-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-white dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400 dark:placeholder-blush-500"
               />
             </div>
 
             <div className="mb-3">
-              <label className="block text-sm font-medium text-forest-600 mb-1">
+              <label className="block text-sm font-medium text-forest-600 dark:text-blush-300 mb-1">
                 Work on next week:
               </label>
               {newWorkOn.map((item, i) => (
@@ -563,7 +783,7 @@ export function DanceDetail() {
                       setNewWorkOn(updated);
                     }}
                     placeholder="Thing to work on..."
-                    className="flex-1 px-3 py-2 border border-forest-200 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent"
+                    className="flex-1 px-3 py-2 border border-forest-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-white dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400 dark:placeholder-blush-500"
                   />
                   {newWorkOn.length > 1 && (
                     <button
@@ -625,17 +845,17 @@ export function DanceDetail() {
                       /* Edit Mode */
                       <div className="space-y-3">
                         <div>
-                          <label className="block text-xs text-forest-500 mb-1">Notes</label>
+                          <label className="block text-xs text-forest-500 dark:text-blush-400 mb-1">Notes</label>
                           <textarea
                             value={editRehearsalNotes}
                             onChange={(e) => setEditRehearsalNotes(e.target.value)}
                             rows={3}
-                            className="w-full px-3 py-2 border border-forest-200 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent text-sm"
+                            className="w-full px-3 py-2 border border-forest-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent text-sm bg-white dark:bg-blush-700 text-forest-700 dark:text-white"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-xs text-forest-500 mb-1">Work on next week</label>
+                          <label className="block text-xs text-forest-500 dark:text-blush-400 mb-1">Work on next week</label>
                           {editWorkOn.map((item, i) => (
                             <div key={i} className="flex gap-2 mb-2">
                               <input
@@ -646,7 +866,7 @@ export function DanceDetail() {
                                   updated[i] = e.target.value;
                                   setEditWorkOn(updated);
                                 }}
-                                className="flex-1 px-3 py-2 border border-forest-200 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent text-sm"
+                                className="flex-1 px-3 py-2 border border-forest-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent text-sm bg-white dark:bg-blush-700 text-forest-700 dark:text-white"
                               />
                               {editWorkOn.length > 1 && (
                                 <button
@@ -730,6 +950,7 @@ export function DanceDetail() {
                             multiple
                             onChange={(e) => activeRehearsalId && handleRehearsalMediaUpload(e, activeRehearsalId)}
                             className="hidden"
+                            aria-label="Upload rehearsal media"
                           />
 
                           {note.media && note.media.length > 0 ? (

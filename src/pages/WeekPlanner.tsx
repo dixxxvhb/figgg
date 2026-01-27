@@ -119,16 +119,16 @@ export function WeekPlanner() {
       <div className="flex items-center justify-between mb-4">
         <button
           onClick={() => setWeekOffset(w => w - 1)}
-          className="p-2 hover:bg-gray-100 rounded-lg"
+          className="p-2 hover:bg-blush-100 dark:hover:bg-blush-800 rounded-lg text-forest-700 dark:text-white"
         >
           <ChevronLeft size={20} />
         </button>
         <div className="text-center">
-          <div className="font-semibold text-gray-900">{weekLabel}</div>
+          <div className="font-semibold text-forest-900 dark:text-white">{weekLabel}</div>
         </div>
         <button
           onClick={() => setWeekOffset(w => w + 1)}
-          className="p-2 hover:bg-gray-100 rounded-lg"
+          className="p-2 hover:bg-blush-100 dark:hover:bg-blush-800 rounded-lg text-forest-700 dark:text-white"
         >
           <ChevronRight size={20} />
         </button>
@@ -164,16 +164,16 @@ export function WeekPlanner() {
 
       {/* Last Week Reference */}
       {showLastWeek && lastWeekNotes && (
-        <div className="bg-gray-50 rounded-xl p-4 mb-6">
-          <div className="text-sm font-medium text-gray-500 mb-3">{lastWeekLabel}</div>
+        <div className="bg-blush-50 dark:bg-blush-800 rounded-xl p-4 mb-6">
+          <div className="text-sm font-medium text-blush-500 dark:text-blush-400 mb-3">{lastWeekLabel}</div>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {Object.entries(lastWeekNotes.classNotes).map(([classId, notes]) => {
               const cls = data.classes.find(c => c.id === classId);
               if (!cls || !notes.plan) return null;
               return (
                 <div key={classId} className="text-sm">
-                  <span className="font-medium">{cls.name}:</span>{' '}
-                  <span className="text-gray-600">{notes.plan}</span>
+                  <span className="font-medium text-forest-700 dark:text-white">{cls.name}:</span>{' '}
+                  <span className="text-blush-600 dark:text-blush-300">{notes.plan}</span>
                 </div>
               );
             })}
@@ -192,7 +192,7 @@ export function WeekPlanner() {
 
           return (
             <div key={day}>
-              <h3 className="font-semibold text-gray-900 mb-3">{dayLabel}</h3>
+              <h3 className="font-semibold text-forest-900 dark:text-white mb-3">{dayLabel}</h3>
               <div className="space-y-3">
                 {classes.map(cls => {
                   const studio = getStudio(cls.studioId);
@@ -202,7 +202,7 @@ export function WeekPlanner() {
                   return (
                     <div
                       key={cls.id}
-                      className="bg-white rounded-xl border border-gray-200 overflow-hidden"
+                      className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 overflow-hidden"
                     >
                       <div
                         className="px-4 py-3 flex items-center gap-3"
@@ -211,19 +211,19 @@ export function WeekPlanner() {
                         <div className="flex-1 min-w-0">
                           <Link
                             to={`/class/${cls.id}`}
-                            className="font-medium text-gray-900 hover:text-forest-600"
+                            className="font-medium text-forest-900 dark:text-white hover:text-forest-600 dark:hover:text-forest-400"
                           >
                             {cls.name}
                           </Link>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-sm text-blush-500 dark:text-blush-400">
                             {formatTimeDisplay(cls.startTime)} · {studio?.shortName}
                           </div>
                         </div>
                       </div>
 
-                      <div className="px-4 py-3 bg-gray-50">
+                      <div className="px-4 py-3 bg-blush-50 dark:bg-blush-900/50">
                         {showLastWeek && lastWeekClassNotes?.plan && (
-                          <div className="text-sm text-gray-500 mb-2">
+                          <div className="text-sm text-blush-500 dark:text-blush-400 mb-2">
                             <span className="font-medium">Last week:</span> {lastWeekClassNotes.plan}
                           </div>
                         )}
@@ -232,10 +232,10 @@ export function WeekPlanner() {
                           onChange={(e) => updatePlan(cls.id, e.target.value)}
                           placeholder="Plan for this class..."
                           rows={2}
-                          className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent resize-none"
+                          className="w-full px-3 py-2 text-sm border border-blush-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent resize-none bg-white dark:bg-blush-800 text-forest-700 dark:text-white placeholder-blush-400"
                         />
                         {classNotes?.liveNotes && classNotes.liveNotes.length > 0 && (
-                          <div className="mt-2 text-xs text-forest-600">
+                          <div className="mt-2 text-xs text-forest-600 dark:text-forest-400">
                             {classNotes.liveNotes.length} note{classNotes.liveNotes.length !== 1 ? 's' : ''} from class
                           </div>
                         )}
