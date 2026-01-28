@@ -4,8 +4,9 @@ import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, Music2, Ca
 import { format, startOfWeek, addWeeks } from 'date-fns';
 import { useAppData } from '../hooks/useAppData';
 import { DropdownMenu } from '../components/common/DropdownMenu';
-import { LiveNote, ClassWeekNotes, Student } from '../types';
+import { LiveNote, ClassWeekNotes, WeekNotes, Student } from '../types';
 import { formatTimeDisplay, getCurrentTimeMinutes, getMinutesRemaining, formatWeekOf, getWeekStart } from '../utils/time';
+import { saveWeekNotes as saveWeekNotesToStorage, getWeekNotes as getWeekNotesFromStorage } from '../services/storage';
 import { v4 as uuid } from 'uuid';
 import { processMediaFile } from '../utils/mediaCompression';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
@@ -381,6 +382,10 @@ export function LiveNotes() {
   };
 
   const endClass = () => {
+    // Capture notes before any state changes
+    const notesToProcess = [...classNotes.liveNotes];
+
+    // Mark current week as organized
     const updatedClassNotes: ClassWeekNotes = {
       ...classNotes,
       isOrganized: true,
@@ -394,13 +399,16 @@ export function LiveNotes() {
       },
     };
 
-    saveWeekNotes(updatedWeekNotes);
+    // Use SYNCHRONOUS storage save (writes directly to localStorage + triggers cloud sync)
+    // NOT the React state-based saveWeekNotes hook, which is async and gets
+    // overwritten when navigate() unmounts the component before effects flush
+    saveWeekNotesToStorage(updatedWeekNotes);
 
     // Auto wrap up: generate next week's plan from all notes
-    if (classNotes.liveNotes.length > 0) {
+    if (notesToProcess.length > 0) {
       const planLines: string[] = [];
 
-      classNotes.liveNotes.forEach((n: LiveNote) => {
+      notesToProcess.forEach((n: LiveNote) => {
         if (n.category === 'reminder') {
           planLines.push('Review: ' + n.text);
         } else if (n.category === 'observation') {
@@ -418,7 +426,9 @@ export function LiveNotes() {
 
       const nextWeekStart = addWeeks(getWeekStart(), 1);
       const nextWeekOf = formatWeekOf(nextWeekStart);
-      const nextWeekNotes = getWeekNotes(nextWeekOf) || {
+
+      // Read directly from localStorage (not React state) to get freshest data
+      const nextWeekNotes = getWeekNotesFromStorage(nextWeekOf) || {
         id: uuid(),
         weekOf: nextWeekOf,
         classNotes: {},
@@ -429,14 +439,23 @@ export function LiveNotes() {
         liveNotes: [],
         isOrganized: false,
       };
+
+      // Append to existing plan if there is one
+      const existingPlan = nextClassNotes.plan?.trim();
+      const finalPlan = existingPlan
+        ? existingPlan + '\n---\n' + planText
+        : planText;
+
       const updatedNextWeek = {
         ...nextWeekNotes,
         classNotes: {
           ...nextWeekNotes.classNotes,
-          [classId!]: { ...nextClassNotes, plan: planText },
+          [classId!]: { ...nextClassNotes, plan: finalPlan },
         },
       };
-      saveWeekNotes(updatedNextWeek);
+
+      // Synchronous save directly to localStorage + cloud
+      saveWeekNotesToStorage(updatedNextWeek);
     }
 
     navigate('/');
