@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { format, differenceInDays } from 'date-fns';
+import { format, differenceInDays, parseISO } from 'date-fns';
 import {
   Calendar,
   Trophy,
@@ -11,7 +11,6 @@ import {
   MapPin,
   AlertCircle,
   Sparkles,
-  CheckCircle,
   FileText
 } from 'lucide-react';
 import { useCurrentClass } from '../hooks/useCurrentClass';
@@ -73,53 +72,25 @@ export function Dashboard() {
   const nextComp = useMemo(() => {
     const today = new Date();
     return data.competitions
-      .filter(c => new Date(c.date) >= today)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+      .filter(c => parseISO(c.date) >= today)
+      .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime())[0];
   }, [data.competitions]);
 
   const daysUntilComp = nextComp
-    ? differenceInDays(new Date(nextComp.date), new Date())
+    ? differenceInDays(parseISO(nextComp.date), new Date())
     : null;
 
   const compPrepProgress = useMemo(() => {
-    if (!nextComp) return { checklist: 0, dances: 0, totalDances: 0 };
-
-    const checklist = data.competitionChecklists?.find(c => c.competitionId === nextComp.id);
-    let checklistProgress = 0;
-    if (checklist) {
-      let totalItems = 0;
-      let packedItems = 0;
-
-      if (checklist.essentials) {
-        totalItems += checklist.essentials.length;
-        packedItems += checklist.essentials.filter(i => i.packed).length;
-      }
-
-      if (checklist.danceItems) {
-        for (const danceItem of checklist.danceItems) {
-          if (danceItem.costumes) {
-            totalItems += danceItem.costumes.length;
-            packedItems += danceItem.costumes.filter(c => c.packed).length;
-          }
-          if (danceItem.props) {
-            totalItems += danceItem.props.length;
-            packedItems += danceItem.props.filter(p => p.packed).length;
-          }
-        }
-      }
-
-      checklistProgress = totalItems > 0 ? Math.round((packedItems / totalItems) * 100) : 0;
-    }
+    if (!nextComp) return { dances: 0, totalDances: 0 };
 
     const compDances = data.competitionDances?.filter(d => nextComp.dances?.includes(d.id)) || [];
     const dancesWithNotes = compDances.filter(d => d.rehearsalNotes && d.rehearsalNotes.length > 0).length;
 
     return {
-      checklist: checklistProgress,
       dances: dancesWithNotes,
       totalDances: compDances.length,
     };
-  }, [nextComp, data.competitionChecklists, data.competitionDances]);
+  }, [nextComp, data.competitionDances]);
 
   const currentClassHasPlan = useMemo(() => {
     if (!classInfo.class) return false;
@@ -190,7 +161,7 @@ export function Dashboard() {
                   </div>
                   <div>
                     <div className="font-semibold">{nextComp.name}</div>
-                    <div className="text-sm text-white/80">{format(new Date(nextComp.date), 'EEEE, MMM d')}</div>
+                    <div className="text-sm text-white/80">{format(parseISO(nextComp.date), 'EEEE, MMM d')}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -202,10 +173,6 @@ export function Dashboard() {
                 </div>
               </div>
               <div className="mt-3 pt-3 border-t border-white/20 flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-1">
-                  <CheckCircle size={14} />
-                  <span>Packed: {compPrepProgress.checklist}%</span>
-                </div>
                 <div className="flex items-center gap-1">
                   <FileText size={14} />
                   <span>Rehearsed: {compPrepProgress.dances}/{compPrepProgress.totalDances}</span>

@@ -25,8 +25,11 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
   }
 
-  private handleReset = () => {
+  private handleTryAgain = () => {
     this.setState({ hasError: false, error: null });
+  };
+
+  private handleRefresh = () => {
     window.location.href = '/';
   };
 
@@ -62,13 +65,21 @@ export class ErrorBoundary extends Component<Props, State> {
               </details>
             )}
 
-            <button
-              onClick={this.handleReset}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-forest-600 text-white rounded-lg font-medium hover:bg-forest-700 transition-colors"
-            >
-              <RefreshCw size={18} />
-              Refresh App
-            </button>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={this.handleTryAgain}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-forest-600 text-white rounded-lg font-medium hover:bg-forest-700 active:scale-[0.98] transition-colors"
+              >
+                <RefreshCw size={18} />
+                Try Again
+              </button>
+              <button
+                onClick={this.handleRefresh}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-blush-200 text-forest-700 rounded-lg font-medium hover:bg-blush-300 active:scale-[0.98] transition-colors dark:bg-blush-700 dark:text-blush-100 dark:hover:bg-blush-600"
+              >
+                Refresh App
+              </button>
+            </div>
           </div>
         </div>
       );

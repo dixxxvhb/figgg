@@ -84,7 +84,7 @@ export function IconButton({
   };
 
   const sizes = {
-    sm: 'p-1.5 min-h-[36px] min-w-[36px]',
+    sm: 'p-2 min-h-[44px] min-w-[44px]',
     md: 'p-2 min-h-[44px] min-w-[44px]',
     lg: 'p-3 min-h-[52px] min-w-[52px]',
   };

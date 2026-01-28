@@ -195,7 +195,14 @@ export function SelfCare() {
     const data = loadData();
     const sc = data.selfCare || {};
     if (sc.sessions && Object.keys(sc.sessions).length > 0) setSessions(sc.sessions);
-    if (sc.sessionStates) setSessionStates(sc.sessionStates);
+    if (sc.sessionStates) {
+      if (sc.sessionStatesDate === getTodayKey()) {
+        setSessionStates(sc.sessionStates);
+      } else {
+        // Reset stale session states from a previous day
+        setSessionStates({});
+      }
+    }
     if (sc.medType) setMedType(sc.medType);
     // Load doses only if they're from today
     if (isToday(sc.dose1Time, sc.dose1Date)) {
@@ -323,7 +330,7 @@ export function SelfCare() {
     sessionState[taskIndex] = !sessionState[taskIndex];
     states[sessionKey] = sessionState;
     setSessionStates(states);
-    persist({ sessionStates: states });
+    persist({ sessionStates: states, sessionStatesDate: getTodayKey() });
 
     // Check if session just completed
     const tasks = sessions[sessionKey]?.tasks || [];
@@ -372,7 +379,7 @@ export function SelfCare() {
     });
     states[sessionKey] = newState;
     setSessionStates(states);
-    persist({ sessions: updated, sessionStates: states });
+    persist({ sessions: updated, sessionStates: states, sessionStatesDate: getTodayKey() });
   };
 
   const saveQuickAdd = () => {
@@ -540,7 +547,7 @@ export function SelfCare() {
                   </div>
                   {editingDose === 1 ? (
                     <div className="flex gap-1 mt-2">
-                      <input type="time" value={editTimeValue} onChange={e => setEditTimeValue(e.target.value)} className="bg-white/20 rounded px-1 py-0.5 text-xs w-20" />
+                      <input type="time" value={editTimeValue} onChange={e => setEditTimeValue(e.target.value)} className="bg-white/20 rounded px-1 py-0.5 text-sm w-24" />
                       <button onClick={saveEditDose} className="text-xs text-green-300 hover:text-green-100">Save</button>
                       <button onClick={() => setEditingDose(null)} className="text-xs text-white/50 hover:text-white/80">Cancel</button>
                     </div>
@@ -568,7 +575,7 @@ export function SelfCare() {
                   </div>
                   {editingDose === 2 ? (
                     <div className="flex gap-1 mt-2">
-                      <input type="time" value={editTimeValue} onChange={e => setEditTimeValue(e.target.value)} className="bg-white/20 rounded px-1 py-0.5 text-xs w-20" />
+                      <input type="time" value={editTimeValue} onChange={e => setEditTimeValue(e.target.value)} className="bg-white/20 rounded px-1 py-0.5 text-sm w-24" />
                       <button onClick={saveEditDose} className="text-xs text-green-300 hover:text-green-100">Save</button>
                       <button onClick={() => setEditingDose(null)} className="text-xs text-white/50 hover:text-white/80">Cancel</button>
                     </div>
@@ -797,7 +804,8 @@ export function SelfCare() {
         {/* Quick Add FAB */}
         <button
           onClick={() => setShowQuickAdd(true)}
-          className="fixed bottom-24 right-4 w-14 h-14 bg-forest-600 hover:bg-forest-700 text-white rounded-full shadow-lg flex items-center justify-center z-40 transition-colors"
+          className="fixed bottom-24 right-4 w-14 h-14 bg-forest-600 hover:bg-forest-700 active:scale-95 text-white rounded-full shadow-lg flex items-center justify-center z-40 transition-colors"
+          style={{ marginBottom: 'env(safe-area-inset-bottom, 0)' }}
         >
           <Plus size={24} />
         </button>
@@ -806,7 +814,7 @@ export function SelfCare() {
         {showQuickAdd && (
           <>
             <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setShowQuickAdd(false)} />
-            <div className="fixed bottom-24 left-4 right-4 z-50 max-w-md mx-auto">
+            <div className="fixed bottom-24 left-4 right-4 z-50 max-w-md mx-auto" style={{ marginBottom: 'env(safe-area-inset-bottom, 0)' }}>
               <div className="bg-white dark:bg-blush-800 rounded-2xl border border-blush-200 dark:border-blush-700 p-4 shadow-xl">
                 <h2 className="font-bold text-forest-700 dark:text-white mb-3">Quick Add Task</h2>
                 <input

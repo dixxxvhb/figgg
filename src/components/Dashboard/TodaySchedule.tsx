@@ -34,7 +34,7 @@ export function TodaySchedule({ classes, studios }: TodayScheduleProps) {
             <Link
               key={cls.id}
               to={`/class/${cls.id}`}
-              className={`flex items-center gap-4 p-4 hover:bg-blush-50 dark:hover:bg-blush-700 transition-colors ${
+              className={`flex items-center gap-4 p-4 hover:bg-blush-50 dark:hover:bg-blush-700 active:bg-blush-100 dark:active:bg-blush-600 transition-colors ${
                 isPast ? 'opacity-50' : ''
               }`}
             >

@@ -12,7 +12,7 @@ export function useCurrentClass(classes: Class[]): CurrentClassInfo {
     const interval = setInterval(() => {
       setCurrentTime(getCurrentTimeMinutes());
       setCurrentDay(getCurrentDayOfWeek());
-    }, 60000);
+    }, 30000);
 
     return () => clearInterval(interval);
   }, []);

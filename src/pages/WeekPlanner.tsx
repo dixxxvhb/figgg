@@ -119,7 +119,7 @@ export function WeekPlanner() {
       <div className="flex items-center justify-between mb-4">
         <button
           onClick={() => setWeekOffset(w => w - 1)}
-          className="p-2 hover:bg-blush-100 dark:hover:bg-blush-800 rounded-lg text-forest-700 dark:text-white"
+          className="p-2 hover:bg-blush-100 dark:hover:bg-blush-800 active:bg-blush-200 dark:active:bg-blush-700 rounded-lg text-forest-700 dark:text-white min-h-[44px] min-w-[44px] flex items-center justify-center"
         >
           <ChevronLeft size={20} />
         </button>
@@ -128,7 +128,7 @@ export function WeekPlanner() {
         </div>
         <button
           onClick={() => setWeekOffset(w => w + 1)}
-          className="p-2 hover:bg-blush-100 dark:hover:bg-blush-800 rounded-lg text-forest-700 dark:text-white"
+          className="p-2 hover:bg-blush-100 dark:hover:bg-blush-800 active:bg-blush-200 dark:active:bg-blush-700 rounded-lg text-forest-700 dark:text-white min-h-[44px] min-w-[44px] flex items-center justify-center"
         >
           <ChevronRight size={20} />
         </button>
@@ -138,7 +138,7 @@ export function WeekPlanner() {
       <div className="flex justify-center mb-6">
         <button
           onClick={() => setWeekOffset(0)}
-          className="px-4 py-2 bg-forest-600 text-white rounded-full text-sm font-medium hover:bg-forest-700 transition-colors shadow-sm"
+          className="px-4 py-2 bg-forest-600 text-white rounded-full text-sm font-medium hover:bg-forest-700 active:scale-[0.98] transition-colors shadow-sm"
         >
           Today
         </button>

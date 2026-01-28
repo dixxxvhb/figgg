@@ -155,6 +155,6 @@ function getDoseStatusColorValue(status: string): string {
     case 'Wearing Off':
     case 'Tapering': return 'text-orange-500 dark:text-orange-400';
     case 'Expired': return 'text-red-500 dark:text-red-400';
-    default: return 'text-stone-500';
+    default: return 'text-blush-500';
   }
 }

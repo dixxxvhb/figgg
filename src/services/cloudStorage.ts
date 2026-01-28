@@ -74,40 +74,56 @@ export async function fetchCloudData(): Promise<AppData | null> {
 }
 
 export async function saveCloudData(data: AppData): Promise<boolean> {
-  try {
-    const jsonString = JSON.stringify(data);
+  const jsonString = JSON.stringify(data);
+  const MAX_RETRIES = 2;
 
-    const response = await fetch(`${API_BASE}/saveData`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${getAuthToken()}`,
-        'Content-Type': 'application/json',
-      },
-      body: jsonString,
-    });
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch(`${API_BASE}/saveData`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${getAuthToken()}`,
+          'Content-Type': 'application/json',
+        },
+        body: jsonString,
+      });
 
-    if (!response.ok) {
+      if (response.ok) {
+        saveEvents.emit('saved');
+        return true;
+      }
+
+      // Don't retry auth or size errors
       if (response.status === 401) {
-        // Token may be stale, clear and retry
         localStorage.removeItem(TOKEN_KEY);
         tokenCache = null;
         saveEvents.emit('error', 'Auth token expired. Will retry on next sync.');
         return false;
       }
       if (response.status === 413) {
-        saveEvents.emit('error', 'Data too large for cloud sync. Try removing some videos.');
+        saveEvents.emit('error', 'Data too large for cloud sync. Try removing some photos.');
         return false;
       }
-      throw new Error(`HTTP ${response.status}`);
-    }
 
-    saveEvents.emit('saved');
-    return true;
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    saveEvents.emit('error', `Cloud sync failed: ${errorMessage}`);
-    return false;
+      // Retry on 5xx server errors
+      if (response.status >= 500 && attempt < MAX_RETRIES) {
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+        continue;
+      }
+
+      throw new Error(`HTTP ${response.status}`);
+    } catch (error) {
+      if (attempt < MAX_RETRIES) {
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+        continue;
+      }
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      saveEvents.emit('error', `Cloud sync failed: ${errorMessage}`);
+      return false;
+    }
   }
+
+  return false;
 }
 
 // Debounced save to avoid too many requests
@@ -135,12 +151,22 @@ export function flushPendingSave(): void {
     saveTimeout = null;
   }
   if (pendingData) {
-    // Use sendBeacon for reliable save on page unload
-    // sendBeacon can't set custom headers, so pass token as query param
+    // Use fetch with keepalive for reliable save on page unload
+    // keepalive allows the request to outlive the page (like sendBeacon)
+    // but supports Authorization header (sendBeacon cannot set headers)
     const token = getAuthToken();
     const jsonString = JSON.stringify(pendingData);
-    const blob = new Blob([jsonString], { type: 'application/json' });
-    navigator.sendBeacon(`/.netlify/functions/saveData?token=${encodeURIComponent(token)}`, blob);
+    fetch(`${API_BASE}/saveData`, {
+      method: 'POST',
+      keepalive: true,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: jsonString,
+    }).catch(() => {
+      // Fire-and-forget on page unload
+    });
     pendingData = null;
   }
 }

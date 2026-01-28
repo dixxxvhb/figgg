@@ -4,7 +4,7 @@ import { Search, BookOpen, Trophy, ChevronDown, ChevronUp, Volume2, Star, Clipbo
 import { useAppData } from '../hooks/useAppData';
 import { terminology, categoryLabels, searchTerminology } from '../data/terminology';
 import { TermCategory } from '../types';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 type Tab = 'terminology' | 'competitions';
 
@@ -209,7 +209,8 @@ export function Library() {
                   <div key={category} className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 overflow-hidden">
                     <button
                       onClick={() => toggleCategory(category)}
-                      className="w-full flex items-center justify-between p-4 hover:bg-blush-50 dark:hover:bg-blush-700 min-h-[56px]"
+                      aria-expanded={isExpanded}
+                      className="w-full flex items-center justify-between p-4 hover:bg-blush-50 dark:hover:bg-blush-700 active:bg-blush-100 dark:active:bg-blush-600 min-h-[56px]"
                     >
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-forest-700 dark:text-white">{categoryLabels[category]}</span>
@@ -251,7 +252,7 @@ export function Library() {
             </div>
           ) : (
             data.competitions.map(comp => {
-              const compDate = new Date(comp.date);
+              const compDate = parseISO(comp.date);
               const isUpcoming = compDate >= new Date();
               return (
                 <div key={comp.id} className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4">

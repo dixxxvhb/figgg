@@ -101,7 +101,7 @@ export function Header() {
                     className={`flex items-center justify-center min-w-[44px] min-h-[44px] rounded-lg transition-colors ${
                       isActive
                         ? 'bg-blush-200 text-forest-600'
-                        : 'text-blush-200 hover:bg-forest-500'
+                        : 'text-blush-200 hover:bg-forest-500 active:opacity-80'
                     }`}
                     aria-label={label}
                     aria-current={isActive ? 'page' : undefined}

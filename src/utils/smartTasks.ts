@@ -53,8 +53,8 @@ function getCompetitionProximity(competitions: { name: string; date: string }[])
   let closest: { name: string; daysAway: number } | null = null;
 
   for (const comp of competitions) {
-    const compDate = new Date(comp.date);
-    compDate.setHours(0, 0, 0, 0);
+    const [y, mo, d] = comp.date.split('-').map(Number);
+    const compDate = new Date(y, mo - 1, d);
     const diff = Math.ceil((compDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     if (diff >= 0 && diff <= 14 && (!closest || diff < closest.daysAway)) {
       closest = { name: comp.name, daysAway: diff };
@@ -181,7 +181,7 @@ export function generateSmartTasks(ctx: SmartTaskContext): SmartTask[] {
       addTask('morning-wake', 'prep', `${comp.daysAway} day${comp.daysAway !== 1 ? 's' : ''} to ${comp.name} — confirm travel & logistics`, 'clipboard');
       addTask('evening-wind', 'prep', 'Final prep — lay out competition outfits & supplies', 'briefcase');
     } else if (comp.daysAway <= 7) {
-      addTask('afternoon-push', 'prep', `${comp.daysAway} days to ${comp.name} — check packing list`, 'clipboard');
+      addTask('afternoon-push', 'prep', `${comp.daysAway} days to ${comp.name} — review costumes & schedule`, 'clipboard');
       addTask('peak-focus', 'prep', 'Mental rehearsal — visualize competition routines', 'target');
     } else {
       addTask('afternoon-push', 'prep', `${comp.daysAway} days to ${comp.name} — review schedule`, 'calendar');

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useSyncStatus } from '../../contexts/SyncContext';
 
@@ -14,42 +14,56 @@ export function PullToRefresh({ children, onRefresh }: PullToRefreshProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const startYRef = useRef(0);
   const isPullingRef = useRef(false);
+  const isRefreshingRef = useRef(false);
 
-  const THRESHOLD = 80; // Pull distance to trigger refresh
+  const THRESHOLD = 80;
   const MAX_PULL = 120;
+  const MIN_PULL_START = 5; // Minimum px before starting pull (avoids false triggers from iOS momentum)
+
+  // Keep ref in sync with state for use in native event handler
+  useEffect(() => {
+    isRefreshingRef.current = isRefreshing;
+  }, [isRefreshing]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    // Only start pull if at top of scroll
     if (containerRef.current && containerRef.current.scrollTop === 0) {
       startYRef.current = e.touches[0].clientY;
       isPullingRef.current = true;
     }
   }, []);
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isPullingRef.current || isRefreshing) return;
+  // Use native event listener for touchmove with { passive: false }
+  // so we can call preventDefault() to stop Safari bounce-scroll
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
 
-    const currentY = e.touches[0].clientY;
-    const diff = currentY - startYRef.current;
+    const handler = (e: TouchEvent) => {
+      if (!isPullingRef.current || isRefreshingRef.current) return;
 
-    if (diff > 0 && containerRef.current?.scrollTop === 0) {
-      // Apply resistance as you pull further
-      const resistance = Math.min(diff * 0.5, MAX_PULL);
-      setPullDistance(resistance);
-    }
-  }, [isRefreshing]);
+      const currentY = e.touches[0].clientY;
+      const diff = currentY - startYRef.current;
+
+      if (diff > MIN_PULL_START && el.scrollTop === 0) {
+        e.preventDefault(); // Prevent Safari bounce scroll
+        const resistance = Math.min((diff - MIN_PULL_START) * 0.5, MAX_PULL);
+        setPullDistance(resistance);
+      }
+    };
+
+    el.addEventListener('touchmove', handler, { passive: false });
+    return () => el.removeEventListener('touchmove', handler);
+  }, []);
 
   const handleTouchEnd = useCallback(async () => {
     isPullingRef.current = false;
 
     if (pullDistance >= THRESHOLD && !isRefreshing) {
       setIsRefreshing(true);
-      setPullDistance(THRESHOLD * 0.5); // Keep a small indicator
+      setPullDistance(THRESHOLD * 0.5);
 
       try {
-        // Trigger cloud sync
         await triggerSync();
-        // Also call custom onRefresh if provided
         if (onRefresh) {
           await onRefresh();
         }
@@ -71,7 +85,6 @@ export function PullToRefresh({ children, onRefresh }: PullToRefreshProps) {
       ref={containerRef}
       className="h-full overflow-y-auto"
       onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
       {/* Pull indicator */}

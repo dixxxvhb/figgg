@@ -16,24 +16,24 @@ interface StatCardProps {
 function StatCard({ icon, value, label, subValue, color }: StatCardProps) {
   const styles = {
     green: {
-      bg: 'bg-green-50 dark:bg-stone-800',
+      bg: 'bg-green-50 dark:bg-blush-800',
       icon: 'bg-green-500',
       text: 'text-green-700 dark:text-green-400',
     },
     orange: {
-      bg: 'bg-orange-50 dark:bg-stone-800',
+      bg: 'bg-orange-50 dark:bg-blush-800',
       icon: 'bg-orange-500',
       text: 'text-orange-700 dark:text-orange-400',
     },
     blue: {
-      bg: 'bg-blue-50 dark:bg-stone-800',
+      bg: 'bg-blue-50 dark:bg-blush-800',
       icon: 'bg-blue-500',
       text: 'text-blue-700 dark:text-blue-400',
     },
     gray: {
-      bg: 'bg-stone-100 dark:bg-stone-800',
-      icon: 'bg-stone-500',
-      text: 'text-stone-700 dark:text-stone-300',
+      bg: 'bg-blush-100 dark:bg-blush-800',
+      icon: 'bg-blush-500',
+      text: 'text-blush-700 dark:text-blush-300',
     },
   };
 
@@ -46,7 +46,7 @@ function StatCard({ icon, value, label, subValue, color }: StatCardProps) {
       </div>
       <div className={`text-2xl font-bold ${s.text}`}>{value}</div>
       {subValue && (
-        <div className="text-xs text-stone-500 dark:text-stone-400 -mt-0.5">{subValue}</div>
+        <div className="text-xs text-blush-500 dark:text-blush-400 -mt-0.5">{subValue}</div>
       )}
       <div className={`text-xs font-medium ${s.text} opacity-80 mt-0.5`}>{label}</div>
     </div>
@@ -55,8 +55,8 @@ function StatCard({ icon, value, label, subValue, color }: StatCardProps) {
 
 export function WeekStats({ stats }: WeekStatsProps) {
   return (
-    <div className="bg-white dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 p-4">
-      <h3 className="text-sm font-medium text-stone-500 dark:text-stone-400 mb-3 flex items-center gap-2">
+    <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4">
+      <h3 className="text-sm font-medium text-blush-500 dark:text-blush-400 mb-3 flex items-center gap-2">
         <TrendingUp size={14} />
         This Week
       </h3>

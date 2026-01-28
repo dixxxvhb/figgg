@@ -1,12 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { format, differenceInDays, parseISO } from 'date-fns';
 import {
   Trophy,
+  Radio,
+  Bell,
+  BellOff,
   ChevronDown,
   ChevronUp,
   Music,
-  ClipboardList,
   ListOrdered,
   MapPin,
   Calendar,
@@ -16,23 +18,15 @@ import {
   User,
   Clock,
   Scissors,
-  Printer,
-  Package,
-  Sparkles,
-  Heart,
-  Apple,
-  MoreHorizontal,
-  Plus,
-  Check,
-  Trash2
+  Printer
 } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import { getScheduleForCompetition, getEarliestCallTimeForDancer } from '../data/competitionSchedules';
-import { Competition, DanceCategory, DanceLevel, DanceStyle, CompetitionDance, CompetitionChecklist as ChecklistType, ChecklistItem } from '../types';
+import { Competition, DanceCategory, DanceLevel, DanceStyle, CompetitionDance } from '../types';
 import { Button } from '../components/common/Button';
-import { v4 as uuid } from 'uuid';
+import { LiveTab } from '../components/LiveTab';
 
-type TabType = 'competitions' | 'dances' | 'schedule' | 'checklist';
+type TabType = 'competitions' | 'dances' | 'schedule' | 'live';
 
 const categoryOrder: DanceCategory[] = ['production', 'large-group', 'small-group', 'trio', 'duet', 'solo'];
 
@@ -63,45 +57,10 @@ const styleColors: Record<DanceStyle, string> = {
   'monologue': 'bg-violet-100 text-violet-700',
 };
 
-const CHECKLIST_CATEGORIES = [
-  { id: 'first-aid', label: 'First Aid', icon: Heart, color: 'bg-red-100 text-red-700' },
-  { id: 'hair', label: 'Hair', icon: Scissors, color: 'bg-purple-100 text-purple-700' },
-  { id: 'makeup', label: 'Makeup', icon: Sparkles, color: 'bg-pink-100 text-pink-700' },
-  { id: 'tools', label: 'Tools', icon: Package, color: 'bg-blue-100 text-blue-700' },
-  { id: 'snacks', label: 'Snacks', icon: Apple, color: 'bg-green-100 text-green-700' },
-  { id: 'other', label: 'Other', icon: MoreHorizontal, color: 'bg-gray-100 text-gray-700' },
-] as const;
 
-const DEFAULT_ESSENTIALS: Omit<ChecklistItem, 'id'>[] = [
-  { name: 'Bobby pins (lots)', packed: false, category: 'hair' },
-  { name: 'Hair spray', packed: false, category: 'hair' },
-  { name: 'Hair nets', packed: false, category: 'hair' },
-  { name: 'Gel', packed: false, category: 'hair' },
-  { name: 'Hair elastics', packed: false, category: 'hair' },
-  { name: 'Foundation', packed: false, category: 'makeup' },
-  { name: 'False eyelashes', packed: false, category: 'makeup' },
-  { name: 'Eyelash glue', packed: false, category: 'makeup' },
-  { name: 'Red lipstick', packed: false, category: 'makeup' },
-  { name: 'Setting spray', packed: false, category: 'makeup' },
-  { name: 'Makeup wipes', packed: false, category: 'makeup' },
-  { name: 'Safety pins', packed: false, category: 'tools' },
-  { name: 'Needle & thread (nude/black/white)', packed: false, category: 'tools' },
-  { name: 'Scissors', packed: false, category: 'tools' },
-  { name: 'Fashion tape', packed: false, category: 'tools' },
-  { name: 'Clear nail polish (for tights runs)', packed: false, category: 'tools' },
-  { name: 'Tide pen', packed: false, category: 'tools' },
-  { name: 'Band-aids', packed: false, category: 'first-aid' },
-  { name: 'Blister pads', packed: false, category: 'first-aid' },
-  { name: 'Pain reliever', packed: false, category: 'first-aid' },
-  { name: 'Ice pack', packed: false, category: 'first-aid' },
-  { name: 'Ace bandage', packed: false, category: 'first-aid' },
-  { name: 'Water bottles', packed: false, category: 'snacks' },
-  { name: 'Protein bars', packed: false, category: 'snacks' },
-  { name: 'Fruit snacks', packed: false, category: 'snacks' },
-];
 
 export function CompetitionHub() {
-  const { data, updateCompetitionChecklist } = useAppData();
+  const { data } = useAppData();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Get tab and selected competition from URL
@@ -131,12 +90,12 @@ export function CompetitionHub() {
     now.setHours(0, 0, 0, 0);
 
     const sorted = [...data.competitions].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      (a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime()
     );
 
     return {
-      upcoming: sorted.filter(c => new Date(c.endDate || c.date) >= now),
-      past: sorted.filter(c => new Date(c.endDate || c.date) < now).reverse(),
+      upcoming: sorted.filter(c => parseISO(c.endDate || c.date) >= now),
+      past: sorted.filter(c => parseISO(c.endDate || c.date) < now).reverse(),
     };
   }, [data.competitions]);
 
@@ -166,9 +125,11 @@ export function CompetitionHub() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex gap-1 mb-6 bg-forest-100 dark:bg-blush-800 rounded-xl p-1">
+      <div className="flex gap-1 mb-6 bg-forest-100 dark:bg-blush-800 rounded-xl p-1" role="tablist">
         <button
           onClick={() => setActiveTab('competitions')}
+          role="tab"
+          aria-selected={activeTab === 'competitions'}
           className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
             activeTab === 'competitions'
               ? 'bg-white dark:bg-blush-700 text-forest-700 dark:text-white shadow-sm'
@@ -180,6 +141,8 @@ export function CompetitionHub() {
         </button>
         <button
           onClick={() => setActiveTab('dances')}
+          role="tab"
+          aria-selected={activeTab === 'dances'}
           className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
             activeTab === 'dances'
               ? 'bg-white dark:bg-blush-700 text-forest-700 dark:text-white shadow-sm'
@@ -203,15 +166,15 @@ export function CompetitionHub() {
               Schedule
             </button>
             <button
-              onClick={() => setActiveTab('checklist')}
+              onClick={() => setActiveTab('live')}
               className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === 'checklist'
+                activeTab === 'live'
                   ? 'bg-white dark:bg-blush-700 text-forest-700 dark:text-white shadow-sm'
                   : 'text-forest-500 dark:text-blush-400 hover:text-forest-700'
               }`}
             >
-              <ClipboardList size={16} className="inline mr-1.5 -mt-0.5" />
-              Pack
+              <Radio size={16} className="inline mr-1.5 -mt-0.5" />
+              Live
             </button>
           </>
         )}
@@ -235,12 +198,10 @@ export function CompetitionHub() {
           competitionDances={data.competitionDances}
         />
       )}
-      {activeTab === 'checklist' && selectedCompetition && (
-        <ChecklistTab
+      {activeTab === 'live' && selectedCompetition && (
+        <LiveTab
           competition={selectedCompetition}
           competitionDances={data.competitionDances}
-          checklists={data.competitionChecklists || []}
-          updateChecklist={updateCompetitionChecklist}
         />
       )}
     </div>
@@ -269,7 +230,7 @@ function CompetitionsTab({
           </h2>
           <div className="space-y-3">
             {upcoming.map(comp => {
-              const daysUntil = differenceInDays(new Date(comp.date), new Date());
+              const daysUntil = differenceInDays(parseISO(comp.date), new Date());
               const schedule = getScheduleForCompetition(comp.id);
               const dancesInComp = data.competitionDances.filter(d =>
                 comp.dances?.includes(d.id)
@@ -291,8 +252,8 @@ function CompetitionsTab({
                         <div className="flex items-center gap-2 text-sm text-forest-400 dark:text-blush-400 mt-0.5">
                           <Calendar size={14} />
                           <span>
-                            {format(new Date(comp.date), 'MMM d')}
-                            {comp.endDate && ` - ${format(new Date(comp.endDate), 'MMM d')}`}
+                            {format(parseISO(comp.date), 'MMM d')}
+                            {comp.endDate && ` - ${format(parseISO(comp.endDate), 'MMM d')}`}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-forest-400 dark:text-blush-400 mt-0.5">
@@ -322,19 +283,12 @@ function CompetitionsTab({
                     {schedule.length > 0 && (
                       <button
                         onClick={() => onSelectCompetition(comp.id, 'schedule')}
-                        className="flex-1 flex items-center justify-center gap-2 py-3 text-sm text-forest-500 dark:text-blush-300 hover:bg-blush-50 dark:hover:bg-blush-700 transition-colors border-r border-blush-100 dark:border-blush-700"
+                        className="flex-1 flex items-center justify-center gap-2 py-3 text-sm text-forest-500 dark:text-blush-300 hover:bg-blush-50 dark:hover:bg-blush-700 transition-colors"
                       >
                         <ListOrdered size={16} />
                         Schedule
                       </button>
                     )}
-                    <button
-                      onClick={() => onSelectCompetition(comp.id, 'checklist')}
-                      className="flex-1 flex items-center justify-center gap-2 py-3 text-sm text-forest-500 dark:text-blush-300 hover:bg-blush-50 dark:hover:bg-blush-700 transition-colors"
-                    >
-                      <ClipboardList size={16} />
-                      Checklist
-                    </button>
                   </div>
                 </div>
               );
@@ -361,7 +315,7 @@ function CompetitionsTab({
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-forest-600 dark:text-blush-300 truncate">{comp.name}</div>
                   <div className="text-xs text-forest-400 dark:text-blush-500">
-                    {format(new Date(comp.date), 'MMM d, yyyy')}
+                    {format(parseISO(comp.date), 'MMM d, yyyy')}
                   </div>
                 </div>
               </div>
@@ -768,286 +722,3 @@ function CostumeInfo({ dance }: { dance: CompetitionDance }) {
   );
 }
 
-// ============ CHECKLIST TAB ============
-function ChecklistTab({
-  competition,
-  competitionDances,
-  checklists,
-  updateChecklist
-}: {
-  competition: Competition;
-  competitionDances: CompetitionDance[];
-  checklists: ChecklistType[];
-  updateChecklist: (checklist: ChecklistType) => void;
-}) {
-  const dances = competitionDances.filter(d => competition.dances?.includes(d.id));
-  const schedule = getScheduleForCompetition(competition.id);
-
-  const existingChecklist = checklists.find(c => c.competitionId === competition.id);
-  const [checklist, setChecklist] = useState<ChecklistType>(() => {
-    if (existingChecklist) return existingChecklist;
-    return {
-      id: uuid(),
-      competitionId: competition.id,
-      essentials: DEFAULT_ESSENTIALS.map(e => ({ ...e, id: uuid() })),
-      danceItems: dances.map(dance => ({
-        danceId: dance.id,
-        costumes: [],
-        props: [],
-      })),
-    };
-  });
-
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['essentials']));
-  const [newItemText, setNewItemText] = useState('');
-  const [newItemCategory, setNewItemCategory] = useState<ChecklistItem['category']>('other');
-  const [showAddItem, setShowAddItem] = useState(false);
-
-  const saveChecklist = (updated: ChecklistType) => {
-    setChecklist(updated);
-    updateChecklist(updated);
-  };
-
-  const toggleSection = (section: string) => {
-    const newExpanded = new Set(expandedSections);
-    if (newExpanded.has(section)) {
-      newExpanded.delete(section);
-    } else {
-      newExpanded.add(section);
-    }
-    setExpandedSections(newExpanded);
-  };
-
-  const toggleEssential = (itemId: string) => {
-    const updated = {
-      ...checklist,
-      essentials: checklist.essentials.map(item =>
-        item.id === itemId ? { ...item, packed: !item.packed } : item
-      ),
-    };
-    saveChecklist(updated);
-  };
-
-  const addEssential = () => {
-    if (!newItemText.trim()) return;
-    const newItem: ChecklistItem = {
-      id: uuid(),
-      name: newItemText.trim(),
-      packed: false,
-      category: newItemCategory,
-    };
-    const updated = {
-      ...checklist,
-      essentials: [...checklist.essentials, newItem],
-    };
-    saveChecklist(updated);
-    setNewItemText('');
-    setShowAddItem(false);
-  };
-
-  const deleteEssential = (itemId: string) => {
-    const updated = {
-      ...checklist,
-      essentials: checklist.essentials.filter(item => item.id !== itemId),
-    };
-    saveChecklist(updated);
-  };
-
-  const essentialsByCategory = useMemo(() => {
-    const grouped: Record<string, ChecklistItem[]> = {};
-    checklist.essentials.forEach(item => {
-      if (!grouped[item.category]) grouped[item.category] = [];
-      grouped[item.category].push(item);
-    });
-    return grouped;
-  }, [checklist.essentials]);
-
-  const packedCount = checklist.essentials.filter(e => e.packed).length;
-  const totalCount = checklist.essentials.length;
-  const progress = totalCount > 0 ? Math.round((packedCount / totalCount) * 100) : 0;
-
-  return (
-    <div>
-      {/* Progress Bar */}
-      <div className="bg-white dark:bg-blush-800 rounded-xl border border-gray-200 dark:border-blush-700 p-4 mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <span className="font-medium text-gray-900 dark:text-white">Packing Progress</span>
-          <span className="text-sm text-forest-600 dark:text-forest-400 font-medium">{packedCount}/{totalCount}</span>
-        </div>
-        <div className="w-full bg-gray-200 dark:bg-blush-700 rounded-full h-3">
-          <div
-            className="bg-forest-500 h-3 rounded-full transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        {progress === 100 && (
-          <div className="text-sm text-green-600 font-medium flex items-center gap-1 mt-2">
-            <Check size={16} /> All packed!
-          </div>
-        )}
-      </div>
-
-      {/* Essentials Section */}
-      <div className="mb-6">
-        <button
-          onClick={() => toggleSection('essentials')}
-          className="w-full flex items-center justify-between bg-white dark:bg-blush-800 rounded-xl border border-gray-200 dark:border-blush-700 p-4 hover:border-forest-300 transition-colors"
-        >
-          <div className="flex items-center gap-2">
-            <Package size={20} className="text-forest-600 dark:text-forest-400" />
-            <span className="font-semibold text-gray-900 dark:text-white">Backstage Essentials</span>
-          </div>
-          {expandedSections.has('essentials') ? (
-            <ChevronUp size={20} className="text-gray-400" />
-          ) : (
-            <ChevronDown size={20} className="text-gray-400" />
-          )}
-        </button>
-
-        {expandedSections.has('essentials') && (
-          <div className="mt-2 space-y-3">
-            {CHECKLIST_CATEGORIES.map(category => {
-              const items = essentialsByCategory[category.id] || [];
-              if (items.length === 0) return null;
-
-              const CategoryIcon = category.icon;
-              return (
-                <div key={category.id} className="bg-white dark:bg-blush-800 rounded-xl border border-gray-200 dark:border-blush-700 overflow-hidden">
-                  <div className={`px-4 py-2 ${category.color} flex items-center gap-2`}>
-                    <CategoryIcon size={16} />
-                    <span className="font-medium text-sm">{category.label}</span>
-                  </div>
-                  <div className="divide-y divide-gray-100 dark:divide-blush-700">
-                    {items.map(item => (
-                      <div key={item.id} className="flex items-center justify-between px-4 py-2">
-                        <button
-                          onClick={() => toggleEssential(item.id)}
-                          className="flex items-center gap-3 flex-1 text-left"
-                        >
-                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                            item.packed ? 'bg-forest-500 border-forest-500' : 'border-gray-300 dark:border-blush-600'
-                          }`}>
-                            {item.packed && <Check size={12} className="text-white" />}
-                          </div>
-                          <span className={`text-sm ${item.packed ? 'text-gray-400 line-through' : 'text-gray-700 dark:text-blush-300'}`}>
-                            {item.name}
-                          </span>
-                        </button>
-                        <button
-                          onClick={() => deleteEssential(item.id)}
-                          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Add Item */}
-            {showAddItem ? (
-              <div className="bg-white dark:bg-blush-800 rounded-xl border border-gray-200 dark:border-blush-700 p-4">
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {CHECKLIST_CATEGORIES.map(cat => (
-                    <button
-                      key={cat.id}
-                      onClick={() => setNewItemCategory(cat.id)}
-                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                        newItemCategory === cat.id ? cat.color : 'bg-gray-100 dark:bg-blush-700 text-gray-600 dark:text-blush-400'
-                      }`}
-                    >
-                      {cat.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newItemText}
-                    onChange={(e) => setNewItemText(e.target.value)}
-                    placeholder="Item name..."
-                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-blush-600 rounded-lg text-sm bg-white dark:bg-blush-700 dark:text-white focus:ring-2 focus:ring-forest-500"
-                    onKeyDown={(e) => e.key === 'Enter' && addEssential()}
-                    autoFocus
-                  />
-                  <Button onClick={addEssential} disabled={!newItemText.trim()}>
-                    Add
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowAddItem(true)}
-                className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-gray-300 dark:border-blush-600 rounded-xl text-gray-500 dark:text-blush-400 hover:border-forest-400 hover:text-forest-600 transition-colors"
-              >
-                <Plus size={18} />
-                Add Item
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Dance-specific items */}
-      {dances.map(dance => {
-        const isExpanded = expandedSections.has(dance.id);
-        const scheduleEntry = schedule.find(e => e.danceId === dance.id);
-
-        return (
-          <div key={dance.id} className="mb-4">
-            <button
-              onClick={() => toggleSection(dance.id)}
-              className="w-full flex items-center justify-between bg-white dark:bg-blush-800 rounded-xl border border-gray-200 dark:border-blush-700 p-4 hover:border-forest-300 transition-colors"
-            >
-              <div className="flex-1 text-left">
-                <div className="flex items-center gap-2">
-                  {scheduleEntry && (
-                    <span className="text-xs font-mono bg-gray-100 dark:bg-blush-700 text-gray-600 dark:text-blush-300 px-1.5 py-0.5 rounded">
-                      #{scheduleEntry.entryNumber}
-                    </span>
-                  )}
-                  <span className="font-semibold text-gray-900 dark:text-white">{dance.registrationName}</span>
-                </div>
-                <div className="text-sm text-gray-500 dark:text-blush-400">{dance.songTitle}</div>
-                {scheduleEntry && (
-                  <div className="flex items-center gap-3 mt-1 text-xs">
-                    <span className="text-gray-600 dark:text-blush-400">
-                      {format(parseISO(scheduleEntry.performanceDate), 'EEE M/d')} at {scheduleEntry.scheduledTime}
-                    </span>
-                    <span className="text-amber-600 dark:text-amber-400 font-medium">
-                      Call: {scheduleEntry.callTime}
-                    </span>
-                  </div>
-                )}
-              </div>
-              {isExpanded ? (
-                <ChevronUp size={20} className="text-gray-400" />
-              ) : (
-                <ChevronDown size={20} className="text-gray-400" />
-              )}
-            </button>
-
-            {isExpanded && (
-              <div className="mt-2 bg-white dark:bg-blush-800 rounded-xl border border-gray-200 dark:border-blush-700 p-4">
-                {dance.costume && (
-                  <div className="text-sm space-y-1">
-                    <div><span className="text-gray-400">Hair:</span> <span className="text-gray-700 dark:text-blush-300">{dance.costume.hair}</span></div>
-                    {dance.costume.tights && <div><span className="text-gray-400">Tights:</span> <span className="text-gray-700 dark:text-blush-300">{dance.costume.tights}</span></div>}
-                    {dance.costume.shoes && <div><span className="text-gray-400">Shoes:</span> <span className="text-gray-700 dark:text-blush-300">{dance.costume.shoes}</span></div>}
-                  </div>
-                )}
-                {dance.props && dance.props !== 'none' && (
-                  <div className="mt-2 text-sm">
-                    <span className="text-gray-400">Props:</span> <span className="text-gray-700 dark:text-blush-300">{dance.props}</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}

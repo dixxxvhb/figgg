@@ -39,7 +39,7 @@ export function CurrentClassCard({ classInfo, isNearStudio }: CurrentClassCardPr
         <p className="text-blush-200 mb-4">Great work teaching today.</p>
         <Link
           to="/plan"
-          className="inline-flex items-center gap-2 bg-blush-200 text-forest-700 px-4 py-2 rounded-lg font-medium hover:bg-blush-100 transition-colors"
+          className="inline-flex items-center gap-2 bg-blush-200 text-forest-700 px-4 py-2 rounded-lg font-medium hover:bg-blush-100 active:scale-[0.98] transition-colors"
         >
           Review today's notes
           <ChevronRight size={16} />
@@ -134,7 +134,7 @@ export function CurrentClassCard({ classInfo, isNearStudio }: CurrentClassCardPr
       {nextClass && (
         <Link
           to={`/class/${nextClass.id}`}
-          className="block bg-white dark:bg-blush-800 rounded-xl p-4 hover:shadow-md transition-all border border-blush-200 dark:border-blush-700"
+          className="block bg-white dark:bg-blush-800 rounded-xl p-4 hover:shadow-md active:bg-blush-50 dark:active:bg-blush-700 transition-all border border-blush-200 dark:border-blush-700"
         >
           <div className="flex items-center justify-between">
             <div>

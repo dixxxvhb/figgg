@@ -33,7 +33,7 @@ const DANCE_PATTERNS: { pattern: RegExp; danceIds: string[] }[] = [
   { pattern: /strategy|laylianna\s*(hip\s*hop\s*)?solo/i, danceIds: ['strategy'] },
   { pattern: /man\s*of\s*(the\s*)?house|adelyn\s*solo/i, danceIds: ['man-of-the-house'] },
   { pattern: /we\s*can'?t\s*be\s*friends|remi\s*(lyrical\s*)?solo/i, danceIds: ['we-cant-be-friends'] },
-  { pattern: /i'?m\s*a\s*woman|ava\s*(g\.?\s*)?solo/i, danceIds: ['im-a-woman'] },
+  { pattern: /i\s*am\b|ava\s*(g\.?\s*)?solo/i, danceIds: ['i-am'] },
   { pattern: /my\s*days|evangeline\s*solo/i, danceIds: ['my-days'] },
   { pattern: /chariot|yessa\s*solo/i, danceIds: ['chariot'] },
   { pattern: /\bface\b|ellie\s*solo/i, danceIds: ['face'] },
@@ -41,7 +41,7 @@ const DANCE_PATTERNS: { pattern: RegExp; danceIds: string[] }[] = [
   { pattern: /prelude|john\s*solo|c\s*sharp\s*minor/i, danceIds: ['prelude-c-sharp-minor'] },
   { pattern: /calor|lauren\s*solo/i, danceIds: ['calor'] },
   { pattern: /gentlemen\s*aren'?t\s*nice|zoe\s*solo/i, danceIds: ['gentlemen-arent-nice'] },
-  { pattern: /papa\s*was|rollin'?\s*stone|grayson\s*solo/i, danceIds: ['papa-was-a-rollin-stone'] },
+  { pattern: /papa\s*was|rolling?\s*stone|grayson\s*solo/i, danceIds: ['papa-was-a-rolling-stone'] },
   { pattern: /monologue|remi\s*(open\s*)?solo/i, danceIds: ['monologue-remi'] },
   { pattern: /i\s*like\s*to\s*fuss|mila\s*solo/i, danceIds: ['i-like-to-fuss'] },
 ];

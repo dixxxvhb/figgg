@@ -53,7 +53,33 @@ function migrateCompetitionIds(competitions: Competition[]): Competition[] {
         notes: comp.notes + ' Preliminary competition Jan 30 - Feb 1, 2026.',
       };
     }
+    // Fix Inferno location to match official schedule (Orlando Regional)
+    if (comp.id === 'inferno-2026' && comp.location?.includes('Apopka, FL')) {
+      return {
+        ...comp,
+        location: 'Apopka High School, Orlando, FL',
+      };
+    }
     return comp;
+  });
+}
+
+// Migration: Fix dance IDs/names to match official Inferno competition schedule
+function migrateCompetitionDanceNames(storedDances: CompetitionDance[]): CompetitionDance[] {
+  return storedDances.map(dance => {
+    // "I'm A Woman" -> "I Am" (official Inferno entry #150 name)
+    if (dance.id === 'im-a-woman') {
+      return { ...dance, id: 'i-am', registrationName: 'I Am' };
+    }
+    // "Papa Was A Rollin' Stone" -> "Papa Was A Rolling Stone"
+    if (dance.id === 'papa-was-a-rollin-stone') {
+      return { ...dance, id: 'papa-was-a-rolling-stone', registrationName: 'Papa Was A Rolling Stone', songTitle: 'Papa Was A Rolling Stone' };
+    }
+    // "Lime in the Coconut" -> "Put the Lime in the Coconut"
+    if (dance.id === 'lime-in-the-coconut' && dance.registrationName === 'Lime in the Coconut') {
+      return { ...dance, registrationName: 'Put the Lime in the Coconut', songTitle: 'Put the Lime in the Coconut' };
+    }
+    return dance;
   });
 }
 
@@ -106,8 +132,52 @@ function migrateStudents(_storedStudents: typeof initialStudents): typeof initia
   // Always return initial students with their class enrollments
   return initialStudents;
 }
+// Migration: Ensure persisted students have correct class roster assignments
+// for Jazz 10+ (class-caa-tue-1750) and Ballet 2/3 (class-caa-tue-1850)
+function migrateClassRosters(storedStudents: typeof initialStudents): typeof initialStudents {
+  // Students who should have Jazz 10+ (class-caa-tue-1750)
+  const jazzTenPlusIds = new Set([
+    'student-32', 'student-1', 'student-4', 'student-34', 'student-35',
+    'student-9', 'student-10', 'student-15', 'student-30', 'student-22',
+    'student-37', 'student-38', 'student-39', 'student-40', 'student-41', 'student-42',
+  ]);
+
+  // Students who should have Ballet 2/3 (class-caa-tue-1850)
+  const balletTwoThreeIds = new Set([
+    'student-24', 'student-25', 'student-2', 'student-3', 'student-6',
+    'student-26', 'student-11', 'student-12', 'student-13', 'student-14',
+    'student-18', 'student-27', 'student-21', 'student-28',
+  ]);
+
+  return storedStudents.map(student => {
+    let classIds = [...student.classIds];
+    let changed = false;
+
+    if (jazzTenPlusIds.has(student.id) && !classIds.includes('class-caa-tue-1750')) {
+      classIds.push('class-caa-tue-1750');
+      changed = true;
+    }
+
+    if (balletTwoThreeIds.has(student.id) && !classIds.includes('class-caa-tue-1850')) {
+      classIds.push('class-caa-tue-1850');
+      changed = true;
+    }
+
+    return changed ? { ...student, classIds } : student;
+  });
+}
+
+
+// Simple TTL cache for loadData to avoid redundant JSON parsing
+let loadDataCache: { data: AppData; timestamp: number } | null = null;
+const LOAD_CACHE_TTL = 500; // ms
 
 export function loadData(): AppData {
+  // Return cached result if fresh
+  if (loadDataCache && Date.now() - loadDataCache.timestamp < LOAD_CACHE_TTL) {
+    return loadDataCache.data;
+  }
+
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
@@ -119,20 +189,23 @@ export function loadData(): AppData {
         ? migrateCompetitionIds(parsed.competitions)
         : defaults.competitions;
 
-      // Migrate competition dances to add costume data and dancerIds
+      // Migrate competition dances to add costume data, dancerIds, and fix names
       let migratedDances = parsed.competitionDances?.length > 0
         ? migrateCompetitionDanceCostumes(parsed.competitionDances)
         : defaults.competitionDances;
       migratedDances = migrateCompetitionDancerIds(migratedDances);
+      migratedDances = migrateCompetitionDanceNames(migratedDances);
 
       // Merge students - migrate to add new students and update classIds
-      const students = parsed.students?.length > 0
-        ? migrateStudents(parsed.students)
-        : defaults.students;
+      const students = migrateClassRosters(
+        (parsed.students?.length ?? 0) > 0
+          ? migrateStudents(parsed.students!)
+          : defaults.students!
+      );
 
       // Merge with defaults to ensure all fields exist
       // CRITICAL: Force use of initial classes and students to ensure IDs match
-      return {
+      const result: AppData = {
         ...defaults,
         ...parsed,
         // FORCE initial classes - stored classes have old uuid IDs that don't match student classIds
@@ -144,11 +217,15 @@ export function loadData(): AppData {
         // FORCE initial students with correct classIds
         students,
       };
+      loadDataCache = { data: result, timestamp: Date.now() };
+      return result;
     }
   } catch {
     // Failed to load data - use defaults
   }
-  return getDefaultData();
+  const defaults = getDefaultData();
+  loadDataCache = { data: defaults, timestamp: Date.now() };
+  return defaults;
 }
 
 // Event for notifying UI about save status
@@ -164,6 +241,8 @@ export const saveEvents = {
 };
 
 export function saveData(data: AppData): void {
+  // Invalidate load cache on save
+  loadDataCache = null;
   try {
     // Add timestamp for conflict resolution
     const dataWithTimestamp = {
@@ -189,7 +268,7 @@ export function saveData(data: AppData): void {
 
     // Check if it's a quota exceeded error
     if (errorMessage.includes('quota') || errorMessage.includes('QuotaExceededError')) {
-      saveEvents.emit('error', 'Storage full! Videos may be too large. Try smaller files or delete some media.');
+      saveEvents.emit('error', 'Storage full! Try smaller files or delete some media.');
     } else {
       saveEvents.emit('error', `Save failed: ${errorMessage}`);
     }
@@ -205,16 +284,19 @@ function migrateCloudData(cloudData: AppData): AppData {
     ? migrateCompetitionIds(cloudData.competitions)
     : defaults.competitions;
 
-  // Migrate competition dances to add costume data and dancerIds
+  // Migrate competition dances to add costume data, dancerIds, and fix names
   let migratedDances = cloudData.competitionDances?.length > 0
     ? migrateCompetitionDanceCostumes(cloudData.competitionDances)
     : defaults.competitionDances;
   migratedDances = migrateCompetitionDancerIds(migratedDances);
+  migratedDances = migrateCompetitionDanceNames(migratedDances);
 
   // Merge students - migrate to add new students and update classIds
-  const students = (cloudData.students?.length ?? 0) > 0
-    ? migrateStudents(cloudData.students!)
-    : defaults.students;
+  const students = migrateClassRosters(
+    (cloudData.students?.length ?? 0) > 0
+      ? migrateStudents(cloudData.students!)
+      : defaults.students!
+  );
 
   return {
     ...defaults,

@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, Music2, Camera, Video, X, Image, Trash2, FileText, Users, Check, XCircle, Clock3, ChevronDown, ChevronUp, ClipboardList } from 'lucide-react';
-import { format, startOfWeek } from 'date-fns';
+import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, Music2, Camera, X, Image, Trash2, FileText, Users, Check, XCircle, Clock3, ChevronDown, ChevronUp, ClipboardList, Pencil } from 'lucide-react';
+import { format, startOfWeek, addWeeks } from 'date-fns';
 import { useAppData } from '../hooks/useAppData';
 import { DropdownMenu } from '../components/common/DropdownMenu';
 import { LiveNote, ClassWeekNotes, Student } from '../types';
-import { formatTimeDisplay, getCurrentTimeMinutes, getMinutesRemaining, formatWeekOf } from '../utils/time';
+import { formatTimeDisplay, getCurrentTimeMinutes, getMinutesRemaining, formatWeekOf, getWeekStart } from '../utils/time';
 import { v4 as uuid } from 'uuid';
 import { processMediaFile } from '../utils/mediaCompression';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
+import { searchTerminology } from '../data/terminology';
+import { TerminologyEntry } from '../types';
 
 const QUICK_TAGS = [
   { id: 'covered', label: 'Covered', icon: CheckCircle, color: 'bg-forest-100 text-forest-700' },
@@ -20,8 +22,10 @@ const QUICK_TAGS = [
 export function LiveNotes() {
   const { classId } = useParams<{ classId: string }>();
   const navigate = useNavigate();
-  const { data, getCurrentWeekNotes, saveWeekNotes } = useAppData();
+  const { data, getCurrentWeekNotes, saveWeekNotes, getWeekNotes } = useAppData();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputWrapperRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
 
   const cls = data.classes.find(c => c.id === classId);
@@ -32,6 +36,8 @@ export function LiveNotes() {
 
   const [noteText, setNoteText] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | undefined>();
+  const [suggestions, setSuggestions] = useState<TerminologyEntry[]>([]);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   const [weekNotes, setWeekNotes] = useState(() => getCurrentWeekNotes());
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   // Auto-expand attendance if students exist but none are marked yet
@@ -41,7 +47,9 @@ export function LiveNotes() {
     const hasMarked = att && (att.present.length > 0 || att.absent.length > 0 || att.late.length > 0);
     return enrolledStudents.length > 0 && !hasMarked;
   });
-  const [showPlan, setShowPlan] = useState(true); // Show plan by default during class
+  const [showPlan, setShowPlan] = useState(true); // Show plan
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
 
   // Sync weekNotes when data changes (e.g., from cloud sync)
   useEffect(() => {
@@ -84,6 +92,47 @@ export function LiveNotes() {
     );
   }
 
+  // --- Terminology autocomplete logic ---
+  const getLastWord = (text: string): string => {
+    const words = text.split(/\s+/);
+    return words[words.length - 1] || '';
+  };
+
+  const handleNoteTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newText = e.target.value;
+    setNoteText(newText);
+    setSelectedSuggestionIndex(-1);
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    debounceRef.current = setTimeout(() => {
+      const lastWord = getLastWord(newText);
+      if (lastWord.length >= 3) {
+        const results = searchTerminology(lastWord).slice(0, 5);
+        setSuggestions(results);
+      } else {
+        setSuggestions([]);
+      }
+    }, 200);
+  };
+
+  const applySuggestion = (term: string) => {
+    const words = noteText.split(/\s+/);
+    words[words.length - 1] = term;
+    const newText = words.join(' ') + ' ';
+    setNoteText(newText);
+    setSuggestions([]);
+    setSelectedSuggestionIndex(-1);
+  };
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+  // --- End terminology autocomplete logic ---
+
   const addNote = () => {
     if (!noteText.trim()) return;
 
@@ -114,6 +163,35 @@ export function LiveNotes() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Autocomplete keyboard navigation
+    if (suggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev =>
+          prev < suggestions.length - 1 ? prev + 1 : 0
+        );
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedSuggestionIndex(prev =>
+          prev > 0 ? prev - 1 : suggestions.length - 1
+        );
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setSuggestions([]);
+        setSelectedSuggestionIndex(-1);
+        return;
+      }
+      if (e.key === 'Enter' && !e.shiftKey && selectedSuggestionIndex >= 0) {
+        e.preventDefault();
+        applySuggestion(suggestions[selectedSuggestionIndex].term);
+        return;
+      }
+    }
+    // Default Enter behavior: submit the note
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       addNote();
@@ -199,7 +277,7 @@ export function LiveNotes() {
 
         const mediaItem = {
           id: uuid(),
-          type: file.type.startsWith('video/') ? 'video' as const : 'image' as const,
+          type: 'image' as const,
           url: dataUrl,
           timestamp: new Date().toISOString(),
           name: file.name,
@@ -250,6 +328,40 @@ export function LiveNotes() {
     saveWeekNotes(updatedWeekNotes);
   };
 
+  const editNote = (note: LiveNote) => {
+    setEditingNoteId(note.id);
+    setEditText(note.text);
+  };
+
+  const saveEdit = () => {
+    if (!editingNoteId || !editText.trim()) return;
+
+    const updatedClassNotes: ClassWeekNotes = {
+      ...classNotes,
+      liveNotes: classNotes.liveNotes.map(n =>
+        n.id === editingNoteId ? { ...n, text: editText.trim() } : n
+      ),
+    };
+
+    const updatedWeekNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [classId || '']: updatedClassNotes,
+      },
+    };
+
+    setWeekNotes(updatedWeekNotes);
+    saveWeekNotes(updatedWeekNotes);
+    setEditingNoteId(null);
+    setEditText('');
+  };
+
+  const cancelEdit = () => {
+    setEditingNoteId(null);
+    setEditText('');
+  };
+
   const deleteNote = (noteId: string) => {
     const updatedClassNotes: ClassWeekNotes = {
       ...classNotes,
@@ -283,6 +395,50 @@ export function LiveNotes() {
     };
 
     saveWeekNotes(updatedWeekNotes);
+
+    // Auto wrap up: generate next week's plan from all notes
+    if (classNotes.liveNotes.length > 0) {
+      const planLines: string[] = [];
+
+      classNotes.liveNotes.forEach((n: LiveNote) => {
+        if (n.category === 'reminder') {
+          planLines.push('Review: ' + n.text);
+        } else if (n.category === 'observation') {
+          planLines.push('Focus: ' + n.text);
+        } else if (n.category === 'covered') {
+          planLines.push('Covered: ' + n.text);
+        } else if (n.category === 'choreography') {
+          planLines.push('Choreo: ' + n.text);
+        } else {
+          planLines.push('Note: ' + n.text);
+        }
+      });
+
+      const planText = planLines.join('\n');
+
+      const nextWeekStart = addWeeks(getWeekStart(), 1);
+      const nextWeekOf = formatWeekOf(nextWeekStart);
+      const nextWeekNotes = getWeekNotes(nextWeekOf) || {
+        id: uuid(),
+        weekOf: nextWeekOf,
+        classNotes: {},
+      };
+      const nextClassNotes = nextWeekNotes.classNotes[classId!] || {
+        classId: classId!,
+        plan: '',
+        liveNotes: [],
+        isOrganized: false,
+      };
+      const updatedNextWeek = {
+        ...nextWeekNotes,
+        classNotes: {
+          ...nextWeekNotes.classNotes,
+          [classId!]: { ...nextClassNotes, plan: planText },
+        },
+      };
+      saveWeekNotes(updatedNextWeek);
+    }
+
     navigate('/');
   };
 
@@ -307,7 +463,7 @@ export function LiveNotes() {
   };
 
   const clearAllMedia = async () => {
-    if (!(await confirm('Delete all photos and videos?'))) return;
+    if (!(await confirm('Delete all photos?'))) return;
 
     const updatedClassNotes: ClassWeekNotes = {
       ...classNotes,
@@ -469,28 +625,18 @@ export function LiveNotes() {
           <div className="mb-4">
             <div className="flex items-center gap-2 text-sm text-forest-500 mb-2">
               <Image size={14} />
-              <span>Photos & Videos</span>
+              <span>Photos</span>
             </div>
             <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
               {classNotes.media.map(item => (
                 <div key={item.id} className="relative aspect-square rounded-xl overflow-hidden bg-white border border-blush-200">
-                  {item.type === 'image' ? (
-                    <img src={item.url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <video src={item.url} className="w-full h-full object-cover" />
-                  )}
+                  <img src={item.url} alt="" className="w-full h-full object-cover" />
                   <button
                     onClick={() => deleteMedia(item.id)}
                     className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
                   >
                     <X size={12} />
                   </button>
-                  {item.type === 'video' && (
-                    <div className="absolute bottom-1 left-1 bg-black/50 text-white px-1.5 py-0.5 rounded text-xs">
-                      <Video size={10} className="inline mr-1" />
-                      Video
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
@@ -581,10 +727,15 @@ export function LiveNotes() {
           <div className="space-y-3">
             {classNotes.liveNotes.map(note => {
               const tag = QUICK_TAGS.find(t => t.id === note.category);
+              const isEditing = editingNoteId === note.id;
               return (
                 <div
                   key={note.id}
-                  className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4 shadow-sm group relative"
+                  className={`bg-white dark:bg-blush-800 rounded-xl border p-4 shadow-sm group relative ${
+                    isEditing
+                      ? 'border-forest-400 dark:border-forest-500 ring-1 ring-forest-300 dark:ring-forest-600'
+                      : 'border-blush-200 dark:border-blush-700'
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
@@ -594,19 +745,65 @@ export function LiveNotes() {
                           {tag.label}
                         </span>
                       )}
-                      <p className="text-forest-700 dark:text-blush-200">{note.text}</p>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              saveEdit();
+                            } else if (e.key === 'Escape') {
+                              cancelEdit();
+                            }
+                          }}
+                          autoFocus
+                          className="w-full px-3 py-2 border border-blush-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-blush-50 dark:bg-blush-700 text-forest-700 dark:text-blush-200 text-sm"
+                        />
+                      ) : (
+                        <p className="text-forest-700 dark:text-blush-200">{note.text}</p>
+                      )}
                     </div>
                     <div className="flex items-start gap-2">
                       <div className="text-xs text-forest-400 dark:text-blush-500">
                         {format(new Date(note.timestamp), 'h:mm a')}
                       </div>
-                      <button
-                        onClick={() => deleteNote(note.id)}
-                        className="p-1.5 text-blush-400 hover:text-red-500 active:text-red-600 transition-colors rounded-lg"
-                        title="Delete note"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {isEditing ? (
+                        <>
+                          <button
+                            onClick={saveEdit}
+                            className="p-1.5 text-forest-500 hover:text-forest-700 active:text-forest-800 transition-colors rounded-lg"
+                            title="Save edit"
+                          >
+                            <Check size={14} />
+                          </button>
+                          <button
+                            onClick={cancelEdit}
+                            className="p-1.5 text-blush-400 hover:text-red-500 active:text-red-600 transition-colors rounded-lg"
+                            title="Cancel edit"
+                          >
+                            <X size={14} />
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => editNote(note)}
+                            className="p-1.5 text-blush-400 hover:text-forest-500 active:text-forest-600 transition-colors rounded-lg"
+                            title="Edit note"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => deleteNote(note.id)}
+                            className="p-1.5 text-blush-400 hover:text-red-500 active:text-red-600 transition-colors rounded-lg"
+                            title="Delete note"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -639,21 +836,64 @@ export function LiveNotes() {
 
           {/* Text Input */}
           <div className="flex gap-2">
-            <input
-              type="text"
-              value={noteText}
-              onChange={(e) => setNoteText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Add a note..."
-              aria-label="Add a note"
-              className="flex-1 px-4 py-3 border border-blush-200 dark:border-blush-600 rounded-xl focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-blush-50 dark:bg-blush-800 text-blush-900 dark:text-white placeholder-blush-400 dark:placeholder-blush-500"
-            />
+            <div className="flex-1 relative" ref={inputWrapperRef}>
+              <input
+                type="text"
+                value={noteText}
+                onChange={handleNoteTextChange}
+                onKeyDown={handleKeyDown}
+                onBlur={() => {
+                  // Delay hiding so click on suggestion registers first
+                  setTimeout(() => {
+                    setSuggestions([]);
+                    setSelectedSuggestionIndex(-1);
+                  }, 150);
+                }}
+                placeholder="Add a note..."
+                aria-label="Add a note"
+                autoComplete="off"
+                className="w-full px-4 py-3 border border-blush-200 dark:border-blush-600 rounded-xl focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-blush-50 dark:bg-blush-800 text-blush-900 dark:text-white placeholder-blush-400 dark:placeholder-blush-500"
+              />
+              {/* Terminology autocomplete suggestions */}
+              {suggestions.length > 0 && (
+                <div className="absolute bottom-full left-0 right-0 mb-1 bg-white dark:bg-blush-800 border border-blush-200 dark:border-blush-600 rounded-xl shadow-lg z-10 overflow-hidden">
+                  {suggestions.map((entry, index) => (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        applySuggestion(entry.term);
+                      }}
+                      className={`w-full text-left px-4 py-2.5 transition-colors ${
+                        index === selectedSuggestionIndex
+                          ? 'bg-forest-100 dark:bg-forest-900/40'
+                          : 'hover:bg-blush-50 dark:hover:bg-blush-700'
+                      }`}
+                    >
+                      <span className={`text-sm font-medium ${
+                        index === selectedSuggestionIndex
+                          ? 'text-forest-700 dark:text-forest-300'
+                          : 'text-forest-700 dark:text-blush-200'
+                      }`}>
+                        {entry.term}
+                      </span>
+                      {entry.pronunciation && (
+                        <span className="text-xs text-blush-400 dark:text-blush-500 ml-2">
+                          ({entry.pronunciation})
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Media Upload Button */}
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*,video/*"
+              accept="image/*"
               multiple
               onChange={handleMediaUpload}
               className="hidden"

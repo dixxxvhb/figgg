@@ -18,13 +18,6 @@ export interface MusicLink {
   url: string;
 }
 
-export interface CurriculumSection {
-  id: string;
-  title: string;
-  items: string[];
-  musicLink?: string;
-}
-
 export interface Class {
   id: string;
   name: string;
@@ -34,7 +27,6 @@ export interface Class {
   studioId: string;
   recitalSong?: string;
   choreographyNotes?: string;
-  curriculum: CurriculumSection[];
   musicLinks: MusicLink[];
   studentIds?: string[]; // Enrolled students
   level?: 'beginner' | 'intermediate' | 'advanced'; // Class difficulty
@@ -57,7 +49,7 @@ export interface OrganizedNotes {
 
 export interface MediaItem {
   id: string;
-  type: 'image' | 'video';
+  type: 'image';
   url: string; // base64 data URL
   timestamp: string;
   name: string;
@@ -279,27 +271,6 @@ export interface CostumeItem {
   name: string; // "Black leotard", "Hair bow", etc.
   quantity?: number;
   notes?: string;
-  packed?: boolean; // For competition day checklist
-}
-
-export interface CompetitionChecklist {
-  id: string;
-  competitionId: string;
-  // Backstage essentials
-  essentials: ChecklistItem[];
-  // Per-dance items
-  danceItems: {
-    danceId: string;
-    costumes: CostumeItem[];
-    props: CostumeItem[];
-    hair?: string;
-    makeup?: string;
-    callTime?: string;
-    scheduledTime?: string; // Actual performance time from schedule
-    performanceDate?: string; // ISO date for multi-day competitions
-    entryNumber?: number; // Entry number in competition order
-    notes?: string;
-  }[];
 }
 
 // Competition schedule entry for tracking performance order
@@ -318,13 +289,6 @@ export interface CompetitionScheduleEntry {
   dancers: string[];
 }
 
-export interface ChecklistItem {
-  id: string;
-  name: string;
-  packed: boolean;
-  category: 'first-aid' | 'hair' | 'makeup' | 'tools' | 'snacks' | 'other';
-}
-
 export interface AppData {
   studios: Studio[];
   classes: Class[];
@@ -340,7 +304,6 @@ export interface AppData {
   // New features based on teacher feedback
   students?: Student[];
   attendance?: AttendanceRecord[];
-  competitionChecklists?: CompetitionChecklist[];
   // Personal self-care tracking
   selfCare?: SelfCareData;
 }
@@ -387,6 +350,7 @@ export interface SmartTask {
 export interface SelfCareData {
   sessions?: ADHDSessions;
   sessionStates?: Record<string, ADHDTaskStates>; // session_key -> task completion
+  sessionStatesDate?: string;                      // YYYY-MM-DD, auto-resets daily
   dose1Time?: number | null;
   dose1Date?: string | null;
   dose2Time?: number | null;

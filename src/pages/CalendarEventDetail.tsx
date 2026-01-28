@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, Play, Calendar, Video, Plus, Trash2, FileText, Image, Edit2, Save, Users, UserCheck, UserX, Clock3, ChevronDown, ChevronUp, Music, X } from 'lucide-react';
+import { ArrowLeft, Clock, MapPin, Play, Calendar, Plus, Trash2, FileText, Image, Edit2, Save, Users, UserCheck, UserX, Clock3, ChevronDown, ChevronUp, Music, X, Camera } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import { formatTimeDisplay } from '../utils/time';
 import { Button } from '../components/common/Button';
@@ -59,7 +59,7 @@ export function CalendarEventDetail() {
 
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !eventId) return;
 
@@ -83,7 +83,7 @@ export function CalendarEventDetail() {
 
       const newMedia: MediaItem = {
         id: uuid(),
-        type: file.type.startsWith('video/') ? 'video' : 'image',
+        type: 'image',
         url: dataUrl,
         name: file.name,
         timestamp: new Date().toISOString(),
@@ -130,7 +130,7 @@ export function CalendarEventDetail() {
 
   const handleDeleteAllMedia = () => {
     if (!eventId) return;
-    if (!confirm('Delete all photos and videos for this event?')) return;
+    if (!confirm('Delete all photos for this event?')) return;
 
     const existingNotes = eventNotes || {
       classId: eventId,
@@ -395,20 +395,20 @@ export function CalendarEventDetail() {
         updateCalendarEvent={updateCalendarEvent}
       />
 
-      {/* Videos & Photos Section */}
+      {/* Photos Section */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-medium text-blush-700 dark:text-blush-300 flex items-center gap-2">
-            <Video size={16} />
-            Videos & Photos
+            <Camera size={16} />
+            Photos
           </h2>
           <input
             ref={fileInputRef}
             type="file"
-            accept="video/*,image/*"
-            onChange={handleVideoUpload}
+            accept="image/*"
+            onChange={handlePhotoUpload}
             className="hidden"
-            aria-label="Upload video or photo"
+            aria-label="Upload photo"
           />
           <button
             onClick={() => fileInputRef.current?.click()}
@@ -423,7 +423,7 @@ export function CalendarEventDetail() {
             ) : (
               <>
                 <Plus size={16} />
-                Add Video
+                Add Photo
               </>
             )}
           </button>
@@ -445,19 +445,11 @@ export function CalendarEventDetail() {
           <div className="grid grid-cols-2 gap-3">
             {eventNotes.media.map(media => (
               <div key={media.id} className="relative group">
-                {media.type === 'video' ? (
-                  <video
-                    src={media.url}
-                    controls
-                    className="w-full aspect-video rounded-lg bg-black object-contain"
-                  />
-                ) : (
-                  <img
-                    src={media.url}
-                    alt={media.name}
-                    className="w-full aspect-video rounded-lg bg-blush-100 dark:bg-blush-700 object-cover"
-                  />
-                )}
+                <img
+                  src={media.url}
+                  alt={media.name}
+                  className="w-full aspect-[4/3] rounded-lg bg-blush-100 dark:bg-blush-700 object-cover"
+                />
                 <button
                   onClick={() => handleDeleteMedia(media.id)}
                   className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
@@ -473,8 +465,8 @@ export function CalendarEventDetail() {
             onClick={() => fileInputRef.current?.click()}
             className="bg-blush-50 dark:bg-blush-800 border-2 border-dashed border-blush-200 dark:border-blush-700 rounded-xl p-8 text-center cursor-pointer hover:bg-blush-100 dark:bg-blush-700 hover:border-blush-300 dark:border-blush-600 transition-colors"
           >
-            <Video size={32} className="text-blush-300 dark:text-blush-600 mx-auto mb-2" />
-            <p className="text-blush-500 dark:text-blush-400 text-sm">Tap to add videos or photos</p>
+            <Camera size={32} className="text-blush-300 dark:text-blush-600 mx-auto mb-2" />
+            <p className="text-blush-500 dark:text-blush-400 text-sm">Tap to add photos</p>
           </div>
         )}
       </div>

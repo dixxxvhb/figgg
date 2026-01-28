@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { AppData, Class, WeekNotes, Project, Competition, CompetitionDance, Student, AttendanceRecord, CompetitionChecklist, CalendarEvent } from '../types';
+import { AppData, Class, WeekNotes, Project, Competition, CompetitionDance, Student, AttendanceRecord, CalendarEvent } from '../types';
 import { loadData, saveData } from '../services/storage';
 import { getWeekStart, formatWeekOf } from '../utils/time';
 import { v4 as uuid } from 'uuid';
@@ -216,20 +216,6 @@ export function useAppData() {
     return (data.attendance || []).find(a => a.classId === classId && a.weekOf === weekOf);
   }, [data.attendance]);
 
-  // Competition checklist management
-  const updateCompetitionChecklist = useCallback((checklist: CompetitionChecklist) => {
-    setData(prev => {
-      const checklists = prev.competitionChecklists || [];
-      const index = checklists.findIndex(c => c.id === checklist.id);
-      if (index !== -1) {
-        const updated = [...checklists];
-        updated[index] = checklist;
-        return { ...prev, competitionChecklists: updated };
-      }
-      return { ...prev, competitionChecklists: [...checklists, checklist] };
-    });
-  }, []);
-
   // Calendar event management (for linking dances to calendar events)
   const updateCalendarEvent = useCallback((event: CalendarEvent) => {
     setData(prev => {
@@ -267,8 +253,6 @@ export function useAppData() {
     // Attendance management
     saveAttendance,
     getAttendanceForClass,
-    // Competition checklist
-    updateCompetitionChecklist,
     // Calendar events
     updateCalendarEvent,
   };

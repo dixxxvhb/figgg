@@ -2,7 +2,7 @@ import { CompetitionScheduleEntry } from '../types';
 
 // Inferno Dance Competition - Final Schedule
 // January 30 - February 1, 2026
-// Apopka High School, Apopka, FL
+// Apopka High School, Orlando, FL
 // Source: Orlando FL Final Schedule generated 1/23/2026
 
 export const infernoSchedule2026: CompetitionScheduleEntry[] = [
@@ -67,7 +67,7 @@ export const infernoSchedule2026: CompetitionScheduleEntry[] = [
   {
     id: 'inferno-2026-150',
     competitionId: 'inferno-2026',
-    danceId: 'im-a-woman',
+    danceId: 'i-am',
     entryNumber: 150,
     performanceDate: '2026-01-30',
     scheduledTime: '8:14 PM',
@@ -140,7 +140,7 @@ export const infernoSchedule2026: CompetitionScheduleEntry[] = [
   {
     id: 'inferno-2026-222',
     competitionId: 'inferno-2026',
-    danceId: 'papa-was-a-rollin-stone',
+    danceId: 'papa-was-a-rolling-stone',
     entryNumber: 222,
     performanceDate: '2026-01-31',
     scheduledTime: '10:33 AM',

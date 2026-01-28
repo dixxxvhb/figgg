@@ -39,8 +39,6 @@ export async function compressImage(file: File): Promise<string> {
         // Convert to compressed JPEG
         const compressedDataUrl = canvas.toDataURL('image/jpeg', IMAGE_QUALITY);
 
-        const originalSize = (e.target?.result as string).length;
-        const compressedSize = compressedDataUrl.length;
         resolve(compressedDataUrl);
       };
       img.onerror = () => reject(new Error('Failed to load image'));
@@ -51,19 +49,7 @@ export async function compressImage(file: File): Promise<string> {
   });
 }
 
-// For videos, we can't easily compress them client-side
-// Instead, we'll check the file size and warn if too large
-export const MAX_VIDEO_SIZE_MB = 3;
-
-export function checkVideoSize(file: File): { ok: boolean; sizeMB: number } {
-  const sizeMB = file.size / (1024 * 1024);
-  return {
-    ok: sizeMB <= MAX_VIDEO_SIZE_MB,
-    sizeMB: parseFloat(sizeMB.toFixed(2))
-  };
-}
-
-// Process a media file - compress images, check video sizes
+// Process a media file - compress images, reject videos
 export async function processMediaFile(file: File): Promise<{ dataUrl: string; warning?: string } | { error: string }> {
   if (file.type.startsWith('image/')) {
     try {
@@ -82,24 +68,9 @@ export async function processMediaFile(file: File): Promise<{ dataUrl: string; w
   }
 
   if (file.type.startsWith('video/')) {
-    const check = checkVideoSize(file);
-    if (!check.ok) {
-      return {
-        error: `Video is too large (${check.sizeMB}MB). Maximum size is ${MAX_VIDEO_SIZE_MB}MB. Please use a shorter clip or compress the video first.`
-      };
-    }
-
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const warning = check.sizeMB > 2
-          ? `Large video (${check.sizeMB}MB) may affect storage and sync speed`
-          : undefined;
-        resolve({ dataUrl: e.target?.result as string, warning });
-      };
-      reader.onerror = () => reject({ error: 'Failed to read video file' });
-      reader.readAsDataURL(file);
-    });
+    return {
+      error: 'Video upload is not supported. Videos are too large for local storage (a 1-minute video needs 50-100MB, but storage is limited to 5-10MB). Please use photos instead.'
+    };
   }
 
   return { error: 'Unsupported file type' };

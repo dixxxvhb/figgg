@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, Music2, Camera, Video, X, Image, Trash2, FileText, ChevronDown, ChevronUp, ClipboardList } from 'lucide-react';
+import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, Music2, Camera, X, Image, Trash2, FileText, ChevronDown, ChevronUp, ClipboardList } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAppData } from '../hooks/useAppData';
 import { DropdownMenu } from '../components/common/DropdownMenu';
@@ -129,7 +129,7 @@ export function EventNotes() {
 
         const mediaItem = {
           id: uuid(),
-          type: file.type.startsWith('video/') ? 'video' as const : 'image' as const,
+          type: 'image' as const,
           url: dataUrl,
           timestamp: new Date().toISOString(),
           name: file.name,
@@ -200,7 +200,7 @@ export function EventNotes() {
   };
 
   const clearAllMedia = () => {
-    if (!confirm('Delete all photos and videos?')) return;
+    if (!confirm('Delete all photos?')) return;
 
     const updatedEventNotes: ClassWeekNotes = {
       ...eventNotes,
@@ -378,28 +378,18 @@ export function EventNotes() {
           <div className="mb-4">
             <div className="flex items-center gap-2 text-sm text-forest-500 mb-2">
               <Image size={14} />
-              <span>Photos & Videos</span>
+              <span>Photos</span>
             </div>
             <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
               {eventNotes.media.map(item => (
                 <div key={item.id} className="relative aspect-square rounded-xl overflow-hidden bg-white border border-blush-200">
-                  {item.type === 'image' ? (
-                    <img src={item.url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <video src={item.url} className="w-full h-full object-cover" />
-                  )}
+                  <img src={item.url} alt="" className="w-full h-full object-cover" />
                   <button
                     onClick={() => deleteMedia(item.id)}
                     className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
                   >
                     <X size={12} />
                   </button>
-                  {item.type === 'video' && (
-                    <div className="absolute bottom-1 left-1 bg-black/50 text-white px-1.5 py-0.5 rounded text-xs">
-                      <Video size={10} className="inline mr-1" />
-                      Video
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
@@ -487,7 +477,7 @@ export function EventNotes() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*,video/*"
+              accept="image/*"
               multiple
               onChange={handleMediaUpload}
               className="hidden"

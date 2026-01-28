@@ -12,7 +12,7 @@ export const students: Student[] = [
     birthdate: '2016-01-01', // Age 9
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-wed-1950', 'class-caa-tue-1650'], // Contemporary 1, Ballet 10+
+    classIds: ['class-caa-wed-1950', 'class-caa-tue-1650', 'class-caa-tue-1750'], // Contemporary 1, Ballet 10+
     createdAt: new Date().toISOString(),
   },
   {
@@ -25,7 +25,7 @@ export const students: Student[] = [
     birthdate: '2011-01-01', // Age 14
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-tue-1950', 'class-caa-wed-1950'], // Jazz 2/3, Contemporary 1
+    classIds: ['class-caa-tue-1950', 'class-caa-wed-1950', 'class-caa-tue-1850'], // Jazz 2/3, Contemporary 1
     createdAt: new Date().toISOString(),
   },
   {
@@ -38,7 +38,7 @@ export const students: Student[] = [
     birthdate: '2009-01-01', // Age 16
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-tue-1950', 'class-caa-wed-1950'], // Jazz 2/3, Contemporary 1
+    classIds: ['class-caa-tue-1950', 'class-caa-wed-1950', 'class-caa-tue-1850'], // Jazz 2/3, Contemporary 1
     createdAt: new Date().toISOString(),
   },
   {
@@ -51,7 +51,7 @@ export const students: Student[] = [
     birthdate: '2015-01-01', // Age 10
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-tue-1650'], // Ballet 10+
+    classIds: ['class-caa-tue-1650', 'class-caa-tue-1750'], // Ballet 10+
     createdAt: new Date().toISOString(),
   },
   {
@@ -77,7 +77,7 @@ export const students: Student[] = [
     birthdate: '2010-01-01', // Age 15
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-tue-1950'], // Jazz 2/3
+    classIds: ['class-caa-tue-1950', 'class-caa-tue-1850'], // Jazz 2/3
     createdAt: new Date().toISOString(),
   },
   {
@@ -116,7 +116,7 @@ export const students: Student[] = [
     birthdate: '2015-01-01', // Age 10
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-tue-1650'], // Ballet 10+
+    classIds: ['class-caa-tue-1650', 'class-caa-tue-1750'], // Ballet 10+
     createdAt: new Date().toISOString(),
   },
   {
@@ -129,7 +129,7 @@ export const students: Student[] = [
     birthdate: '2016-01-01', // Age 9
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-tue-1650'], // Ballet 10+
+    classIds: ['class-caa-tue-1650', 'class-caa-tue-1750'], // Ballet 10+
     createdAt: new Date().toISOString(),
   },
   {
@@ -142,7 +142,7 @@ export const students: Student[] = [
     birthdate: '2011-01-01', // Age 14
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-wed-1845', 'class-caa-tue-1950'], // Contemporary 2, Jazz 2/3
+    classIds: ['class-caa-wed-1845', 'class-caa-tue-1950', 'class-caa-tue-1850'], // Contemporary 2, Jazz 2/3
     createdAt: new Date().toISOString(),
   },
   {
@@ -155,7 +155,7 @@ export const students: Student[] = [
     birthdate: '2009-01-01', // Age 16
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-wed-1845', 'class-caa-tue-1950'], // Contemporary 2, Jazz 2/3
+    classIds: ['class-caa-wed-1845', 'class-caa-tue-1950', 'class-caa-tue-1850'], // Contemporary 2, Jazz 2/3
     createdAt: new Date().toISOString(),
   },
   {
@@ -168,7 +168,7 @@ export const students: Student[] = [
     birthdate: '2012-01-01', // Age 13
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-wed-1845', 'class-caa-tue-1950'], // Contemporary 2, Jazz 2/3
+    classIds: ['class-caa-wed-1845', 'class-caa-tue-1950', 'class-caa-tue-1850'], // Contemporary 2, Jazz 2/3
     createdAt: new Date().toISOString(),
   },
   {
@@ -181,7 +181,7 @@ export const students: Student[] = [
     birthdate: '2009-01-01', // Age 16
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-wed-1845', 'class-caa-tue-1950'], // Contemporary 2, Jazz 2/3
+    classIds: ['class-caa-wed-1845', 'class-caa-tue-1950', 'class-caa-tue-1850'], // Contemporary 2, Jazz 2/3
     createdAt: new Date().toISOString(),
   },
   {
@@ -194,7 +194,7 @@ export const students: Student[] = [
     birthdate: '2016-01-01', // Age 9
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-tue-1650'], // Ballet 10+
+    classIds: ['class-caa-tue-1650', 'class-caa-tue-1750'], // Ballet 10+
     createdAt: new Date().toISOString(),
   },
   {
@@ -233,7 +233,7 @@ export const students: Student[] = [
     birthdate: '2013-01-01', // Age 12
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-tue-1550', 'class-caa-wed-1950'], // Jazz 1, Contemporary 1
+    classIds: ['class-caa-tue-1550', 'class-caa-wed-1950', 'class-caa-tue-1850'], // Jazz 1, Contemporary 1
     createdAt: new Date().toISOString(),
   },
   {
@@ -272,7 +272,7 @@ export const students: Student[] = [
     birthdate: '2009-01-01', // Age 16
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-wed-1845', 'class-caa-tue-1950'], // Contemporary 2, Jazz 2/3
+    classIds: ['class-caa-wed-1845', 'class-caa-tue-1950', 'class-caa-tue-1850'], // Contemporary 2, Jazz 2/3
     createdAt: new Date().toISOString(),
   },
   {
@@ -285,7 +285,7 @@ export const students: Student[] = [
     birthdate: '2016-01-01', // Age 9
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-tue-1650'], // Ballet 10+
+    classIds: ['class-caa-tue-1650', 'class-caa-tue-1750'], // Ballet 10+
     createdAt: new Date().toISOString(),
   },
   {
@@ -313,7 +313,7 @@ export const students: Student[] = [
     birthdate: '2011-01-01', // Age 14
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-tue-1950'], // Jazz 2/3
+    classIds: ['class-caa-tue-1950', 'class-caa-tue-1850'], // Jazz 2/3
     createdAt: new Date().toISOString(),
   },
   {
@@ -326,7 +326,7 @@ export const students: Student[] = [
     birthdate: '2010-01-01', // Age 15
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-tue-1950', 'class-caa-wed-1950'], // Jazz 2/3, Contemporary 1
+    classIds: ['class-caa-tue-1950', 'class-caa-wed-1950', 'class-caa-tue-1850'], // Jazz 2/3, Contemporary 1
     createdAt: new Date().toISOString(),
   },
   {
@@ -339,7 +339,7 @@ export const students: Student[] = [
     birthdate: '2012-01-01', // Age 13
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-tue-1950', 'class-caa-wed-1950'], // Jazz 2/3, Contemporary 1
+    classIds: ['class-caa-tue-1950', 'class-caa-wed-1950', 'class-caa-tue-1850'], // Jazz 2/3, Contemporary 1
     createdAt: new Date().toISOString(),
   },
   {
@@ -352,7 +352,7 @@ export const students: Student[] = [
     birthdate: '2012-01-01', // Age 13
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-tue-1950'], // Jazz 2/3
+    classIds: ['class-caa-tue-1950', 'class-caa-tue-1850'], // Jazz 2/3
     createdAt: new Date().toISOString(),
   },
   {
@@ -365,7 +365,7 @@ export const students: Student[] = [
     birthdate: '2011-01-01', // Age 14
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-tue-1950', 'class-caa-wed-1950'], // Jazz 2/3, Contemporary 1
+    classIds: ['class-caa-tue-1950', 'class-caa-wed-1950', 'class-caa-tue-1850'], // Jazz 2/3, Contemporary 1
     createdAt: new Date().toISOString(),
   },
   {
@@ -391,7 +391,7 @@ export const students: Student[] = [
     birthdate: '2012-01-01', // Age 13
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-wed-1950'], // Contemporary 1
+    classIds: ['class-caa-wed-1950', 'class-caa-tue-1750'], // Contemporary 1
     createdAt: new Date().toISOString(),
   },
   {
@@ -417,7 +417,7 @@ export const students: Student[] = [
     birthdate: '2015-01-01', // Age 10
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-tue-1650'], // Ballet 10+
+    classIds: ['class-caa-tue-1650', 'class-caa-tue-1750'], // Ballet 10+
     createdAt: new Date().toISOString(),
   },
   {
@@ -443,7 +443,7 @@ export const students: Student[] = [
     birthdate: '2017-01-01', // Age 8
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-tue-1650'], // Ballet 10+
+    classIds: ['class-caa-tue-1650', 'class-caa-tue-1750'], // Ballet 10+
     createdAt: new Date().toISOString(),
   },
   {
@@ -456,7 +456,7 @@ export const students: Student[] = [
     birthdate: '2014-01-01', // Age 11
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-tue-1650'], // Ballet 10+
+    classIds: ['class-caa-tue-1650', 'class-caa-tue-1750'], // Ballet 10+
     createdAt: new Date().toISOString(),
   },
   {
@@ -470,6 +470,84 @@ export const students: Student[] = [
     notes: '',
     skillNotes: [],
     classIds: ['class-caa-tue-1650'], // Ballet 10+
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'student-37',
+    name: 'Danella Benitez',
+    nickname: 'Danella',
+    parentName: '',
+    parentEmail: '',
+    parentPhone: '',
+    birthdate: '2014-01-01', // Age 11
+    notes: '',
+    skillNotes: [],
+    classIds: ['class-caa-tue-1750'], // Jazz 10+
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'student-38',
+    name: 'Amelia Bracco',
+    nickname: 'Amelia',
+    parentName: '',
+    parentEmail: '',
+    parentPhone: '',
+    birthdate: '2015-01-01', // Age 10
+    notes: '',
+    skillNotes: [],
+    classIds: ['class-caa-tue-1750'], // Jazz 10+
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'student-39',
+    name: 'Emma Fischetti',
+    nickname: 'Emma F',
+    parentName: '',
+    parentEmail: '',
+    parentPhone: '',
+    birthdate: '2015-01-01', // Age 10
+    notes: '',
+    skillNotes: [],
+    classIds: ['class-caa-tue-1750'], // Jazz 10+
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'student-40',
+    name: 'Lola Matos',
+    nickname: 'Lola',
+    parentName: '',
+    parentEmail: '',
+    parentPhone: '',
+    birthdate: '2014-01-01', // Age 11
+    notes: '',
+    skillNotes: [],
+    classIds: ['class-caa-tue-1750'], // Jazz 10+
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'student-41',
+    name: 'Olivia Mesaros',
+    nickname: 'Olivia',
+    parentName: '',
+    parentEmail: '',
+    parentPhone: '',
+    birthdate: '2014-01-01', // Age 11
+    notes: '',
+    skillNotes: [],
+    classIds: ['class-caa-tue-1750'], // Jazz 10+
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'student-42',
+    name: 'Martina Sosa',
+    nickname: 'Martina',
+    parentName: '',
+    parentEmail: '',
+    parentPhone: '',
+    birthdate: '2014-01-01', // Age 11
+    notes: '',
+    skillNotes: [],
+    classIds: ['class-caa-tue-1750'], // Jazz 10+
     createdAt: new Date().toISOString(),
   },
 ];

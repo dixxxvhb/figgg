@@ -28,7 +28,7 @@ export function SaveStatus() {
 
   if (status === 'error') {
     return (
-      <div className="fixed bottom-20 left-4 right-4 mx-auto max-w-sm bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg px-4 py-3 shadow-lg z-50" role="alert" aria-live="assertive">
+      <div className="fixed bottom-20 left-4 right-4 mx-auto max-w-sm bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg px-4 py-3 shadow-lg z-50" style={{ marginBottom: 'env(safe-area-inset-bottom, 0)' }} role="alert" aria-live="assertive">
         <div className="flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
           <div className="flex-1">

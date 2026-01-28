@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 
 export interface MediaItem {
   id: string;
-  type: 'image' | 'video';
+  type: 'image';
   data: string; // base64
   caption?: string;
   timestamp: string;
@@ -15,8 +15,8 @@ interface UseMediaUploadOptions {
   onError?: (error: string) => void;
 }
 
-const DEFAULT_MAX_SIZE_MB = 50;
-const DEFAULT_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/quicktime', 'video/webm'];
+const DEFAULT_MAX_SIZE_MB = 2;
+const DEFAULT_ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
 export function useMediaUpload(options: UseMediaUploadOptions = {}) {
   const {
@@ -69,7 +69,7 @@ export function useMediaUpload(options: UseMediaUploadOptions = {}) {
         const result = event.target?.result as string;
         const mediaItem: MediaItem = {
           id: `media-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          type: file.type.startsWith('video/') ? 'video' : 'image',
+          type: 'image',
           data: result,
           timestamp: new Date().toISOString(),
         };
@@ -128,16 +128,10 @@ export function useMediaUpload(options: UseMediaUploadOptions = {}) {
 }
 
 // Helper to generate file input props
-export function getMediaInputProps(accept: 'image' | 'video' | 'both' = 'both') {
-  const acceptMap = {
-    image: 'image/*',
-    video: 'video/*',
-    both: 'image/*,video/*',
-  };
-
+export function getMediaInputProps() {
   return {
     type: 'file' as const,
-    accept: acceptMap[accept],
+    accept: 'image/*',
     className: 'hidden',
   };
 }

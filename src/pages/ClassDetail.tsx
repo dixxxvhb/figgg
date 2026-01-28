@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, Music, Edit2, Save, X, Plus, Trash2, Play, Video, History, ChevronDown, ChevronUp, FileText, Image, Users, UserCheck, UserX, Clock3, UserPlus, User, Grid3X3, List } from 'lucide-react';
+import { ArrowLeft, Clock, MapPin, Music, Edit2, Save, X, Plus, Trash2, Play, History, ChevronDown, ChevronUp, FileText, Image, Users, UserCheck, UserX, Clock3, UserPlus, User, Grid3X3, List, Camera } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import { formatTimeDisplay, formatWeekOf, getWeekStart } from '../utils/time';
 import { addWeeks, format } from 'date-fns';
 import { Button } from '../components/common/Button';
 import { DropdownMenu } from '../components/common/DropdownMenu';
-import { CurriculumSection, MediaItem, Student } from '../types';
+import { MediaItem, Student } from '../types';
 import { v4 as uuid } from 'uuid';
 import { processMediaFile } from '../utils/mediaCompression';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
@@ -66,7 +66,7 @@ export function ClassDetail() {
 
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !classId) return;
 
@@ -90,7 +90,7 @@ export function ClassDetail() {
 
       const newMedia: MediaItem = {
         id: uuid(),
-        type: file.type.startsWith('video/') ? 'video' : 'image',
+        type: 'image',
         url: dataUrl,
         name: file.name,
         timestamp: new Date().toISOString(),
@@ -139,7 +139,7 @@ export function ClassDetail() {
 
   const handleDeleteAllMedia = async () => {
     if (!classId) return;
-    if (!(await confirm('Delete all photos and videos for this week?'))) return;
+    if (!(await confirm('Delete all photos for this week?'))) return;
 
     const existingNotes = classNotes || {
       classId,
@@ -300,75 +300,6 @@ export function ClassDetail() {
     setIsEditing(false);
   };
 
-  const updateCurriculumItem = (sectionId: string, itemIndex: number, value: string) => {
-    if (!editedClass) return;
-    setEditedClass({
-      ...editedClass,
-      curriculum: editedClass.curriculum.map(section =>
-        section.id === sectionId
-          ? {
-              ...section,
-              items: section.items.map((item, i) => (i === itemIndex ? value : item)),
-            }
-          : section
-      ),
-    });
-  };
-
-  const addCurriculumItem = (sectionId: string) => {
-    if (!editedClass) return;
-    setEditedClass({
-      ...editedClass,
-      curriculum: editedClass.curriculum.map(section =>
-        section.id === sectionId
-          ? { ...section, items: [...section.items, ''] }
-          : section
-      ),
-    });
-  };
-
-  const removeCurriculumItem = (sectionId: string, itemIndex: number) => {
-    if (!editedClass) return;
-    setEditedClass({
-      ...editedClass,
-      curriculum: editedClass.curriculum.map(section =>
-        section.id === sectionId
-          ? { ...section, items: section.items.filter((_, i) => i !== itemIndex) }
-          : section
-      ),
-    });
-  };
-
-  const addSection = () => {
-    if (!editedClass) return;
-    const newSection: CurriculumSection = {
-      id: uuid(),
-      title: 'New Section',
-      items: [],
-    };
-    setEditedClass({
-      ...editedClass,
-      curriculum: [...editedClass.curriculum, newSection],
-    });
-  };
-
-  const updateSectionTitle = (sectionId: string, title: string) => {
-    if (!editedClass) return;
-    setEditedClass({
-      ...editedClass,
-      curriculum: editedClass.curriculum.map(section =>
-        section.id === sectionId ? { ...section, title } : section
-      ),
-    });
-  };
-
-  const removeSection = (sectionId: string) => {
-    if (!editedClass) return;
-    setEditedClass({
-      ...editedClass,
-      curriculum: editedClass.curriculum.filter(section => section.id !== sectionId),
-    });
-  };
 
   const displayClass = isEditing ? editedClass : cls;
   if (!displayClass) return null;
@@ -387,6 +318,7 @@ export function ClassDetail() {
               type="text"
               value={displayClass.name}
               onChange={(e) => setEditedClass({ ...displayClass, name: e.target.value })}
+              aria-label="Class name"
               className="text-xl font-bold w-full border-b-2 border-forest-500 focus:outline-none bg-transparent text-forest-700 dark:text-white"
             />
           ) : (
@@ -463,6 +395,28 @@ export function ClassDetail() {
           Start Class Notes
         </Button>
       </Link>
+
+
+      {/* Smart Plan Section */}
+      <div className="mb-6">
+        <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-forest-700 dark:text-white flex items-center gap-2">
+              <FileText size={16} />
+              Class Plan
+            </h3>
+          </div>
+          {classNotes?.plan ? (
+            <div className="text-sm text-forest-600 dark:text-blush-300 whitespace-pre-wrap bg-blush-50 dark:bg-blush-900/50 rounded-lg p-3">
+              {classNotes.plan}
+            </div>
+          ) : (
+            <p className="text-sm text-blush-400 dark:text-blush-500 italic">
+              No plan yet. Plans are auto-generated when you end class with categorized notes.
+            </p>
+          )}
+        </div>
+      </div>
 
       {/* Student Roster & Attendance */}
       <div className="mb-6">
@@ -736,20 +690,20 @@ export function ClassDetail() {
         </div>
       )}
 
-      {/* Videos & Photos Section */}
+      {/* Photos Section */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-medium text-forest-700 dark:text-white flex items-center gap-2">
-            <Video size={16} />
-            Videos & Photos
+            <Camera size={16} />
+            Photos
           </h2>
           <input
             ref={fileInputRef}
             type="file"
-            accept="video/*,image/*"
-            onChange={handleVideoUpload}
+            accept="image/*"
+            onChange={handlePhotoUpload}
             className="hidden"
-            aria-label="Upload video or photo"
+            aria-label="Upload photo"
           />
           <button
             onClick={() => fileInputRef.current?.click()}
@@ -764,7 +718,7 @@ export function ClassDetail() {
             ) : (
               <>
                 <Plus size={16} />
-                Add Video
+                Add Photo
               </>
             )}
           </button>
@@ -786,19 +740,11 @@ export function ClassDetail() {
           <div className="grid grid-cols-2 gap-3">
             {classNotes.media.map(media => (
               <div key={media.id} className="relative group">
-                {media.type === 'video' ? (
-                  <video
-                    src={media.url}
-                    controls
-                    className="w-full aspect-video rounded-lg bg-black object-contain"
-                  />
-                ) : (
-                  <img
-                    src={media.url}
-                    alt={media.name}
-                    className="w-full aspect-video rounded-lg bg-blush-100 dark:bg-blush-800 object-cover"
-                  />
-                )}
+                <img
+                  src={media.url}
+                  alt={media.name}
+                  className="w-full aspect-[4/3] rounded-lg bg-blush-100 dark:bg-blush-800 object-cover"
+                />
                 <button
                   onClick={() => handleDeleteMedia(media.id)}
                   className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
@@ -814,8 +760,8 @@ export function ClassDetail() {
             onClick={() => fileInputRef.current?.click()}
             className="bg-blush-50 dark:bg-blush-800 border-2 border-dashed border-blush-200 dark:border-blush-600 rounded-xl p-8 text-center cursor-pointer hover:bg-blush-100 dark:hover:bg-blush-700 hover:border-blush-300 dark:hover:border-blush-500 transition-colors"
           >
-            <Video size={32} className="text-blush-300 dark:text-blush-600 mx-auto mb-2" />
-            <p className="text-blush-500 dark:text-blush-400 text-sm">Tap to add videos or photos</p>
+            <Camera size={32} className="text-blush-300 dark:text-blush-600 mx-auto mb-2" />
+            <p className="text-blush-500 dark:text-blush-400 text-sm">Tap to add photos</p>
           </div>
         )}
       </div>
@@ -854,86 +800,6 @@ export function ClassDetail() {
         )}
       </div>
 
-      {/* Curriculum */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-forest-700 dark:text-white">Curriculum</h2>
-          {isEditing && (
-            <button
-              onClick={addSection}
-              className="text-sm text-forest-600 dark:text-forest-400 flex items-center gap-1"
-            >
-              <Plus size={16} />
-              Add Section
-            </button>
-          )}
-        </div>
-
-        <div className="space-y-6">
-          {displayClass.curriculum.map(section => (
-            <div key={section.id} className="bg-blush-50 dark:bg-blush-800 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-3">
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={section.title}
-                    onChange={(e) => updateSectionTitle(section.id, e.target.value)}
-                    className="font-medium bg-white dark:bg-blush-700 px-2 py-1 rounded border border-blush-300 dark:border-blush-600 text-forest-700 dark:text-white"
-                  />
-                ) : (
-                  <h3 className="font-medium text-forest-900 dark:text-white">{section.title}</h3>
-                )}
-                {isEditing && (
-                  <button
-                    onClick={() => removeSection(section.id)}
-                    className="text-red-500 p-1"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
-              </div>
-
-              <ul className="space-y-2">
-                {section.items.map((item, index) => (
-                  <li key={index} className="flex items-start gap-2">
-                    {isEditing ? (
-                      <>
-                        <input
-                          type="text"
-                          value={item}
-                          onChange={(e) => updateCurriculumItem(section.id, index, e.target.value)}
-                          className="flex-1 px-2 py-1 border border-blush-300 dark:border-blush-600 rounded text-sm bg-white dark:bg-blush-700 text-forest-700 dark:text-white"
-                        />
-                        <button
-                          onClick={() => removeCurriculumItem(section.id, index)}
-                          className="text-red-500 p-1"
-                        >
-                          <X size={14} />
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-forest-500 dark:text-forest-400 mt-1">•</span>
-                        <span className="text-forest-700 dark:text-blush-200">{item}</span>
-                      </>
-                    )}
-                  </li>
-                ))}
-              </ul>
-
-              {isEditing && (
-                <button
-                  onClick={() => addCurriculumItem(section.id)}
-                  className="mt-3 text-sm text-forest-600 dark:text-forest-400 flex items-center gap-1"
-                >
-                  <Plus size={14} />
-                  Add Item
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
@@ -1076,7 +942,7 @@ function AddStudentToClassModal({
           )}
         </div>
 
-        <div className="sticky bottom-0 border-t border-blush-200 dark:border-blush-700 p-4 bg-white dark:bg-blush-900">
+        <div className="sticky bottom-0 border-t border-blush-200 dark:border-blush-700 p-4 bg-white dark:bg-blush-900 pb-safe">
           <Button onClick={onClose} className="w-full">
             Done
           </Button>

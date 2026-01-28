@@ -106,7 +106,7 @@ export function DanceDetail() {
 
         const newMedia: MediaItem = {
           id: uuid(),
-          type: file.type.startsWith('video/') ? 'video' : 'image',
+          type: 'image',
           url: dataUrl,
           timestamp: new Date().toISOString(),
           name: file.name,
@@ -298,7 +298,7 @@ export function DanceDetail() {
 
         const newMedia: MediaItem = {
           id: uuid(),
-          type: file.type.startsWith('video/') ? 'video' : 'image',
+          type: 'image',
           url: dataUrl,
           timestamp: new Date().toISOString(),
           name: file.name,
@@ -677,7 +677,7 @@ export function DanceDetail() {
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold text-forest-700 flex items-center gap-2">
             <Camera size={18} />
-            Photos & Videos
+            Photos
           </h2>
           {isEditing && (
             <button
@@ -693,11 +693,11 @@ export function DanceDetail() {
         <input
           ref={mediaInputRef}
           type="file"
-          accept="image/*,video/*"
+          accept="image/*"
           multiple
           onChange={handleMediaUpload}
           className="hidden"
-          aria-label="Upload photos or videos"
+          aria-label="Upload photos"
         />
 
         {mediaUploadError && (
@@ -710,16 +710,7 @@ export function DanceDetail() {
           <div className="grid grid-cols-3 gap-2">
             {displayDance.media.map(item => (
               <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden bg-forest-100">
-                {item.type === 'image' ? (
-                  <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <video src={item.url} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                      <Play size={24} className="text-white" />
-                    </div>
-                  </div>
-                )}
+                <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
                 {isEditing && (
                   <button
                     onClick={() => removeMedia(item.id)}
@@ -732,7 +723,7 @@ export function DanceDetail() {
             ))}
           </div>
         ) : (
-          <p className="text-forest-400 text-sm">No media yet</p>
+          <p className="text-forest-400 text-sm">No photos yet</p>
         )}
       </div>
 
@@ -946,32 +937,23 @@ export function DanceDetail() {
                           <input
                             ref={rehearsalMediaInputRef}
                             type="file"
-                            accept="image/*,video/*"
+                            accept="image/*"
                             multiple
                             onChange={(e) => activeRehearsalId && handleRehearsalMediaUpload(e, activeRehearsalId)}
                             className="hidden"
-                            aria-label="Upload rehearsal media"
+                            aria-label="Upload rehearsal photos"
                           />
 
                           {note.media && note.media.length > 0 ? (
                             <div className="grid grid-cols-4 gap-2">
                               {note.media.map(item => (
                                 <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden bg-forest-100">
-                                  {item.type === 'image' ? (
-                                    <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center">
-                                      <video src={item.url} className="w-full h-full object-cover" />
-                                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                                        <Play size={16} className="text-white" />
-                                      </div>
-                                    </div>
-                                  )}
+                                  <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
                                 </div>
                               ))}
                             </div>
                           ) : (
-                            <p className="text-forest-400 text-xs">No media</p>
+                            <p className="text-forest-400 text-xs">No photos</p>
                           )}
                         </div>
 

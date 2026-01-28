@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Video, X, Check } from 'lucide-react';
+import { Camera, X, Check } from 'lucide-react';
 import { useAppData } from '../../hooks/useAppData';
 import { useCurrentClass } from '../../hooks/useCurrentClass';
 import { format } from 'date-fns';
@@ -71,12 +71,12 @@ export function QuickAddButton() {
           const newNote: LiveNote = {
             id: uuid(),
             timestamp: new Date().toISOString(),
-            text: `Video: ${file.name}`,
+            text: `Photo: ${file.name}`,
           };
 
           const newMedia: MediaItem = {
             id: uuid(),
-            type: file.type.startsWith('video/') ? 'video' : 'image',
+            type: 'image',
             url: dataUrl,
             name: file.name,
             timestamp: new Date().toISOString(),
@@ -99,7 +99,7 @@ export function QuickAddButton() {
           if (dance) {
             const newMedia: MediaItem = {
               id: uuid(),
-              type: file.type.startsWith('video/') ? 'video' : 'image',
+              type: 'image',
               url: dataUrl,
               name: file.name,
               timestamp: new Date().toISOString(),
@@ -137,7 +137,7 @@ export function QuickAddButton() {
       <input
         ref={fileInputRef}
         type="file"
-        accept="video/*,image/*"
+        accept="image/*"
         onChange={handleFileSelect}
         className="hidden"
       />
@@ -152,10 +152,10 @@ export function QuickAddButton() {
 
       {/* Floating Menu */}
       {isOpen && (
-        <div className="fixed bottom-24 lg:bottom-10 right-4 left-4 z-50 max-w-sm ml-auto">
+        <div className="fixed bottom-24 lg:bottom-10 right-4 left-4 z-50 max-w-sm ml-auto" style={{ marginBottom: 'env(safe-area-inset-bottom, 0)' }}>
           <div className="bg-white dark:bg-blush-800 rounded-xl shadow-lg p-4 animate-fade-in border border-blush-200 dark:border-blush-700">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-forest-700 dark:text-white">Add Rehearsal Video</h3>
+              <h3 className="font-semibold text-forest-700 dark:text-white">Add Photo</h3>
               {uploadSuccess && (
                 <div className="flex items-center gap-1 text-green-600 dark:text-green-400 text-sm">
                   <Check size={16} />
@@ -179,14 +179,14 @@ export function QuickAddButton() {
                     </div>
                     <button
                       onClick={() => handleSelectTarget(currentClass.id, 'class')}
-                      className="w-full flex items-center gap-3 p-3 bg-forest-50 dark:bg-forest-900/30 hover:bg-forest-100 dark:hover:bg-forest-900/50 rounded-lg transition-colors text-left"
+                      className="w-full flex items-center gap-3 p-3 bg-forest-50 dark:bg-forest-900/30 hover:bg-forest-100 dark:hover:bg-forest-900/50 active:bg-forest-200 dark:active:bg-forest-900/70 rounded-lg transition-colors text-left"
                     >
                       <div className="w-10 h-10 bg-forest-600 rounded-lg flex items-center justify-center">
-                        <Video size={20} className="text-white" />
+                        <Camera size={20} className="text-white" />
                       </div>
                       <div>
                         <div className="font-medium text-forest-700 dark:text-white">{currentClass.name}</div>
-                        <div className="text-xs text-forest-500 dark:text-blush-400">Add video to class notes</div>
+                        <div className="text-xs text-forest-500 dark:text-blush-400">Add photo to class notes</div>
                       </div>
                     </button>
                   </div>
@@ -201,10 +201,10 @@ export function QuickAddButton() {
                         <button
                           key={dance.id}
                           onClick={() => handleSelectTarget(dance.id, 'dance')}
-                          className="w-full flex items-center gap-3 p-3 bg-blush-50 dark:bg-blush-700 hover:bg-blush-100 dark:hover:bg-blush-600 rounded-lg transition-colors text-left"
+                          className="w-full flex items-center gap-3 p-3 bg-blush-50 dark:bg-blush-700 hover:bg-blush-100 dark:hover:bg-blush-600 active:bg-blush-200 dark:active:bg-blush-500 rounded-lg transition-colors text-left"
                         >
                           <div className="w-10 h-10 bg-blush-400 dark:bg-blush-500 rounded-lg flex items-center justify-center">
-                            <Video size={20} className="text-white" />
+                            <Camera size={20} className="text-white" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="font-medium text-forest-700 dark:text-white truncate">{dance.registrationName}</div>
@@ -225,14 +225,14 @@ export function QuickAddButton() {
                         <button
                           key={event.id}
                           onClick={() => handleSelectTarget(event.id, 'event')}
-                          className="w-full flex items-center gap-3 p-3 bg-blush-50 dark:bg-blush-700 hover:bg-blush-100 dark:hover:bg-blush-600 rounded-lg transition-colors text-left"
+                          className="w-full flex items-center gap-3 p-3 bg-blush-50 dark:bg-blush-700 hover:bg-blush-100 dark:hover:bg-blush-600 active:bg-blush-200 dark:active:bg-blush-500 rounded-lg transition-colors text-left"
                         >
                           <div className="w-10 h-10 bg-blush-400 dark:bg-blush-500 rounded-lg flex items-center justify-center">
-                            <Video size={20} className="text-white" />
+                            <Camera size={20} className="text-white" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="font-medium text-forest-700 dark:text-white truncate">{event.title}</div>
-                            <div className="text-xs text-forest-500 dark:text-blush-400">Add video</div>
+                            <div className="text-xs text-forest-500 dark:text-blush-400">Add photo</div>
                           </div>
                         </button>
                       ))}
@@ -242,7 +242,7 @@ export function QuickAddButton() {
 
                 {!currentClass && competitionDances.length === 0 && todayEvents.length === 0 && (
                   <div className="text-center py-4 text-forest-500 dark:text-blush-400 text-sm">
-                    No classes or dances to add video to right now
+                    No classes or dances to add photo to right now
                   </div>
                 )}
               </div>
@@ -254,16 +254,17 @@ export function QuickAddButton() {
       {/* Main FAB Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed bottom-20 right-4 lg:bottom-6 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all ${
+        className={`fixed bottom-20 right-4 lg:bottom-6 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all active:scale-95 ${
           isOpen
             ? 'bg-forest-700'
             : 'bg-forest-600 hover:bg-forest-700'
         }`}
+        style={{ marginBottom: 'env(safe-area-inset-bottom, 0)' }}
       >
         {isOpen ? (
           <X size={24} className="text-white" />
         ) : (
-          <Video size={24} className="text-white" />
+          <Camera size={24} className="text-white" />
         )}
       </button>
     </>
