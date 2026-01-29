@@ -7,6 +7,7 @@ import { DropdownMenu } from '../components/common/DropdownMenu';
 import { LiveNote, ClassWeekNotes, WeekNotes, Student } from '../types';
 import { formatTimeDisplay, getCurrentTimeMinutes, getMinutesRemaining, formatWeekOf, getWeekStart } from '../utils/time';
 import { saveWeekNotes as saveWeekNotesToStorage, getWeekNotes as getWeekNotesFromStorage } from '../services/storage';
+import { flushPendingSave } from '../services/cloudStorage';
 import { v4 as uuid } from 'uuid';
 import { processMediaFile } from '../utils/mediaCompression';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
@@ -457,6 +458,11 @@ export function LiveNotes() {
       // Synchronous save directly to localStorage + cloud
       saveWeekNotesToStorage(updatedNextWeek);
     }
+
+    // Force immediate cloud save before navigation
+    // This prevents the race condition where cloud sync on app visibility
+    // overwrites localStorage with stale cloud data before debounced save completes
+    flushPendingSave();
 
     navigate('/');
   };
