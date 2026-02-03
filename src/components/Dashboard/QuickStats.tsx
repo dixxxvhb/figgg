@@ -64,7 +64,7 @@ export function QuickStats({ todayClasses, projects, competitions }: QuickStatsP
           <div className="flex gap-2">
             {getScheduleForCompetition(nextComp.id).length > 0 && (
               <Link
-                to={`/competitions?comp=${nextComp.id}&tab=schedule`}
+                to={`/choreography/${nextComp.id}&tab=schedule`}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-forest-600 text-white rounded-lg text-sm font-medium hover:bg-forest-700 transition-colors"
               >
                 <ListOrdered size={16} />
@@ -72,7 +72,7 @@ export function QuickStats({ todayClasses, projects, competitions }: QuickStatsP
               </Link>
             )}
             <Link
-              to={`/competitions?comp=${nextComp.id}&tab=checklist`}
+              to={`/choreography/${nextComp.id}&tab=checklist`}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 getScheduleForCompetition(nextComp.id).length > 0
                   ? 'bg-white dark:bg-blush-600 text-forest-700 dark:text-white border border-forest-300 dark:border-blush-500 hover:bg-forest-50 dark:hover:bg-blush-500'

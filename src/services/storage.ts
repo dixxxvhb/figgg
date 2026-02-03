@@ -6,7 +6,7 @@ import { initialProjects } from '../data/projects';
 import { initialCompetitions } from '../data/competitions';
 import { initialCompetitionDances } from '../data/competitionDances';
 import { students as initialStudents } from '../data/students';
-import { debouncedCloudSave, fetchCloudData, saveCloudData, flushPendingSave } from './cloudStorage';
+import { debouncedCloudSave, fetchCloudData, saveCloudData, flushPendingSave, immediateCloudSave } from './cloudStorage';
 
 // Set up page unload handler to flush pending saves
 if (typeof window !== 'undefined') {
@@ -172,6 +172,16 @@ function migrateClassRosters(storedStudents: typeof initialStudents): typeof ini
 let loadDataCache: { data: AppData; timestamp: number } | null = null;
 const LOAD_CACHE_TTL = 500; // ms
 
+// Track recent local saves to prevent cloud sync from overwriting
+// This prevents the race condition where cloud sync returns stale data
+// before the local save has been pushed to cloud
+let lastLocalSaveTime = 0;
+const LOCAL_SAVE_GRACE_PERIOD = 15000; // 15 seconds - covers AI expansion time
+
+export function wasRecentlySavedLocally(): boolean {
+  return Date.now() - lastLocalSaveTime < LOCAL_SAVE_GRACE_PERIOD;
+}
+
 export function loadData(): AppData {
   // Return cached result if fresh
   if (loadDataCache && Date.now() - loadDataCache.timestamp < LOAD_CACHE_TTL) {
@@ -240,25 +250,34 @@ export const saveEvents = {
   }
 };
 
-export function saveData(data: AppData): void {
+// Save to localStorage only (no cloud sync) - used when immediateCloudSave will be called separately
+function saveDataLocalOnly(data: AppData): AppData {
   // Invalidate load cache on save
   loadDataCache = null;
+  // Track local save time to prevent cloud sync race condition
+  lastLocalSaveTime = Date.now();
+
+  // Add timestamp for conflict resolution
+  const dataWithTimestamp = {
+    ...data,
+    lastModified: new Date().toISOString(),
+  };
+
+  const jsonString = JSON.stringify(dataWithTimestamp);
+
+  // Check if data is too large for localStorage (typically 5-10MB limit)
+  if (jsonString.length > 4 * 1024 * 1024) {
+    const sizeInMB = (jsonString.length / (1024 * 1024)).toFixed(2);
+    console.warn(`Data size (${sizeInMB}MB) is large, may exceed localStorage limit`);
+  }
+
+  localStorage.setItem(STORAGE_KEY, jsonString);
+  return dataWithTimestamp;
+}
+
+export function saveData(data: AppData): void {
   try {
-    // Add timestamp for conflict resolution
-    const dataWithTimestamp = {
-      ...data,
-      lastModified: new Date().toISOString(),
-    };
-
-    const jsonString = JSON.stringify(dataWithTimestamp);
-
-    // Check if data is too large for localStorage (typically 5-10MB limit)
-    if (jsonString.length > 4 * 1024 * 1024) {
-      const sizeInMB = (jsonString.length / (1024 * 1024)).toFixed(2);
-      console.warn(`Data size (${sizeInMB}MB) is large, may exceed localStorage limit`);
-    }
-
-    localStorage.setItem(STORAGE_KEY, jsonString);
+    const dataWithTimestamp = saveDataLocalOnly(data);
     // Also sync to cloud (debounced to avoid too many requests)
     debouncedCloudSave(dataWithTimestamp);
     saveEvents.emit('saving');
@@ -310,10 +329,90 @@ function migrateCloudData(cloudData: AppData): AppData {
   };
 }
 
+// Merge weekNotes from two sources - NEVER lose notes
+function mergeWeekNotes(local: WeekNotes[], cloud: WeekNotes[]): WeekNotes[] {
+  const merged = new Map<string, WeekNotes>();
+
+  // Start with cloud data
+  for (const wn of cloud) {
+    merged.set(wn.weekOf, wn);
+  }
+
+  // Merge in local data
+  for (const localWN of local) {
+    const existing = merged.get(localWN.weekOf);
+    if (!existing) {
+      // Local has notes for a week cloud doesn't - keep them
+      merged.set(localWN.weekOf, localWN);
+    } else {
+      // Both have notes for this week - merge class notes
+      const mergedClassNotes = { ...existing.classNotes };
+
+      for (const [classId, localClassNotes] of Object.entries(localWN.classNotes)) {
+        const existingClassNotes = mergedClassNotes[classId];
+        if (!existingClassNotes) {
+          // Local has notes for a class cloud doesn't
+          mergedClassNotes[classId] = localClassNotes;
+        } else {
+          // Both have notes - keep the one with more content, or merge liveNotes
+          const localPlan = localClassNotes.plan || '';
+          const cloudPlan = existingClassNotes.plan || '';
+          const localLiveNotes = localClassNotes.liveNotes || [];
+          const cloudLiveNotes = existingClassNotes.liveNotes || [];
+
+          // Merge liveNotes by ID, keeping the most recent version of each note
+          const liveNotesMap = new Map<string, typeof localLiveNotes[0]>();
+          for (const note of cloudLiveNotes) {
+            liveNotesMap.set(note.id, note);
+          }
+          for (const note of localLiveNotes) {
+            const existing = liveNotesMap.get(note.id);
+            // Keep whichever note is newer based on timestamp
+            if (!existing || new Date(note.timestamp) >= new Date(existing.timestamp)) {
+              liveNotesMap.set(note.id, note);
+            }
+          }
+
+          mergedClassNotes[classId] = {
+            ...existingClassNotes,
+            ...localClassNotes,
+            // Keep longer plan (more content = more work done)
+            plan: localPlan.length >= cloudPlan.length ? localPlan : cloudPlan,
+            // Merged live notes
+            liveNotes: Array.from(liveNotesMap.values()),
+            // Keep organized notes if either has them
+            organizedNotes: localClassNotes.organizedNotes || existingClassNotes.organizedNotes,
+            isOrganized: localClassNotes.isOrganized || existingClassNotes.isOrganized,
+            // Merge media
+            media: [...(existingClassNotes.media || []), ...(localClassNotes.media || [])].filter(
+              (m, i, arr) => arr.findIndex(x => x.id === m.id) === i
+            ),
+            // Merge attendance
+            attendance: localClassNotes.attendance || existingClassNotes.attendance,
+          };
+        }
+      }
+
+      merged.set(localWN.weekOf, {
+        ...existing,
+        classNotes: mergedClassNotes,
+      });
+    }
+  }
+
+  return Array.from(merged.values());
+}
+
 // Sync data from cloud - call this on app load
-// Uses timestamp-based conflict resolution: most recent wins
+// Uses smart merging to NEVER lose data
 export async function syncFromCloud(): Promise<AppData | null> {
   try {
+    // If there was a recent local save, skip cloud sync to avoid race condition
+    // The local data will be pushed to cloud by the pending save
+    if (wasRecentlySavedLocally()) {
+      return null;
+    }
+
     const cloudData = await fetchCloudData();
     if (!cloudData) return null;
 
@@ -322,23 +421,57 @@ export async function syncFromCloud(): Promise<AppData | null> {
 
     const localData = loadData();
 
-    // Compare timestamps for conflict resolution
+    // ALWAYS merge weekNotes - never lose notes from either source
+    const mergedWeekNotes = mergeWeekNotes(
+      localData.weekNotes || [],
+      migratedCloudData.weekNotes || []
+    );
+
+    // Merge selfCare data - keep local if it has more recent dose times
+    const localSelfCare = localData.selfCare || {};
+    const cloudSelfCare = migratedCloudData.selfCare || {};
+    const mergedSelfCare = {
+      ...cloudSelfCare,
+      ...localSelfCare,
+      // Keep whichever has more recent dose times
+      dose1Time: (localSelfCare.dose1Time || 0) > (cloudSelfCare.dose1Time || 0)
+        ? localSelfCare.dose1Time : cloudSelfCare.dose1Time,
+      dose1Date: (localSelfCare.dose1Time || 0) > (cloudSelfCare.dose1Time || 0)
+        ? localSelfCare.dose1Date : cloudSelfCare.dose1Date,
+      dose2Time: (localSelfCare.dose2Time || 0) > (cloudSelfCare.dose2Time || 0)
+        ? localSelfCare.dose2Time : cloudSelfCare.dose2Time,
+      dose2Date: (localSelfCare.dose2Time || 0) > (cloudSelfCare.dose2Time || 0)
+        ? localSelfCare.dose2Date : cloudSelfCare.dose2Date,
+    };
+
+    // Compare timestamps for base data resolution (but weekNotes are always merged)
     const cloudTime = migratedCloudData.lastModified ? new Date(migratedCloudData.lastModified).getTime() : 0;
     const localTime = localData.lastModified ? new Date(localData.lastModified).getTime() : 0;
 
+    let baseData: AppData;
     if (cloudTime > localTime) {
-      // Cloud is newer - use migrated cloud data
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedCloudData));
-      return migratedCloudData;
-    } else if (localTime > cloudTime) {
-      // Local is newer - push local to cloud
-      debouncedCloudSave(localData);
-      return localData;
+      // Cloud is newer for base data
+      baseData = migratedCloudData;
+    } else {
+      // Local is newer for base data
+      baseData = localData;
     }
 
-    // Same timestamp or both missing - use migrated cloud data as fallback
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedCloudData));
-    return migratedCloudData;
+    // Create merged result - weekNotes and selfCare are always merged
+    const mergedData: AppData = {
+      ...baseData,
+      weekNotes: mergedWeekNotes,
+      selfCare: mergedSelfCare,
+      lastModified: new Date().toISOString(),
+    };
+
+    // Save merged data locally
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(mergedData));
+
+    // Push merged data to cloud so all devices have the same merged state
+    debouncedCloudSave(mergedData);
+
+    return mergedData;
   } catch (error) {
     console.error('Failed to sync from cloud:', error);
     return null;
@@ -379,7 +512,12 @@ export function saveWeekNotes(weekNotes: WeekNotes): void {
   } else {
     data.weekNotes.push(weekNotes);
   }
-  saveData(data);
+  // Save locally (without triggering debounced cloud save)
+  const dataWithTimestamp = saveDataLocalOnly(data);
+  saveEvents.emit('saving');
+  // IMMEDIATELY sync notes to cloud - these are critical and should never be lost
+  // Only one cloud save, not two (was calling both saveData and immediateCloudSave before)
+  immediateCloudSave(dataWithTimestamp);
 }
 
 export function updateProjects(projects: Project[]): void {
@@ -396,11 +534,30 @@ export function updateCompetitions(competitions: Competition[]): void {
 
 export function updateCalendarEvents(events: CalendarEvent[]): void {
   const data = loadData();
-  // Deduplicate by ID (same title+date+time from different calendars)
+  const existingEvents = data.calendarEvents || [];
+
+  // Create a map of existing events to preserve user modifications (like linkedDanceIds)
+  const existingMap = new Map<string, CalendarEvent>();
+  for (const event of existingEvents) {
+    existingMap.set(event.id, event);
+  }
+
+  // Deduplicate new events by ID, merging with existing user modifications
   const seen = new Map<string, CalendarEvent>();
   for (const event of events) {
-    seen.set(event.id, event);
+    const existing = existingMap.get(event.id);
+    if (existing) {
+      // Merge: keep new calendar data but preserve user modifications
+      seen.set(event.id, {
+        ...event,
+        linkedDanceIds: existing.linkedDanceIds, // Preserve linked dances
+      });
+    } else {
+      seen.set(event.id, event);
+    }
   }
+
+  // Replace all events - this removes events no longer in any calendar feed
   data.calendarEvents = Array.from(seen.values());
   saveData(data);
 }

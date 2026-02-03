@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Plus, User, Phone, Mail, ChevronRight, X, Trash2, Award, AlertTriangle, TrendingUp, MessageSquare, Calendar, Music, Camera, BarChart3, UserCheck, Clock3, UserX } from 'lucide-react';
 import { format } from 'date-fns';

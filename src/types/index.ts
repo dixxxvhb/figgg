@@ -26,6 +26,7 @@ export interface Class {
   endTime: string;   // "10:25"
   studioId: string;
   recitalSong?: string;
+  isRecitalSong?: boolean; // true = recital song, false/undefined = class combo
   choreographyNotes?: string;
   musicLinks: MusicLink[];
   studentIds?: string[]; // Enrolled students
@@ -306,6 +307,8 @@ export interface AppData {
   attendance?: AttendanceRecord[];
   // Personal self-care tracking
   selfCare?: SelfCareData;
+  // Choreography system (replaces competitions)
+  choreographies?: import('./choreography').Choreography[];
 }
 
 export interface UserLocation {
@@ -355,12 +358,63 @@ export interface SelfCareData {
   dose1Date?: string | null;
   dose2Time?: number | null;
   dose2Date?: string | null;
+  skippedDoseDate?: string | null;                 // YYYY-MM-DD when user skips meds for the day
+  skippedDose1Date?: string | null;                // YYYY-MM-DD when user skips just dose 1
+  skippedDose2Date?: string | null;                // YYYY-MM-DD when user skips just dose 2
   medType?: 'IR' | 'XR';
   wakeTime?: string;
   sleepTime?: string;
   streakData?: ADHDStreakData;
   smartTaskStates?: Record<string, boolean>;  // smartTaskId -> completed
   smartTaskDate?: string;                      // YYYY-MM-DD, auto-resets daily
+  unifiedTaskStates?: Record<string, boolean>; // unifiedTaskId -> completed
+  unifiedTaskDate?: string;                    // YYYY-MM-DD, auto-resets daily
+  // iOS-style Reminders
+  reminders?: Reminder[];
+  reminderLists?: ReminderList[];
+}
+
+// ===== iOS-STYLE REMINDERS =====
+
+export interface ReminderList {
+  id: string;
+  name: string;
+  color: string; // hex color
+  icon: string; // lucide icon name
+  order: number;
+  isSmartList?: boolean; // For "Today", "Scheduled", "All", "Flagged"
+  createdAt: string;
+}
+
+export interface Reminder {
+  id: string;
+  title: string;
+  notes?: string;
+  listId: string;
+  completed: boolean;
+  completedAt?: string; // ISO timestamp
+  dueDate?: string; // ISO date
+  dueTime?: string; // "HH:mm" format
+  priority: 'none' | 'low' | 'medium' | 'high';
+  flagged: boolean;
+  url?: string;
+  subtasks?: Subtask[];
+  recurring?: RecurringSchedule;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Subtask {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
+export interface RecurringSchedule {
+  type: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  interval: number; // every N days/weeks/months/years
+  weekdays?: number[]; // 0-6 for weekly, days to repeat on
+  endDate?: string; // ISO date when to stop recurring
 }
 
 export interface CurrentClassInfo {

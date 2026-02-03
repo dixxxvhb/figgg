@@ -1,14 +1,14 @@
 {
-  "name": "Dance Teaching Notes",
-  "short_name": "Dance Notes",
+  "name": "dixxx",
+  "short_name": "dixxx",
   "description": "Track your dance classes, take notes, and plan your teaching week",
   "start_url": "/",
   "id": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#f9fafb",
-  "theme_color": "#16a34a",
+  "background_color": "#f5d0d3",
+  "theme_color": "#2d5a4a",
   "icons": [
     {
       "src": "/icon-192.png",

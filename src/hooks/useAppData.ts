@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppData, Class, WeekNotes, Project, Competition, CompetitionDance, Student, AttendanceRecord, CalendarEvent } from '../types';
-import { loadData, saveData } from '../services/storage';
+import { loadData, saveData, wasRecentlySavedLocally, saveWeekNotes as saveWeekNotesToStorage } from '../services/storage';
 import { getWeekStart, formatWeekOf } from '../utils/time';
 import { v4 as uuid } from 'uuid';
 
@@ -68,6 +68,11 @@ export function useAppData() {
   }, [data.weekNotes]);
 
   const saveWeekNotes = useCallback((weekNotes: WeekNotes) => {
+    // Use the storage version directly for immediate cloud sync
+    // This ensures notes are saved reliably even if the app closes
+    saveWeekNotesToStorage(weekNotes);
+
+    // Also update React state so UI reflects changes immediately
     setData(prev => {
       const index = prev.weekNotes.findIndex(w => w.weekOf === weekNotes.weekOf);
       if (index !== -1) {
@@ -153,7 +158,10 @@ export function useAppData() {
   // Listen for cloud sync events and refresh data automatically
   useEffect(() => {
     const handleCloudSync = () => {
-      setData(loadData());
+      // Only reload if no pending local changes - prevents overwriting unsaved edits
+      if (!wasRecentlySavedLocally()) {
+        setData(loadData());
+      }
     };
 
     window.addEventListener('cloud-sync-complete', handleCloudSync);

@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, Download, Upload, Check, Calendar, Sparkles, RefreshCw, AlertCircle, Cloud, BookOpen, Trophy, ClipboardList, Sun, Moon, Type, Users, Grid3X3, ChevronRight, ArrowLeft } from 'lucide-react';
+import { MapPin, Download, Upload, Check, Calendar, Sparkles, RefreshCw, AlertCircle, Cloud, BookOpen, Trophy, ClipboardList, Sun, Moon, Type, Users, Grid3X3, ChevronRight, ArrowLeft, Music, Star, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import { exportData, importData, updateCalendarEvents, updateSettings, syncFromCloud, pushToCloud } from '../services/storage';
 import { fetchCalendarEvents } from '../services/calendar';
 import { Button } from '../components/common/Button';
 
 export function Settings() {
-  const { data, refreshData, updateStudio } = useAppData();
+  const { data, refreshData, updateStudio, updateClass } = useAppData();
+  const [showRecitalSongs, setShowRecitalSongs] = useState(false);
   const [showImportSuccess, setShowImportSuccess] = useState(false);
   const [editingStudio, setEditingStudio] = useState<string | null>(null);
   const [studioAddress, setStudioAddress] = useState('');
@@ -31,7 +32,7 @@ export function Settings() {
   const [darkMode, setDarkMode] = useState(data.settings?.darkMode || false);
 
   // Apply font size to document
-  React.useEffect(() => {
+  useEffect(() => {
     const root = document.documentElement;
     switch (fontSize) {
       case 'large':
@@ -46,7 +47,7 @@ export function Settings() {
   }, [fontSize]);
 
   // Apply dark mode
-  React.useEffect(() => {
+  useEffect(() => {
     if (darkMode) {
       document.documentElement.classList.add('dark');
     } else {
@@ -147,7 +148,7 @@ export function Settings() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `dwd-collective-backup-${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `dixxx-backup-${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -236,6 +237,76 @@ export function Settings() {
         </div>
       </section>
 
+      {/* Recital Songs Management */}
+      <section className="mb-8">
+        <button
+          onClick={() => setShowRecitalSongs(!showRecitalSongs)}
+          className="w-full flex items-center justify-between p-4 bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 shadow-sm hover:border-purple-300 dark:hover:border-purple-600 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/50 rounded-xl flex items-center justify-center">
+              <Music size={20} className="text-purple-600 dark:text-purple-400" />
+            </div>
+            <div className="text-left">
+              <div className="font-medium text-forest-700 dark:text-white">Recital Songs</div>
+              <div className="text-sm text-forest-400 dark:text-blush-400">
+                {data.classes.filter(c => c.recitalSong && c.isRecitalSong).length} recital • {data.classes.filter(c => c.recitalSong && !c.isRecitalSong).length} combos
+              </div>
+            </div>
+          </div>
+          {showRecitalSongs ? (
+            <ChevronUp size={20} className="text-forest-400" />
+          ) : (
+            <ChevronDown size={20} className="text-forest-400" />
+          )}
+        </button>
+
+        {showRecitalSongs && (
+          <div className="mt-3 bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 overflow-hidden">
+            <div className="p-3 bg-purple-50 dark:bg-purple-900/20 border-b border-blush-200 dark:border-blush-700">
+              <p className="text-xs text-purple-700 dark:text-purple-300">
+                Toggle between recital songs and class combos. Recital songs show with a ⭐ on the schedule.
+              </p>
+            </div>
+            <div className="divide-y divide-blush-100 dark:divide-blush-700">
+              {data.classes
+                .filter(c => c.recitalSong)
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(cls => (
+                  <div key={cls.id} className="flex items-center justify-between p-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-forest-700 dark:text-white text-sm truncate">
+                        {cls.name}
+                      </div>
+                      <div className="text-xs text-forest-400 dark:text-blush-400 truncate">
+                        {cls.recitalSong}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => updateClass({ ...cls, isRecitalSong: !cls.isRecitalSong })}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                        cls.isRecitalSong
+                          ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700'
+                          : 'bg-blush-100 dark:bg-blush-700 text-blush-600 dark:text-blush-300 border border-blush-300 dark:border-blush-600'
+                      }`}
+                    >
+                      <Star size={12} className={cls.isRecitalSong ? 'fill-purple-500' : ''} />
+                      {cls.isRecitalSong ? 'Recital' : 'Combo'}
+                    </button>
+                  </div>
+                ))}
+              {data.classes.filter(c => c.recitalSong).length === 0 && (
+                <div className="p-6 text-center text-blush-500 dark:text-blush-400">
+                  <Music size={24} className="mx-auto mb-2 text-blush-300 dark:text-blush-600" />
+                  <p className="text-sm">No songs assigned yet</p>
+                  <p className="text-xs mt-1">Add songs in each class's detail page</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+
       {/* Display Settings */}
       <section className="mb-8">
         <h2 className="text-lg font-semibold text-forest-700 mb-4 dark:text-white">Display</h2>
@@ -281,7 +352,7 @@ export function Settings() {
           </div>
 
           {/* Dark Mode */}
-          <div className="pt-2 border-t border-gray-100 dark:border-blush-700">
+          <div className="pt-2 border-t border-blush-100 dark:border-blush-700">
             <button
               onClick={handleDarkModeToggle}
               className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-forest-50 dark:hover:bg-blush-700 transition-colors"
@@ -556,7 +627,7 @@ export function Settings() {
       <div className="mt-8 text-center">
         <div className="inline-flex items-center gap-2 text-xs text-forest-400 dark:text-blush-500">
           <Sparkles size={12} />
-          DWD Collective v1.0
+          DIXXX v1.0
         </div>
       </div>
     </div>

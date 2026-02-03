@@ -9,16 +9,18 @@ interface PullToRefreshProps {
 
 export function PullToRefresh({ children, onRefresh }: PullToRefreshProps) {
   const { triggerSync, status } = useSyncStatus();
-  const [pullDistance, setPullDistance] = useState(0);
+  const [displayDistance, setDisplayDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const indicatorRef = useRef<HTMLDivElement>(null);
   const startYRef = useRef(0);
+  const pullDistanceRef = useRef(0);
   const isPullingRef = useRef(false);
   const isRefreshingRef = useRef(false);
 
   const THRESHOLD = 80;
   const MAX_PULL = 120;
-  const MIN_PULL_START = 5; // Minimum px before starting pull (avoids false triggers from iOS momentum)
+  const MIN_PULL_START = 10; // Minimum px before starting pull
 
   // Keep ref in sync with state for use in native event handler
   useEffect(() => {
@@ -26,14 +28,14 @@ export function PullToRefresh({ children, onRefresh }: PullToRefreshProps) {
   }, [isRefreshing]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (containerRef.current && containerRef.current.scrollTop === 0) {
+    if (containerRef.current && containerRef.current.scrollTop <= 0) {
       startYRef.current = e.touches[0].clientY;
       isPullingRef.current = true;
+      pullDistanceRef.current = 0;
     }
   }, []);
 
-  // Use native event listener for touchmove with { passive: false }
-  // so we can call preventDefault() to stop Safari bounce-scroll
+  // Use native event listener for touchmove
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -44,10 +46,23 @@ export function PullToRefresh({ children, onRefresh }: PullToRefreshProps) {
       const currentY = e.touches[0].clientY;
       const diff = currentY - startYRef.current;
 
-      if (diff > MIN_PULL_START && el.scrollTop === 0) {
-        e.preventDefault(); // Prevent Safari bounce scroll
-        const resistance = Math.min((diff - MIN_PULL_START) * 0.5, MAX_PULL);
-        setPullDistance(resistance);
+      // Only activate pull-to-refresh when at top AND pulling down
+      if (diff > MIN_PULL_START && el.scrollTop <= 0) {
+        // Only prevent default when we're actually pulling to refresh
+        e.preventDefault();
+
+        const resistance = Math.min((diff - MIN_PULL_START) * 0.4, MAX_PULL);
+        pullDistanceRef.current = resistance;
+
+        // Update indicator directly via DOM for smooth animation (no React re-render)
+        if (indicatorRef.current) {
+          indicatorRef.current.style.height = `${resistance}px`;
+          indicatorRef.current.style.opacity = '1';
+        }
+      } else if (diff < 0) {
+        // User is scrolling down, not pulling - disable pull mode
+        isPullingRef.current = false;
+        pullDistanceRef.current = 0;
       }
     };
 
@@ -56,11 +71,13 @@ export function PullToRefresh({ children, onRefresh }: PullToRefreshProps) {
   }, []);
 
   const handleTouchEnd = useCallback(async () => {
+    const distance = pullDistanceRef.current;
     isPullingRef.current = false;
+    pullDistanceRef.current = 0;
 
-    if (pullDistance >= THRESHOLD && !isRefreshing) {
+    if (distance >= THRESHOLD && !isRefreshing) {
       setIsRefreshing(true);
-      setPullDistance(THRESHOLD * 0.5);
+      setDisplayDistance(THRESHOLD * 0.5);
 
       try {
         await triggerSync();
@@ -69,30 +86,39 @@ export function PullToRefresh({ children, onRefresh }: PullToRefreshProps) {
         }
       } finally {
         setIsRefreshing(false);
-        setPullDistance(0);
+        setDisplayDistance(0);
+        if (indicatorRef.current) {
+          indicatorRef.current.style.height = '0px';
+          indicatorRef.current.style.opacity = '0';
+        }
       }
     } else {
-      setPullDistance(0);
+      // Animate back to 0
+      if (indicatorRef.current) {
+        indicatorRef.current.style.height = '0px';
+        indicatorRef.current.style.opacity = '0';
+      }
     }
-  }, [pullDistance, isRefreshing, triggerSync, onRefresh]);
+  }, [isRefreshing, triggerSync, onRefresh]);
 
-  const isActive = pullDistance > 0 || isRefreshing;
-  const progress = Math.min(pullDistance / THRESHOLD, 1);
-  const shouldTrigger = pullDistance >= THRESHOLD;
+  const progress = Math.min(displayDistance / THRESHOLD, 1);
+  const shouldTrigger = displayDistance >= THRESHOLD;
 
   return (
     <div
       ref={containerRef}
-      className="h-full overflow-y-auto"
+      className="h-full overflow-y-auto overscroll-none"
+      style={{ WebkitOverflowScrolling: 'touch' }}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
       {/* Pull indicator */}
       <div
-        className="flex items-center justify-center overflow-hidden transition-all duration-200"
+        ref={indicatorRef}
+        className="flex items-center justify-center overflow-hidden transition-[height,opacity] duration-200 ease-out"
         style={{
-          height: isActive ? Math.max(pullDistance, isRefreshing ? 50 : 0) : 0,
-          opacity: isActive ? 1 : 0,
+          height: isRefreshing ? 50 : 0,
+          opacity: isRefreshing ? 1 : 0,
         }}
       >
         <div className="flex flex-col items-center gap-1 py-2">

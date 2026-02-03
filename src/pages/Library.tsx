@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search, BookOpen, Trophy, ChevronDown, ChevronUp, Volume2, Star, ClipboardList } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
@@ -265,7 +265,7 @@ export function Library() {
                       <div className="text-sm text-blush-500 dark:text-blush-400">{comp.location}</div>
                     </div>
                     <Link
-                      to={`/competitions?comp=${comp.id}&tab=checklist`}
+                      to={`/choreography/${comp.id}`}
                       className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-colors min-h-[36px] ${
                         isUpcoming
                           ? 'bg-forest-100 dark:bg-forest-900/30 text-forest-700 dark:text-forest-400 hover:bg-forest-200 dark:hover:bg-forest-900/50'

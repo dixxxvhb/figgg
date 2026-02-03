@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, Music2, Camera, X, Image, Trash2, FileText, ChevronDown, ChevronUp, ClipboardList } from 'lucide-react';
 import { format } from 'date-fns';

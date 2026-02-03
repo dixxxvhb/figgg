@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Calendar, MapPin, Clock, Trophy, Users } from 'lucide-react';
 import { format, addWeeks, startOfWeek, addDays, isWithinInterval, parseISO } from 'date-fns';
 import { useAppData } from '../hooks/useAppData';
@@ -18,8 +18,19 @@ const DAYS: { key: DayOfWeek; label: string; short: string }[] = [
 
 export function Schedule() {
   const { data } = useAppData();
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialWeek = parseInt(searchParams.get('week') || '0', 10);
+  const [weekOffset, setWeekOffset] = useState(initialWeek);
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>(getCurrentDayOfWeek());
+
+  // Update URL when week changes
+  useEffect(() => {
+    if (weekOffset !== 0) {
+      setSearchParams({ week: weekOffset.toString() }, { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
+  }, [weekOffset, setSearchParams]);
 
   const weekStart = addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), weekOffset);
   const weekLabel = format(weekStart, "'Week of' MMM d");
@@ -172,7 +183,7 @@ export function Schedule() {
             {competitionsForDay.map(comp => (
               <Link
                 key={comp.id}
-                to={`/competitions?comp=${comp.id}`}
+                to={`/choreography/${comp.id}`}
                 className="block bg-gradient-to-r from-purple-50 to-blush-50 dark:from-purple-900/30 dark:to-blush-800 rounded-xl border border-purple-200 dark:border-purple-800 p-4 hover:border-purple-300 dark:hover:border-purple-600 hover:shadow-md transition-all"
               >
                 <div className="font-medium text-forest-700 dark:text-white">{comp.name}</div>
@@ -225,7 +236,7 @@ export function Schedule() {
               return (
                 <Link
                   key={cls.id}
-                  to={`/class/${cls.id}`}
+                  to={`/class/${cls.id}${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`}
                   className="block bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4 hover:border-forest-300 dark:hover:border-forest-600 hover:shadow-md transition-all"
                 >
                   <div className="flex items-start gap-3">
@@ -250,8 +261,12 @@ export function Schedule() {
                         {studio?.name}
                       </div>
                       {cls.recitalSong && (
-                        <div className="text-sm text-blush-500 dark:text-blush-400 mt-2 font-medium">
-                          Recital: {cls.recitalSong}
+                        <div className={`text-sm mt-2 font-medium ${
+                          cls.isRecitalSong
+                            ? 'text-purple-600 dark:text-purple-400'
+                            : 'text-blush-500 dark:text-blush-400'
+                        }`}>
+                          {cls.isRecitalSong ? '⭐ Recital: ' : 'Combo: '}{cls.recitalSong}
                         </div>
                       )}
                     </div>

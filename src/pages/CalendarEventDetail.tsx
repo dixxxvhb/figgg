@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Clock, MapPin, Play, Calendar, Plus, Trash2, FileText, Image, Edit2, Save, Users, UserCheck, UserX, Clock3, ChevronDown, ChevronUp, Music, X, Camera } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';

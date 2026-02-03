@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, Music, Edit2, Save, X, Plus, Trash2, Play, History, ChevronDown, ChevronUp, FileText, Image, Users, UserCheck, UserX, Clock3, UserPlus, User, Grid3X3, List, Camera } from 'lucide-react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Clock, MapPin, Music, Edit2, Save, X, Plus, Trash2, Play, History, ChevronDown, ChevronUp, FileText, Image, Users, UserCheck, UserX, Clock3, UserPlus, User, Grid3X3, List, Camera, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { timeToMinutes } from '../utils/time';
 import { useAppData } from '../hooks/useAppData';
 import { formatTimeDisplay, formatWeekOf, getWeekStart } from '../utils/time';
 import { addWeeks, format } from 'date-fns';
@@ -13,6 +14,8 @@ import { useConfirmDialog } from '../components/common/ConfirmDialog';
 
 export function ClassDetail() {
   const { classId } = useParams<{ classId: string }>();
+  const [searchParams] = useSearchParams();
+  const weekOffset = parseInt(searchParams.get('week') || '0', 10);
   const { data, updateClass, getCurrentWeekNotes, saveWeekNotes, getWeekNotes, updateStudent } = useAppData();
   const [isEditing, setIsEditing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -23,18 +26,48 @@ export function ClassDetail() {
   const cls = data.classes.find(c => c.id === classId);
   const studio = cls ? data.studios.find(s => s.id === cls.studioId) : null;
 
-  // Keep weekNotes in local state to prevent stale data issues
-  const [weekNotes, setWeekNotes] = useState(() => getCurrentWeekNotes());
+  // Get same-day classes for navigation (sorted by start time)
+  const sameDayClasses = useMemo(() => {
+    if (!cls) return [];
+    return data.classes
+      .filter(c => c.day === cls.day)
+      .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+  }, [data.classes, cls]);
 
-  // Sync weekNotes when data changes (e.g., from cloud sync)
+  const currentClassIndex = sameDayClasses.findIndex(c => c.id === classId);
+  const prevClass = currentClassIndex > 0 ? sameDayClasses[currentClassIndex - 1] : null;
+  const nextClass = currentClassIndex < sameDayClasses.length - 1 ? sameDayClasses[currentClassIndex + 1] : null;
+
+  // Calculate the week we're viewing based on offset from URL
+  const viewingWeekStart = addWeeks(getWeekStart(), weekOffset);
+  const viewingWeekOf = formatWeekOf(viewingWeekStart);
+
+  // Get week notes for the week we're viewing (not necessarily current week)
+  const getViewingWeekNotes = () => {
+    if (weekOffset === 0) {
+      return getCurrentWeekNotes();
+    }
+    const existing = getWeekNotes(viewingWeekOf);
+    if (existing) return existing;
+    return {
+      id: `week-${viewingWeekOf}`,
+      weekOf: viewingWeekOf,
+      classNotes: {},
+    };
+  };
+
+  // Keep weekNotes in local state to prevent stale data issues
+  const [weekNotes, setWeekNotes] = useState(() => getViewingWeekNotes());
+
+  // Sync weekNotes when data changes (e.g., from cloud sync) or week changes
   useEffect(() => {
-    setWeekNotes(getCurrentWeekNotes());
-  }, [data.weekNotes]);
+    setWeekNotes(getViewingWeekNotes());
+  }, [data.weekNotes, weekOffset]);
 
   const classNotes = weekNotes.classNotes[classId || ''];
 
-  // Get last week's notes
-  const lastWeekStart = addWeeks(getWeekStart(), -1);
+  // Get last week's notes (relative to the week we're viewing)
+  const lastWeekStart = addWeeks(viewingWeekStart, -1);
   const lastWeekOf = formatWeekOf(lastWeekStart);
   const lastWeekNotes = getWeekNotes(lastWeekOf);
   const lastWeekClassNotes = lastWeekNotes?.classNotes[classId || ''];
@@ -43,6 +76,12 @@ export function ClassDetail() {
   const [showRoster, setShowRoster] = useState(false);
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
   const [rosterViewMode, setRosterViewMode] = useState<'list' | 'grid'>('grid');
+  const [isEditingPlan, setIsEditingPlan] = useState(false);
+  const [editedPlan, setEditedPlan] = useState('');
+  const [isEditingSong, setIsEditingSong] = useState(false);
+  const [editedSong, setEditedSong] = useState('');
+  const [isEditingChoreoNotes, setIsEditingChoreoNotes] = useState(false);
+  const [editedChoreoNotes, setEditedChoreoNotes] = useState('');
 
   // Get students enrolled in this class
   // For rehearsal classes (with competitionDanceId), pull from the competition dance's dancerIds
@@ -300,6 +339,39 @@ export function ClassDetail() {
     setIsEditing(false);
   };
 
+  const startEditPlan = () => {
+    setEditedPlan(classNotes?.plan || '');
+    setIsEditingPlan(true);
+  };
+
+  const savePlan = () => {
+    if (!classId) return;
+    const existingNotes = classNotes || {
+      classId,
+      plan: '',
+      liveNotes: [],
+      isOrganized: false,
+      media: [],
+    };
+    const updatedNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [classId]: {
+          ...existingNotes,
+          plan: editedPlan,
+        },
+      },
+    };
+    setWeekNotes(updatedNotes);
+    saveWeekNotes(updatedNotes);
+    setIsEditingPlan(false);
+  };
+
+  const cancelEditPlan = () => {
+    setIsEditingPlan(false);
+    setEditedPlan('');
+  };
 
   const displayClass = isEditing ? editedClass : cls;
   if (!displayClass) return null;
@@ -309,7 +381,7 @@ export function ClassDetail() {
       {confirmDialog}
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <Link to="/schedule" className="p-2 hover:bg-blush-100 dark:hover:bg-blush-800 rounded-lg text-forest-700 dark:text-white">
+        <Link to={`/schedule${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`} className="p-2 hover:bg-blush-100 dark:hover:bg-blush-800 rounded-lg text-forest-700 dark:text-white">
           <ArrowLeft size={20} />
         </Link>
         <div className="flex-1">
@@ -365,6 +437,43 @@ export function ClassDetail() {
         )}
       </div>
 
+      {/* Class Navigation - Same Day */}
+      {sameDayClasses.length > 1 && (
+        <div className="flex items-center justify-between mb-4 bg-blush-50 dark:bg-blush-800 rounded-xl p-2">
+          <Link
+            to={prevClass ? `/class/${prevClass.id}${weekOffset !== 0 ? `?week=${weekOffset}` : ''}` : '#'}
+            className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-colors ${
+              prevClass
+                ? 'text-forest-600 dark:text-forest-400 hover:bg-white dark:hover:bg-blush-700'
+                : 'text-blush-300 dark:text-blush-600 pointer-events-none'
+            }`}
+          >
+            <ChevronLeft size={18} />
+            <span className="text-sm font-medium hidden sm:inline">
+              {prevClass?.name || 'Previous'}
+            </span>
+            <span className="text-sm font-medium sm:hidden">Prev</span>
+          </Link>
+          <div className="text-xs text-forest-500 dark:text-blush-400">
+            {currentClassIndex + 1} of {sameDayClasses.length} classes
+          </div>
+          <Link
+            to={nextClass ? `/class/${nextClass.id}${weekOffset !== 0 ? `?week=${weekOffset}` : ''}` : '#'}
+            className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-colors ${
+              nextClass
+                ? 'text-forest-600 dark:text-forest-400 hover:bg-white dark:hover:bg-blush-700'
+                : 'text-blush-300 dark:text-blush-600 pointer-events-none'
+            }`}
+          >
+            <span className="text-sm font-medium hidden sm:inline">
+              {nextClass?.name || 'Next'}
+            </span>
+            <span className="text-sm font-medium sm:hidden">Next</span>
+            <ChevronRight size={18} />
+          </Link>
+        </div>
+      )}
+
       {/* Quick Info */}
       <div
         className="rounded-xl p-4 mb-6 text-white"
@@ -397,23 +506,51 @@ export function ClassDetail() {
       </Link>
 
 
-      {/* Smart Plan Section */}
+      {/* Class Plan Section */}
       <div className="mb-6">
         <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium text-forest-700 dark:text-white flex items-center gap-2">
-              <FileText size={16} />
-              Class Plan
+              <FileText size={16} className="text-forest-500" />
+              Next Week's Plan
             </h3>
+            <div className="flex items-center gap-1">
+              {isEditingPlan ? (
+                <div className="flex gap-1">
+                  <button onClick={cancelEditPlan} className="p-1.5 hover:bg-blush-100 dark:hover:bg-blush-700 rounded text-blush-500">
+                    <X size={16} />
+                  </button>
+                  <button onClick={savePlan} className="p-1.5 bg-forest-100 dark:bg-forest-900/30 text-forest-600 dark:text-forest-400 rounded">
+                    <Save size={16} />
+                  </button>
+                </div>
+              ) : (
+                <button onClick={startEditPlan} className="p-1.5 hover:bg-blush-100 dark:hover:bg-blush-700 rounded text-blush-500">
+                  <Edit2 size={16} />
+                </button>
+              )}
+            </div>
           </div>
-          {classNotes?.plan ? (
+          {isEditingPlan ? (
+            <textarea
+              value={editedPlan}
+              onChange={(e) => setEditedPlan(e.target.value)}
+              placeholder="Enter plan for next week..."
+              rows={6}
+              className="w-full text-sm text-forest-600 dark:text-blush-300 bg-blush-50 dark:bg-blush-900/50 rounded-lg p-3 border-0 focus:ring-2 focus:ring-forest-500 resize-none"
+              autoFocus
+            />
+          ) : classNotes?.plan ? (
             <div className="text-sm text-forest-600 dark:text-blush-300 whitespace-pre-wrap bg-blush-50 dark:bg-blush-900/50 rounded-lg p-3">
               {classNotes.plan}
             </div>
           ) : (
-            <p className="text-sm text-blush-400 dark:text-blush-500 italic">
-              No plan yet. Plans are auto-generated when you end class with categorized notes.
-            </p>
+            <button
+              onClick={startEditPlan}
+              className="w-full text-sm text-blush-400 dark:text-blush-500 italic py-4 hover:text-forest-500 dark:hover:text-forest-400 transition-colors"
+            >
+              Tap to add a plan for next week...
+            </button>
           )}
         </div>
       </div>
@@ -766,37 +903,158 @@ export function ClassDetail() {
         )}
       </div>
 
-      {/* Recital Song */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-forest-700 dark:text-blush-200 mb-2">Recital Song</label>
-        {isEditing ? (
+      {/* Class Song */}
+      <div className="mb-6 bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <label className="flex items-center gap-2 text-sm font-medium text-forest-700 dark:text-blush-200">
+            <Music size={16} />
+            Song
+          </label>
+          <div className="flex items-center gap-2">
+            {cls?.recitalSong && !isEditingSong && (
+              <button
+                onClick={() => {
+                  const newValue = !cls?.isRecitalSong;
+                  updateClass({ ...cls!, isRecitalSong: newValue });
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                  cls?.isRecitalSong
+                    ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700'
+                    : 'bg-blush-100 dark:bg-blush-700 text-blush-600 dark:text-blush-300 border border-blush-300 dark:border-blush-600'
+                }`}
+              >
+                <Star size={12} className={cls?.isRecitalSong ? 'fill-purple-500' : ''} />
+                {cls?.isRecitalSong ? 'Recital' : 'Combo'}
+              </button>
+            )}
+            {isEditingSong ? (
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setIsEditingSong(false)}
+                  className="p-1.5 hover:bg-blush-100 dark:hover:bg-blush-700 rounded text-blush-500"
+                >
+                  <X size={16} />
+                </button>
+                <button
+                  onClick={() => {
+                    updateClass({ ...cls!, recitalSong: editedSong });
+                    setIsEditingSong(false);
+                  }}
+                  className="p-1.5 bg-forest-100 dark:bg-forest-900/30 text-forest-600 dark:text-forest-400 rounded"
+                >
+                  <Save size={16} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setEditedSong(cls?.recitalSong || '');
+                  setIsEditingSong(true);
+                }}
+                className="p-1.5 hover:bg-blush-100 dark:hover:bg-blush-700 rounded text-blush-500"
+              >
+                <Edit2 size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+        {isEditingSong ? (
           <input
             type="text"
-            value={displayClass.recitalSong || ''}
-            onChange={(e) => setEditedClass({ ...displayClass, recitalSong: e.target.value })}
-            placeholder="Enter recital song..."
-            className="w-full px-3 py-2 border border-blush-300 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-white dark:bg-blush-800 text-forest-700 dark:text-white"
+            value={editedSong}
+            onChange={(e) => setEditedSong(e.target.value)}
+            placeholder="Enter song name..."
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                updateClass({ ...cls!, recitalSong: editedSong });
+                setIsEditingSong(false);
+              } else if (e.key === 'Escape') {
+                setIsEditingSong(false);
+              }
+            }}
+            className="w-full px-3 py-2 border border-blush-300 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-blush-50 dark:bg-blush-900/50 text-forest-700 dark:text-white"
           />
+        ) : cls?.recitalSong ? (
+          <p className="text-forest-700 dark:text-blush-200 font-medium">{cls.recitalSong}</p>
         ) : (
-          <p className="text-blush-600 dark:text-blush-300">{displayClass.recitalSong || 'Not assigned'}</p>
+          <button
+            onClick={() => {
+              setEditedSong('');
+              setIsEditingSong(true);
+            }}
+            className="text-blush-400 dark:text-blush-500 italic hover:text-forest-600 dark:hover:text-forest-400 transition-colors"
+          >
+            + Add song
+          </button>
+        )}
+        {cls?.recitalSong && !isEditingSong && (
+          <p className="text-xs text-blush-500 dark:text-blush-400 mt-2">
+            Tap the badge to switch between recital and combo
+          </p>
         )}
       </div>
 
       {/* Choreography Notes */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-forest-700 dark:text-blush-200 mb-2">Choreography Notes</label>
-        {isEditing ? (
+      <div className="mb-6 bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <label className="flex items-center gap-2 text-sm font-medium text-forest-700 dark:text-blush-200">
+            <FileText size={16} />
+            Choreography Notes
+          </label>
+          {isEditingChoreoNotes ? (
+            <div className="flex gap-1">
+              <button
+                onClick={() => setIsEditingChoreoNotes(false)}
+                className="p-1.5 hover:bg-blush-100 dark:hover:bg-blush-700 rounded text-blush-500"
+              >
+                <X size={16} />
+              </button>
+              <button
+                onClick={() => {
+                  updateClass({ ...cls!, choreographyNotes: editedChoreoNotes });
+                  setIsEditingChoreoNotes(false);
+                }}
+                className="p-1.5 bg-forest-100 dark:bg-forest-900/30 text-forest-600 dark:text-forest-400 rounded"
+              >
+                <Save size={16} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                setEditedChoreoNotes(cls?.choreographyNotes || '');
+                setIsEditingChoreoNotes(true);
+              }}
+              className="p-1.5 hover:bg-blush-100 dark:hover:bg-blush-700 rounded text-blush-500"
+            >
+              <Edit2 size={16} />
+            </button>
+          )}
+        </div>
+        {isEditingChoreoNotes ? (
           <textarea
-            value={displayClass.choreographyNotes || ''}
-            onChange={(e) => setEditedClass({ ...displayClass, choreographyNotes: e.target.value })}
+            value={editedChoreoNotes}
+            onChange={(e) => setEditedChoreoNotes(e.target.value)}
             placeholder="Enter choreography notes..."
             rows={4}
-            className="w-full px-3 py-2 border border-blush-300 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-white dark:bg-blush-800 text-forest-700 dark:text-white"
+            autoFocus
+            className="w-full px-3 py-2 border border-blush-300 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-blush-50 dark:bg-blush-900/50 text-forest-700 dark:text-white resize-none"
           />
-        ) : (
-          <p className="text-blush-600 dark:text-blush-300 whitespace-pre-wrap">
-            {displayClass.choreographyNotes || 'No choreography notes'}
+        ) : cls?.choreographyNotes ? (
+          <p className="text-forest-600 dark:text-blush-300 whitespace-pre-wrap text-sm">
+            {cls.choreographyNotes}
           </p>
+        ) : (
+          <button
+            onClick={() => {
+              setEditedChoreoNotes('');
+              setIsEditingChoreoNotes(true);
+            }}
+            className="text-blush-400 dark:text-blush-500 italic hover:text-forest-600 dark:hover:text-forest-400 transition-colors text-sm"
+          >
+            + Add choreography notes
+          </button>
         )}
       </div>
 

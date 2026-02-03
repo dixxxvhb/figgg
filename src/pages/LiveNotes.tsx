@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, Music2, Camera, X, Image, Trash2, FileText, Users, Check, XCircle, Clock3, ChevronDown, ChevronUp, ClipboardList, Pencil } from 'lucide-react';
-import { format, startOfWeek, addWeeks } from 'date-fns';
+import { format, addWeeks } from 'date-fns';
 import { useAppData } from '../hooks/useAppData';
 import { DropdownMenu } from '../components/common/DropdownMenu';
 import { LiveNote, ClassWeekNotes, WeekNotes, Student } from '../types';
@@ -52,6 +52,7 @@ export function LiveNotes() {
   const [showPlan, setShowPlan] = useState(true); // Show plan
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
+  const [isEndingClass, setIsEndingClass] = useState(false);
 
   // Sync weekNotes when data changes (e.g., from cloud sync)
   useEffect(() => {
@@ -382,7 +383,10 @@ export function LiveNotes() {
     saveWeekNotes(updatedWeekNotes);
   };
 
-  const endClass = () => {
+  const endClass = async () => {
+    if (isEndingClass) return;
+    setIsEndingClass(true);
+
     // Capture notes before any state changes
     const notesToProcess = [...classNotes.liveNotes];
 
@@ -407,21 +411,73 @@ export function LiveNotes() {
 
     // Auto wrap up: generate next week's plan from all notes
     if (notesToProcess.length > 0) {
-      const planLines: string[] = [];
+      // Organize notes into dance class structure
+      const warmup: string[] = [];
+      const center: string[] = [];
+      const acrossFloor: string[] = [];
+      const combo: string[] = [];
+      const reminders: string[] = [];
+      const observations: string[] = [];
 
       notesToProcess.forEach((n: LiveNote) => {
+        const text = n.text.toLowerCase();
+
+        // Categorize by note type first
         if (n.category === 'reminder') {
-          planLines.push('Review: ' + n.text);
+          reminders.push(n.text);
         } else if (n.category === 'observation') {
-          planLines.push('Focus: ' + n.text);
-        } else if (n.category === 'covered') {
-          planLines.push('Covered: ' + n.text);
+          observations.push(n.text);
         } else if (n.category === 'choreography') {
-          planLines.push('Choreo: ' + n.text);
+          combo.push(n.text);
         } else {
-          planLines.push('Note: ' + n.text);
+          // Try to auto-categorize by content
+          if (text.includes('warm') || text.includes('stretch') || text.includes('plié') || text.includes('plie') || text.includes('tendu') || text.includes('relevé') || text.includes('releve')) {
+            warmup.push(n.text);
+          } else if (text.includes('across') || text.includes('floor') || text.includes('corner') || text.includes('diagonal') || text.includes('leap') || text.includes('turn') || text.includes('pirouette') || text.includes('chassé') || text.includes('chasse')) {
+            acrossFloor.push(n.text);
+          } else if (text.includes('combo') || text.includes('music') || text.includes('song') || text.includes('routine') || text.includes('choreo')) {
+            combo.push(n.text);
+          } else if (text.includes('center') || text.includes('adagio') || text.includes('balance') || text.includes('port de bras')) {
+            center.push(n.text);
+          } else {
+            // Default to center for uncategorized covered items
+            center.push(n.text);
+          }
         }
       });
+
+      // Build organized plan
+      const planLines: string[] = [];
+
+      if (reminders.length > 0) {
+        planLines.push('📌 TO DO:');
+        reminders.forEach(r => planLines.push('  • ' + r));
+      }
+
+      if (warmup.length > 0) {
+        planLines.push('🔥 WARM-UP:');
+        warmup.forEach(w => planLines.push('  • ' + w));
+      }
+
+      if (center.length > 0) {
+        planLines.push('⭐ CENTER:');
+        center.forEach(c => planLines.push('  • ' + c));
+      }
+
+      if (acrossFloor.length > 0) {
+        planLines.push('➡️ ACROSS THE FLOOR:');
+        acrossFloor.forEach(a => planLines.push('  • ' + a));
+      }
+
+      if (combo.length > 0) {
+        planLines.push('🎵 COMBO/CHOREO:');
+        combo.forEach(c => planLines.push('  • ' + c));
+      }
+
+      if (observations.length > 0) {
+        planLines.push('👀 NOTES:');
+        observations.forEach(o => planLines.push('  • ' + o));
+      }
 
       const planText = planLines.join('\n');
 
@@ -464,7 +520,7 @@ export function LiveNotes() {
     // overwrites localStorage with stale cloud data before debounced save completes
     flushPendingSave();
 
-    navigate('/');
+    navigate('/schedule');
   };
 
   const clearAllNotes = async () => {
@@ -943,9 +999,17 @@ export function LiveNotes() {
           {/* End Class Button */}
           <button
             onClick={endClass}
-            className="w-full mt-3 py-3 text-forest-600 font-medium hover:text-forest-700 hover:bg-blush-100 rounded-xl transition-colors"
+            disabled={isEndingClass}
+            className="w-full mt-3 py-3 text-forest-600 font-medium hover:text-forest-700 hover:bg-blush-100 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            End Class & Save Notes
+            {isEndingClass ? (
+              <>
+                <div className="w-4 h-4 border-2 border-forest-600 border-t-transparent rounded-full animate-spin" />
+                Saving & Expanding Notes...
+              </>
+            ) : (
+              'End Class & Save Notes'
+            )}
           </button>
         </div>
       </div>

@@ -17,12 +17,13 @@ const LiveNotes = lazy(() => import('./pages/LiveNotes').then(m => ({ default: m
 const CalendarEventDetail = lazy(() => import('./pages/CalendarEventDetail').then(m => ({ default: m.CalendarEventDetail })));
 const EventNotes = lazy(() => import('./pages/EventNotes').then(m => ({ default: m.EventNotes })));
 const WeekPlanner = lazy(() => import('./pages/WeekPlanner').then(m => ({ default: m.WeekPlanner })));
-const CompetitionHub = lazy(() => import('./pages/CompetitionHub').then(m => ({ default: m.CompetitionHub })));
+const Choreography = lazy(() => import('./pages/Choreography').then(m => ({ default: m.Choreography })));
+const ChoreographyDetail = lazy(() => import('./pages/ChoreographyDetail').then(m => ({ default: m.ChoreographyDetail })));
 const DanceDetail = lazy(() => import('./pages/DanceDetail').then(m => ({ default: m.DanceDetail })));
 const FormationBuilder = lazy(() => import('./pages/FormationBuilder').then(m => ({ default: m.FormationBuilder })));
 const Students = lazy(() => import('./pages/Students').then(m => ({ default: m.Students })));
 const Library = lazy(() => import('./pages/Library').then(m => ({ default: m.Library })));
-const SelfCare = lazy(() => import('./pages/SelfCare').then(m => ({ default: m.SelfCare })));
+const Me = lazy(() => import('./pages/Me').then(m => ({ default: m.Me })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 
 function App() {
@@ -64,7 +65,7 @@ function App() {
               Skip to main content
             </a>
             <Header />
-            <main id="main-content" className="h-[calc(100dvh-120px)] lg:h-[calc(100dvh-56px)] overflow-hidden">
+            <main id="main-content" className="h-[calc(100dvh-120px)] lg:h-[calc(100dvh-56px)]">
               <PullToRefresh>
                 <Suspense fallback={<LoadingSpinner />}>
                   <ErrorBoundary>
@@ -76,13 +77,14 @@ function App() {
                       <Route path="/event/:eventId" element={<CalendarEventDetail />} />
                       <Route path="/event/:eventId/notes" element={<EventNotes />} />
                       <Route path="/plan" element={<WeekPlanner />} />
-                      <Route path="/competitions" element={<CompetitionHub />} />
+                      <Route path="/choreography" element={<Choreography />} />
+                      <Route path="/choreography/:id" element={<ChoreographyDetail />} />
                       <Route path="/dance/:danceId" element={<DanceDetail />} />
                       <Route path="/formations" element={<FormationBuilder />} />
                       <Route path="/formations/:danceId" element={<FormationBuilder />} />
                       <Route path="/students" element={<Students />} />
                       <Route path="/library" element={<Library />} />
-                      <Route path="/me" element={<SelfCare />} />
+                      <Route path="/me" element={<Me />} />
                       <Route path="/settings" element={<Settings />} />
                     </Routes>
                   </ErrorBoundary>

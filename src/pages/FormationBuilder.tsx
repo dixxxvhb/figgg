@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, Copy, ChevronLeft, ChevronRight, Play, Pause, Users, Grid3X3, RotateCcw, HelpCircle, X, Lightbulb, Move, Eye, EyeOff, Zap } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Copy, ChevronLeft, ChevronRight, Play, Pause, Users, Grid3X3, RotateCcw, HelpCircle, X, Lightbulb, Move, Eye, EyeOff, Zap, List } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import { v4 as uuid } from 'uuid';
 import { DancerPosition, Formation, TransitionStyle } from '../types';
@@ -601,15 +601,30 @@ export function FormationBuilder() {
       <div className="bg-gradient-to-r from-purple-600 to-forest-600 text-white px-4 py-3 sticky top-0 z-50">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link to={dance ? `/dance/${dance.id}` : '/formations'} className="p-1 hover:bg-white/10 rounded-lg">
-              <ArrowLeft size={20} />
-            </Link>
+            {dance ? (
+              <Link to={`/dance/${dance.id}`} className="p-1 hover:bg-white/10 rounded-lg">
+                <ArrowLeft size={20} />
+              </Link>
+            ) : (
+              <Link to="/" className="p-1 hover:bg-white/10 rounded-lg">
+                <ArrowLeft size={20} />
+              </Link>
+            )}
             <div>
               <h1 className="font-semibold">Formation Builder</h1>
               {dance && <p className="text-sm text-white/70">{dance.registrationName}</p>}
             </div>
           </div>
           <div className="flex items-center gap-1">
+            {!dance && (
+              <Link
+                to="/choreography"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium mr-1"
+              >
+                <List size={16} />
+                Dances
+              </Link>
+            )}
             <button
               onClick={() => setShowHelp(true)}
               className="p-2 hover:bg-white/10 rounded-lg"

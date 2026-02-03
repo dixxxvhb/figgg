@@ -21,24 +21,41 @@ import { getCurrentDayOfWeek, formatTimeDisplay, formatWeekOf, getWeekStart, tim
 import { getClassesByDay } from '../data/classes';
 import { WeekStats } from '../components/Dashboard/WeekStats';
 import { SelfCareWidget } from '../components/Dashboard/SelfCareWidget';
+import { RemindersWidget } from '../components/Dashboard/RemindersWidget';
+import { TodaysAgenda } from '../components/Dashboard/TodaysAgenda';
 import { CalendarEvent } from '../types';
-
-type TodayScheduleItem =
-  | { type: 'class'; id: string; name: string; startTime: string; endTime: string; studioId: string }
-  | { type: 'event'; id: string; name: string; startTime: string; endTime?: string; location?: string };
 
 export function Dashboard() {
   const { data } = useAppData();
   const stats = useTeachingStats(data);
   const selfCareStatus = useSelfCareStatus(data.selfCare);
-  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Track time updates efficiently - only re-render when minute changes
+  const [currentMinute, setCurrentMinute] = useState(() => {
+    const now = new Date();
+    return now.getHours() * 60 + now.getMinutes();
+  });
+
+  // Derive currentTime from currentMinute to avoid extra state
+  const currentTime = useMemo(() => {
+    const now = new Date();
+    // Reset to start of current minute for consistency
+    now.setSeconds(0, 0);
+    return now;
+  }, [currentMinute]);
 
   useEffect(() => {
-    const interval = setInterval(() => setCurrentTime(new Date()), 60000);
+    const checkTime = () => {
+      const now = new Date();
+      const newMinute = now.getHours() * 60 + now.getMinutes();
+      setCurrentMinute(prev => prev !== newMinute ? newMinute : prev);
+    };
+    const interval = setInterval(checkTime, 60000);
     return () => clearInterval(interval);
   }, []);
 
-  const currentDay = useMemo(() => getCurrentDayOfWeek(), [currentTime]);
+  // These only need to recalculate on day change, not every minute
+  const currentDay = useMemo(() => getCurrentDayOfWeek(), []);
   const todayClasses = useMemo(
     () => getClassesByDay(data.classes, currentDay),
     [data.classes, currentDay]
@@ -46,8 +63,8 @@ export function Dashboard() {
 
   const classInfo = useCurrentClass(data.classes);
 
-  // Calendar events for today
-  const todayStr = useMemo(() => format(currentTime, 'yyyy-MM-dd'), [currentTime]);
+  // Today's date string - only changes at midnight
+  const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
   const todayCalendarEvents = useMemo(
     () => (data.calendarEvents || [])
       .filter((e: CalendarEvent) => e.date === todayStr && e.startTime && e.startTime !== '00:00')
@@ -55,19 +72,10 @@ export function Dashboard() {
     [data.calendarEvents, todayStr]
   );
 
-  // Merged schedule: regular classes + calendar events, sorted by time
-  const todaySchedule = useMemo(() => {
-    const items: TodayScheduleItem[] = [];
-    todayClasses.forEach(c => items.push({ type: 'class', id: c.id, name: c.name, startTime: c.startTime, endTime: c.endTime, studioId: c.studioId }));
-    todayCalendarEvents.forEach((e: CalendarEvent) => items.push({ type: 'event', id: e.id, name: e.title, startTime: e.startTime, endTime: e.endTime, location: e.location }));
-    return items.sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
-  }, [todayClasses, todayCalendarEvents]);
-
   // Next upcoming calendar event (for hero card when no regular class is active)
   const nextCalendarEvent = useMemo(() => {
-    const nowMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
-    return todayCalendarEvents.find((e: CalendarEvent) => timeToMinutes(e.startTime) > nowMinutes) || null;
-  }, [todayCalendarEvents, currentTime]);
+    return todayCalendarEvents.find((e: CalendarEvent) => timeToMinutes(e.startTime) > currentMinute) || null;
+  }, [todayCalendarEvents, currentMinute]);
 
   const nextComp = useMemo(() => {
     const today = new Date();
@@ -131,7 +139,7 @@ export function Dashboard() {
   const timeGradient = hour < 12 ? 'bg-time-morning' : hour < 17 ? 'bg-time-afternoon' : 'bg-time-evening';
 
   return (
-    <div className="min-h-full overflow-y-auto pb-24 bg-blush-50 dark:bg-blush-900">
+    <div className="pb-24 bg-blush-50 dark:bg-blush-900">
       {/* Header */}
       <div className={`${timeGradient} dark:bg-blush-800 px-4 pt-6 pb-4`}>
         <div className="page-w">
@@ -144,7 +152,7 @@ export function Dashboard() {
       {nextComp && daysUntilComp !== null && daysUntilComp <= 14 && (
         <div className="page-w px-4 -mt-2">
           <Link
-            to="/competitions"
+            to="/choreography"
             className={`block rounded-xl overflow-hidden ${
               daysUntilComp <= 3
                 ? 'bg-red-500'
@@ -184,8 +192,11 @@ export function Dashboard() {
       )}
 
       <div className="page-w px-4 pt-4 space-y-4">
-        {/* Self-Care Timeline Widget */}
+        {/* Self-Care Timeline Widget (Medication Tracking) */}
         <SelfCareWidget status={selfCareStatus} />
+
+        {/* Reminders Widget */}
+        <RemindersWidget reminders={data.selfCare?.reminders || []} />
 
         {/* Current/Next Class or Calendar Event */}
         {classInfo.class && (classInfo.status === 'during' || classInfo.status === 'before') ? (
@@ -338,7 +349,7 @@ export function Dashboard() {
             <Sparkles size={36} className="mx-auto text-forest-500 mb-3" />
             <h2 className="text-lg font-bold text-blush-800 dark:text-white mb-1">No Class Right Now</h2>
             <p className="text-blush-500 dark:text-blush-400 text-sm mb-4">
-              {todaySchedule.length > 0
+              {todayClasses.length > 0 || todayCalendarEvents.length > 0
                 ? "All done for today!"
                 : "You're off today!"
               }
@@ -356,75 +367,18 @@ export function Dashboard() {
         {/* Week Stats */}
         <WeekStats stats={stats} />
 
-        {/* Today's Schedule */}
-        {todaySchedule.length > 0 && (
-          <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 overflow-hidden">
-            <div className="px-4 py-3 border-b border-blush-100 dark:border-blush-700 flex items-center justify-between">
-              <h2 className="font-semibold text-blush-800 dark:text-white flex items-center gap-2">
-                <Calendar size={16} className="text-forest-600" />
-                Today's Schedule
-              </h2>
-              <Link to="/schedule" className="text-sm text-forest-600 dark:text-forest-500 hover:text-forest-700">
-                View Week →
-              </Link>
-            </div>
-            <div className="divide-y divide-blush-100 dark:divide-blush-700">
-              {todaySchedule.map(item => {
-                if (item.type === 'class') {
-                  const studio = data.studios.find(s => s.id === item.studioId);
-                  const isActive = classInfo.class?.id === item.id;
-                  const studentCount = (data.students || []).filter(s => s.classIds.includes(item.id)).length;
-
-                  return (
-                    <Link
-                      key={item.id}
-                      to={`/class/${item.id}`}
-                      className={`block px-4 py-3 hover:bg-blush-50 dark:hover:bg-blush-700/50 transition-colors ${isActive ? 'bg-forest-50 dark:bg-forest-900/20' : ''}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-medium text-blush-800 dark:text-white flex items-center gap-2">
-                            {item.name}
-                            {isActive && <span className="w-2 h-2 bg-forest-500 rounded-full" />}
-                          </div>
-                          <div className="text-sm text-blush-500 dark:text-blush-400 flex items-center gap-2">
-                            <span>{formatTimeDisplay(item.startTime)}</span>
-                            {studio && <span>• {studio.shortName}</span>}
-                            <span className="text-blush-400">• {studentCount} dancers</span>
-                          </div>
-                        </div>
-                        <ChevronRight size={16} className="text-blush-400" />
-                      </div>
-                    </Link>
-                  );
-                } else {
-                  const locationLine = item.location?.split('\n').filter(Boolean)[0];
-                  return (
-                    <Link
-                      key={item.id}
-                      to={`/event/${item.id}`}
-                      className="block px-4 py-3 hover:bg-blush-50 dark:hover:bg-blush-700/50 transition-colors"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-medium text-blush-800 dark:text-white flex items-center gap-2">
-                            {item.name}
-                            <span className="text-xs text-amber-500 bg-amber-50 dark:bg-amber-900/30 px-1.5 py-0.5 rounded-full">Calendar</span>
-                          </div>
-                          <div className="text-sm text-blush-500 dark:text-blush-400 flex items-center gap-2">
-                            <span>{formatTimeDisplay(item.startTime)}</span>
-                            {locationLine && <span>• {locationLine}</span>}
-                          </div>
-                        </div>
-                        <ChevronRight size={16} className="text-blush-400" />
-                      </div>
-                    </Link>
-                  );
-                }
-              })}
-            </div>
-          </div>
-        )}
+        {/* Today's Agenda - Full day view with energy overlay and travel times */}
+        <TodaysAgenda
+          classes={todayClasses}
+          studios={data.studios}
+          students={data.students || []}
+          weekNotes={data.weekNotes}
+          competitions={data.competitions}
+          competitionDances={data.competitionDances || []}
+          calendarEvents={todayCalendarEvents}
+          selfCare={data.selfCare}
+          currentClassId={classInfo.class?.id}
+        />
       </div>
     </div>
   );

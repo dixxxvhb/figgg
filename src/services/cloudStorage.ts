@@ -8,7 +8,7 @@ const TOKEN_KEY = 'dance-teaching-app-token';
 let tokenCache: string | null = null;
 
 // Get the session token, initializing it if needed
-function getAuthToken(): string {
+export function getAuthToken(): string {
   if (tokenCache) return tokenCache;
   const stored = localStorage.getItem(TOKEN_KEY);
   if (stored) {
@@ -129,19 +129,49 @@ export async function saveCloudData(data: AppData): Promise<boolean> {
 // Debounced save to avoid too many requests
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 let pendingData: AppData | null = null;
+let lastSavedData: string | null = null;
 
-export function debouncedCloudSave(data: AppData, delay: number = 1000): void {
+export function debouncedCloudSave(data: AppData, delay: number = 500): void {
+  // Shorter default delay (500ms) for faster syncs
   pendingData = data;
   if (saveTimeout) {
     clearTimeout(saveTimeout);
   }
-  saveTimeout = setTimeout(() => {
+  saveTimeout = setTimeout(async () => {
     if (pendingData) {
-      saveCloudData(pendingData);
+      const jsonString = JSON.stringify(pendingData);
+      // Only save if data actually changed (avoid duplicate saves)
+      if (jsonString !== lastSavedData) {
+        const success = await saveCloudData(pendingData);
+        if (success) {
+          lastSavedData = jsonString;
+        }
+      }
       pendingData = null;
     }
     saveTimeout = null;
   }, delay);
+}
+
+// Immediate cloud save for critical data (notes, etc)
+export async function immediateCloudSave(data: AppData): Promise<boolean> {
+  // Cancel any pending debounced save
+  if (saveTimeout) {
+    clearTimeout(saveTimeout);
+    saveTimeout = null;
+  }
+  pendingData = null;
+
+  const jsonString = JSON.stringify(data);
+  if (jsonString === lastSavedData) {
+    return true; // Already saved
+  }
+
+  const success = await saveCloudData(data);
+  if (success) {
+    lastSavedData = jsonString;
+  }
+  return success;
 }
 
 // Force immediate save (call before page unload or refresh)
@@ -170,3 +200,4 @@ export function flushPendingSave(): void {
     pendingData = null;
   }
 }
+

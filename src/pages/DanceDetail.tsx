@@ -24,7 +24,7 @@ const styleColors: Record<DanceStyle, string> = {
   'contemporary': 'bg-blue-100 text-blue-700',
   'lyrical': 'bg-pink-100 text-pink-700',
   'musical-theatre': 'bg-orange-100 text-orange-700',
-  'tap': 'bg-gray-100 text-gray-700',
+  'tap': 'bg-blush-100 text-blush-700',
   'hip-hop': 'bg-red-100 text-red-700',
   'acro': 'bg-teal-100 text-teal-700',
   'open': 'bg-indigo-100 text-indigo-700',
@@ -70,7 +70,7 @@ export function DanceDetail() {
     return (
       <div className="page-w px-4 py-6">
         <p className="text-forest-600">Dance not found</p>
-        <Link to="/competitions?tab=dances" className="text-forest-600 underline">Back to dances</Link>
+        <Link to="/choreography" className="text-forest-600 underline">Back to dances</Link>
       </div>
     );
   }
@@ -373,7 +373,7 @@ export function DanceDetail() {
     <div className="page-w px-4 py-6 pb-24">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <Link to="/competitions?tab=dances" className="p-2 hover:bg-forest-100 rounded-lg text-forest-600">
+        <Link to="/choreography" className="p-2 hover:bg-forest-100 rounded-lg text-forest-600">
           <ArrowLeft size={20} />
         </Link>
         <div className="flex-1">

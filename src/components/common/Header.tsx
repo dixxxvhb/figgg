@@ -6,19 +6,18 @@ import {
   CloudOff,
   Loader2,
   Check,
-  Trophy,
   MoreHorizontal,
-  Zap,
+  Sparkles,
   WifiOff
 } from 'lucide-react';
 import { useSyncStatus } from '../../contexts/SyncContext';
 
-// Simplified consistent navigation - always the same 5 items
+// Simplified consistent navigation - 4 main items
+// Formations/Choreo moved to More menu
 const navItems = [
   { path: '/', icon: Home, label: 'Home' },
   { path: '/schedule', icon: Calendar, label: 'Schedule' },
-  { path: '/me', icon: Zap, label: 'Me' },
-  { path: '/competitions', icon: Trophy, label: 'Compete' },
+  { path: '/me', icon: Sparkles, label: 'Me' },
   { path: '/settings', icon: MoreHorizontal, label: 'More' },
 ];
 
@@ -73,16 +72,8 @@ export function Header() {
     <header className="bg-forest-600 border-b border-forest-700 sticky top-0 z-50">
       <div className="max-w-4xl mx-auto px-4">
         <div className="flex items-center justify-between h-14">
-          <Link to="/" className="flex items-center gap-2" aria-label="DWD Collective home">
-            <img
-              src="/images/logo.png"
-              alt="DWD Collective"
-              className="w-10 h-10 object-contain"
-              width="40"
-              height="40"
-              loading="eager"
-            />
-            <span className="font-semibold text-lg text-blush-100">DWD Collective</span>
+          <Link to="/" className="flex items-center gap-2" aria-label="DIXXX home">
+            <span className="font-semibold text-lg text-blush-100">DIXXX</span>
           </Link>
 
           <div className="flex items-center gap-2">
@@ -131,10 +122,6 @@ export function MobileNav() {
              location.pathname.startsWith('/event') ||
              location.pathname.startsWith('/plan');
     }
-    if (path === '/competitions') {
-      return location.pathname.startsWith('/competitions') ||
-             location.pathname.startsWith('/dance/');
-    }
     if (path === '/me') {
       return location.pathname === '/me';
     }
@@ -142,7 +129,8 @@ export function MobileNav() {
       return location.pathname.startsWith('/settings') ||
              location.pathname.startsWith('/students') ||
              location.pathname.startsWith('/library') ||
-             location.pathname.startsWith('/formations');
+             location.pathname.startsWith('/formations') ||
+             location.pathname.startsWith('/choreography');
     }
     return location.pathname === path;
   };
