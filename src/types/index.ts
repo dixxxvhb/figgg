@@ -38,7 +38,20 @@ export interface LiveNote {
   id: string;
   timestamp: string; // ISO date string
   text: string;
-  category?: 'covered' | 'observation' | 'reminder' | 'choreography';
+  category?: 'worked-on' | 'needs-work' | 'next-week' | 'ideas'
+    // Legacy values (mapped on read)
+    | 'covered' | 'observation' | 'reminder' | 'choreography';
+}
+
+// Map legacy category values to new ones
+export function normalizeNoteCategory(cat?: string): LiveNote['category'] {
+  switch (cat) {
+    case 'covered': return 'worked-on';
+    case 'observation': return 'needs-work';
+    case 'reminder': return 'next-week';
+    case 'choreography': return 'ideas';
+    default: return cat as LiveNote['category'];
+  }
 }
 
 export interface OrganizedNotes {
@@ -63,12 +76,18 @@ export interface ClassWeekNotes {
   organizedNotes?: OrganizedNotes;
   isOrganized: boolean;
   media?: MediaItem[];
+  weekIdea?: string; // Overall idea/theme for class this week
+  nextWeekGoal?: string; // Goal to remember for next week
   // Attendance for this class this week
   attendance?: {
     present: string[]; // Student IDs
     absent: string[];
     late: string[];
+    absenceReasons?: Record<string, string>; // studentId -> reason
+    rollCompleted?: boolean;
   };
+  eventTitle?: string; // Calendar event title — persisted for cross-session matching
+  carryForwardDismissed?: boolean; // True = user dismissed the carry-forward banner
 }
 
 export interface WeekNotes {
@@ -226,6 +245,7 @@ export interface AppSettings {
   password?: string;
   fontSize?: 'normal' | 'large' | 'extra-large';
   darkMode?: boolean;
+  themeId?: string; // Color theme: 'stone' | 'ocean' | 'plum' | 'midnight' | 'clay' | 'dusk'
 }
 
 // ===== STUDENT MANAGEMENT =====
@@ -309,6 +329,62 @@ export interface AppData {
   selfCare?: SelfCareData;
   // Choreography system (replaces competitions)
   choreographies?: import('./choreography').Choreography[];
+  // DWDC Launch Plan
+  launchPlan?: LaunchPlanData;
+}
+
+// ===== DWDC LAUNCH PLAN =====
+
+export type LaunchCategory = 'BIZ' | 'CONTENT' | 'ADULT' | 'PRO' | 'DECIDE' | 'PREP';
+
+export interface LaunchTask {
+  id: string;
+  title: string;
+  instructions: string;
+  category: LaunchCategory;
+  scheduledDate: string;
+  weekNumber: number;
+  weekLabel: string;
+  completed: boolean;
+  completedAt?: string;
+  notes?: string;
+  actionUrl?: string;
+  actionLabel?: string;
+  milestone?: boolean;
+  milestoneLabel?: string;
+  skipped?: boolean;
+  skippedAt?: string;
+}
+
+export interface LaunchDecision {
+  id: string;
+  question: string;
+  context?: string;
+  status: 'pending' | 'decided';
+  decision?: string;
+  decidedAt?: string;
+  month: 'february' | 'march' | 'april' | 'may';
+  category: LaunchCategory;
+}
+
+export interface LaunchContact {
+  id: string;
+  name: string;
+  role: string;
+  phone?: string;
+  email?: string;
+  notes?: string;
+  nextStep?: string;
+}
+
+export interface LaunchPlanData {
+  tasks: LaunchTask[];
+  decisions: LaunchDecision[];
+  contacts: LaunchContact[];
+  planStartDate: string;
+  planEndDate: string;
+  lastModified: string;
+  version: number;
 }
 
 export interface UserLocation {
@@ -372,6 +448,8 @@ export interface SelfCareData {
   // iOS-style Reminders
   reminders?: Reminder[];
   reminderLists?: ReminderList[];
+  // Timestamp for cross-device conflict resolution (ISO string)
+  selfCareModified?: string;
 }
 
 // ===== iOS-STYLE REMINDERS =====
