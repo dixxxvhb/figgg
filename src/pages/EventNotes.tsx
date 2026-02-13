@@ -1,19 +1,21 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, Music2, Camera, X, Image, Trash2, FileText, ChevronDown, ChevronUp, ClipboardList } from 'lucide-react';
-import { format } from 'date-fns';
-import { useAppData } from '../hooks/useAppData';
+import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, Camera, X, Image, Trash2, FileText, ChevronDown, ChevronUp, ClipboardList, RotateCcw, History } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { useAppData } from '../contexts/AppDataContext';
 import { DropdownMenu } from '../components/common/DropdownMenu';
-import { LiveNote, ClassWeekNotes } from '../types';
+import { LiveNote, ClassWeekNotes, normalizeNoteCategory } from '../types';
 import { formatTimeDisplay } from '../utils/time';
 import { v4 as uuid } from 'uuid';
 import { processMediaFile } from '../utils/mediaCompression';
+import { findMatchingPastSessions, getCarryForwardText, PastSession } from '../utils/smartNotes';
+import { PreviousSessionsPanel } from '../components/events/PreviousSessionsPanel';
 
 const QUICK_TAGS = [
-  { id: 'covered', label: 'Covered', icon: CheckCircle, color: 'bg-forest-100 text-forest-700' },
-  { id: 'observation', label: 'Student Note', icon: Lightbulb, color: 'bg-blush-200 text-blush-700' },
-  { id: 'reminder', label: 'Next Week', icon: AlertCircle, color: 'bg-blue-100 text-blue-700' },
-  { id: 'choreography', label: 'Choreo', icon: Music2, color: 'bg-purple-100 text-purple-700' },
+  { id: 'worked-on', label: 'Worked On', icon: CheckCircle, color: 'bg-forest-100 text-forest-700' },
+  { id: 'needs-work', label: 'Needs More Work', icon: AlertCircle, color: 'bg-amber-100 text-amber-700' },
+  { id: 'next-week', label: 'Next Week', icon: Clock, color: 'bg-blue-100 text-blue-700' },
+  { id: 'ideas', label: 'Ideas', icon: Lightbulb, color: 'bg-purple-100 text-purple-700' },
 ];
 
 export function EventNotes() {
@@ -36,13 +38,52 @@ export function EventNotes() {
   }, [data.weekNotes]);
 
   const existingNotes = weekNotes.classNotes[eventId || ''];
-  const eventNotes: ClassWeekNotes = existingNotes || {
-    classId: eventId || '',
-    plan: '',
-    liveNotes: [],
-    isOrganized: false,
-    media: [],
-  };
+  const eventNotes: ClassWeekNotes = existingNotes
+    ? { ...existingNotes, eventTitle: event?.title }
+    : {
+        classId: eventId || '',
+        plan: '',
+        liveNotes: [],
+        isOrganized: false,
+        media: [],
+        eventTitle: event?.title,
+      };
+
+  // Smart Notes: find matching past sessions by event title
+  const pastSessions = event?.title
+    ? findMatchingPastSessions(data.weekNotes, event.title, eventId || '')
+    : [];
+  const carryForward = getCarryForwardText(pastSessions);
+
+  // Track whether carry-forward was applied this mount
+  const [carryForwardApplied, setCarryForwardApplied] = useState(false);
+
+  // Apply carry-forward on first mount if conditions are met
+  useEffect(() => {
+    if (
+      carryForward &&
+      !eventNotes.plan?.trim() &&
+      !eventNotes.carryForwardDismissed &&
+      !carryForwardApplied &&
+      event
+    ) {
+      const updatedEventNotes: ClassWeekNotes = {
+        ...eventNotes,
+        plan: carryForward.text,
+        eventTitle: event.title,
+      };
+      const updatedWeekNotes = {
+        ...weekNotes,
+        classNotes: {
+          ...weekNotes.classNotes,
+          [eventId || '']: updatedEventNotes,
+        },
+      };
+      setWeekNotes(updatedWeekNotes);
+      saveWeekNotes(updatedWeekNotes);
+      setCarryForwardApplied(true);
+    }
+  }, []); // Run once on mount only
 
   if (!event) {
     return (
@@ -52,6 +93,38 @@ export function EventNotes() {
       </div>
     );
   }
+
+  const dismissCarryForward = () => {
+    const updatedEventNotes: ClassWeekNotes = {
+      ...eventNotes,
+      carryForwardDismissed: true,
+    };
+    const updatedWeekNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [eventId || '']: updatedEventNotes,
+      },
+    };
+    setWeekNotes(updatedWeekNotes);
+    saveWeekNotes(updatedWeekNotes);
+  };
+
+  const saveNextSessionGoal = (value: string) => {
+    const updatedEventNotes: ClassWeekNotes = {
+      ...eventNotes,
+      nextWeekGoal: value,
+    };
+    const updatedWeekNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [eventId || '']: updatedEventNotes,
+      },
+    };
+    setWeekNotes(updatedWeekNotes);
+    saveWeekNotes(updatedWeekNotes);
+  };
 
   const addNote = () => {
     if (!noteText.trim()) return;
@@ -305,6 +378,30 @@ export function EventNotes() {
         </div>
       </div>
 
+      {/* Carry-Forward Banner */}
+      {carryForward && (carryForwardApplied || eventNotes.plan === carryForward.text) && !eventNotes.carryForwardDismissed && (
+        <div className="px-4 py-2 border-b border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20">
+          <div className="page-w flex items-start gap-3">
+            <RotateCcw size={16} className="text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                Carried forward from {format(parseISO(carryForward.sourceWeekOf), 'MMM d')}
+              </div>
+              <div className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                {carryForward.sourceField === 'nextWeekGoal' ? 'From your next-session goal' : 'From your previous plan'}
+              </div>
+            </div>
+            <button
+              onClick={dismissCarryForward}
+              className="p-1 text-amber-400 hover:text-amber-600 dark:hover:text-amber-300 transition-colors"
+              title="Dismiss"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Plan - always visible as reference */}
       {eventNotes.plan && (
         <div className="border-b border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/20">
@@ -404,7 +501,7 @@ export function EventNotes() {
         ) : (
           <div className="space-y-3">
             {eventNotes.liveNotes.map(note => {
-              const tag = QUICK_TAGS.find(t => t.id === note.category);
+              const tag = QUICK_TAGS.find(t => t.id === normalizeNoteCategory(note.category));
               return (
                 <div
                   key={note.id}
@@ -437,6 +534,26 @@ export function EventNotes() {
               );
             })}
           </div>
+        )}
+
+        {/* Next Session Goal */}
+        <div className="mt-4 mb-2">
+          <div className="flex items-center gap-2 mb-2">
+            <Clock size={14} className="text-blue-500" />
+            <span className="text-xs font-medium text-blue-600 dark:text-blue-400">Goal for Next Session</span>
+          </div>
+          <textarea
+            value={eventNotes.nextWeekGoal || ''}
+            onChange={(e) => saveNextSessionGoal(e.target.value)}
+            placeholder="What do you want to remember for next session?"
+            rows={2}
+            className="w-full px-3 py-2 text-sm border border-blue-200 dark:border-blue-800 rounded-xl bg-blue-50/50 dark:bg-blue-900/20 text-forest-700 dark:text-blush-200 placeholder-blush-400 dark:placeholder-blush-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+          />
+        </div>
+
+        {/* Previous Sessions */}
+        {pastSessions.length > 0 && (
+          <PreviousSessionsPanel sessions={pastSessions} />
         )}
       </div>
 
