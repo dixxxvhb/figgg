@@ -48,6 +48,10 @@ export interface AIContextPayload {
   };
   // Streak
   streak?: number;
+  // Day mode
+  dayMode?: 'light' | 'normal' | 'intense' | 'comp';
+  // Last week reflection (for AI to reference patterns)
+  lastReflection?: string;
   // Preferences
   tone: 'supportive' | 'direct' | 'minimal';
 }
@@ -158,6 +162,18 @@ export function buildAIContext(
   // Streak
   const streak = sc?.streakData?.currentStreak;
 
+  // Day mode
+  const dayMode = sc?.dayModeDate === todayStr
+    ? (sc?.dayMode || 'normal')
+    : 'normal';
+
+  // Last week reflection — find most recent reflection from weekNotes
+  const sortedWeeks = [...(data.weekNotes || [])].sort((a, b) => b.weekOf.localeCompare(a.weekOf));
+  const lastReflection = sortedWeeks.find(w => w.reflection)?.reflection;
+  const lastReflectionStr = lastReflection
+    ? [lastReflection.aiSummary, lastReflection.nextWeekFocus ? `Focus: ${lastReflection.nextWeekFocus}` : ''].filter(Boolean).join('. ')
+    : undefined;
+
   return {
     time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
     dayOfWeek: dayName,
@@ -173,6 +189,8 @@ export function buildAIContext(
     streak,
     patterns,
     previousCheckIn,
+    dayMode: dayMode !== 'normal' ? dayMode : undefined,
+    lastReflection: lastReflectionStr,
     tone: config.tone,
   };
 }

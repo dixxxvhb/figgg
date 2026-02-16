@@ -36,7 +36,7 @@ import { WeeklyInsight } from '../components/Dashboard/WeeklyInsight';
 import { WeekMomentumBar } from '../components/Dashboard/WeekMomentumBar';
 import { SortableWidget } from '../components/Dashboard/SortableWidget';
 import { CalendarEvent, DEFAULT_MED_CONFIG, DEFAULT_AI_CONFIG } from '../types';
-import type { AICheckIn, DayPlan, DayPlanItem, Reminder } from '../types';
+import type { AICheckIn, DayPlan, DayPlanItem, Reminder, WeekNotes } from '../types';
 import { AICheckInWidget } from '../components/Dashboard/AICheckInWidget';
 import { DayPlanWidget } from '../components/Dashboard/DayPlanWidget';
 import { useCheckInStatus } from '../hooks/useCheckInStatus';
@@ -93,7 +93,7 @@ const WIDGET_LABELS: Record<string, string> = {
 };
 
 export function Dashboard() {
-  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, refreshData } = useAppData();
+  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, refreshData } = useAppData();
   const stats = useTeachingStats(data);
   const medConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
   const selfCareStatus = useSelfCareStatus(data.selfCare, medConfig);
@@ -325,10 +325,57 @@ export function Dashboard() {
           planUpdated = true;
           break;
         }
+        case 'reschedulePlanItem': {
+          if (!action.title || !action.time || !currentPlan) break;
+          const rNeedle = action.title.toLowerCase();
+          const rIdx = currentPlan.items.findIndex(i => i.title.toLowerCase() === rNeedle)
+            || currentPlan.items.findIndex(i => i.title.toLowerCase().includes(rNeedle));
+          if (rIdx >= 0) {
+            const updated = [...currentPlan.items];
+            updated[rIdx] = { ...updated[rIdx], time: action.time };
+            currentPlan = { ...currentPlan, items: updated };
+            planUpdated = true;
+          }
+          break;
+        }
+        case 'batchToggleWellness': {
+          if (!action.ids || action.ids.length === 0) break;
+          const batchStates = sc.unifiedTaskDate === todayKey ? (sc.unifiedTaskStates || {}) : {};
+          const merged = { ...batchStates, ...((selfCareUpdates.unifiedTaskStates as Record<string, boolean>) || {}) };
+          for (const wId of action.ids) {
+            merged[wId] = action.done ?? true;
+          }
+          selfCareUpdates = {
+            ...selfCareUpdates,
+            unifiedTaskStates: merged,
+            unifiedTaskDate: todayKey,
+          };
+          needsSelfCareUpdate = true;
+          break;
+        }
         case 'suggestOptionalDose3': {
-          // AI suggests a 3rd dose for a long/heavy day — store the date so Me page auto-expands
           selfCareUpdates = { ...selfCareUpdates, suggestedDose3Date: todayKey };
           needsSelfCareUpdate = true;
+          break;
+        }
+        case 'setDayMode': {
+          if (!action.dayMode) break;
+          selfCareUpdates = { ...selfCareUpdates, dayMode: action.dayMode, dayModeDate: todayKey };
+          needsSelfCareUpdate = true;
+          break;
+        }
+        case 'addWeekReflection': {
+          const weekOf = formatWeekOf(getWeekStart());
+          const existing = data.weekNotes.find(w => w.weekOf === weekOf);
+          const weekNote: WeekNotes = existing || { id: `week_${weekOf}`, weekOf, classNotes: {} };
+          weekNote.reflection = {
+            date: todayKey,
+            wentWell: action.wentWell,
+            challenges: action.challenges,
+            nextWeekFocus: action.nextWeekFocus,
+            aiSummary: action.aiSummary,
+          };
+          saveWeekNotes(weekNote);
           break;
         }
         case 'reprioritizePlan': {

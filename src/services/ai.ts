@@ -95,9 +95,15 @@ export interface AIAction {
     | 'reprioritizePlan'    // reorder day plan items by priority
     | 'addPlanItem'         // inject a new item into today's plan
     | 'removePlanItem'      // remove a plan item by id or title
-    | 'suggestOptionalDose3'; // suggest a 3rd dose for a long/heavy day
+    | 'suggestOptionalDose3' // suggest a 3rd dose for a long/heavy day
+    | 'reschedulePlanItem'  // change a plan item's time
+    | 'batchToggleWellness' // check off multiple wellness items at once
+    | 'setDayMode'         // set day mode (light/normal/intense/comp) — adapts wellness + plan
+    | 'addWeekReflection'; // store a weekly reflection in weekNotes
   // Common fields
   id?: string;
+  ids?: string[];  // for batch operations
+  dayMode?: 'light' | 'normal' | 'intense' | 'comp';  // for setDayMode
   done?: boolean;
   title?: string;
   dueDate?: string;
@@ -112,6 +118,11 @@ export interface AIAction {
   summary?: string;
   // Reprioritize: ordered list of plan item IDs
   order?: string[];
+  // Week reflection fields
+  wentWell?: string;
+  challenges?: string;
+  nextWeekFocus?: string;
+  aiSummary?: string;
 }
 
 export async function callAICheckIn(

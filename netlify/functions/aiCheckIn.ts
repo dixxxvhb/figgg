@@ -49,6 +49,9 @@ INTELLIGENCE:
 - If he says "skip it" or "not today" about meds, execute the skip.
 - If he talks about DWDC launch stuff, connect it to his launch tasks.
 - Read between the lines: "exhausted" + afternoon check-in + 0 wellness items = suggest scaling back the day.
+- WEEKLY REFLECTION: On Friday afternoon or Sunday, ask a brief reflective question: "What went well this week?" or "Anything you want to do differently next week?" If he answers, capture it with addWeekReflection. Extract key themes into wentWell, challenges, nextWeekFocus. Write a 1-sentence aiSummary. Don't force it — if he just wants a normal check-in, that's fine.
+- If the schedule has competition entries (titles with "#" + number), set dayMode to "comp" if not already set. Comp days = focus on performance, suppress busywork.
+- If schedule is heavy (4+ hours of classes), consider setting dayMode to "intense" for extra fuel items.
 
 RETURN JSON:
 {
@@ -63,6 +66,7 @@ ACTIONS — structured changes applied to the app. Use sparingly and only when g
 Wellness:
   { "type": "toggleWellness", "id": "exact_item_id", "done": true } — check off a wellness item
   { "type": "toggleWellness", "id": "exact_item_id", "done": false } — uncheck (rare, only if user says they didn't actually do it)
+  { "type": "batchToggleWellness", "ids": ["id1", "id2", ...], "done": true } — check off multiple wellness items at once (use when user mentions doing several things)
 
 Tasks/Reminders:
   { "type": "addReminder", "title": "...", "dueDate": "YYYY-MM-DD" (optional), "flagged": true/false } — create a new task
@@ -78,10 +82,19 @@ Day Plan:
   { "type": "updatePlanSummary", "summary": "new summary text" } — rewrite the day's summary
   { "type": "addPlanItem", "title": "...", "category": "task|wellness|class|launch|break|med", "priority": "high|medium|low", "time": "HH:mm" (optional), "aiNote": "short why" (optional) } — add item to today's plan
   { "type": "removePlanItem", "title": "title to remove" } — remove item from plan (fuzzy match)
+  { "type": "reschedulePlanItem", "title": "item title", "time": "HH:mm" } — move a plan item to a new time
   { "type": "reprioritizePlan", "order": ["plan_0", "plan_1", ...] } — reorder plan items by ID
 
 Medication:
   { "type": "suggestOptionalDose3" } — suggest a 3rd dose for a long/heavy day (only when maxDoses=2 and the day looks packed or user mentions needing a boost)
+
+Day Mode:
+  { "type": "setDayMode", "dayMode": "light" } — light day: fewer commitments, focus on rest/recovery
+  { "type": "setDayMode", "dayMode": "intense" } — heavy teaching/rehearsal day, needs extra fuel
+  { "type": "setDayMode", "dayMode": "comp" } — competition day: performance-focused, strip non-essentials
+
+Week Reflection:
+  { "type": "addWeekReflection", "wentWell": "...", "challenges": "...", "nextWeekFocus": "...", "aiSummary": "1-sentence week summary" } — capture weekly reflection
 
 RULES FOR ACTIONS:
 - Only include actions when the user's message implies them. Don't add random wellness toggles.
@@ -90,7 +103,11 @@ RULES FOR ACTIONS:
 - For task titles in completeReminder/flagReminder/rescheduleReminder, match the exact title from context.
 - When adding reminders, include a dueDate if the user implies timing ("tomorrow", "next week", "Friday").
 - Empty actions array is perfectly fine for a simple check-in.
-- Never log a dose unless the user explicitly says they took it or asks you to log it.`;
+- Never log a dose unless the user explicitly says they took it or asks you to log it.
+- Use reschedulePlanItem when user says things like "push X to after class", "move X to 3pm". Match the title from the day plan items in context.
+- Use batchToggleWellness when user lists multiple completed activities ("drank water, ate, went for a walk") — more efficient than multiple toggleWellness actions.
+- Use setDayMode when: user says it's a light/chill day → "light"; packed teaching/rehearsal → "intense"; competition day → "comp". This adapts the wellness checklist and plan. Don't set "normal" — that's the default.
+- If the context already shows a dayMode, don't re-set it unless the user explicitly wants to change it.`;
 
     // Build rich context
     const contextLines = [
@@ -155,6 +172,11 @@ RULES FOR ACTIONS:
       contextLines.push(`Day plan (${completed}/${items.length} done): "${plan.summary || ""}"\n${items.map((i: { id: string; title: string; completed: boolean; time?: string }) => `  ${i.completed ? "[x]" : "[ ]"} ${i.id}: ${i.time ? i.time + " " : ""}${i.title}`).join("\n")}`);
     }
 
+    // Day mode
+    if (payload.dayMode) {
+      contextLines.push(`Day mode: ${payload.dayMode} (adapts wellness + plan)`);
+    }
+
     // Patterns
     if (payload.patterns?.length > 0) {
       contextLines.push(`Learned patterns: ${payload.patterns.join("; ")}`);
@@ -163,6 +185,11 @@ RULES FOR ACTIONS:
     // Streak
     if (payload.streak) {
       contextLines.push(`Current streak: ${payload.streak} days`);
+    }
+
+    // Last week reflection
+    if (payload.lastReflection) {
+      contextLines.push(`Last week's reflection: ${payload.lastReflection}`);
     }
 
     // Previous check-in

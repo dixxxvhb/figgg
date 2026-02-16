@@ -90,10 +90,19 @@ export interface ClassWeekNotes {
   carryForwardDismissed?: boolean; // True = user dismissed the carry-forward banner
 }
 
+export interface WeekReflection {
+  date: string;          // ISO date when reflection was captured
+  wentWell?: string;     // What went well this week
+  challenges?: string;   // What was hard
+  nextWeekFocus?: string; // What to focus on next week
+  aiSummary?: string;    // AI-generated summary of the week
+}
+
 export interface WeekNotes {
   id: string;
   weekOf: string; // ISO date of Monday
   classNotes: Record<string, ClassWeekNotes>;
+  reflection?: WeekReflection;
 }
 
 export interface Exercise {
@@ -604,6 +613,10 @@ export interface SelfCareData {
   // iOS-style Reminders
   reminders?: Reminder[];
   reminderLists?: ReminderList[];
+  // AI features
+  suggestedDose3Date?: string;                   // YYYY-MM-DD when AI suggested optional 3rd dose
+  dayMode?: 'light' | 'normal' | 'intense' | 'comp';  // current day mode
+  dayModeDate?: string;                          // YYYY-MM-DD, auto-resets daily
   // Timestamp for cross-device conflict resolution (ISO string)
   selfCareModified?: string;
 }

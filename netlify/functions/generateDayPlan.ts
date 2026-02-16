@@ -39,6 +39,10 @@ PLANNING PHILOSOPHY:
 - Weave wellness items into natural gaps — don't cluster them all at once.
 - Include 1-2 short breaks if the day has 3+ hours of commitments.
 - Launch tasks get dedicated time blocks, not just "whenever."
+- If dayMode is set, adapt the plan accordingly:
+  - "light": 5-7 items max, include calming wellness, skip intensive tasks
+  - "intense": front-load admin before classes, include extra nutrition breaks
+  - "comp": performance-only plan — warmup, fuel, entries. Suppress DWDC/admin work entirely.
 
 RULES:
 - Items marked [DONE] in the context are ALREADY COMPLETED. Do NOT include them in your plan — they will be merged in automatically.
@@ -139,6 +143,16 @@ COMPETITION ENTRIES:
     // Patterns
     if (payload.patterns?.length > 0) {
       contextLines.push(`Learned patterns: ${payload.patterns.join("; ")}`);
+    }
+
+    // Day mode
+    if (payload.dayMode) {
+      const modeDescriptions: Record<string, string> = {
+        light: "LIGHT DAY — fewer items, focus on rest and recovery. Include calming wellness (breathing, gentle walk). Skip intensive tasks.",
+        intense: "INTENSE DAY — heavy teaching/rehearsal. Include extra nutrition/fuel items. Front-load admin tasks before classes.",
+        comp: "COMPETITION DAY — performance-focused. Strip non-essential tasks. Include warmup, fuel, mental prep. Suppress DWDC work. Entries are the priority.",
+      };
+      contextLines.push(`Day mode: ${payload.dayMode}\n${modeDescriptions[payload.dayMode] || ""}`);
     }
 
     // Mood and message from check-in

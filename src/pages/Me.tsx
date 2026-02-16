@@ -124,7 +124,7 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
   // Auto-expand optional dose 3 if AI suggested it for today
   useEffect(() => {
     const sc = data.selfCare || {};
-    if (medConfig.maxDoses === 2 && (sc as Record<string, unknown>).suggestedDose3Date === getTodayKey()) {
+    if (medConfig.maxDoses === 2 && sc?.suggestedDose3Date === getTodayKey()) {
       setShowOptionalDose3(true);
     }
   }, [data.selfCare, medConfig.maxDoses]);
@@ -210,7 +210,45 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
     return () => clearInterval(interval);
   }, []);
 
-  // Data-driven wellness checklist — reads from settings, applies conditions dynamically
+  // Day mode — set by AI or auto-detected from competition entries
+  const dayMode = useMemo(() => {
+    const sc = data.selfCare;
+    if (sc?.dayModeDate === getTodayKey()) {
+      return sc.dayMode || 'normal';
+    }
+    return 'normal';
+  }, [data.selfCare]);
+
+  // Auto-detect competition day — comp entries have "#" + number in the title
+  useEffect(() => {
+    const todayKey = getTodayKey();
+    const sc = data.selfCare;
+    // Don't override if a mode was already set today
+    if (sc?.dayModeDate === todayKey) return;
+    const todayEvents = (data.calendarEvents || []).filter(e => e.date === todayKey);
+    const hasCompEntries = todayEvents.some(e => /#\d+/.test(e.title));
+    if (hasCompEntries) {
+      updateSelfCare({ dayMode: 'comp', dayModeDate: todayKey });
+    }
+  }, [data.calendarEvents, data.selfCare, updateSelfCare]);
+
+  // Dynamic wellness items injected by day mode
+  const DAY_MODE_ITEMS: Record<string, Array<{ id: string; label: string; icon: string; section: 'morning' | 'afternoon' | 'evening'; order: number }>> = {
+    light: [
+      { id: 'dm_breathe', label: 'Breathing exercise (2 min)', icon: 'Sparkles', section: 'morning', order: 99 },
+      { id: 'dm_gentle', label: 'Gentle walk or stretch', icon: 'Footprints', section: 'afternoon', order: 99 },
+    ],
+    comp: [
+      { id: 'dm_warmup', label: 'Competition warmup', icon: 'Zap', section: 'morning', order: 0 },
+      { id: 'dm_fuel', label: 'Pre-performance fuel', icon: 'Utensils', section: 'morning', order: 1 },
+    ],
+    intense: [
+      { id: 'dm_protein', label: 'Extra protein/fuel', icon: 'Utensils', section: 'afternoon', order: 99 },
+    ],
+    normal: [],
+  };
+
+  // Data-driven wellness checklist — reads from settings, applies conditions + day mode dynamically
   type WellnessSection = { title: string; Icon: LucideIcon; items: { id: string; label: string; Icon: LucideIcon }[] };
   const wellnessConfig = data.settings?.wellnessItems || DEFAULT_WELLNESS_ITEMS;
   const WELLNESS_SECTIONS: WellnessSection[] = useMemo(() => {
@@ -218,11 +256,18 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
     const hasClasses = todayClasses.length > 0;
     const tookMeds = dose1Time !== null || dose2Time !== null;
 
+    // In comp mode, only show essentials (hydration + food + comp-specific)
+    const isCompDay = dayMode === 'comp';
+    const compEssentialIds = new Set(['am_water', 'am_food', 'pm_water', 'ev_food', 'dm_warmup', 'dm_fuel']);
+
     const sectionMap: Record<string, LucideIcon> = { morning: Sunrise, afternoon: CloudSun, evening: Sunset };
     const sectionOrder: Array<'morning' | 'afternoon' | 'evening'> = ['morning', 'afternoon', 'evening'];
 
+    // Merge day mode items into the config
+    const modeItems = DAY_MODE_ITEMS[dayMode] || [];
+
     return sectionOrder.map(sec => {
-      const items = wellnessConfig
+      const baseItems = wellnessConfig
         .filter(item => item.enabled && item.section === sec)
         .filter(item => {
           const c = item.conditions;
@@ -232,7 +277,15 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
           if (c.onlyOnOffDays && hasClasses) return false;
           if (c.afterHour !== undefined && hour < c.afterHour) return false;
           return true;
-        })
+        });
+
+      // Add day mode items for this section
+      const injected = modeItems
+        .filter(m => m.section === sec)
+        .map(m => ({ ...m, enabled: true, conditions: undefined }));
+
+      const combined = [...baseItems, ...injected]
+        .filter(item => !isCompDay || compEssentialIds.has(item.id))
         .sort((a, b) => a.order - b.order)
         .map(item => ({
           id: item.id,
@@ -243,10 +296,10 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
       return {
         title: sec.charAt(0).toUpperCase() + sec.slice(1),
         Icon: sectionMap[sec],
-        items,
+        items: combined,
       };
     }).filter(s => s.items.length > 0);
-  }, [wellnessConfig, todayClasses.length, dose1Time, dose2Time]);
+  }, [wellnessConfig, todayClasses.length, dose1Time, dose2Time, dayMode]);
 
   // Flatten all items for counting
   const ALL_WELLNESS_ITEMS = useMemo(() =>
@@ -918,7 +971,18 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
             {/* Wellness check-in */}
             <div className="bg-white dark:bg-blush-800 rounded-xl border border-gray-200 dark:border-blush-700 overflow-hidden">
               <div className="px-3 py-2 border-b border-gray-100 dark:border-blush-700 flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-500 dark:text-blush-400 uppercase tracking-wide">Daily Check-in</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-gray-500 dark:text-blush-400 uppercase tracking-wide">Daily Check-in</span>
+                  {dayMode !== 'normal' && (
+                    <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${
+                      dayMode === 'light' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
+                      dayMode === 'comp' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                      'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                    }`}>
+                      {dayMode}
+                    </span>
+                  )}
+                </div>
                 <span className="text-xs text-gray-400 dark:text-blush-500">
                   {ALL_WELLNESS_ITEMS.filter(i => wellnessStates[i.id]).length}/{ALL_WELLNESS_ITEMS.length}
                 </span>
