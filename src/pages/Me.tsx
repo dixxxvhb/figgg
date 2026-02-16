@@ -1,16 +1,25 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Pill, Clock, Zap, Moon, SkipForward, Undo2, Pencil, X, Check, Plus, Circle,
-  CheckCircle2, Flag, ChevronRight, Calendar, Bell, List, ChevronLeft, Trash2,
-  CalendarDays, Inbox, Star, AlertCircle, MoreHorizontal, Tag, Repeat, Link as LinkIcon
+  CheckCircle2, CheckSquare, Flag, ChevronRight, Calendar, Bell, List, ChevronLeft, Trash2,
+  CalendarDays, Inbox, AlertCircle, Repeat, Link as LinkIcon,
+  Droplets, Utensils, Footprints, Sun, Coffee, BedDouble, Sunrise, CloudSun, Sunset,
+  Brain, Smartphone, Sparkles, BookOpen, type LucideIcon
 } from 'lucide-react';
-import { loadData, saveData } from '../services/storage';
+import { useAppData } from '../contexts/AppDataContext';
 import { getCurrentDayOfWeek } from '../utils/time';
+import { haptic } from '../utils/haptics';
 import {
   format, isToday as isDateToday, isTomorrow, isPast, parseISO, startOfDay,
-  addDays, isAfter, isBefore, isEqual
+  addDays, isAfter
 } from 'date-fns';
-import type { Class, Studio, Reminder, ReminderList, Subtask, RecurringSchedule } from '../types';
+import type { Class, Studio, Reminder, ReminderList, Subtask, RecurringSchedule, MedConfig, WellnessItemConfig } from '../types';
+import { DEFAULT_MED_CONFIG, DEFAULT_WELLNESS_ITEMS } from '../types';
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  Droplets, Utensils, Footprints, Sun, Coffee, BedDouble, Sunrise, CloudSun, Sunset,
+  Brain, Smartphone, Sparkles, BookOpen, Pill, Moon, Zap, Bell, Check,
+};
 
 function getTodayKey(): string {
   return new Date().toISOString().split('T')[0];
@@ -73,68 +82,112 @@ const PRIORITY_COLORS = {
 
 type SmartListType = 'today' | 'scheduled' | 'all' | 'flagged';
 
-export function Me() {
-  const [activeTab, setActiveTab] = useState<'meds' | 'tasks'>('meds');
-
-  // Check if we should open tasks tab (from dashboard click)
-  useEffect(() => {
+export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
+  const { data, updateSelfCare } = useAppData();
+  const [activeTab, setActiveTab] = useState<'meds' | 'reminders'>(() => {
+    // If initialTab prop is set (e.g. from /tasks route), use it
+    if (initialTab) return initialTab;
     const target = sessionStorage.getItem('meTabTarget');
     if (target === 'tasks') {
-      setActiveTab('tasks');
       sessionStorage.removeItem('meTabTarget');
+      sessionStorage.setItem('meActiveTab', 'reminders');
+      return 'reminders';
     }
+    return (sessionStorage.getItem('meActiveTab') as 'meds' | 'reminders') || 'meds';
+  });
+
+  // Listen for tab changes from bottom nav
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const tab = (e as CustomEvent).detail as 'meds' | 'reminders';
+      setActiveTab(tab);
+    };
+    window.addEventListener('meTabChange', handler);
+    return () => window.removeEventListener('meTabChange', handler);
   }, []);
+
+  // Med config
+  const medConfig: MedConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
 
   // Meds state
   const [dose1Time, setDose1Time] = useState<number | null>(null);
   const [dose2Time, setDose2Time] = useState<number | null>(null);
+  const [dose3Time, setDose3Time] = useState<number | null>(null);
   const [skippedToday, setSkippedToday] = useState(false);
   const [skippedDose1, setSkippedDose1] = useState(false);
   const [skippedDose2, setSkippedDose2] = useState(false);
+  const [skippedDose3, setSkippedDose3] = useState(false);
   const [showSkipOptions, setShowSkipOptions] = useState(false);
+  const [showOptionalDose3, setShowOptionalDose3] = useState(false);
   const [todayClasses, setTodayClasses] = useState<(Class & { studio?: Studio })[]>([]);
+
+  // Auto-expand optional dose 3 if AI suggested it for today
+  useEffect(() => {
+    const sc = data.selfCare || {};
+    if (medConfig.maxDoses === 2 && (sc as Record<string, unknown>).suggestedDose3Date === getTodayKey()) {
+      setShowOptionalDose3(true);
+    }
+  }, [data.selfCare, medConfig.maxDoses]);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [editingDose, setEditingDose] = useState<1 | 2 | null>(null);
+  const [editingDose, setEditingDose] = useState<1 | 2 | 3 | null>(null);
   const [editTimeValue, setEditTimeValue] = useState('');
 
   // Tasks state
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [lists, setLists] = useState<ReminderList[]>(DEFAULT_LISTS);
-  const [currentView, setCurrentView] = useState<SmartListType | string>('today');
+  const [currentView, setCurrentView] = useState<SmartListType | string>('all');
   const [selectedReminder, setSelectedReminder] = useState<Reminder | null>(null);
   const [showReminderDetail, setShowReminderDetail] = useState(false);
-  const [showNewReminder, setShowNewReminder] = useState(false);
   const [showNewList, setShowNewList] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [newListColor, setNewListColor] = useState(LIST_COLORS[0]);
+  const [editingList, setEditingList] = useState<ReminderList | null>(null);
+  const [editListName, setEditListName] = useState('');
+  const [editListColor, setEditListColor] = useState('');
   const [showCompleted, setShowCompleted] = useState(false);
+  const [inlineAddText, setInlineAddText] = useState('');
+  const inlineInputRef = useRef<HTMLInputElement>(null);
 
-  // New reminder form state
-  const [newReminder, setNewReminder] = useState<Partial<Reminder>>({
-    title: '',
-    notes: '',
-    listId: 'inbox',
-    priority: 'none',
-    flagged: false,
-    dueDate: undefined,
-    dueTime: undefined,
-    subtasks: [],
-  });
+  // Smart wellness checklist — adapts to your day
+  // (moved after state declarations so it can reference meds/class state)
 
-  // Load all data on mount
+  const todayKey = getTodayKey();
+  const wellnessStates = useMemo(() => {
+    const sc = data.selfCare || {};
+    // Reset if day changed
+    if (sc.unifiedTaskDate !== todayKey) return {} as Record<string, boolean>;
+    return sc.unifiedTaskStates || {};
+  }, [data.selfCare, todayKey]);
+
+  const toggleWellness = useCallback((id: string) => {
+    const sc = data.selfCare || {};
+    const currentStates = sc.unifiedTaskDate === todayKey ? (sc.unifiedTaskStates || {}) : {};
+    const updated = { ...currentStates, [id]: !currentStates[id] };
+    // Only send changed fields — spreading ...sc would overwrite cloud reminders with stale local copy
+    updateSelfCare({
+      unifiedTaskStates: updated,
+      unifiedTaskDate: todayKey,
+    });
+  }, [data.selfCare, todayKey, updateSelfCare]);
+
+  // Load meds data from selfCare (reactive to sync changes)
   useEffect(() => {
-    const data = loadData();
     const sc = data.selfCare || {};
     const today = getTodayKey();
-
-    // Load meds data
     if (isTodayTimestamp(sc.dose1Time)) setDose1Time(sc.dose1Time!);
+    else setDose1Time(null);
     if (isTodayTimestamp(sc.dose2Time)) setDose2Time(sc.dose2Time!);
-    if (sc.skippedDoseDate === today) setSkippedToday(true);
-    if (sc.skippedDose1Date === today) setSkippedDose1(true);
-    if (sc.skippedDose2Date === today) setSkippedDose2(true);
+    else setDose2Time(null);
+    if (isTodayTimestamp(sc.dose3Time)) setDose3Time(sc.dose3Time!);
+    else setDose3Time(null);
+    setSkippedToday(sc.skippedDoseDate === today);
+    setSkippedDose1(sc.skippedDose1Date === today);
+    setSkippedDose2(sc.skippedDose2Date === today);
+    setSkippedDose3(sc.skippedDose3Date === today);
+  }, [data.selfCare]);
 
-    // Load today's classes
+  // Load today's classes
+  useEffect(() => {
     const currentDay = getCurrentDayOfWeek();
     const studios = data.studios || [];
     const classes = (data.classes || [])
@@ -142,22 +195,66 @@ export function Me() {
       .map((c: Class) => ({ ...c, studio: studios.find((s: Studio) => s.id === c.studioId) }))
       .sort((a: Class, b: Class) => a.startTime.localeCompare(b.startTime));
     setTodayClasses(classes);
+  }, [data.classes, data.studios]);
 
-    // Load tasks data
+  // Reminders & lists reactive to sync
+  useEffect(() => {
+    const sc = data.selfCare || {};
     setReminders(sc.reminders || []);
     setLists(sc.reminderLists || DEFAULT_LISTS);
-  }, []);
+  }, [data.selfCare]);
+
 
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(new Date()), 30000);
     return () => clearInterval(interval);
   }, []);
 
+  // Data-driven wellness checklist — reads from settings, applies conditions dynamically
+  type WellnessSection = { title: string; Icon: LucideIcon; items: { id: string; label: string; Icon: LucideIcon }[] };
+  const wellnessConfig = data.settings?.wellnessItems || DEFAULT_WELLNESS_ITEMS;
+  const WELLNESS_SECTIONS: WellnessSection[] = useMemo(() => {
+    const hour = new Date().getHours();
+    const hasClasses = todayClasses.length > 0;
+    const tookMeds = dose1Time !== null || dose2Time !== null;
+
+    const sectionMap: Record<string, LucideIcon> = { morning: Sunrise, afternoon: CloudSun, evening: Sunset };
+    const sectionOrder: Array<'morning' | 'afternoon' | 'evening'> = ['morning', 'afternoon', 'evening'];
+
+    return sectionOrder.map(sec => {
+      const items = wellnessConfig
+        .filter(item => item.enabled && item.section === sec)
+        .filter(item => {
+          const c = item.conditions;
+          if (!c) return true;
+          if (c.requiresMedsTaken && !tookMeds) return false;
+          if (c.onlyOnClassDays && !hasClasses) return false;
+          if (c.onlyOnOffDays && hasClasses) return false;
+          if (c.afterHour !== undefined && hour < c.afterHour) return false;
+          return true;
+        })
+        .sort((a, b) => a.order - b.order)
+        .map(item => ({
+          id: item.id,
+          label: item.label,
+          Icon: ICON_MAP[item.icon] || Circle,
+        }));
+
+      return {
+        title: sec.charAt(0).toUpperCase() + sec.slice(1),
+        Icon: sectionMap[sec],
+        items,
+      };
+    }).filter(s => s.items.length > 0);
+  }, [wellnessConfig, todayClasses.length, dose1Time, dose2Time]);
+
+  // Flatten all items for counting
+  const ALL_WELLNESS_ITEMS = useMemo(() =>
+    WELLNESS_SECTIONS.flatMap(s => s.items), [WELLNESS_SECTIONS]);
+
   const persist = useCallback((updates: Record<string, unknown>) => {
-    const data = loadData();
-    data.selfCare = { ...data.selfCare, ...updates };
-    saveData(data);
-  }, []);
+    updateSelfCare(updates);
+  }, [updateSelfCare]);
 
   // Meds handlers
   const handleTakeDose1 = () => {
@@ -165,7 +262,7 @@ export function Me() {
     setDose1Time(now);
     setSkippedToday(false);
     setSkippedDose1(false);
-    persist({ dose1Time: now, dose1Date: new Date().toDateString(), skippedDoseDate: null, skippedDose1Date: null });
+    persist({ dose1Time: now, dose1Date: getTodayKey(), skippedDoseDate: null, skippedDose1Date: null });
   };
 
   const handleTakeDose2 = () => {
@@ -174,24 +271,29 @@ export function Me() {
     setSkippedDose2(false);
     // If both doses are now taken, clear the whole day skip
     if (dose1Time) setSkippedToday(false);
-    persist({ dose2Time: now, dose2Date: new Date().toDateString(), skippedDose2Date: null, skippedDoseDate: dose1Time ? null : undefined });
+    persist({ dose2Time: now, dose2Date: getTodayKey(), skippedDose2Date: null, skippedDoseDate: dose1Time ? null : undefined });
   };
 
   const handleSkipToday = () => {
     setSkippedToday(true);
     setSkippedDose1(true);
     setSkippedDose2(true);
+    setSkippedDose3(true);
     setDose1Time(null);
     setDose2Time(null);
+    setDose3Time(null);
     setShowSkipOptions(false);
     persist({
       skippedDoseDate: getTodayKey(),
       skippedDose1Date: getTodayKey(),
       skippedDose2Date: getTodayKey(),
+      skippedDose3Date: getTodayKey(),
       dose1Time: null,
-      dose1Date: null,
+      dose1Date: getTodayKey(),
       dose2Time: null,
-      dose2Date: null
+      dose2Date: getTodayKey(),
+      dose3Time: null,
+      dose3Date: getTodayKey(),
     });
   };
 
@@ -199,21 +301,22 @@ export function Me() {
     setSkippedDose1(true);
     setDose1Time(null);
     setShowSkipOptions(false);
-    persist({ skippedDose1Date: getTodayKey(), dose1Time: null, dose1Date: null });
+    persist({ skippedDose1Date: getTodayKey(), dose1Time: null, dose1Date: getTodayKey() });
   };
 
   const handleSkipDose2 = () => {
     setSkippedDose2(true);
     setDose2Time(null);
     setShowSkipOptions(false);
-    persist({ skippedDose2Date: getTodayKey(), dose2Time: null, dose2Date: null });
+    persist({ skippedDose2Date: getTodayKey(), dose2Time: null, dose2Date: getTodayKey() });
   };
 
   const handleUndoSkip = () => {
     setSkippedToday(false);
     setSkippedDose1(false);
     setSkippedDose2(false);
-    persist({ skippedDoseDate: null, skippedDose1Date: null, skippedDose2Date: null });
+    setSkippedDose3(false);
+    persist({ skippedDoseDate: null, skippedDose1Date: null, skippedDose2Date: null, skippedDose3Date: null });
   };
 
   const handleUndoSkipDose1 = () => {
@@ -232,16 +335,43 @@ export function Me() {
 
   const handleUndoDose1 = () => {
     setDose1Time(null);
-    persist({ dose1Time: null, dose1Date: null });
+    // Keep date as today so merge logic knows this was a deliberate clear
+    persist({ dose1Time: null, dose1Date: getTodayKey() });
   };
 
   const handleUndoDose2 = () => {
     setDose2Time(null);
-    persist({ dose2Time: null, dose2Date: null });
+    // Keep date as today so merge logic knows this was a deliberate clear
+    persist({ dose2Time: null, dose2Date: getTodayKey() });
   };
 
-  const handleEditDose = (doseNum: 1 | 2) => {
-    const doseTime = doseNum === 1 ? dose1Time : dose2Time;
+  // Dose 3 handlers
+  const handleTakeDose3 = () => {
+    const now = Date.now();
+    setDose3Time(now);
+    setSkippedDose3(false);
+    persist({ dose3Time: now, dose3Date: getTodayKey(), skippedDose3Date: null });
+  };
+
+  const handleSkipDose3 = () => {
+    setSkippedDose3(true);
+    setDose3Time(null);
+    setShowSkipOptions(false);
+    persist({ skippedDose3Date: getTodayKey(), dose3Time: null, dose3Date: getTodayKey() });
+  };
+
+  const handleUndoSkipDose3 = () => {
+    setSkippedDose3(false);
+    persist({ skippedDose3Date: null });
+  };
+
+  const handleUndoDose3 = () => {
+    setDose3Time(null);
+    persist({ dose3Time: null, dose3Date: getTodayKey() });
+  };
+
+  const handleEditDose = (doseNum: 1 | 2 | 3) => {
+    const doseTime = doseNum === 1 ? dose1Time : doseNum === 2 ? dose2Time : dose3Time;
     if (doseTime) {
       const date = new Date(doseTime);
       setEditTimeValue(`${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`);
@@ -262,104 +392,95 @@ export function Me() {
     if (editingDose === 1) {
       setDose1Time(timestamp);
       setSkippedToday(false);
-      persist({ dose1Time: timestamp, dose1Date: new Date().toDateString(), skippedDoseDate: null });
-    } else {
+      persist({ dose1Time: timestamp, dose1Date: getTodayKey(), skippedDoseDate: null });
+    } else if (editingDose === 2) {
       setDose2Time(timestamp);
-      persist({ dose2Time: timestamp, dose2Date: new Date().toDateString() });
+      persist({ dose2Time: timestamp, dose2Date: getTodayKey() });
+    } else if (editingDose === 3) {
+      setDose3Time(timestamp);
+      persist({ dose3Time: timestamp, dose3Date: getTodayKey() });
     }
     setEditingDose(null);
   };
 
   // Tasks handlers
   const persistTasks = useCallback((newReminders: Reminder[], newLists: ReminderList[]) => {
-    const data = loadData();
-    data.selfCare = { ...data.selfCare, reminders: newReminders, reminderLists: newLists };
-    saveData(data);
-  }, []);
+    updateSelfCare({ reminders: newReminders, reminderLists: newLists });
+  }, [updateSelfCare]);
 
-  const handleAddReminder = useCallback(() => {
-    if (!newReminder.title?.trim()) return;
+  const handleInlineAdd = useCallback(() => {
+    if (!inlineAddText.trim()) return;
     const reminder: Reminder = {
       id: generateId(),
-      title: newReminder.title.trim(),
-      notes: newReminder.notes || '',
-      listId: newReminder.listId || 'inbox',
+      title: inlineAddText.trim(),
+      notes: '',
+      listId: currentView !== 'today' && currentView !== 'scheduled' && currentView !== 'all' && currentView !== 'flagged' ? currentView : 'inbox',
       completed: false,
-      priority: newReminder.priority || 'none',
-      flagged: newReminder.flagged || false,
-      dueDate: newReminder.dueDate,
-      dueTime: newReminder.dueTime,
-      subtasks: newReminder.subtasks || [],
-      recurring: newReminder.recurring,
-      url: newReminder.url,
+      priority: 'none',
+      flagged: false,
+      dueDate: undefined,
+      dueTime: undefined,
+      subtasks: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
     const updated = [...reminders, reminder];
     setReminders(updated);
     persistTasks(updated, lists);
-    setNewReminder({
-      title: '',
-      notes: '',
-      listId: currentView !== 'today' && currentView !== 'scheduled' && currentView !== 'all' && currentView !== 'flagged' ? currentView : 'inbox',
-      priority: 'none',
-      flagged: currentView === 'flagged',
-      dueDate: currentView === 'today' ? getTodayKey() : undefined,
-      dueTime: undefined,
-      subtasks: [],
-    });
-    setShowNewReminder(false);
-  }, [newReminder, reminders, lists, persistTasks, currentView]);
+    setInlineAddText('');
+    // Keep focus for rapid entry
+    setTimeout(() => inlineInputRef.current?.focus(), 0);
+  }, [inlineAddText, reminders, lists, persistTasks, currentView]);
 
   const handleToggleComplete = useCallback((id: string) => {
-    const updated = reminders.map(r => {
-      if (r.id === id) {
-        const nowCompleted = !r.completed;
-        // Handle recurring tasks
-        if (nowCompleted && r.recurring && r.dueDate) {
-          const nextDate = getNextRecurringDate(r.dueDate, r.recurring);
-          if (nextDate) {
-            // Create a new instance for the next occurrence
-            const newReminder: Reminder = {
-              ...r,
-              id: generateId(),
-              completed: false,
-              completedAt: undefined,
-              dueDate: nextDate,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            };
-            // Add to reminders after the map
-            setTimeout(() => {
-              setReminders(prev => {
-                const withNew = [...prev, newReminder];
-                persistTasks(withNew, lists);
-                return withNew;
-              });
-            }, 0);
+    setReminders(prev => {
+      const updated = prev.map(r => {
+        if (r.id === id) {
+          const nowCompleted = !r.completed;
+          if (nowCompleted && r.recurring && r.dueDate) {
+            const nextDate = getNextRecurringDate(r.dueDate, r.recurring);
+            if (nextDate) {
+              const newReminder: Reminder = {
+                ...r,
+                id: generateId(),
+                completed: false,
+                completedAt: undefined,
+                dueDate: nextDate,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              };
+              setTimeout(() => {
+                setReminders(p => {
+                  const withNew = [...p, newReminder];
+                  persistTasks(withNew, lists);
+                  return withNew;
+                });
+              }, 0);
+            }
           }
+          return {
+            ...r,
+            completed: nowCompleted,
+            completedAt: nowCompleted ? new Date().toISOString() : undefined,
+            updatedAt: new Date().toISOString()
+          };
         }
-        return {
-          ...r,
-          completed: nowCompleted,
-          completedAt: nowCompleted ? new Date().toISOString() : undefined,
-          updatedAt: new Date().toISOString()
-        };
-      }
-      return r;
+        return r;
+      });
+      persistTasks(updated, lists);
+      return updated;
     });
-    setReminders(updated);
-    persistTasks(updated, lists);
-  }, [reminders, lists, persistTasks]);
+  }, [lists, persistTasks]);
 
   const handleToggleFlag = useCallback((id: string) => {
-    const updated = reminders.map(r => {
-      if (r.id === id) return { ...r, flagged: !r.flagged, updatedAt: new Date().toISOString() };
-      return r;
+    setReminders(prev => {
+      const updated = prev.map(r =>
+        r.id === id ? { ...r, flagged: !r.flagged, updatedAt: new Date().toISOString() } : r
+      );
+      persistTasks(updated, lists);
+      return updated;
     });
-    setReminders(updated);
-    persistTasks(updated, lists);
-  }, [reminders, lists, persistTasks]);
+  }, [lists, persistTasks]);
 
   const handleDeleteReminder = useCallback((id: string) => {
     const updated = reminders.filter(r => r.id !== id);
@@ -404,7 +525,24 @@ export function Me() {
     setReminders(updatedReminders);
     persistTasks(updatedReminders, updatedLists);
     setCurrentView('today');
+    setEditingList(null);
   }, [lists, reminders, persistTasks]);
+
+  const handleOpenEditList = useCallback((list: ReminderList) => {
+    setEditListName(list.name);
+    setEditListColor(list.color);
+    setEditingList(list);
+  }, []);
+
+  const handleSaveEditList = useCallback(() => {
+    if (!editingList || !editListName.trim()) return;
+    const updatedLists = lists.map(l =>
+      l.id === editingList.id ? { ...l, name: editListName.trim(), color: editListColor } : l
+    );
+    setLists(updatedLists);
+    persistTasks(reminders, updatedLists);
+    setEditingList(null);
+  }, [editingList, editListName, editListColor, lists, reminders, persistTasks]);
 
   const handleToggleSubtask = useCallback((reminderId: string, subtaskId: string) => {
     const updated = reminders.map(r => {
@@ -457,11 +595,14 @@ export function Me() {
   // Computed values
   const dose1Info = dose1Time ? getDoseInfo(dose1Time) : null;
   const dose2Info = dose2Time ? getDoseInfo(dose2Time) : null;
-  const activeDose = dose2Info && dose2Info.status !== 'Worn Off'
-    ? { info: dose2Info, time: dose2Time, num: 2 }
-    : dose1Info && dose1Info.status !== 'Worn Off'
-      ? { info: dose1Info, time: dose1Time, num: 1 }
-      : null;
+  const dose3Info = dose3Time ? getDoseInfo(dose3Time) : null;
+  const activeDose = dose3Info && dose3Info.status !== 'Worn Off'
+    ? { info: dose3Info, time: dose3Time, num: 3 }
+    : dose2Info && dose2Info.status !== 'Worn Off'
+      ? { info: dose2Info, time: dose2Time, num: 2 }
+      : dose1Info && dose1Info.status !== 'Worn Off'
+        ? { info: dose1Info, time: dose1Time, num: 1 }
+        : null;
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
@@ -568,605 +709,503 @@ export function Me() {
     }
   };
 
-  const totalIncomplete = reminders.filter(r => !r.completed).length;
-
   return (
-    <div className="h-full overflow-y-auto pb-24 bg-gray-50 dark:bg-blush-900 ios-scroll">
+    <div className="pb-24 bg-gray-50 dark:bg-blush-900">
       <div className="max-w-md mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-4">
-          <h1 className="text-xl font-bold text-gray-800 dark:text-white">Me</h1>
+          <h1 className="text-xl font-bold text-gray-800 dark:text-white">
+            {activeTab === 'meds' ? 'Meds' : 'Tasks'}
+          </h1>
           <p className="text-sm text-gray-500 dark:text-blush-400">
             {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
           </p>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex bg-gray-200 dark:bg-blush-800 rounded-xl p-1 mb-6">
-          <button
-            onClick={() => setActiveTab('meds')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
-              activeTab === 'meds'
-                ? 'bg-white dark:bg-blush-700 text-gray-800 dark:text-white shadow-sm'
-                : 'text-gray-500 dark:text-blush-400'
-            }`}
-          >
-            <Pill size={16} />
-            Meds
-          </button>
-          <button
-            onClick={() => setActiveTab('tasks')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
-              activeTab === 'tasks'
-                ? 'bg-white dark:bg-blush-700 text-gray-800 dark:text-white shadow-sm'
-                : 'text-gray-500 dark:text-blush-400'
-            }`}
-          >
-            <CheckCircle2 size={16} />
-            Tasks
-            {totalIncomplete > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 bg-blue-500 text-white text-xs rounded-full">
-                {totalIncomplete}
-              </span>
-            )}
-          </button>
-        </div>
-
-        {/* Meds Tab */}
-        {activeTab === 'meds' && (
-          <>
-            {/* Current Status Banner */}
+        {/* === Meds Tab === */}
+        {activeTab === 'meds' && (<>
+        <div className="space-y-3">
+            {/* Status bar — compact inline */}
             {!skippedToday && activeDose && (
-              <div className={`rounded-2xl p-4 mb-4 ${activeDose.info.color} text-white`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Zap size={24} className="opacity-90" />
-                    <div>
-                      <div className="font-bold text-lg">{activeDose.info.status}</div>
-                      <div className="text-sm opacity-90">
-                        Dose {activeDose.num} • took at {formatTime12(new Date(activeDose.time!))}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-3xl font-bold">{activeDose.info.percent}%</div>
-                    <div className="text-xs opacity-75">effectiveness</div>
-                  </div>
+              <div className={`rounded-xl px-3 py-2.5 ${activeDose.info.color} text-white flex items-center justify-between`}>
+                <div className="flex items-center gap-2">
+                  <Zap size={16} className="opacity-90" />
+                  <span className="font-bold text-sm">{activeDose.info.status}</span>
+                  <span className="text-xs opacity-75">Dose {activeDose.num} &bull; {formatTime12(new Date(activeDose.time!))}</span>
                 </div>
+                <span className="text-lg font-bold">{activeDose.info.percent}%</span>
               </div>
             )}
 
-            {/* Skipped Banner */}
-            {/* Full Day Skipped Banner */}
+            {/* Skipped banner — compact */}
             {skippedToday && skippedDose1 && skippedDose2 && (
-              <div className="rounded-2xl p-4 mb-4 bg-slate-200 dark:bg-slate-700">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Moon size={24} className="text-slate-500 dark:text-slate-400" />
-                    <div>
-                      <div className="font-semibold text-slate-700 dark:text-slate-200">Off Day</div>
-                      <div className="text-sm text-slate-500 dark:text-slate-400">No meds today</div>
-                    </div>
-                  </div>
-                  <button onClick={handleUndoSkip} className="flex items-center gap-1 px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-lg">
-                    <Undo2 size={14} /> Undo
-                  </button>
+              <div className="rounded-xl px-3 py-2.5 bg-slate-200 dark:bg-slate-700 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Moon size={16} className="text-slate-500 dark:text-slate-400" />
+                  <span className="font-semibold text-sm text-slate-700 dark:text-slate-200">Off Day</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">No meds today</span>
                 </div>
+                <button onClick={handleUndoSkip} className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-lg">
+                  <Undo2 size={12} /> Undo
+                </button>
               </div>
             )}
 
-            {/* Dose Buttons */}
-            {!(skippedToday && skippedDose1 && skippedDose2) && (
-              <div className="space-y-3 mb-6">
-                {/* Dose 1 */}
-                <div className="bg-white dark:bg-blush-800 rounded-2xl border border-gray-200 dark:border-blush-700 overflow-hidden">
-                  <div className="p-4">
+            {/* Dose cards — side by side */}
+            {!(skippedToday && skippedDose1 && skippedDose2 && skippedDose3) && (
+              <>
+                <div className={`grid gap-2 ${(medConfig.maxDoses === 3 || showOptionalDose3 || dose3Time || skippedDose3) ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                  {/* Dose 1 */}
+                  <div className="bg-white dark:bg-blush-800 rounded-xl border border-gray-200 dark:border-blush-700 p-3">
                     {skippedDose1 && !dose1Time ? (
-                      // Dose 1 skipped
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-700">
-                            <SkipForward size={20} className="text-slate-400 dark:text-slate-500" />
-                          </div>
-                          <div>
-                            <div className="font-semibold text-gray-800 dark:text-white">Dose 1</div>
-                            <div className="text-sm text-slate-500 dark:text-slate-400">Skipped</div>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button onClick={handleUndoSkipDose1} className="px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-lg">Undo</button>
-                          <button onClick={handleTakeDose1} className="px-3 py-1.5 text-sm bg-forest-600 hover:bg-forest-700 text-white font-medium rounded-lg">Take Instead</button>
-                        </div>
-                      </div>
-                    ) : editingDose === 1 ? (
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center bg-forest-100 dark:bg-forest-900/30">
-                          <Pill size={20} className="text-forest-600 dark:text-forest-400" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-semibold text-gray-800 dark:text-white mb-2">Dose 1 Time</div>
-                          <input type="time" value={editTimeValue} onChange={(e) => setEditTimeValue(e.target.value)} className="w-full px-3 py-2 border border-gray-300 dark:border-blush-600 rounded-lg bg-white dark:bg-blush-700 text-gray-800 dark:text-white" autoFocus />
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <button onClick={handleSaveEditTime} className="p-2 bg-green-500 hover:bg-green-600 text-white rounded-lg"><Check size={18} /></button>
-                          <button onClick={() => setEditingDose(null)} className="p-2 bg-gray-200 hover:bg-gray-300 dark:bg-blush-600 dark:hover:bg-blush-500 text-gray-600 dark:text-white rounded-lg"><X size={18} /></button>
+                      <div className="text-center">
+                        <SkipForward size={18} className="mx-auto text-slate-400 dark:text-slate-500 mb-1" />
+                        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Dose 1 Skipped</div>
+                        <div className="flex gap-1">
+                          <button onClick={handleUndoSkipDose1} className="flex-1 px-2 py-1.5 text-xs text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600">Undo</button>
+                          <button onClick={handleTakeDose1} className="flex-1 px-2 py-1.5 text-xs bg-forest-600 text-white font-medium rounded-lg">Take</button>
                         </div>
                       </div>
                     ) : dose1Time ? (
-                      <div>
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-100 dark:bg-green-900/30">
-                            <Pill size={20} className="text-green-600 dark:text-green-400" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="font-semibold text-gray-800 dark:text-white">Dose 1</div>
-                            <div className="text-sm text-gray-500 dark:text-blush-400">{formatTime12(new Date(dose1Time))} • {dose1Info?.status}</div>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => handleEditDose(1)} className="flex-1 py-2.5 px-4 border border-gray-300 dark:border-blush-600 text-gray-700 dark:text-blush-300 font-medium rounded-xl hover:bg-gray-50 dark:hover:bg-blush-700">Edit Time</button>
-                          <button onClick={handleUndoDose1} className="flex-1 py-2.5 px-4 text-red-600 dark:text-red-400 font-medium rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20">Clear</button>
+                      <div className="text-center">
+                        <Pill size={18} className="mx-auto text-green-600 dark:text-green-400 mb-1" />
+                        <div className="text-xs font-bold text-gray-800 dark:text-white">Dose 1</div>
+                        <div className="text-[11px] text-gray-500 dark:text-blush-400 mb-2">{formatTime12(new Date(dose1Time))} &bull; {dose1Info?.status}</div>
+                        <div className="flex gap-1">
+                          <button onClick={() => handleEditDose(1)} className="flex-1 px-2 py-1.5 text-xs border border-gray-200 dark:border-blush-600 text-gray-600 dark:text-blush-300 rounded-lg">Edit</button>
+                          <button onClick={handleUndoDose1} className="flex-1 px-2 py-1.5 text-xs text-red-500 dark:text-red-400 rounded-lg">Clear</button>
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 dark:bg-blush-700">
-                            <Pill size={20} className="text-gray-400 dark:text-blush-400" />
-                          </div>
-                          <div>
-                            <div className="font-semibold text-gray-800 dark:text-white">Dose 1</div>
-                            <div className="text-sm text-gray-400 dark:text-blush-500">Not taken yet</div>
-                          </div>
-                        </div>
-                        <button onClick={handleTakeDose1} className="px-4 py-2 bg-forest-600 hover:bg-forest-700 text-white font-medium rounded-xl">Take Now</button>
+                      <div className="text-center">
+                        <Pill size={18} className="mx-auto text-gray-400 dark:text-blush-400 mb-1" />
+                        <div className="text-xs font-bold text-gray-800 dark:text-white">Dose 1</div>
+                        <div className="text-[11px] text-gray-400 dark:text-blush-500 mb-2">Not taken</div>
+                        <button onClick={handleTakeDose1} className="w-full px-3 py-2 bg-forest-600 hover:bg-forest-700 text-white text-xs font-semibold rounded-lg min-h-[36px]">Take Now</button>
                       </div>
                     )}
                   </div>
-                </div>
 
-                {/* Dose 2 */}
-                <div className="bg-white dark:bg-blush-800 rounded-2xl border border-gray-200 dark:border-blush-700 overflow-hidden">
-                  <div className="p-4">
+                  {/* Dose 2 */}
+                  <div className="bg-white dark:bg-blush-800 rounded-xl border border-gray-200 dark:border-blush-700 p-3">
                     {skippedDose2 && !dose2Time ? (
-                      // Dose 2 skipped
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-700">
-                            <SkipForward size={20} className="text-slate-400 dark:text-slate-500" />
-                          </div>
-                          <div>
-                            <div className="font-semibold text-gray-800 dark:text-white">Dose 2</div>
-                            <div className="text-sm text-slate-500 dark:text-slate-400">Skipped</div>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button onClick={handleUndoSkipDose2} className="px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-lg">Undo</button>
-                          <button onClick={handleTakeDose2} className="px-3 py-1.5 text-sm bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg">Take Instead</button>
-                        </div>
-                      </div>
-                    ) : editingDose === 2 ? (
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center bg-amber-100 dark:bg-amber-900/30">
-                          <Pill size={20} className="text-amber-600 dark:text-amber-400" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-semibold text-gray-800 dark:text-white mb-2">Dose 2 Time</div>
-                          <input type="time" value={editTimeValue} onChange={(e) => setEditTimeValue(e.target.value)} className="w-full px-3 py-2 border border-gray-300 dark:border-blush-600 rounded-lg bg-white dark:bg-blush-700 text-gray-800 dark:text-white" autoFocus />
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <button onClick={handleSaveEditTime} className="p-2 bg-green-500 hover:bg-green-600 text-white rounded-lg"><Check size={18} /></button>
-                          <button onClick={() => setEditingDose(null)} className="p-2 bg-gray-200 hover:bg-gray-300 dark:bg-blush-600 dark:hover:bg-blush-500 text-gray-600 dark:text-white rounded-lg"><X size={18} /></button>
+                      <div className="text-center">
+                        <SkipForward size={18} className="mx-auto text-slate-400 dark:text-slate-500 mb-1" />
+                        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Dose 2 Skipped</div>
+                        <div className="flex gap-1">
+                          <button onClick={handleUndoSkipDose2} className="flex-1 px-2 py-1.5 text-xs text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600">Undo</button>
+                          <button onClick={handleTakeDose2} className="flex-1 px-2 py-1.5 text-xs bg-amber-500 text-white font-medium rounded-lg">Take</button>
                         </div>
                       </div>
                     ) : dose2Time ? (
-                      <div>
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-green-100 dark:bg-green-900/30">
-                            <Pill size={20} className="text-green-600 dark:text-green-400" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="font-semibold text-gray-800 dark:text-white">Dose 2</div>
-                            <div className="text-sm text-gray-500 dark:text-blush-400">{formatTime12(new Date(dose2Time))} • {dose2Info?.status}</div>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => handleEditDose(2)} className="flex-1 py-2.5 px-4 border border-gray-300 dark:border-blush-600 text-gray-700 dark:text-blush-300 font-medium rounded-xl hover:bg-gray-50 dark:hover:bg-blush-700">Edit Time</button>
-                          <button onClick={handleUndoDose2} className="flex-1 py-2.5 px-4 text-red-600 dark:text-red-400 font-medium rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20">Clear</button>
+                      <div className="text-center">
+                        <Pill size={18} className="mx-auto text-green-600 dark:text-green-400 mb-1" />
+                        <div className="text-xs font-bold text-gray-800 dark:text-white">Dose 2</div>
+                        <div className="text-[11px] text-gray-500 dark:text-blush-400 mb-2">{formatTime12(new Date(dose2Time))} &bull; {dose2Info?.status}</div>
+                        <div className="flex gap-1">
+                          <button onClick={() => handleEditDose(2)} className="flex-1 px-2 py-1.5 text-xs border border-gray-200 dark:border-blush-600 text-gray-600 dark:text-blush-300 rounded-lg">Edit</button>
+                          <button onClick={handleUndoDose2} className="flex-1 px-2 py-1.5 text-xs text-red-500 dark:text-red-400 rounded-lg">Clear</button>
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-gray-100 dark:bg-blush-700">
-                            <Pill size={20} className="text-gray-400 dark:text-blush-400" />
-                          </div>
-                          <div>
-                            <div className="font-semibold text-gray-800 dark:text-white">Dose 2</div>
-                            <div className="text-sm text-gray-400 dark:text-blush-500">Not taken yet</div>
-                          </div>
-                        </div>
-                        <button onClick={handleTakeDose2} className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-xl">Take Now</button>
+                      <div className="text-center">
+                        <Pill size={18} className="mx-auto text-gray-400 dark:text-blush-400 mb-1" />
+                        <div className="text-xs font-bold text-gray-800 dark:text-white">Dose 2</div>
+                        <div className="text-[11px] text-gray-400 dark:text-blush-500 mb-2">Not taken</div>
+                        <button onClick={handleTakeDose2} className="w-full px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg min-h-[36px]">Take Now</button>
                       </div>
                     )}
                   </div>
+
+                  {/* Dose 3 — shown when maxDoses=3, OR when optional dose 3 is expanded/taken */}
+                  {(medConfig.maxDoses === 3 || showOptionalDose3 || dose3Time || skippedDose3) && (
+                    <div className="bg-white dark:bg-blush-800 rounded-xl border border-gray-200 dark:border-blush-700 p-3">
+                      {skippedDose3 && !dose3Time ? (
+                        <div className="text-center">
+                          <SkipForward size={18} className="mx-auto text-slate-400 dark:text-slate-500 mb-1" />
+                          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Dose 3 Skipped</div>
+                          <div className="flex gap-1">
+                            <button onClick={handleUndoSkipDose3} className="flex-1 px-2 py-1.5 text-xs text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600">Undo</button>
+                            <button onClick={handleTakeDose3} className="flex-1 px-2 py-1.5 text-xs bg-purple-500 text-white font-medium rounded-lg">Take</button>
+                          </div>
+                        </div>
+                      ) : dose3Time ? (
+                        <div className="text-center">
+                          <Pill size={18} className="mx-auto text-green-600 dark:text-green-400 mb-1" />
+                          <div className="text-xs font-bold text-gray-800 dark:text-white">Dose 3</div>
+                          <div className="text-[11px] text-gray-500 dark:text-blush-400 mb-2">{formatTime12(new Date(dose3Time))} &bull; {dose3Info?.status}</div>
+                          <div className="flex gap-1">
+                            <button onClick={() => handleEditDose(3)} className="flex-1 px-2 py-1.5 text-xs border border-gray-200 dark:border-blush-600 text-gray-600 dark:text-blush-300 rounded-lg">Edit</button>
+                            <button onClick={handleUndoDose3} className="flex-1 px-2 py-1.5 text-xs text-red-500 dark:text-red-400 rounded-lg">Clear</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <Pill size={18} className="mx-auto text-gray-400 dark:text-blush-400 mb-1" />
+                          <div className="text-xs font-bold text-gray-800 dark:text-white">Dose 3</div>
+                          <div className="text-[11px] text-gray-400 dark:text-blush-500 mb-2">Not taken</div>
+                          <button onClick={handleTakeDose3} className="w-full px-3 py-2 bg-purple-500 hover:bg-purple-600 text-white text-xs font-semibold rounded-lg min-h-[36px]">Take Now</button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                {/* Skip Options */}
-                {(!dose1Time || !dose2Time) && !skippedDose1 && !skippedDose2 && (
+                {/* Optional Dose 3 prompt — only when maxDoses=2, dose 2 taken, dose 3 not yet shown */}
+                {medConfig.maxDoses === 2 && dose2Time && !showOptionalDose3 && !dose3Time && !skippedDose3 && (
+                  <button
+                    onClick={() => { setShowOptionalDose3(true); haptic('light'); }}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-purple-300 dark:border-purple-600 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+                  >
+                    <Zap size={14} />
+                    <span className="text-xs font-medium">Long day? Add a 3rd dose</span>
+                  </button>
+                )}
+
+                {/* Edit dose time — full width below grid when editing */}
+                {editingDose && (
+                  <div className="bg-white dark:bg-blush-800 rounded-xl border border-gray-200 dark:border-blush-700 p-3 flex items-center gap-3">
+                    <Pill size={16} className={editingDose === 1 ? 'text-forest-600 dark:text-forest-400' : editingDose === 2 ? 'text-amber-600 dark:text-amber-400' : 'text-purple-600 dark:text-purple-400'} />
+                    <span className="text-sm font-semibold text-gray-800 dark:text-white">Dose {editingDose}</span>
+                    <input type="time" value={editTimeValue} onChange={(e) => setEditTimeValue(e.target.value)} className="flex-1 px-2 py-1.5 text-sm border border-gray-300 dark:border-blush-600 rounded-lg bg-white dark:bg-blush-700 text-gray-800 dark:text-white" autoFocus />
+                    <button onClick={handleSaveEditTime} className="p-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg" aria-label="Save"><Check size={16} /></button>
+                    <button onClick={() => setEditingDose(null)} className="p-1.5 bg-gray-200 hover:bg-gray-300 dark:bg-blush-600 dark:hover:bg-blush-500 text-gray-600 dark:text-white rounded-lg" aria-label="Cancel"><X size={16} /></button>
+                  </div>
+                )}
+
+                {/* Skip — compact link */}
+                {((!dose1Time && !skippedDose1) || (!dose2Time && !skippedDose2) || ((medConfig.maxDoses === 3 || showOptionalDose3) && !dose3Time && !skippedDose3)) && (
                   <div className="relative">
                     <button
                       onClick={() => setShowSkipOptions(!showSkipOptions)}
-                      className="w-full flex items-center justify-center gap-2 py-3 text-gray-500 dark:text-blush-400 hover:text-gray-700 dark:hover:text-blush-300"
+                      className="w-full flex items-center justify-center gap-1.5 py-2 text-gray-400 dark:text-blush-500 hover:text-gray-600 dark:hover:text-blush-300"
                     >
-                      <SkipForward size={16} />
-                      <span className="text-sm">Skip options</span>
-                      <ChevronRight size={14} className={`transition-transform ${showSkipOptions ? 'rotate-90' : ''}`} />
+                      <SkipForward size={13} />
+                      <span className="text-xs">Skip</span>
+                      <ChevronRight size={12} className={`transition-transform ${showSkipOptions ? 'rotate-90' : ''}`} />
                     </button>
-
                     {showSkipOptions && (
-                      <div className="mt-2 bg-white dark:bg-blush-800 rounded-xl border border-gray-200 dark:border-blush-700 overflow-hidden">
-                        {!dose1Time && (
-                          <button
-                            onClick={handleSkipDose1}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-blush-700 border-b border-gray-100 dark:border-blush-700"
-                          >
-                            <div className="w-8 h-8 rounded-full bg-forest-100 dark:bg-forest-900/30 flex items-center justify-center">
-                              <SkipForward size={16} className="text-forest-600 dark:text-forest-400" />
-                            </div>
-                            <div>
-                              <div className="font-medium text-gray-800 dark:text-white">Skip Dose 1 only</div>
-                              <div className="text-xs text-gray-500 dark:text-blush-400">Still plan to take Dose 2 later</div>
-                            </div>
+                      <div className="mt-1 bg-white dark:bg-blush-800 rounded-xl border border-gray-200 dark:border-blush-700 overflow-hidden">
+                        {!dose1Time && !skippedDose1 && (
+                          <button onClick={handleSkipDose1} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-blush-700 border-b border-gray-100 dark:border-blush-700">
+                            <SkipForward size={14} className="text-forest-600 dark:text-forest-400" />
+                            <span className="text-sm text-gray-800 dark:text-white">Skip Dose 1</span>
                           </button>
                         )}
-                        {!dose2Time && (
-                          <button
-                            onClick={handleSkipDose2}
-                            className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-blush-700 border-b border-gray-100 dark:border-blush-700"
-                          >
-                            <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-                              <SkipForward size={16} className="text-amber-600 dark:text-amber-400" />
-                            </div>
-                            <div>
-                              <div className="font-medium text-gray-800 dark:text-white">Skip Dose 2 only</div>
-                              <div className="text-xs text-gray-500 dark:text-blush-400">Just taking one dose today</div>
-                            </div>
+                        {!dose2Time && !skippedDose2 && (
+                          <button onClick={handleSkipDose2} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-blush-700 border-b border-gray-100 dark:border-blush-700">
+                            <SkipForward size={14} className="text-amber-600 dark:text-amber-400" />
+                            <span className="text-sm text-gray-800 dark:text-white">Skip Dose 2</span>
                           </button>
                         )}
-                        <button
-                          onClick={handleSkipToday}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-blush-700"
-                        >
-                          <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
-                            <Moon size={16} className="text-slate-500 dark:text-slate-400" />
-                          </div>
-                          <div>
-                            <div className="font-medium text-gray-800 dark:text-white">Skip all day</div>
-                            <div className="text-xs text-gray-500 dark:text-blush-400">Off day - no meds today</div>
-                          </div>
+                        {(medConfig.maxDoses === 3 || showOptionalDose3) && !dose3Time && !skippedDose3 && (
+                          <button onClick={handleSkipDose3} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-blush-700 border-b border-gray-100 dark:border-blush-700">
+                            <SkipForward size={14} className="text-purple-600 dark:text-purple-400" />
+                            <span className="text-sm text-gray-800 dark:text-white">Skip Dose 3</span>
+                          </button>
+                        )}
+                        <button onClick={handleSkipToday} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-blush-700">
+                          <Moon size={14} className="text-slate-500 dark:text-slate-400" />
+                          <span className="text-sm text-gray-800 dark:text-white">Skip all day</span>
                         </button>
                       </div>
                     )}
                   </div>
                 )}
+              </>
+            )}
+
+            {/* Wellness check-in */}
+            <div className="bg-white dark:bg-blush-800 rounded-xl border border-gray-200 dark:border-blush-700 overflow-hidden">
+              <div className="px-3 py-2 border-b border-gray-100 dark:border-blush-700 flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-500 dark:text-blush-400 uppercase tracking-wide">Daily Check-in</span>
+                <span className="text-xs text-gray-400 dark:text-blush-500">
+                  {ALL_WELLNESS_ITEMS.filter(i => wellnessStates[i.id]).length}/{ALL_WELLNESS_ITEMS.length}
+                </span>
+              </div>
+              {WELLNESS_SECTIONS.map(section => (
+                <div key={section.title}>
+                  <div className="px-3 py-1.5 flex items-center gap-1.5 bg-gray-50 dark:bg-blush-850">
+                    <section.Icon size={12} className="text-gray-400 dark:text-blush-500" />
+                    <span className="text-[11px] font-semibold text-gray-400 dark:text-blush-500 uppercase tracking-wide">{section.title}</span>
+                  </div>
+                  {section.items.map(item => {
+                    const done = wellnessStates[item.id];
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => { toggleWellness(item.id); haptic('light'); }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${done ? 'opacity-50' : 'active:bg-gray-50 dark:active:bg-blush-700'}`}
+                      >
+                        {done ? (
+                          <CheckCircle2 size={18} className="text-green-500 flex-shrink-0" fill="currentColor" strokeWidth={0} />
+                        ) : (
+                          <Circle size={18} className="text-gray-300 dark:text-blush-600 flex-shrink-0" strokeWidth={1.5} />
+                        )}
+                        <item.Icon size={14} className={done ? 'text-gray-400 dark:text-blush-500' : 'text-gray-500 dark:text-blush-400'} />
+                        <span className={`text-sm ${done ? 'text-gray-400 dark:text-blush-500 line-through' : 'text-gray-700 dark:text-blush-200'}`}>{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+        </div>
+        </>)}
+
+        {/* === Reminders Tab === */}
+        {activeTab === 'reminders' && (<>
+        <div>
+        {!showReminderDetail && (
+          <>
+            {/* Smart List Filters — compact pill row */}
+            <div className="flex gap-2 mb-3 overflow-x-auto scrollbar-hide pb-1">
+              {([
+                { id: 'today' as SmartListType, label: 'Today', count: smartCounts.today, activeClass: 'bg-blue-500 text-white', badgeClass: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400', Icon: CalendarDays },
+                { id: 'scheduled' as SmartListType, label: 'Scheduled', count: smartCounts.scheduled, activeClass: 'bg-red-500 text-white', badgeClass: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400', Icon: Calendar },
+                { id: 'all' as SmartListType, label: 'All', count: smartCounts.all, activeClass: 'bg-purple-500 text-white', badgeClass: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400', Icon: Inbox },
+                { id: 'flagged' as SmartListType, label: 'Flagged', count: smartCounts.flagged, activeClass: 'bg-orange-500 text-white', badgeClass: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400', Icon: Flag },
+              ]).map(({ id, label, count, activeClass, badgeClass, Icon }) => {
+                const isActive = currentView === id;
+                return (
+                  <button
+                    key={id}
+                    onClick={() => setCurrentView(id)}
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-colors min-h-[40px] flex-shrink-0 ${
+                      isActive
+                        ? activeClass
+                        : 'bg-white dark:bg-blush-800 border border-gray-200 dark:border-blush-700 text-gray-700 dark:text-blush-300'
+                    }`}
+                  >
+                    <Icon size={14} />
+                    {label}
+                    {count > 0 && (
+                      <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
+                        isActive ? 'bg-white/25' : badgeClass
+                      }`}>
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Custom Lists — compact inline pills */}
+            {lists.length > 0 && (
+              <div className="flex items-center gap-2 mb-3 overflow-x-auto scrollbar-hide pb-1">
+                <span className="text-[11px] font-semibold text-gray-400 dark:text-blush-500 uppercase tracking-wide flex-shrink-0">Lists</span>
+                {lists.map(list => {
+                  const count = reminders.filter(r => !r.completed && r.listId === list.id).length;
+                  const isActive = currentView === list.id;
+                  return (
+                    <button
+                      key={list.id}
+                      onClick={() => setCurrentView(list.id)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap flex-shrink-0 transition-colors ${
+                        isActive
+                          ? 'text-white shadow-sm'
+                          : 'bg-white dark:bg-blush-800 border border-gray-200 dark:border-blush-700 text-gray-700 dark:text-blush-300'
+                      }`}
+                      style={isActive ? { backgroundColor: list.color } : {}}
+                    >
+                      <div
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: isActive ? 'rgba(255,255,255,0.5)' : list.color }}
+                      />
+                      {list.name}
+                      {count > 0 && (
+                        <span className={`text-xs font-bold ${isActive ? 'text-white/70' : 'text-gray-400 dark:text-blush-500'}`}>
+                          {count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+                <button
+                  onClick={() => setShowNewList(true)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex-shrink-0"
+                >
+                  <Plus size={12} />
+                  New
+                </button>
               </div>
             )}
 
-            {/* Today's Schedule */}
-            <div className="bg-white dark:bg-blush-800 rounded-2xl border border-gray-200 dark:border-blush-700 overflow-hidden">
-              <div className="p-4 border-b border-gray-100 dark:border-blush-700">
-                <div className="flex items-center gap-2">
-                  <Clock size={18} className="text-gray-500 dark:text-blush-400" />
-                  <h2 className="font-semibold text-gray-800 dark:text-white">Today's Schedule</h2>
-                </div>
-              </div>
-              {todayClasses.length === 0 ? (
-                <div className="p-6 text-center">
-                  <p className="text-gray-600 dark:text-blush-300 font-medium">No classes today</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-gray-100 dark:divide-blush-700">
-                  {todayClasses.map((cls) => (
-                    <div key={cls.id} className="p-4 flex items-center gap-3">
-                      <div className="text-right min-w-[60px]">
-                        <div className="font-medium text-gray-800 dark:text-white">{formatTimeFromString(cls.startTime)}</div>
-                        <div className="text-xs text-gray-400 dark:text-blush-500">{formatTimeFromString(cls.endTime)}</div>
-                      </div>
-                      <div className="w-1 h-10 rounded-full" style={{ backgroundColor: cls.studio?.color || '#888' }} />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate text-gray-800 dark:text-white">{cls.name}</div>
-                        <div className="text-sm text-gray-500 dark:text-blush-400 truncate">{cls.studio?.shortName || cls.studio?.name}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
-        {/* Tasks Tab */}
-        {activeTab === 'tasks' && !showReminderDetail && (
-          <>
-            {/* Smart Lists Grid */}
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <button
-                onClick={() => setCurrentView('today')}
-                className={`p-4 rounded-2xl text-left transition-all ${
-                  currentView === 'today'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white dark:bg-blush-800 border border-gray-200 dark:border-blush-700'
-                }`}
-              >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${
-                  currentView === 'today' ? 'bg-white/20' : 'bg-blue-100 dark:bg-blue-900/30'
-                }`}>
-                  <CalendarDays size={18} className={currentView === 'today' ? 'text-white' : 'text-blue-500'} />
-                </div>
-                <div className="text-2xl font-bold">{smartCounts.today}</div>
-                <div className={`text-sm ${currentView === 'today' ? 'text-white/80' : 'text-gray-500 dark:text-blush-400'}`}>Today</div>
-              </button>
-
-              <button
-                onClick={() => setCurrentView('scheduled')}
-                className={`p-4 rounded-2xl text-left transition-all ${
-                  currentView === 'scheduled'
-                    ? 'bg-red-500 text-white'
-                    : 'bg-white dark:bg-blush-800 border border-gray-200 dark:border-blush-700'
-                }`}
-              >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${
-                  currentView === 'scheduled' ? 'bg-white/20' : 'bg-red-100 dark:bg-red-900/30'
-                }`}>
-                  <Calendar size={18} className={currentView === 'scheduled' ? 'text-white' : 'text-red-500'} />
-                </div>
-                <div className="text-2xl font-bold">{smartCounts.scheduled}</div>
-                <div className={`text-sm ${currentView === 'scheduled' ? 'text-white/80' : 'text-gray-500 dark:text-blush-400'}`}>Scheduled</div>
-              </button>
-
-              <button
-                onClick={() => setCurrentView('all')}
-                className={`p-4 rounded-2xl text-left transition-all ${
-                  currentView === 'all'
-                    ? 'bg-purple-500 text-white'
-                    : 'bg-white dark:bg-blush-800 border border-gray-200 dark:border-blush-700'
-                }`}
-              >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${
-                  currentView === 'all' ? 'bg-white/20' : 'bg-purple-100 dark:bg-purple-900/30'
-                }`}>
-                  <Inbox size={18} className={currentView === 'all' ? 'text-white' : 'text-purple-500'} />
-                </div>
-                <div className="text-2xl font-bold">{smartCounts.all}</div>
-                <div className={`text-sm ${currentView === 'all' ? 'text-white/80' : 'text-gray-500 dark:text-blush-400'}`}>All</div>
-              </button>
-
-              <button
-                onClick={() => setCurrentView('flagged')}
-                className={`p-4 rounded-2xl text-left transition-all ${
-                  currentView === 'flagged'
-                    ? 'bg-orange-500 text-white'
-                    : 'bg-white dark:bg-blush-800 border border-gray-200 dark:border-blush-700'
-                }`}
-              >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-2 ${
-                  currentView === 'flagged' ? 'bg-white/20' : 'bg-orange-100 dark:bg-orange-900/30'
-                }`}>
-                  <Flag size={18} className={currentView === 'flagged' ? 'text-white' : 'text-orange-500'} />
-                </div>
-                <div className="text-2xl font-bold">{smartCounts.flagged}</div>
-                <div className={`text-sm ${currentView === 'flagged' ? 'text-white/80' : 'text-gray-500 dark:text-blush-400'}`}>Flagged</div>
-              </button>
-            </div>
-
-            {/* Custom Lists */}
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-semibold text-gray-500 dark:text-blush-400 uppercase tracking-wide">My Lists</h3>
-                <button
-                  onClick={() => setShowNewList(true)}
-                  className="text-blue-500 text-sm font-medium"
-                >
-                  Add List
-                </button>
-              </div>
-              <div className="space-y-2">
-                {lists.map(list => (
-                  <button
-                    key={list.id}
-                    onClick={() => setCurrentView(list.id)}
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
-                      currentView === list.id
-                        ? 'bg-white dark:bg-blush-700 shadow-sm border border-gray-200 dark:border-blush-600'
-                        : 'hover:bg-white/50 dark:hover:bg-blush-800/50'
-                    }`}
-                  >
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center"
-                      style={{ backgroundColor: `${list.color}20` }}
-                    >
-                      <List size={16} style={{ color: list.color }} />
-                    </div>
-                    <span className="flex-1 text-left font-medium text-gray-800 dark:text-white">{list.name}</span>
-                    <span className="text-gray-400 dark:text-blush-500">
-                      {reminders.filter(r => !r.completed && r.listId === list.id).length}
-                    </span>
-                    <ChevronRight size={16} className="text-gray-300 dark:text-blush-600" />
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Current View Header */}
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold" style={{ color: getViewColor() }}>
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-bold" style={{ color: getViewColor() }}>
                 {getViewTitle()}
               </h2>
-              <span className="text-sm text-gray-500 dark:text-blush-400">
-                {filteredReminders.filter(r => !r.completed).length} tasks
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-gray-400 dark:text-blush-500">
+                  {filteredReminders.filter(r => !r.completed).length} tasks
+                </span>
+                {currentView !== 'today' && currentView !== 'scheduled' && currentView !== 'all' && currentView !== 'flagged' && currentView !== 'inbox' && (
+                  <button
+                    onClick={() => handleOpenEditList(lists.find(l => l.id === currentView)!)}
+                    className="p-1.5 rounded-lg text-gray-400 dark:text-blush-500 hover:text-gray-600 dark:hover:text-blush-300 hover:bg-gray-100 dark:hover:bg-blush-700"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Reminders List */}
             <div className="bg-white dark:bg-blush-800 rounded-2xl border border-gray-200 dark:border-blush-700 overflow-hidden mb-4">
-              {filteredReminders.length === 0 && !showNewReminder ? (
-                <div className="p-8 text-center">
-                  <CheckCircle2 size={40} className="mx-auto mb-3 text-green-500" />
-                  <p className="text-gray-600 dark:text-blush-300 font-medium">All caught up!</p>
-                  <p className="text-sm text-gray-400 dark:text-blush-500">No tasks in this list</p>
+              {filteredReminders.length === 0 ? (
+                <div className="px-8 pt-6 pb-2 text-center">
+                  <CheckCircle2 size={32} className="mx-auto mb-2 text-green-500" />
+                  <p className="text-gray-600 dark:text-blush-300 font-medium text-sm">All caught up!</p>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100 dark:divide-blush-700">
-                  {filteredReminders.map((reminder) => (
-                    <div
-                      key={reminder.id}
-                      className="flex items-start gap-3 p-4 active:bg-gray-50 dark:active:bg-blush-700 cursor-pointer"
-                      onClick={() => {
-                        setSelectedReminder(reminder);
-                        setShowReminderDetail(true);
-                      }}
-                    >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleComplete(reminder.id);
-                        }}
-                        className="mt-0.5 flex-shrink-0"
+                  {filteredReminders.map((reminder) => {
+                    const SWIPE_THRESHOLD = 80;
+                    return (
+                      <div
+                        key={reminder.id}
+                        className="relative overflow-hidden"
                       >
-                        {reminder.completed ? (
-                          <CheckCircle2 size={24} className="text-blue-500" fill="currentColor" strokeWidth={0} />
-                        ) : (
-                          <Circle
-                            size={24}
-                            className={PRIORITY_COLORS[reminder.priority]}
-                            strokeWidth={reminder.priority === 'high' ? 2.5 : 1.5}
-                          />
-                        )}
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <p className={`font-medium ${reminder.completed ? 'text-gray-400 dark:text-blush-500 line-through' : 'text-gray-800 dark:text-white'}`}>
-                          {reminder.title}
-                        </p>
-                        {reminder.notes && (
-                          <p className="text-sm text-gray-400 dark:text-blush-500 line-clamp-1 mt-0.5">
-                            {reminder.notes}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          {reminder.dueDate && (
-                            <span className={`text-xs flex items-center gap-1 ${
-                              !reminder.completed && reminder.dueDate && isPast(startOfDay(parseISO(reminder.dueDate))) && reminder.dueDate !== todayStr
-                                ? 'text-red-500'
-                                : 'text-gray-400 dark:text-blush-500'
-                            }`}>
-                              <Bell size={10} />
-                              {formatDueDate(reminder.dueDate, reminder.dueTime)}
-                            </span>
-                          )}
-                          {reminder.recurring && (
-                            <span className="text-xs text-gray-400 dark:text-blush-500 flex items-center gap-1">
-                              <Repeat size={10} />
-                              {reminder.recurring.type}
-                            </span>
-                          )}
-                          {reminder.subtasks && reminder.subtasks.length > 0 && (
-                            <span className="text-xs text-gray-400 dark:text-blush-500">
-                              {reminder.subtasks.filter(s => s.completed).length}/{reminder.subtasks.length} subtasks
-                            </span>
-                          )}
+                        {/* Green reveal behind the swipe */}
+                        <div className="absolute inset-0 bg-green-500 flex items-center justify-end pr-6">
+                          <Check size={24} className="text-white" />
                         </div>
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleFlag(reminder.id);
-                        }}
-                        className="flex-shrink-0 p-1"
-                      >
-                        <Flag size={18} className={reminder.flagged ? 'text-orange-500 fill-orange-500' : 'text-gray-300 dark:text-blush-600'} />
-                      </button>
-                    </div>
-                  ))}
+                        <div
+                          className="relative bg-white dark:bg-blush-800 flex items-start gap-3 p-4 active:bg-gray-50 dark:active:bg-blush-700 cursor-pointer transition-transform"
+                          style={{ touchAction: 'pan-y' }}
+                          onTouchStart={(e) => {
+                            const el = e.currentTarget;
+                            const startX = e.touches[0].clientX;
+                            const startY = e.touches[0].clientY;
+                            let deltaX = 0;
+                            let isHorizontal: boolean | null = null;
 
-                  {showNewReminder && (
-                    <div className="p-4 space-y-3">
-                      <div className="flex items-start gap-3">
-                        <Circle size={24} className="text-gray-300 dark:text-blush-600 mt-0.5" strokeWidth={1.5} />
-                        <div className="flex-1">
-                          <input
-                            type="text"
-                            value={newReminder.title}
-                            onChange={(e) => setNewReminder({ ...newReminder, title: e.target.value })}
-                            placeholder="New reminder..."
-                            className="w-full bg-transparent text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-blush-500 outline-none font-medium"
-                            autoFocus
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && newReminder.title?.trim()) handleAddReminder();
-                              if (e.key === 'Escape') { setShowNewReminder(false); setNewReminder({ title: '', listId: 'inbox', priority: 'none', flagged: false }); }
+                            const onMove = (ev: TouchEvent) => {
+                              const dx = ev.touches[0].clientX - startX;
+                              const dy = ev.touches[0].clientY - startY;
+                              // Determine direction on first significant movement
+                              if (isHorizontal === null && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
+                                isHorizontal = Math.abs(dx) > Math.abs(dy);
+                              }
+                              if (!isHorizontal) return;
+                              ev.preventDefault();
+                              deltaX = Math.min(0, dx); // Only allow left swipe
+                              el.style.transform = `translateX(${deltaX}px)`;
+                              el.style.transition = 'none';
+                            };
+
+                            const onEnd = () => {
+                              document.removeEventListener('touchmove', onMove);
+                              document.removeEventListener('touchend', onEnd);
+                              if (deltaX < -SWIPE_THRESHOLD && !reminder.completed) {
+                                // Complete the reminder
+                                el.style.transition = 'transform 0.2s ease-out';
+                                el.style.transform = 'translateX(-100%)';
+                                haptic('medium');
+                                setTimeout(() => {
+                                  handleToggleComplete(reminder.id);
+                                  el.style.transition = 'none';
+                                  el.style.transform = '';
+                                }, 200);
+                              } else {
+                                // Snap back
+                                el.style.transition = 'transform 0.2s ease-out';
+                                el.style.transform = '';
+                              }
+                            };
+
+                            document.addEventListener('touchmove', onMove, { passive: false });
+                            document.addEventListener('touchend', onEnd);
+                          }}
+                          onClick={() => {
+                            setSelectedReminder(reminder);
+                            setShowReminderDetail(true);
+                          }}
+                        >
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleComplete(reminder.id);
                             }}
-                          />
-                          <input
-                            type="text"
-                            value={newReminder.notes || ''}
-                            onChange={(e) => setNewReminder({ ...newReminder, notes: e.target.value })}
-                            placeholder="Add note..."
-                            className="w-full bg-transparent text-sm text-gray-500 dark:text-blush-400 placeholder-gray-400 dark:placeholder-blush-500 outline-none mt-1"
-                          />
+                            className="mt-0.5 flex-shrink-0"
+                          >
+                            {reminder.completed ? (
+                              <CheckCircle2 size={24} className="text-blue-500" fill="currentColor" strokeWidth={0} />
+                            ) : (
+                              <Circle
+                                size={24}
+                                className={PRIORITY_COLORS[reminder.priority]}
+                                strokeWidth={reminder.priority === 'high' ? 2.5 : 1.5}
+                              />
+                            )}
+                          </button>
+                          <div className="flex-1 min-w-0">
+                            <p className={`font-medium ${reminder.completed ? 'text-gray-400 dark:text-blush-500 line-through' : 'text-gray-800 dark:text-white'}`}>
+                              {reminder.title}
+                            </p>
+                            {reminder.notes && (
+                              <p className="text-sm text-gray-400 dark:text-blush-500 line-clamp-1 mt-0.5">
+                                {reminder.notes}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              {reminder.dueDate && (
+                                <span className={`text-xs flex items-center gap-1 ${
+                                  !reminder.completed && reminder.dueDate && isPast(startOfDay(parseISO(reminder.dueDate))) && reminder.dueDate !== todayStr
+                                    ? 'text-red-500'
+                                    : 'text-gray-400 dark:text-blush-500'
+                                }`}>
+                                  <Bell size={10} />
+                                  {formatDueDate(reminder.dueDate, reminder.dueTime)}
+                                </span>
+                              )}
+                              {reminder.recurring && (
+                                <span className="text-xs text-gray-400 dark:text-blush-500 flex items-center gap-1">
+                                  <Repeat size={10} />
+                                  {reminder.recurring.type}
+                                </span>
+                              )}
+                              {reminder.subtasks && reminder.subtasks.length > 0 && (
+                                <span className="text-xs text-gray-400 dark:text-blush-500">
+                                  {reminder.subtasks.filter(s => s.completed).length}/{reminder.subtasks.length} subtasks
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleFlag(reminder.id);
+                            }}
+                            className="flex-shrink-0 p-1"
+                          >
+                            <Flag size={18} className={reminder.flagged ? 'text-orange-500 fill-orange-500' : 'text-gray-300 dark:text-blush-600'} />
+                          </button>
                         </div>
                       </div>
+                    );
+                  })}
 
-                      {/* Quick options */}
-                      <div className="flex items-center gap-2 ml-9 flex-wrap">
-                        <input
-                          type="date"
-                          value={newReminder.dueDate || ''}
-                          onChange={(e) => setNewReminder({ ...newReminder, dueDate: e.target.value || undefined })}
-                          className="text-xs px-2 py-1 rounded-lg bg-gray-100 dark:bg-blush-700 text-gray-600 dark:text-blush-300 border-0"
-                        />
-                        <input
-                          type="time"
-                          value={newReminder.dueTime || ''}
-                          onChange={(e) => setNewReminder({ ...newReminder, dueTime: e.target.value || undefined })}
-                          className="text-xs px-2 py-1 rounded-lg bg-gray-100 dark:bg-blush-700 text-gray-600 dark:text-blush-300 border-0"
-                        />
-                        <select
-                          value={newReminder.priority}
-                          onChange={(e) => setNewReminder({ ...newReminder, priority: e.target.value as Reminder['priority'] })}
-                          className="text-xs px-2 py-1 rounded-lg bg-gray-100 dark:bg-blush-700 text-gray-600 dark:text-blush-300 border-0"
-                        >
-                          <option value="none">No Priority</option>
-                          <option value="low">Low</option>
-                          <option value="medium">Medium</option>
-                          <option value="high">High</option>
-                        </select>
-                        <button
-                          onClick={() => setNewReminder({ ...newReminder, flagged: !newReminder.flagged })}
-                          className={`p-1 rounded ${newReminder.flagged ? 'text-orange-500' : 'text-gray-400'}`}
-                        >
-                          <Flag size={16} className={newReminder.flagged ? 'fill-orange-500' : ''} />
-                        </button>
-                      </div>
-
-                      <div className="flex gap-2 ml-9">
-                        <button
-                          onClick={handleAddReminder}
-                          disabled={!newReminder.title?.trim()}
-                          className="px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg disabled:opacity-50"
-                        >
-                          Add
-                        </button>
-                        <button
-                          onClick={() => { setShowNewReminder(false); setNewReminder({ title: '', listId: 'inbox', priority: 'none', flagged: false }); }}
-                          className="px-4 py-2 text-gray-500 dark:text-blush-400 text-sm font-medium"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
+
+              {/* Inline quick-add — always visible */}
+              <div className="flex items-center gap-3 p-4 border-t border-gray-100 dark:border-blush-700">
+                <Plus size={20} className="text-gray-300 dark:text-blush-600 flex-shrink-0" />
+                <input
+                  ref={inlineInputRef}
+                  type="text"
+                  value={inlineAddText}
+                  onChange={(e) => setInlineAddText(e.target.value)}
+                  placeholder="Add a reminder..."
+                  className="flex-1 bg-transparent text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-blush-500 outline-none"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && inlineAddText.trim()) handleInlineAdd();
+                  }}
+                />
+              </div>
 
               {completedCount > 0 && (
                 <button
@@ -1178,28 +1217,6 @@ export function Me() {
                 </button>
               )}
             </div>
-
-            {/* Add Reminder Button */}
-            {!showNewReminder && (
-              <button
-                onClick={() => {
-                  setNewReminder({
-                    title: '',
-                    notes: '',
-                    listId: currentView !== 'today' && currentView !== 'scheduled' && currentView !== 'all' && currentView !== 'flagged' ? currentView : 'inbox',
-                    priority: 'none',
-                    flagged: currentView === 'flagged',
-                    dueDate: currentView === 'today' ? todayStr : undefined,
-                    subtasks: [],
-                  });
-                  setShowNewReminder(true);
-                }}
-                className="flex items-center gap-2 text-blue-500 font-medium"
-              >
-                <Plus size={20} />
-                New Reminder
-              </button>
-            )}
 
             {/* New List Modal */}
             {showNewList && (
@@ -1242,11 +1259,64 @@ export function Me() {
                 </div>
               </div>
             )}
+
+            {/* Edit List Modal */}
+            {editingList && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
+                <div className="bg-white dark:bg-blush-800 rounded-2xl w-full max-w-md overflow-hidden">
+                  <div className="p-4 border-b border-gray-100 dark:border-blush-700 flex items-center justify-between">
+                    <button onClick={() => setEditingList(null)} className="text-blue-500 font-medium">Cancel</button>
+                    <h3 className="font-semibold text-gray-800 dark:text-white">Edit List</h3>
+                    <button
+                      onClick={handleSaveEditList}
+                      disabled={!editListName.trim()}
+                      className="text-blue-500 font-medium disabled:opacity-50"
+                    >
+                      Done
+                    </button>
+                  </div>
+                  <div className="p-4 space-y-4">
+                    <input
+                      type="text"
+                      value={editListName}
+                      onChange={(e) => setEditListName(e.target.value)}
+                      placeholder="List Name"
+                      className="w-full px-4 py-3 bg-gray-100 dark:bg-blush-700 rounded-xl text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-blush-500 outline-none"
+                      autoFocus
+                    />
+                    <div>
+                      <label className="text-sm font-medium text-gray-500 dark:text-blush-400 mb-2 block">Color</label>
+                      <div className="flex gap-2 flex-wrap">
+                        {LIST_COLORS.map(color => (
+                          <button
+                            key={color}
+                            onClick={() => setEditListColor(color)}
+                            className={`w-10 h-10 rounded-full ${editListColor === color ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`}
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteList(editingList.id)}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 rounded-xl font-medium"
+                    >
+                      <Trash2 size={16} />
+                      Delete List
+                    </button>
+                    <p className="text-xs text-gray-400 dark:text-blush-500 text-center">
+                      Tasks in this list will be moved to Reminders
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
+        </div>
 
         {/* Reminder Detail View */}
-        {activeTab === 'tasks' && showReminderDetail && selectedReminder && (
+        {showReminderDetail && selectedReminder && (
           <ReminderDetailView
             reminder={selectedReminder}
             lists={lists}
@@ -1259,6 +1329,8 @@ export function Me() {
             onToggleSubtask={handleToggleSubtask}
           />
         )}
+        </>)}
+
       </div>
     </div>
   );
@@ -1518,9 +1590,19 @@ function ReminderDetailView({ reminder, lists, onClose, onUpdate, onDelete, onTo
                     <Circle size={20} className="text-gray-300 dark:text-blush-600" strokeWidth={1.5} />
                   )}
                 </button>
-                <span className={`flex-1 ${subtask.completed ? 'text-gray-400 line-through' : 'text-gray-700 dark:text-blush-300'}`}>
-                  {subtask.title}
-                </span>
+                <input
+                  type="text"
+                  value={subtask.title}
+                  onChange={(e) => {
+                    setEditedReminder({
+                      ...editedReminder,
+                      subtasks: editedReminder.subtasks?.map(s =>
+                        s.id === subtask.id ? { ...s, title: e.target.value } : s
+                      ),
+                    });
+                  }}
+                  className={`flex-1 bg-transparent outline-none ${subtask.completed ? 'text-gray-400 line-through' : 'text-gray-700 dark:text-blush-300'}`}
+                />
                 <button
                   onClick={() => handleDeleteSubtask(subtask.id)}
                   className="text-gray-400 hover:text-red-500"

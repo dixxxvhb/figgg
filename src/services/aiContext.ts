@@ -1,0 +1,183 @@
+/**
+ * Assembles a lean context payload (~800-1000 tokens) for AI check-in and day plan functions.
+ * Reads from AppData and produces a compact object for the Netlify Function.
+ */
+import { getClassesByDay } from '../data/classes';
+import { timeToMinutes } from '../utils/time';
+import type { AppData, DayOfWeek, AIConfig } from '../types';
+import { DEFAULT_AI_CONFIG, DEFAULT_MED_CONFIG, DEFAULT_WELLNESS_ITEMS } from '../types';
+
+export interface AIContextPayload {
+  time: string;              // HH:mm
+  dayOfWeek: string;
+  checkInType: 'morning' | 'afternoon';
+  userMessage: string;
+  // Meds
+  medStatus: {
+    dose1Taken: boolean;
+    dose1Time?: string;
+    dose2Taken: boolean;
+    dose2Time?: string;
+    dose3Taken: boolean;
+    dose3Time?: string;
+    skipped: boolean;
+    maxDoses?: 2 | 3;
+    currentStatus?: string;  // "Peak Window", "Building", etc.
+  };
+  // Schedule
+  schedule: Array<{ time: string; title: string; type: 'class' | 'event' }>;
+  // Tasks
+  tasks: {
+    overdueCount: number;
+    todayDueCount: number;
+    topTitles: string[];     // max 5
+  };
+  // Launch
+  launchTasks: string[];      // max 3 titles
+  // Wellness
+  wellnessProgress: { done: number; total: number };
+  wellnessItems?: Array<{ id: string; label: string; done: boolean }>;  // for day plan sourceId matching
+  // Learned patterns
+  patterns: string[];          // from latest weekly summary
+  // Previous check-in
+  previousCheckIn?: string;    // 1-sentence summary
+  // Day plan (so AI can reference/modify it)
+  dayPlan?: {
+    summary: string;
+    items: Array<{ id: string; title: string; completed: boolean; time?: string; category: string }>;
+  };
+  // Streak
+  streak?: number;
+  // Preferences
+  tone: 'supportive' | 'direct' | 'minimal';
+}
+
+export function buildAIContext(
+  data: AppData,
+  checkInType: 'morning' | 'afternoon',
+  userMessage: string,
+): AIContextPayload {
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const days: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const dayName = days[now.getDay()];
+  const config = data.settings?.aiConfig || DEFAULT_AI_CONFIG;
+  const sc = data.selfCare;
+
+  // Meds
+  const medConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
+  const dose1Taken = sc?.dose1Date === todayStr && sc?.dose1Time != null;
+  const dose2Taken = sc?.dose2Date === todayStr && sc?.dose2Time != null;
+  const dose3Taken = sc?.dose3Date === todayStr && sc?.dose3Time != null;
+  const skipped = sc?.skippedDoseDate === todayStr;
+
+  const medStatus: AIContextPayload['medStatus'] = {
+    dose1Taken,
+    dose2Taken,
+    dose3Taken,
+    skipped,
+    maxDoses: medConfig.maxDoses,
+  };
+  if (dose1Taken && sc?.dose1Time) medStatus.dose1Time = formatMs(sc.dose1Time);
+  if (dose2Taken && sc?.dose2Time) medStatus.dose2Time = formatMs(sc.dose2Time);
+  if (dose3Taken && sc?.dose3Time) medStatus.dose3Time = formatMs(sc.dose3Time);
+
+  // Schedule
+  const todayClasses = getClassesByDay(data.classes, dayName);
+  const todayEvents = (data.calendarEvents || [])
+    .filter(e => e.date === todayStr && e.startTime && e.startTime !== '00:00');
+  const schedule = [
+    ...todayClasses.map(c => ({ time: c.startTime, title: c.name, type: 'class' as const })),
+    ...todayEvents.map(e => ({ time: e.startTime, title: e.title, type: 'event' as const })),
+  ].sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
+
+  // Tasks (reminders)
+  const reminders = sc?.reminders || [];
+  const overdueCount = reminders.filter(r =>
+    !r.completed && r.dueDate && r.dueDate < todayStr
+  ).length;
+  const todayDueCount = reminders.filter(r =>
+    !r.completed && r.dueDate === todayStr
+  ).length;
+  const topTitles = reminders
+    .filter(r => !r.completed)
+    .sort((a, b) => {
+      if (a.flagged && !b.flagged) return -1;
+      if (!a.flagged && b.flagged) return 1;
+      if (a.dueDate && !b.dueDate) return -1;
+      if (!a.dueDate && b.dueDate) return 1;
+      return 0;
+    })
+    .slice(0, 5)
+    .map(r => r.title);
+
+  // Launch tasks
+  const launchTasks = (data.launchPlan?.tasks || [])
+    .filter(t => !t.completed && !t.skipped)
+    .sort((a, b) => {
+      // Milestones first, then by scheduled date (earlier = more urgent)
+      if (a.milestone && !b.milestone) return -1;
+      if (!a.milestone && b.milestone) return 1;
+      return (a.scheduledDate || '').localeCompare(b.scheduledDate || '');
+    })
+    .slice(0, 3)
+    .map(t => t.title);
+
+  // Wellness progress — if today's states haven't been initialized yet, report configured item count
+  const wellnessStates = (sc?.unifiedTaskDate === todayStr) ? (sc?.unifiedTaskStates || {}) : {};
+  const done = Object.values(wellnessStates).filter(Boolean).length;
+  const wellnessItems = data.settings?.wellnessItems || DEFAULT_WELLNESS_ITEMS;
+  const configuredCount = wellnessItems.filter(w => w.enabled).length;
+  const total = Object.keys(wellnessStates).length || configuredCount;
+
+  // Learned patterns from latest weekly summary
+  const latestSummary = data.learningData?.weeklySummaries?.slice(-1)[0];
+  const patterns = latestSummary?.patterns?.slice(0, 3) || [];
+
+  // Previous check-in
+  const todayCheckIns = (data.aiCheckIns || []).filter(c => c.date === todayStr);
+  const previousCheckIn = todayCheckIns.length > 0
+    ? todayCheckIns[todayCheckIns.length - 1].aiResponse.slice(0, 100)
+    : undefined;
+
+  // Build wellness items with done state for day plan sourceId matching
+  const wellnessItemsList = wellnessItems
+    .filter(w => w.enabled)
+    .map(w => ({ id: w.id, label: w.label, done: !!wellnessStates[w.id] }));
+
+  // Day plan for AI to see and reference
+  const todayPlan = data.dayPlan?.date === todayStr ? data.dayPlan : undefined;
+  const dayPlanPayload = todayPlan ? {
+    summary: todayPlan.summary,
+    items: todayPlan.items.map(i => ({
+      id: i.id, title: i.title, completed: i.completed,
+      time: i.time, category: i.category,
+    })),
+  } : undefined;
+
+  // Streak
+  const streak = sc?.streakData?.currentStreak;
+
+  return {
+    time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+    dayOfWeek: dayName,
+    checkInType,
+    userMessage,
+    medStatus,
+    schedule,
+    tasks: { overdueCount, todayDueCount, topTitles },
+    launchTasks,
+    wellnessProgress: { done, total },
+    wellnessItems: wellnessItemsList,
+    dayPlan: dayPlanPayload,
+    streak,
+    patterns,
+    previousCheckIn,
+    tone: config.tone,
+  };
+}
+
+function formatMs(ms: number): string {
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}

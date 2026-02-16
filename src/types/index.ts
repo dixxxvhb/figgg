@@ -239,6 +239,69 @@ export interface CalendarEvent {
   linkedDanceIds?: string[]; // Competition dance IDs linked to this event for attendance
 }
 
+// ===== MEDICATION CONFIGURATION =====
+
+export interface MedConfig {
+  maxDoses: 2 | 3;                // How many doses per day (default 2)
+  medType: 'IR' | 'XR';          // Immediate Release or Extended Release
+  dose2WindowStart: number;       // Hours after dose 1 for dose 2 window (default 4)
+  dose2WindowEnd: number;         // Hours after dose 1 for dose 2 window end (default 7)
+  dose3WindowStart: number;       // Hours after dose 2 for dose 3 window (default 4)
+  dose3WindowEnd: number;         // Hours after dose 2 for dose 3 window end (default 7)
+  irPeakHours: number;            // Hours IR stays at peak (default 3)
+  irDurationHours: number;        // Total hours IR is active (default 5)
+  xrPeakHours: number;            // Hours XR stays at peak (default 7)
+  xrDurationHours: number;        // Total hours XR is active (default 10)
+}
+
+export const DEFAULT_MED_CONFIG: MedConfig = {
+  maxDoses: 2,
+  medType: 'IR',
+  dose2WindowStart: 4,
+  dose2WindowEnd: 7,
+  dose3WindowStart: 4,
+  dose3WindowEnd: 7,
+  irPeakHours: 3,
+  irDurationHours: 5,
+  xrPeakHours: 7,
+  xrDurationHours: 10,
+};
+
+export interface WellnessItemConfig {
+  id: string;
+  label: string;
+  icon: string;                        // Lucide icon name (e.g. 'Droplets', 'Coffee')
+  section: 'morning' | 'afternoon' | 'evening';
+  enabled: boolean;
+  conditions?: {
+    requiresMedsTaken?: boolean;       // only show if meds taken today
+    onlyOnClassDays?: boolean;         // only show if teaching today
+    onlyOnOffDays?: boolean;           // only show if NOT teaching today
+    afterHour?: number;                // only show after this hour (0-23)
+  };
+  order: number;
+}
+
+export const DEFAULT_WELLNESS_ITEMS: WellnessItemConfig[] = [
+  // Morning
+  { id: 'am_water', label: 'Drink water', icon: 'Droplets', section: 'morning', enabled: true, order: 0 },
+  { id: 'am_food', label: 'Eat breakfast', icon: 'Coffee', section: 'morning', enabled: true, order: 1 },
+  { id: 'am_prep', label: 'Prep for morning classes', icon: 'BookOpen', section: 'morning', enabled: true, order: 2, conditions: { onlyOnClassDays: true } },
+  { id: 'am_sun', label: 'Get some sunlight', icon: 'Sun', section: 'morning', enabled: true, order: 3 },
+  // Afternoon
+  { id: 'pm_water', label: 'Refill water', icon: 'Droplets', section: 'afternoon', enabled: true, order: 0 },
+  { id: 'pm_food_class', label: 'Eat before teaching', icon: 'Utensils', section: 'afternoon', enabled: true, order: 1, conditions: { onlyOnClassDays: true } },
+  { id: 'pm_food_off', label: 'Eat a real meal', icon: 'Utensils', section: 'afternoon', enabled: true, order: 1, conditions: { onlyOnOffDays: true } },
+  { id: 'pm_stretch', label: 'Stretch before class', icon: 'Footprints', section: 'afternoon', enabled: true, order: 2, conditions: { onlyOnClassDays: true } },
+  { id: 'pm_move', label: 'Move your body', icon: 'Footprints', section: 'afternoon', enabled: true, order: 2, conditions: { onlyOnOffDays: true } },
+  { id: 'pm_focus', label: 'Use focus while it lasts', icon: 'Brain', section: 'afternoon', enabled: true, order: 3, conditions: { requiresMedsTaken: true, afterHour: 12 } },
+  // Evening
+  { id: 'ev_food', label: 'Eat dinner', icon: 'Utensils', section: 'evening', enabled: true, order: 0 },
+  { id: 'ev_screen', label: 'Screens off by 10', icon: 'Smartphone', section: 'evening', enabled: true, order: 1 },
+  { id: 'ev_recover', label: 'Cool down & stretch', icon: 'Sparkles', section: 'evening', enabled: true, order: 2, conditions: { onlyOnClassDays: true } },
+  { id: 'ev_wind', label: 'Wind down routine', icon: 'BedDouble', section: 'evening', enabled: true, order: 3 },
+];
+
 export interface AppSettings {
   calendarUrl?: string; // Primary ICS feed URL
   calendarUrls?: string[]; // Multiple calendar URLs
@@ -246,6 +309,10 @@ export interface AppSettings {
   fontSize?: 'normal' | 'large' | 'extra-large';
   darkMode?: boolean;
   themeId?: string; // Color theme: 'stone' | 'ocean' | 'plum' | 'midnight' | 'clay' | 'dusk'
+  dashboardWidgetOrder?: string[]; // Widget IDs in display order
+  medConfig?: MedConfig;
+  wellnessItems?: WellnessItemConfig[];
+  aiConfig?: AIConfig;
 }
 
 // ===== STUDENT MANAGEMENT =====
@@ -310,6 +377,86 @@ export interface CompetitionScheduleEntry {
   dancers: string[];
 }
 
+// ===== LEARNING ENGINE =====
+
+export interface DailySnapshot {
+  date: string;                    // YYYY-MM-DD
+  dose1Time?: string;              // HH:mm (normalized)
+  dose2Time?: string;
+  dose3Time?: string;
+  skippedDoses?: boolean;
+  wellnessCompleted: string[];     // item IDs checked off
+  wellnessTotal: number;
+  tasksCompleted: number;
+  tasksTotal: number;
+  classesScheduled: number;
+  mood?: string;                   // from AI check-in
+}
+
+export interface WeeklySummary {
+  weekOf: string;                  // YYYY-MM-DD (Monday)
+  avgDose1Time?: string;           // HH:mm average
+  avgDose2Time?: string;
+  wellnessRate: number;            // 0-100
+  taskCompletionRate: number;      // 0-100
+  patterns: string[];              // client-computed insights
+}
+
+export interface LearningData {
+  dailySnapshots: DailySnapshot[];   // rolling 30 days
+  weeklySummaries: WeeklySummary[];  // rolling 12 weeks
+  lastSnapshotDate?: string;
+  lastSummaryWeek?: string;
+}
+
+// ===== AMBIENT AI =====
+
+export interface AICheckIn {
+  id: string;
+  date: string;                    // YYYY-MM-DD
+  type: 'morning' | 'afternoon';
+  userMessage: string;
+  aiResponse: string;
+  adjustments?: string[];          // what changed
+  mood?: string;
+  timestamp: string;               // ISO
+}
+
+export interface DayPlanItem {
+  id: string;
+  time?: string;                   // suggested time "09:00"
+  title: string;
+  category: 'task' | 'wellness' | 'class' | 'launch' | 'break' | 'med';
+  sourceId?: string;               // links to reminder.id, class.id, etc.
+  completed: boolean;
+  priority: 'high' | 'medium' | 'low';
+  aiNote?: string;                 // "You're sharpest here"
+}
+
+export interface DayPlan {
+  date: string;
+  generatedAt: string;
+  lastModified: string;            // updated on every mutation (generate, toggle, AI action)
+  items: DayPlanItem[];
+  summary: string;                 // "Packed day. Focus work before noon."
+}
+
+export interface AIConfig {
+  morningCheckInEnabled: boolean;
+  afternoonCheckInEnabled: boolean;
+  afternoonCheckInTime: string;    // "13:00" default
+  tone: 'supportive' | 'direct' | 'minimal';
+  autoPlanEnabled: boolean;
+}
+
+export const DEFAULT_AI_CONFIG: AIConfig = {
+  morningCheckInEnabled: true,
+  afternoonCheckInEnabled: true,
+  afternoonCheckInTime: '13:00',
+  tone: 'direct',
+  autoPlanEnabled: true,
+};
+
 export interface AppData {
   studios: Studio[];
   classes: Class[];
@@ -331,6 +478,11 @@ export interface AppData {
   choreographies?: import('./choreography').Choreography[];
   // DWDC Launch Plan
   launchPlan?: LaunchPlanData;
+  // Learning engine — pattern tracking
+  learningData?: LearningData;
+  // Ambient AI
+  aiCheckIns?: AICheckIn[];         // rolling 30 days
+  dayPlan?: DayPlan;                // today only
 }
 
 // ===== DWDC LAUNCH PLAN =====
@@ -437,6 +589,10 @@ export interface SelfCareData {
   skippedDoseDate?: string | null;                 // YYYY-MM-DD when user skips meds for the day
   skippedDose1Date?: string | null;                // YYYY-MM-DD when user skips just dose 1
   skippedDose2Date?: string | null;                // YYYY-MM-DD when user skips just dose 2
+  // Dose 3 — optional, enabled via medConfig.maxDoses = 3
+  dose3Time?: number | null;
+  dose3Date?: string | null;
+  skippedDose3Date?: string | null;                // YYYY-MM-DD when user skips just dose 3
   medType?: 'IR' | 'XR';
   wakeTime?: string;
   sleepTime?: string;

@@ -1,0 +1,159 @@
+import { getAuthToken, initAuthToken } from './cloudStorage';
+import type { LiveNote } from '../types';
+import type { AIContextPayload, } from './aiContext';
+
+const API_BASE = '/.netlify/functions';
+
+interface GeneratePlanResponse {
+  success: boolean;
+  plan: string;
+  generatedAt: string;
+  classId: string;
+  className: string;
+}
+
+interface GeneratePlanClassInfo {
+  id: string;
+  name: string;
+  day: string;
+  startTime: string;
+  endTime: string;
+  level?: string;
+  recitalSong?: string;
+  isRecitalSong?: boolean;
+  choreographyNotes?: string;
+}
+
+interface GeneratePlanOptions {
+  classInfo: GeneratePlanClassInfo;
+  notes: LiveNote[];
+  previousPlans?: string[];
+  progressionHints?: string[];
+  repetitionFlags?: string[];
+  attendanceNote?: string;
+}
+
+async function getToken(): Promise<string> {
+  await initAuthToken();
+  return getAuthToken();
+}
+
+export async function generatePlan(options: GeneratePlanOptions): Promise<string> {
+  const token = await getToken();
+
+  const response = await fetch(`${API_BASE}/generatePlan`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(options),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error || `HTTP ${response.status}`);
+  }
+
+  const data: GeneratePlanResponse = await response.json();
+  return data.plan;
+}
+
+export async function detectReminders(
+  className: string,
+  notes: LiveNote[],
+): Promise<Array<{ noteId: string; title: string }>> {
+  const token = await getToken();
+
+  const response = await fetch(`${API_BASE}/detectReminders`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ className, notes }),
+  });
+
+  if (!response.ok) {
+    return []; // Silently fail — reminders are a bonus
+  }
+
+  const data = await response.json();
+  return data.reminders || [];
+}
+
+export interface AIAction {
+  type:
+    | 'toggleWellness'      // mark wellness item done/undone
+    | 'addReminder'         // create a new task
+    | 'completeReminder'    // mark existing task done by title match
+    | 'flagReminder'        // flag/unflag a task by title match
+    | 'rescheduleReminder'  // change due date of a task
+    | 'logDose'             // log next available dose
+    | 'skipDose'            // skip remaining doses today
+    | 'updatePlanSummary'   // change day plan summary text
+    | 'reprioritizePlan'    // reorder day plan items by priority
+    | 'addPlanItem'         // inject a new item into today's plan
+    | 'removePlanItem'      // remove a plan item by id or title
+    | 'suggestOptionalDose3'; // suggest a 3rd dose for a long/heavy day
+  // Common fields
+  id?: string;
+  done?: boolean;
+  title?: string;
+  dueDate?: string;
+  flagged?: boolean;
+  // Plan item fields
+  category?: string;
+  priority?: string;
+  time?: string;
+  aiNote?: string;
+  sourceId?: string;
+  // Summary field
+  summary?: string;
+  // Reprioritize: ordered list of plan item IDs
+  order?: string[];
+}
+
+export async function callAICheckIn(
+  payload: AIContextPayload,
+): Promise<{ response: string; mood?: string; adjustments?: string[]; actions?: AIAction[] }> {
+  const token = await getToken();
+
+  const response = await fetch(`${API_BASE}/aiCheckIn`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error || `HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function callGenerateDayPlan(
+  payload: AIContextPayload & { checkInMood?: string; checkInMessage?: string },
+): Promise<{ items: unknown[]; summary: string }> {
+  const token = await getToken();
+
+  const response = await fetch(`${API_BASE}/generateDayPlan`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error || `HTTP ${response.status}`);
+  }
+
+  return response.json();
+}

@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { AppData, Class, WeekNotes, Project, Competition, CompetitionDance, Student, AttendanceRecord, CalendarEvent } from '../types';
-import { loadData, saveData, wasRecentlySavedLocally, saveWeekNotes as saveWeekNotesToStorage } from '../services/storage';
+import { AppData, Class, WeekNotes, Project, Competition, CompetitionDance, Student, AttendanceRecord, CalendarEvent, SelfCareData, LaunchPlanData } from '../types';
+import type { AICheckIn, DayPlan } from '../types';
+import type { Choreography } from '../types/choreography';
+import { loadData, saveData, saveWeekNotes as saveWeekNotesToStorage, saveSelfCareToStorage, saveLaunchPlanToStorage, saveDayPlanToStorage } from '../services/storage';
+import { runLearningEngine } from '../services/learningEngine';
 import { getWeekStart, formatWeekOf } from '../utils/time';
 import { v4 as uuid } from 'uuid';
 
@@ -8,6 +11,23 @@ export function useAppData() {
   const [data, setData] = useState<AppData>(() => loadData());
   const isInitialMount = useRef(true);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Track when this instance is the one saving, to avoid reacting to our own event
+  const isSavingRef = useRef(false);
+  // Track selfCare-only updates — saveSelfCareToStorage already handles cloud sync,
+  // so the useEffect saveData call should skip cloud push to avoid racing
+  const selfCareOnlyRef = useRef(false);
+  // Same pattern for launch plan updates
+  const launchPlanOnlyRef = useRef(false);
+  // Same pattern for day plan updates
+  const dayPlanOnlyRef = useRef(false);
+
+  // Run learning engine on app open (generates yesterday's snapshot if missing)
+  useEffect(() => {
+    const updated = runLearningEngine();
+    if (updated) setData(loadData());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Save whenever data changes (skip initial mount to avoid double-save)
   useEffect(() => {
@@ -21,8 +41,31 @@ export function useAppData() {
       clearTimeout(saveTimeoutRef.current);
     }
 
+    // If this change was from updateSelfCare, saveSelfCareToStorage already
+    // pushed to cloud with proper partial merge. Only save locally here to
+    // avoid a racing whole-object last-write-wins push from saveData.
+    if (selfCareOnlyRef.current) {
+      selfCareOnlyRef.current = false;
+      return;
+    }
+
+    // Same for launch plan — saveLaunchPlanToStorage already handles cloud push
+    if (launchPlanOnlyRef.current) {
+      launchPlanOnlyRef.current = false;
+      return;
+    }
+
+    // Same for day plan — saveDayPlanToStorage already handles cloud push
+    if (dayPlanOnlyRef.current) {
+      dayPlanOnlyRef.current = false;
+      return;
+    }
+
     // Immediate local save, debounced cloud save happens inside saveData
+    isSavingRef.current = true;
     saveData(data);
+    // Reset after microtask so the event listener doesn't pick up our own save
+    Promise.resolve().then(() => { isSavingRef.current = false; });
   }, [data]);
 
   const updateClass = useCallback((updatedClass: Class) => {
@@ -155,19 +198,33 @@ export function useAppData() {
     setData(loadData());
   }, []);
 
-  // Listen for cloud sync events and refresh data automatically
+  // Listen for cloud sync events and local saves from other hook instances
   useEffect(() => {
     const handleCloudSync = () => {
-      // Only reload if no pending local changes - prevents overwriting unsaved edits
-      if (!wasRecentlySavedLocally()) {
+      // Always reload after cloud sync — syncFromCloud properly merges
+      // local + cloud data, so the merged result is safe to display
+      setData(loadData());
+    };
+
+    const handleLocalSave = () => {
+      if (!isSavingRef.current) {
         setData(loadData());
       }
     };
 
+    // Calendar sync saves directly to storage — always reload on completion
+    const handleCalendarSync = () => {
+      setData(loadData());
+    };
+
     window.addEventListener('cloud-sync-complete', handleCloudSync);
+    window.addEventListener('local-data-saved', handleLocalSave);
+    window.addEventListener('calendar-sync-complete', handleCalendarSync);
 
     return () => {
       window.removeEventListener('cloud-sync-complete', handleCloudSync);
+      window.removeEventListener('local-data-saved', handleLocalSave);
+      window.removeEventListener('calendar-sync-complete', handleCalendarSync);
     };
   }, []);
 
@@ -224,6 +281,59 @@ export function useAppData() {
     return (data.attendance || []).find(a => a.classId === classId && a.weekOf === weekOf);
   }, [data.attendance]);
 
+  // Self-care (meds + reminders) — uses immediate cloud save, not debounced
+  // Medication data is critical and must sync before user locks phone
+  const updateSelfCare = useCallback((updates: Partial<SelfCareData>) => {
+    // Save to storage with immediate cloud sync (like saveWeekNotes)
+    // saveSelfCareToStorage does a proper partial merge: { ...cloud, ...updates }
+    saveSelfCareToStorage(updates);
+
+    // Mark next setData as selfCare-only so the useEffect skips saveData
+    // (saveSelfCareToStorage already handles the cloud push with correct merge)
+    selfCareOnlyRef.current = true;
+    // Update React state so UI reflects changes immediately
+    setData(prev => ({
+      ...prev,
+      selfCare: { ...prev.selfCare, ...updates },
+    }));
+  }, []);
+
+  // Launch plan — uses immediate cloud save (same pattern as selfCare)
+  const updateLaunchPlan = useCallback((updates: Partial<LaunchPlanData>) => {
+    saveLaunchPlanToStorage(updates);
+    launchPlanOnlyRef.current = true;
+    setData(prev => ({
+      ...prev,
+      launchPlan: { ...(prev.launchPlan || { tasks: [], decisions: [], contacts: [], planStartDate: '2026-02-12', planEndDate: '2026-06-30', lastModified: '', version: 1 }), ...updates, lastModified: new Date().toISOString() },
+    }));
+  }, []);
+
+  // Choreographies
+  const updateChoreographies = useCallback((choreographies: Choreography[]) => {
+    setData(prev => ({ ...prev, choreographies }));
+  }, []);
+
+  // AI check-ins — append and prune entries older than 30 days
+  const saveAICheckIn = useCallback((checkIn: AICheckIn) => {
+    setData(prev => {
+      const existing = prev.aiCheckIns || [];
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 30);
+      const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
+      const updated = [...existing, checkIn].filter(c => c.date >= cutoffStr);
+      return { ...prev, aiCheckIns: updated };
+    });
+  }, []);
+
+  // Day plan — immediate cloud sync (same pattern as selfCare/launchPlan)
+  const saveDayPlan = useCallback((plan: DayPlan) => {
+    const now = new Date().toISOString();
+    const planWithTimestamp = { ...plan, lastModified: now };
+    saveDayPlanToStorage(planWithTimestamp);
+    dayPlanOnlyRef.current = true;
+    setData(prev => ({ ...prev, dayPlan: planWithTimestamp }));
+  }, []);
+
   // Calendar event management (for linking dances to calendar events)
   const updateCalendarEvent = useCallback((event: CalendarEvent) => {
     setData(prev => {
@@ -263,5 +373,13 @@ export function useAppData() {
     getAttendanceForClass,
     // Calendar events
     updateCalendarEvent,
+    // Self-care & choreography
+    updateSelfCare,
+    updateChoreographies,
+    // Launch plan
+    updateLaunchPlan,
+    // AI
+    saveAICheckIn,
+    saveDayPlan,
   };
 }
