@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, Music2, Camera, X, Image, Trash2, FileText, Users, Check, XCircle, Clock3, ChevronDown, ChevronUp, ClipboardList, Pencil } from 'lucide-react';
+import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, Music2, X, Trash2, FileText, Users, Check, XCircle, Clock3, ChevronDown, ChevronUp, ClipboardList, Pencil } from 'lucide-react';
 import { format, addWeeks } from 'date-fns';
 import { useAppData } from '../hooks/useAppData';
 import { DropdownMenu } from '../components/common/DropdownMenu';
@@ -9,7 +9,6 @@ import { formatTimeDisplay, getCurrentTimeMinutes, getMinutesRemaining, formatWe
 import { saveWeekNotes as saveWeekNotesToStorage, getWeekNotes as getWeekNotesFromStorage } from '../services/storage';
 import { flushPendingSave } from '../services/cloudStorage';
 import { v4 as uuid } from 'uuid';
-import { processMediaFile } from '../utils/mediaCompression';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
 import { searchTerminology } from '../data/terminology';
 import { TerminologyEntry } from '../types';
@@ -25,7 +24,6 @@ export function LiveNotes() {
   const { classId } = useParams<{ classId: string }>();
   const navigate = useNavigate();
   const { data, getCurrentWeekNotes, saveWeekNotes, getWeekNotes } = useAppData();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const inputWrapperRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
@@ -208,10 +206,13 @@ export function LiveNotes() {
     const newAbsent = attendance.absent.filter(id => id !== studentId);
     const newLate = attendance.late.filter(id => id !== studentId);
 
-    // Add to the appropriate list
-    if (status === 'present') newPresent.push(studentId);
-    else if (status === 'absent') newAbsent.push(studentId);
-    else if (status === 'late') newLate.push(studentId);
+    // Toggle: if already in this status, leave all lists empty (unmark)
+    const currentStatus = getStudentStatus(studentId);
+    if (currentStatus !== status) {
+      if (status === 'present') newPresent.push(studentId);
+      else if (status === 'absent') newAbsent.push(studentId);
+      else if (status === 'late') newLate.push(studentId);
+    }
 
     const updatedClassNotes: ClassWeekNotes = {
       ...classNotes,
@@ -242,81 +243,6 @@ export function LiveNotes() {
     const updatedClassNotes: ClassWeekNotes = {
       ...classNotes,
       attendance: { present: allIds, absent: [], late: [] },
-    };
-
-    const updatedWeekNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [classId || '']: updatedClassNotes,
-      },
-    };
-
-    setWeekNotes(updatedWeekNotes);
-    saveWeekNotes(updatedWeekNotes);
-  };
-
-  const [uploadError, setUploadError] = useState<string | null>(null);
-
-  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-
-    setUploadError(null);
-
-    for (const file of Array.from(files)) {
-      try {
-        const result = await processMediaFile(file);
-
-        if ('error' in result) {
-          setUploadError(result.error);
-          continue;
-        }
-
-        const { dataUrl, warning } = result;
-        if (warning) {
-          console.warn(warning);
-        }
-
-        const mediaItem = {
-          id: uuid(),
-          type: 'image' as const,
-          url: dataUrl,
-          timestamp: new Date().toISOString(),
-          name: file.name,
-        };
-
-        const updatedClassNotes: ClassWeekNotes = {
-          ...classNotes,
-          media: [...(classNotes.media || []), mediaItem],
-        };
-
-        const updatedWeekNotes = {
-          ...weekNotes,
-          classNotes: {
-            ...weekNotes.classNotes,
-            [classId || '']: updatedClassNotes,
-          },
-        };
-
-        setWeekNotes(updatedWeekNotes);
-        saveWeekNotes(updatedWeekNotes);
-      } catch (error) {
-        console.error('Upload failed:', error);
-        setUploadError('Failed to process file. Please try again.');
-      }
-    }
-
-    // Clear the input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const deleteMedia = (mediaId: string) => {
-    const updatedClassNotes: ClassWeekNotes = {
-      ...classNotes,
-      media: (classNotes.media || []).filter(m => m.id !== mediaId),
     };
 
     const updatedWeekNotes = {
@@ -409,29 +335,51 @@ export function LiveNotes() {
     // overwritten when navigate() unmounts the component before effects flush
     saveWeekNotesToStorage(updatedWeekNotes);
 
-    // Auto wrap up: generate next week's plan from all notes
+    // Auto wrap up: use Claude AI to generate next week's plan from notes
     if (notesToProcess.length > 0) {
-      // Organize notes into dance class structure
-      const warmup: string[] = [];
-      const center: string[] = [];
-      const acrossFloor: string[] = [];
-      const combo: string[] = [];
-      const reminders: string[] = [];
-      const observations: string[] = [];
+      let planText = '';
 
-      notesToProcess.forEach((n: LiveNote) => {
-        const text = n.text.toLowerCase();
+      try {
+        const token = localStorage.getItem('dance-teaching-app-token') || '';
+        const response = await fetch('/.netlify/functions/organizeNotes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            notes: notesToProcess.map(n => ({ text: n.text, category: n.category })),
+            className: cls?.name || 'Dance Class',
+            classLevel: cls?.level,
+          }),
+        });
 
-        // Categorize by note type first
-        if (n.category === 'reminder') {
-          reminders.push(n.text);
-        } else if (n.category === 'observation') {
-          observations.push(n.text);
-        } else if (n.category === 'choreography') {
-          combo.push(n.text);
-        } else {
-          // Try to auto-categorize by content
-          if (text.includes('warm') || text.includes('stretch') || text.includes('plié') || text.includes('plie') || text.includes('tendu') || text.includes('relevé') || text.includes('releve')) {
+        if (response.ok) {
+          const result = await response.json();
+          planText = result.plan || '';
+        }
+      } catch (err) {
+        console.warn('AI organize failed, using fallback:', err);
+      }
+
+      // Fallback: keyword-based organization if AI call failed
+      if (!planText) {
+        const warmup: string[] = [];
+        const center: string[] = [];
+        const acrossFloor: string[] = [];
+        const combo: string[] = [];
+        const reminders: string[] = [];
+        const observations: string[] = [];
+
+        notesToProcess.forEach((n: LiveNote) => {
+          const text = n.text.toLowerCase();
+          if (n.category === 'reminder') {
+            reminders.push(n.text);
+          } else if (n.category === 'observation') {
+            observations.push(n.text);
+          } else if (n.category === 'choreography') {
+            combo.push(n.text);
+          } else if (text.includes('warm') || text.includes('stretch') || text.includes('plié') || text.includes('plie') || text.includes('tendu') || text.includes('relevé') || text.includes('releve')) {
             warmup.push(n.text);
           } else if (text.includes('across') || text.includes('floor') || text.includes('corner') || text.includes('diagonal') || text.includes('leap') || text.includes('turn') || text.includes('pirouette') || text.includes('chassé') || text.includes('chasse')) {
             acrossFloor.push(n.text);
@@ -440,46 +388,19 @@ export function LiveNotes() {
           } else if (text.includes('center') || text.includes('adagio') || text.includes('balance') || text.includes('port de bras')) {
             center.push(n.text);
           } else {
-            // Default to center for uncategorized covered items
             center.push(n.text);
           }
-        }
-      });
+        });
 
-      // Build organized plan
-      const planLines: string[] = [];
-
-      if (reminders.length > 0) {
-        planLines.push('📌 TO DO:');
-        reminders.forEach(r => planLines.push('  • ' + r));
+        const planLines: string[] = [];
+        if (reminders.length > 0) { planLines.push('📌 TO DO:'); reminders.forEach(r => planLines.push('  • ' + r)); }
+        if (warmup.length > 0) { planLines.push('🔥 WARM-UP:'); warmup.forEach(w => planLines.push('  • ' + w)); }
+        if (center.length > 0) { planLines.push('⭐ CENTER:'); center.forEach(c => planLines.push('  • ' + c)); }
+        if (acrossFloor.length > 0) { planLines.push('➡️ ACROSS THE FLOOR:'); acrossFloor.forEach(a => planLines.push('  • ' + a)); }
+        if (combo.length > 0) { planLines.push('🎵 COMBO/CHOREO:'); combo.forEach(c => planLines.push('  • ' + c)); }
+        if (observations.length > 0) { planLines.push('👀 NOTES:'); observations.forEach(o => planLines.push('  • ' + o)); }
+        planText = planLines.join('\n');
       }
-
-      if (warmup.length > 0) {
-        planLines.push('🔥 WARM-UP:');
-        warmup.forEach(w => planLines.push('  • ' + w));
-      }
-
-      if (center.length > 0) {
-        planLines.push('⭐ CENTER:');
-        center.forEach(c => planLines.push('  • ' + c));
-      }
-
-      if (acrossFloor.length > 0) {
-        planLines.push('➡️ ACROSS THE FLOOR:');
-        acrossFloor.forEach(a => planLines.push('  • ' + a));
-      }
-
-      if (combo.length > 0) {
-        planLines.push('🎵 COMBO/CHOREO:');
-        combo.forEach(c => planLines.push('  • ' + c));
-      }
-
-      if (observations.length > 0) {
-        planLines.push('👀 NOTES:');
-        observations.forEach(o => planLines.push('  • ' + o));
-      }
-
-      const planText = planLines.join('\n');
 
       const nextWeekStart = addWeeks(getWeekStart(), 1);
       const nextWeekOf = formatWeekOf(nextWeekStart);
@@ -543,46 +464,6 @@ export function LiveNotes() {
     saveWeekNotes(updatedWeekNotes);
   };
 
-  const clearAllMedia = async () => {
-    if (!(await confirm('Delete all photos?'))) return;
-
-    const updatedClassNotes: ClassWeekNotes = {
-      ...classNotes,
-      media: [],
-    };
-
-    const updatedWeekNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [classId || '']: updatedClassNotes,
-      },
-    };
-
-    setWeekNotes(updatedWeekNotes);
-    saveWeekNotes(updatedWeekNotes);
-  };
-
-  const clearAll = async () => {
-    if (!(await confirm('Clear all notes and media?'))) return;
-
-    const updatedClassNotes: ClassWeekNotes = {
-      ...classNotes,
-      liveNotes: [],
-      media: [],
-    };
-
-    const updatedWeekNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [classId || '']: updatedClassNotes,
-      },
-    };
-
-    setWeekNotes(updatedWeekNotes);
-    saveWeekNotes(updatedWeekNotes);
-  };
 
   return (
     <div className="flex flex-col h-full bg-blush-100 dark:bg-blush-900">
@@ -611,21 +492,9 @@ export function LiveNotes() {
             className="text-white"
             items={[
               {
-                label: 'Clear all media',
-                icon: <Image size={16} />,
-                onClick: clearAllMedia,
-                danger: true,
-              },
-              {
                 label: 'Clear all notes',
                 icon: <FileText size={16} />,
                 onClick: clearAllNotes,
-                danger: true,
-              },
-              {
-                label: 'Clear everything',
-                icon: <Trash2 size={16} />,
-                onClick: clearAll,
                 danger: true,
               },
             ]}
@@ -687,42 +556,6 @@ export function LiveNotes() {
 
       {/* Notes List */}
       <div className="flex-1 overflow-y-auto p-4 page-w w-full">
-
-        {/* Upload Error */}
-        {uploadError && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            {uploadError}
-            <button
-              onClick={() => setUploadError(null)}
-              className="ml-2 text-red-500 hover:text-red-700"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
-
-        {/* Media Gallery */}
-        {classNotes.media && classNotes.media.length > 0 && (
-          <div className="mb-4">
-            <div className="flex items-center gap-2 text-sm text-forest-500 mb-2">
-              <Image size={14} />
-              <span>Photos</span>
-            </div>
-            <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
-              {classNotes.media.map(item => (
-                <div key={item.id} className="relative aspect-square rounded-xl overflow-hidden bg-white border border-blush-200">
-                  <img src={item.url} alt="" className="w-full h-full object-cover" />
-                  <button
-                    onClick={() => deleteMedia(item.id)}
-                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Attendance Section */}
         {enrolledStudents.length > 0 && (
@@ -799,7 +632,7 @@ export function LiveNotes() {
           </div>
         )}
 
-        {classNotes.liveNotes.length === 0 && (!classNotes.media || classNotes.media.length === 0) ? (
+        {classNotes.liveNotes.length === 0 ? (
           <div className="text-center py-12 text-forest-400">
             <p>No notes yet</p>
             <p className="text-sm mt-1">Start typing below to add notes</p>
@@ -969,23 +802,6 @@ export function LiveNotes() {
                 </div>
               )}
             </div>
-
-            {/* Media Upload Button */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleMediaUpload}
-              className="hidden"
-              aria-label="Upload media"
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="px-3 py-3 bg-blush-100 dark:bg-blush-700 text-forest-600 dark:text-blush-300 rounded-xl hover:bg-blush-200 dark:hover:bg-blush-600 transition-colors"
-            >
-              <Camera size={20} />
-            </button>
 
             <button
               onClick={addNote}

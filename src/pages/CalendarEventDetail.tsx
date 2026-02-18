@@ -1,14 +1,12 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, Play, Calendar, Plus, Trash2, FileText, Image, Edit2, Save, Users, UserCheck, UserX, Clock3, ChevronDown, ChevronUp, Music, X, Camera } from 'lucide-react';
+import { ArrowLeft, Clock, MapPin, Play, Calendar, Trash2, FileText, Edit2, Save, Users, UserCheck, UserX, Clock3, ChevronDown, ChevronUp, Music, X, History } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import { formatTimeDisplay } from '../utils/time';
 import { Button } from '../components/common/Button';
 import { DropdownMenu } from '../components/common/DropdownMenu';
-import { MediaItem, ClassWeekNotes, CalendarEvent, AppData, CompetitionDance, Student, WeekNotes } from '../types';
-import { v4 as uuid } from 'uuid';
-import { processMediaFile } from '../utils/mediaCompression';
-import { autoLinkDancesToEvent, forceAutoLinkDances } from '../utils/danceLinker';
+import { ClassWeekNotes, CalendarEvent, AppData, CompetitionDance, Student, WeekNotes } from '../types';
+import { forceAutoLinkDances } from '../utils/danceLinker';
 
 export function CalendarEventDetail() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -47,110 +45,41 @@ export function CalendarEventDetail() {
 
   const eventNotes: ClassWeekNotes | undefined = weekNotes.classNotes[eventId || ''];
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editNoteText, setEditNoteText] = useState('');
+  const [showPreviousNotes, setShowPreviousNotes] = useState(false);
+
+  // Find previous events with the same title and pull their notes
+  const previousEventNotes = useMemo(() => {
+    if (!event || !data.calendarEvents || !data.weekNotes) return [];
+
+    const normalizedTitle = event.title.toLowerCase().trim();
+
+    // Find other events with same/similar title that occurred before this event
+    const similarEvents = data.calendarEvents.filter(e =>
+      e.id !== event.id &&
+      e.title.toLowerCase().trim() === normalizedTitle &&
+      e.date < event.date
+    ).sort((a, b) => b.date.localeCompare(a.date)); // Most recent first
+
+    // Gather notes from those events across all week notes
+    const results: { eventDate: string; eventTitle: string; notes: ClassWeekNotes }[] = [];
+    for (const prevEvent of similarEvents) {
+      for (const wn of data.weekNotes) {
+        const notes = wn.classNotes[prevEvent.id];
+        if (notes && (notes.liveNotes.length > 0 || notes.plan)) {
+          results.push({ eventDate: prevEvent.date, eventTitle: prevEvent.title, notes });
+          break; // one result per previous event occurrence
+        }
+      }
+      if (results.length >= 3) break; // Show at most 3 previous occurrences
+    }
+    return results;
+  }, [event, data.calendarEvents, data.weekNotes]);
 
   const saveNotes = (updatedNotes: typeof weekNotes) => {
     setWeekNotes(updatedNotes);
     saveWeekNotes(updatedNotes);
-  };
-
-  const [uploadError, setUploadError] = useState<string | null>(null);
-
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !eventId) return;
-
-    setIsUploading(true);
-    setUploadError(null);
-
-    try {
-      const result = await processMediaFile(file);
-
-      if ('error' in result) {
-        setUploadError(result.error);
-        setIsUploading(false);
-        e.target.value = '';
-        return;
-      }
-
-      const { dataUrl, warning } = result;
-      if (warning) {
-        console.warn(warning);
-      }
-
-      const newMedia: MediaItem = {
-        id: uuid(),
-        type: 'image',
-        url: dataUrl,
-        name: file.name,
-        timestamp: new Date().toISOString(),
-      };
-
-      const updatedNotes = {
-        ...weekNotes,
-        classNotes: {
-          ...weekNotes.classNotes,
-          [eventId]: {
-            classId: eventId,
-            plan: eventNotes?.plan || '',
-            liveNotes: eventNotes?.liveNotes || [],
-            isOrganized: eventNotes?.isOrganized || false,
-            media: [...(eventNotes?.media || []), newMedia],
-          },
-        },
-      };
-      saveNotes(updatedNotes);
-    } catch (error) {
-      console.error('Upload failed:', error);
-      setUploadError('Failed to process file. Please try again.');
-    }
-
-    setIsUploading(false);
-    e.target.value = '';
-  };
-
-  const handleDeleteMedia = (mediaId: string) => {
-    if (!eventId || !eventNotes) return;
-
-    const updatedNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [eventId]: {
-          ...eventNotes,
-          media: (eventNotes.media || []).filter(m => m.id !== mediaId),
-        },
-      },
-    };
-    saveNotes(updatedNotes);
-  };
-
-  const handleDeleteAllMedia = () => {
-    if (!eventId) return;
-    if (!confirm('Delete all photos for this event?')) return;
-
-    const existingNotes = eventNotes || {
-      classId: eventId,
-      plan: '',
-      liveNotes: [],
-      isOrganized: false,
-      media: [],
-    };
-
-    const updatedNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [eventId]: {
-          ...existingNotes,
-          media: [],
-        },
-      },
-    };
-    saveNotes(updatedNotes);
   };
 
   const handleDeleteAllNotes = () => {
@@ -294,12 +223,6 @@ export function CalendarEventDetail() {
         <DropdownMenu
           items={[
             {
-              label: 'Delete all media',
-              icon: <Image size={16} />,
-              onClick: handleDeleteAllMedia,
-              danger: true,
-            },
-            {
               label: 'Delete all notes',
               icon: <FileText size={16} />,
               onClick: handleDeleteAllNotes,
@@ -395,81 +318,63 @@ export function CalendarEventDetail() {
         updateCalendarEvent={updateCalendarEvent}
       />
 
-      {/* Photos Section */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-medium text-blush-700 dark:text-blush-300 flex items-center gap-2">
-            <Camera size={16} />
-            Photos
-          </h2>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handlePhotoUpload}
-            className="hidden"
-            aria-label="Upload photo"
-          />
+      {/* Previous Similar Event Notes */}
+      {previousEventNotes.length > 0 && (
+        <div className="mb-6">
           <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            className="flex items-center gap-1 px-3 py-1.5 bg-forest-600 text-white rounded-lg text-sm font-medium hover:bg-forest-700 disabled:opacity-50"
+            onClick={() => setShowPreviousNotes(!showPreviousNotes)}
+            className="w-full flex items-center justify-between p-3 bg-blush-50 dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 hover:bg-blush-100 dark:hover:bg-blush-700 transition-colors"
           >
-            {isUploading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Uploading...
-              </>
+            <div className="flex items-center gap-2 text-forest-600 dark:text-forest-400">
+              <History size={16} />
+              <span className="font-medium">Previous Event Notes</span>
+              <span className="text-xs text-forest-400 dark:text-blush-400">
+                ({previousEventNotes.length} past occurrence{previousEventNotes.length !== 1 ? 's' : ''})
+              </span>
+            </div>
+            {showPreviousNotes ? (
+              <ChevronUp size={18} className="text-forest-400 dark:text-blush-400" />
             ) : (
-              <>
-                <Plus size={16} />
-                Add Photo
-              </>
+              <ChevronDown size={18} className="text-forest-400 dark:text-blush-400" />
             )}
           </button>
+
+          {showPreviousNotes && (
+            <div className="mt-3 space-y-4 pl-2 border-l-2 border-blush-200 dark:border-blush-600">
+              {previousEventNotes.map(({ eventDate, notes }) => (
+                <div key={eventDate}>
+                  <div className="text-xs font-medium text-blush-500 dark:text-blush-400 mb-2">
+                    {new Date(eventDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                  </div>
+                  {notes.plan && (
+                    <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3 mb-2 text-sm text-forest-700 dark:text-blush-300 whitespace-pre-wrap border border-purple-100 dark:border-purple-800">
+                      <div className="text-xs font-medium text-purple-600 dark:text-purple-400 mb-1">Plan</div>
+                      {notes.plan}
+                    </div>
+                  )}
+                  {notes.liveNotes.map(note => (
+                    <div key={note.id} className="bg-white dark:bg-blush-800 rounded-lg p-3 mb-2 text-sm border border-blush-200 dark:border-blush-700">
+                      {note.category && (
+                        <span className={`inline-block text-xs px-2 py-0.5 rounded-full mb-1 ${
+                          note.category === 'covered' ? 'bg-forest-100 text-forest-700' :
+                          note.category === 'observation' ? 'bg-blush-200 text-blush-700' :
+                          note.category === 'reminder' ? 'bg-blue-100 text-blue-700' :
+                          'bg-purple-100 text-purple-700'
+                        }`}>
+                          {note.category === 'covered' ? 'Covered' :
+                           note.category === 'observation' ? 'Note' :
+                           note.category === 'reminder' ? 'Reminder' : 'Choreo'}
+                        </span>
+                      )}
+                      <p className="text-forest-600 dark:text-blush-200">{note.text}</p>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-
-        {uploadError && (
-          <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            {uploadError}
-            <button
-              onClick={() => setUploadError(null)}
-              className="ml-2 text-red-500 hover:text-red-700"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
-
-        {eventNotes?.media && eventNotes.media.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3">
-            {eventNotes.media.map(media => (
-              <div key={media.id} className="relative group">
-                <img
-                  src={media.url}
-                  alt={media.name}
-                  className="w-full aspect-[4/3] rounded-lg bg-blush-100 dark:bg-blush-700 object-cover"
-                />
-                <button
-                  onClick={() => handleDeleteMedia(media.id)}
-                  className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
-                >
-                  <Trash2 size={14} />
-                </button>
-                <div className="text-xs text-blush-500 dark:text-blush-400 mt-1 truncate">{media.name}</div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className="bg-blush-50 dark:bg-blush-800 border-2 border-dashed border-blush-200 dark:border-blush-700 rounded-xl p-8 text-center cursor-pointer hover:bg-blush-100 dark:bg-blush-700 hover:border-blush-300 dark:border-blush-600 transition-colors"
-          >
-            <Camera size={32} className="text-blush-300 dark:text-blush-600 mx-auto mb-2" />
-            <p className="text-blush-500 dark:text-blush-400 text-sm">Tap to add photos</p>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Plan/Prep Notes */}
       <div className="mb-6">

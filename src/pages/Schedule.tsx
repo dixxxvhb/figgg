@@ -279,7 +279,7 @@ export function Schedule() {
                 <Link
                   key={event.id}
                   to={`/event/${event.id}`}
-                  className="block bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4 hover:border-blush-300 dark:hover:border-blush-600 hover:shadow-md transition-all"
+                  className="block bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4 hover:border-forest-300 dark:hover:border-forest-600 hover:shadow-md transition-all"
                 >
                   <div className="flex items-start gap-3">
                     <div className="w-1.5 h-full min-h-[60px] rounded-full bg-amber-400" />
@@ -288,12 +288,11 @@ export function Schedule() {
                         <div className="font-medium text-forest-700 dark:text-white">{event.title}</div>
                         <div className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
                           <Calendar size={12} />
-                          <span>Calendar</span>
+                          <span>Event</span>
                         </div>
                       </div>
                       {event.startTime && event.startTime !== '00:00' && (
-                        <div className="flex items-center gap-1 text-sm text-forest-400 dark:text-blush-400 mt-1">
-                          <Clock size={14} />
+                        <div className="text-sm text-forest-400 dark:text-blush-400 mt-1">
                           {formatTimeDisplay(event.startTime)}
                           {event.endTime && event.endTime !== '00:00' && (
                             <> - {formatTimeDisplay(event.endTime)}</>
@@ -340,7 +339,7 @@ export function Schedule() {
                         </div>
                       )}
                       {event.description && (
-                        <div className="text-sm text-forest-500 dark:text-blush-300 mt-2">{event.description}</div>
+                        <div className="text-sm text-forest-400 dark:text-blush-400 mt-1">{event.description}</div>
                       )}
                     </div>
                   </div>

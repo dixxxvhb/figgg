@@ -1,13 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, Music2, Camera, X, Image, Trash2, FileText, ChevronDown, ChevronUp, ClipboardList } from 'lucide-react';
+import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, Music2, Trash2, FileText, ChevronDown, ChevronUp, ClipboardList } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAppData } from '../hooks/useAppData';
 import { DropdownMenu } from '../components/common/DropdownMenu';
 import { LiveNote, ClassWeekNotes } from '../types';
 import { formatTimeDisplay } from '../utils/time';
 import { v4 as uuid } from 'uuid';
-import { processMediaFile } from '../utils/mediaCompression';
 
 const QUICK_TAGS = [
   { id: 'covered', label: 'Covered', icon: CheckCircle, color: 'bg-forest-100 text-forest-700' },
@@ -20,7 +19,6 @@ export function EventNotes() {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
   const { data, getCurrentWeekNotes, saveWeekNotes } = useAppData();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const event = data.calendarEvents?.find(e => e.id === eventId);
 
@@ -28,7 +26,6 @@ export function EventNotes() {
   const [selectedTag, setSelectedTag] = useState<string | undefined>();
   const [weekNotes, setWeekNotes] = useState(() => getCurrentWeekNotes());
   const [showPlan, setShowPlan] = useState(true);
-  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Sync weekNotes when data changes (e.g., from cloud sync)
   useEffect(() => {
@@ -107,125 +104,12 @@ export function EventNotes() {
     saveWeekNotes(updatedWeekNotes);
   };
 
-  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-
-    setUploadError(null);
-
-    for (const file of Array.from(files)) {
-      try {
-        const result = await processMediaFile(file);
-
-        if ('error' in result) {
-          setUploadError(result.error);
-          continue;
-        }
-
-        const { dataUrl, warning } = result;
-        if (warning) {
-          console.warn(warning);
-        }
-
-        const mediaItem = {
-          id: uuid(),
-          type: 'image' as const,
-          url: dataUrl,
-          timestamp: new Date().toISOString(),
-          name: file.name,
-        };
-
-        const updatedEventNotes: ClassWeekNotes = {
-          ...eventNotes,
-          media: [...(eventNotes.media || []), mediaItem],
-        };
-
-        const updatedWeekNotes = {
-          ...weekNotes,
-          classNotes: {
-            ...weekNotes.classNotes,
-            [eventId || '']: updatedEventNotes,
-          },
-        };
-
-        setWeekNotes(updatedWeekNotes);
-        saveWeekNotes(updatedWeekNotes);
-      } catch (error) {
-        console.error('Upload failed:', error);
-        setUploadError('Failed to process file. Please try again.');
-      }
-    }
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const deleteMedia = (mediaId: string) => {
-    const updatedEventNotes: ClassWeekNotes = {
-      ...eventNotes,
-      media: (eventNotes.media || []).filter(m => m.id !== mediaId),
-    };
-
-    const updatedWeekNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [eventId || '']: updatedEventNotes,
-      },
-    };
-
-    setWeekNotes(updatedWeekNotes);
-    saveWeekNotes(updatedWeekNotes);
-  };
-
   const clearAllNotes = () => {
     if (!confirm('Delete all notes?')) return;
 
     const updatedEventNotes: ClassWeekNotes = {
       ...eventNotes,
       liveNotes: [],
-    };
-
-    const updatedWeekNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [eventId || '']: updatedEventNotes,
-      },
-    };
-
-    setWeekNotes(updatedWeekNotes);
-    saveWeekNotes(updatedWeekNotes);
-  };
-
-  const clearAllMedia = () => {
-    if (!confirm('Delete all photos?')) return;
-
-    const updatedEventNotes: ClassWeekNotes = {
-      ...eventNotes,
-      media: [],
-    };
-
-    const updatedWeekNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [eventId || '']: updatedEventNotes,
-      },
-    };
-
-    setWeekNotes(updatedWeekNotes);
-    saveWeekNotes(updatedWeekNotes);
-  };
-
-  const clearAll = () => {
-    if (!confirm('Clear all notes and media?')) return;
-
-    const updatedEventNotes: ClassWeekNotes = {
-      ...eventNotes,
-      liveNotes: [],
-      media: [],
     };
 
     const updatedWeekNotes = {
@@ -283,21 +167,9 @@ export function EventNotes() {
             className="text-white"
             items={[
               {
-                label: 'Clear all media',
-                icon: <Image size={16} />,
-                onClick: clearAllMedia,
-                danger: true,
-              },
-              {
                 label: 'Clear all notes',
                 icon: <FileText size={16} />,
                 onClick: clearAllNotes,
-                danger: true,
-              },
-              {
-                label: 'Clear everything',
-                icon: <Trash2 size={16} />,
-                onClick: clearAll,
                 danger: true,
               },
             ]}
@@ -360,43 +232,7 @@ export function EventNotes() {
       {/* Notes List */}
       <div className="flex-1 overflow-y-auto p-4 page-w w-full">
 
-        {/* Upload Error */}
-        {uploadError && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            {uploadError}
-            <button
-              onClick={() => setUploadError(null)}
-              className="ml-2 text-red-500 hover:text-red-700"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
-
-        {/* Media Gallery */}
-        {eventNotes.media && eventNotes.media.length > 0 && (
-          <div className="mb-4">
-            <div className="flex items-center gap-2 text-sm text-forest-500 mb-2">
-              <Image size={14} />
-              <span>Photos</span>
-            </div>
-            <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
-              {eventNotes.media.map(item => (
-                <div key={item.id} className="relative aspect-square rounded-xl overflow-hidden bg-white border border-blush-200">
-                  <img src={item.url} alt="" className="w-full h-full object-cover" />
-                  <button
-                    onClick={() => deleteMedia(item.id)}
-                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {eventNotes.liveNotes.length === 0 && (!eventNotes.media || eventNotes.media.length === 0) ? (
+        {eventNotes.liveNotes.length === 0 ? (
           <div className="text-center py-12 text-forest-400">
             <p>No notes yet</p>
             <p className="text-sm mt-1">Start typing below to add notes</p>
@@ -472,23 +308,6 @@ export function EventNotes() {
               aria-label="Add a note"
               className="flex-1 px-4 py-3 border border-blush-200 dark:border-blush-600 rounded-xl focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-blush-50 dark:bg-blush-800 text-blush-900 dark:text-white placeholder-blush-400 dark:placeholder-blush-500"
             />
-
-            {/* Media Upload Button */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleMediaUpload}
-              className="hidden"
-              aria-label="Upload media"
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="px-3 py-3 bg-blush-100 dark:bg-blush-700 text-forest-600 dark:text-blush-300 rounded-xl hover:bg-blush-200 dark:hover:bg-blush-600 transition-colors"
-            >
-              <Camera size={20} />
-            </button>
 
             <button
               onClick={addNote}

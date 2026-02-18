@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Copy, Eye } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Copy, Eye, Calendar } from 'lucide-react';
 import { format, addWeeks, startOfWeek, addDays } from 'date-fns';
 import { useAppData } from '../hooks/useAppData';
 import { formatTimeDisplay, formatWeekOf, timeToMinutes } from '../utils/time';
-import { DayOfWeek, ClassWeekNotes, WeekNotes } from '../types';
+import { DayOfWeek, ClassWeekNotes, WeekNotes, CalendarEvent } from '../types';
 import { Button } from '../components/common/Button';
 import { v4 as uuid } from 'uuid';
 
@@ -69,6 +69,26 @@ export function WeekPlanner() {
     return grouped;
   }, [data.classes]);
 
+  // Group calendar events by day for the viewing week
+  const calendarEventsByDay = useMemo(() => {
+    const grouped: Record<DayOfWeek, CalendarEvent[]> = {
+      monday: [], tuesday: [], wednesday: [], thursday: [],
+      friday: [], saturday: [], sunday: [],
+    };
+
+    if (!data.calendarEvents) return grouped;
+
+    DAYS.forEach((day, index) => {
+      const dayDate = addDays(viewingWeekStart, index);
+      const dayDateStr = format(dayDate, 'yyyy-MM-dd');
+      grouped[day] = data.calendarEvents
+        .filter(e => e.date === dayDateStr)
+        .sort((a, b) => timeToMinutes(a.startTime || '00:00') - timeToMinutes(b.startTime || '00:00'));
+    });
+
+    return grouped;
+  }, [data.calendarEvents, viewingWeekStart]);
+
   const saveNotes = (updatedNotes: WeekNotes) => {
     setCurrentWeekNotes(updatedNotes);
     saveWeekNotes(updatedNotes);
@@ -94,9 +114,9 @@ export function WeekPlanner() {
     saveNotes(newNotes);
   };
 
-  const updatePlan = (classId: string, plan: string) => {
-    const classNotes: ClassWeekNotes = currentWeekNotes.classNotes[classId] || {
-      classId,
+  const updatePlan = (itemId: string, plan: string) => {
+    const notes: ClassWeekNotes = currentWeekNotes.classNotes[itemId] || {
+      classId: itemId,
       plan: '',
       liveNotes: [],
       isOrganized: false,
@@ -106,7 +126,7 @@ export function WeekPlanner() {
       ...currentWeekNotes,
       classNotes: {
         ...currentWeekNotes.classNotes,
-        [classId]: { ...classNotes, plan },
+        [itemId]: { ...notes, plan },
       },
     };
 
@@ -167,12 +187,15 @@ export function WeekPlanner() {
         <div className="bg-blush-50 dark:bg-blush-800 rounded-xl p-4 mb-6">
           <div className="text-sm font-medium text-blush-500 dark:text-blush-400 mb-3">{lastWeekLabel}</div>
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {Object.entries(lastWeekNotes.classNotes).map(([classId, notes]) => {
-              const cls = data.classes.find(c => c.id === classId);
-              if (!cls || !notes.plan) return null;
+            {Object.entries(lastWeekNotes.classNotes).map(([itemId, notes]) => {
+              if (!notes.plan) return null;
+              const cls = data.classes.find(c => c.id === itemId);
+              const evt = data.calendarEvents?.find(e => e.id === itemId);
+              const label = cls?.name || evt?.title;
+              if (!label) return null;
               return (
-                <div key={classId} className="text-sm">
-                  <span className="font-medium text-forest-700 dark:text-white">{cls.name}:</span>{' '}
+                <div key={itemId} className="text-sm">
+                  <span className="font-medium text-forest-700 dark:text-white">{label}:</span>{' '}
                   <span className="text-blush-600 dark:text-blush-300">{notes.plan}</span>
                 </div>
               );
@@ -185,7 +208,8 @@ export function WeekPlanner() {
       <div className="space-y-6">
         {DAYS.map(day => {
           const classes = classesByDay[day];
-          if (classes.length === 0) return null;
+          const events = calendarEventsByDay[day];
+          if (classes.length === 0 && events.length === 0) return null;
 
           const dayDate = addDays(viewingWeekStart, DAYS.indexOf(day));
           const dayLabel = format(dayDate, 'EEEE, MMM d');
@@ -194,6 +218,7 @@ export function WeekPlanner() {
             <div key={day}>
               <h3 className="font-semibold text-forest-900 dark:text-white mb-3">{dayLabel}</h3>
               <div className="space-y-3">
+                {/* Scheduled Classes */}
                 {classes.map(cls => {
                   const studio = getStudio(cls.studioId);
                   const classNotes = currentWeekNotes.classNotes[cls.id];
@@ -237,6 +262,53 @@ export function WeekPlanner() {
                         {classNotes?.liveNotes && classNotes.liveNotes.length > 0 && (
                           <div className="mt-2 text-xs text-forest-600 dark:text-forest-400">
                             {classNotes.liveNotes.length} note{classNotes.liveNotes.length !== 1 ? 's' : ''} from class
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Calendar Events */}
+                {events.map(event => {
+                  const eventNotes = currentWeekNotes.classNotes[event.id];
+
+                  return (
+                    <div
+                      key={event.id}
+                      className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 overflow-hidden"
+                    >
+                      <div className="px-4 py-3 flex items-center gap-3" style={{ borderLeft: '4px solid #fbbf24' }}>
+                        <div className="flex-1 min-w-0">
+                          <Link
+                            to={`/event/${event.id}`}
+                            className="font-medium text-forest-900 dark:text-white hover:text-forest-600 dark:hover:text-forest-400"
+                          >
+                            {event.title}
+                          </Link>
+                          {event.startTime && event.startTime !== '00:00' && (
+                            <div className="text-sm text-blush-500 dark:text-blush-400">
+                              {formatTimeDisplay(event.startTime)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
+                          <Calendar size={11} />
+                          <span>Event</span>
+                        </div>
+                      </div>
+
+                      <div className="px-4 py-3 bg-blush-50 dark:bg-blush-900/50">
+                        <textarea
+                          value={eventNotes?.plan || ''}
+                          onChange={(e) => updatePlan(event.id, e.target.value)}
+                          placeholder="Plan / prep notes for this event..."
+                          rows={2}
+                          className="w-full px-3 py-2 text-sm border border-blush-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent resize-none bg-white dark:bg-blush-800 text-forest-700 dark:text-white placeholder-blush-400"
+                        />
+                        {eventNotes?.liveNotes && eventNotes.liveNotes.length > 0 && (
+                          <div className="mt-2 text-xs text-forest-600 dark:text-forest-400">
+                            {eventNotes.liveNotes.length} note{eventNotes.liveNotes.length !== 1 ? 's' : ''} from event
                           </div>
                         )}
                       </div>

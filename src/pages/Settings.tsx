@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, Download, Upload, Check, Calendar, Sparkles, RefreshCw, AlertCircle, Cloud, BookOpen, Trophy, ClipboardList, Sun, Moon, Type, Users, Grid3X3, ChevronRight, ArrowLeft, Music, Star, ChevronDown, ChevronUp } from 'lucide-react';
+import { MapPin, Download, Upload, Check, Calendar, Sparkles, RefreshCw, AlertCircle, Cloud, BookOpen, Trophy, ClipboardList, Sun, Moon, Type, Users, Grid3X3, ChevronRight, ArrowLeft, Star, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAppData } from '../hooks/useAppData';
 import { exportData, importData, updateCalendarEvents, updateSettings, syncFromCloud, pushToCloud } from '../services/storage';
 import { fetchCalendarEvents } from '../services/calendar';
