@@ -1,15 +1,13 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, Music, Edit2, Save, X, Plus, Trash2, Play, History, ChevronDown, ChevronUp, FileText, Image, Users, UserCheck, UserX, Clock3, UserPlus, User, Grid3X3, List, Camera, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { ArrowLeft, Clock, MapPin, Music, Edit2, Save, X, Trash2, Play, History, ChevronDown, ChevronUp, FileText, Users, UserCheck, UserX, Clock3, UserPlus, User, Grid3X3, List, ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { timeToMinutes } from '../utils/time';
 import { useAppData } from '../hooks/useAppData';
 import { formatTimeDisplay, formatWeekOf, getWeekStart } from '../utils/time';
 import { addWeeks, format } from 'date-fns';
 import { Button } from '../components/common/Button';
 import { DropdownMenu } from '../components/common/DropdownMenu';
-import { MediaItem, Student } from '../types';
-import { v4 as uuid } from 'uuid';
-import { processMediaFile } from '../utils/mediaCompression';
+import { Student } from '../types';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
 
 export function ClassDetail() {
@@ -18,8 +16,6 @@ export function ClassDetail() {
   const weekOffset = parseInt(searchParams.get('week') || '0', 10);
   const { data, updateClass, getCurrentWeekNotes, saveWeekNotes, getWeekNotes, updateStudent } = useAppData();
   const [isEditing, setIsEditing] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [showLastWeek, setShowLastWeek] = useState(false);
 
@@ -102,105 +98,6 @@ export function ClassDetail() {
 
   // Get this week's attendance for this class
   const attendance = classNotes?.attendance || { present: [], absent: [], late: [] };
-
-  const [uploadError, setUploadError] = useState<string | null>(null);
-
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !classId) return;
-
-    setIsUploading(true);
-    setUploadError(null);
-
-    try {
-      const result = await processMediaFile(file);
-
-      if ('error' in result) {
-        setUploadError(result.error);
-        setIsUploading(false);
-        e.target.value = '';
-        return;
-      }
-
-      const { dataUrl, warning } = result;
-      if (warning) {
-        console.warn(warning);
-      }
-
-      const newMedia: MediaItem = {
-        id: uuid(),
-        type: 'image',
-        url: dataUrl,
-        name: file.name,
-        timestamp: new Date().toISOString(),
-      };
-
-      const updatedNotes = {
-        ...weekNotes,
-        classNotes: {
-          ...weekNotes.classNotes,
-          [classId]: {
-            classId,
-            plan: classNotes?.plan || '',
-            liveNotes: classNotes?.liveNotes || [],
-            isOrganized: classNotes?.isOrganized || false,
-            media: [...(classNotes?.media || []), newMedia],
-          },
-        },
-      };
-      setWeekNotes(updatedNotes);
-      saveWeekNotes(updatedNotes);
-    } catch (error) {
-      console.error('Upload failed:', error);
-      setUploadError('Failed to process file. Please try again.');
-    }
-
-    setIsUploading(false);
-    e.target.value = '';
-  };
-
-  const handleDeleteMedia = (mediaId: string) => {
-    if (!classId || !classNotes) return;
-
-    const updatedNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [classId]: {
-          ...classNotes,
-          media: (classNotes.media || []).filter(m => m.id !== mediaId),
-        },
-      },
-    };
-    setWeekNotes(updatedNotes);
-    saveWeekNotes(updatedNotes);
-  };
-
-  const handleDeleteAllMedia = async () => {
-    if (!classId) return;
-    if (!(await confirm('Delete all photos for this week?'))) return;
-
-    const existingNotes = classNotes || {
-      classId,
-      plan: '',
-      liveNotes: [],
-      isOrganized: false,
-      media: [],
-    };
-
-    const updatedNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [classId]: {
-          ...existingNotes,
-          media: [],
-        },
-      },
-    };
-    setWeekNotes(updatedNotes);
-    saveWeekNotes(updatedNotes);
-  };
 
   const handleDeleteAllNotes = async () => {
     if (!classId) return;
@@ -414,12 +311,6 @@ export function ClassDetail() {
             <DropdownMenu
               items={[
                 {
-                  label: 'Delete all media',
-                  icon: <Image size={16} />,
-                  onClick: handleDeleteAllMedia,
-                  danger: true,
-                },
-                {
                   label: 'Delete all notes',
                   icon: <FileText size={16} />,
                   onClick: handleDeleteAllNotes,
@@ -512,7 +403,7 @@ export function ClassDetail() {
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium text-forest-700 dark:text-white flex items-center gap-2">
               <FileText size={16} className="text-forest-500" />
-              Next Week's Plan
+              Class Plan
             </h3>
             <div className="flex items-center gap-1">
               {isEditingPlan ? (
@@ -535,7 +426,7 @@ export function ClassDetail() {
             <textarea
               value={editedPlan}
               onChange={(e) => setEditedPlan(e.target.value)}
-              placeholder="Enter plan for next week..."
+              placeholder="Enter the plan for this class..."
               rows={6}
               className="w-full text-sm text-forest-600 dark:text-blush-300 bg-blush-50 dark:bg-blush-900/50 rounded-lg p-3 border-0 focus:ring-2 focus:ring-forest-500 resize-none"
               autoFocus
@@ -549,7 +440,7 @@ export function ClassDetail() {
               onClick={startEditPlan}
               className="w-full text-sm text-blush-400 dark:text-blush-500 italic py-4 hover:text-forest-500 dark:hover:text-forest-400 transition-colors"
             >
-              Tap to add a plan for next week...
+              Tap to add a plan for this class...
             </button>
           )}
         </div>
@@ -590,7 +481,7 @@ export function ClassDetail() {
               <div className="flex gap-1 flex-1">
                 <div className="flex-1 text-center py-1 bg-green-50 dark:bg-green-900/30 rounded-lg">
                   <span className="text-green-600 dark:text-green-400 font-medium text-sm">{attendance.present.length}</span>
-                  <span className="text-green-500 dark:text-green-500 ml-1 text-xs">Here</span>
+                  <span className="text-green-500 dark:text-green-500 ml-1 text-xs">Present</span>
                 </div>
                 <div className="flex-1 text-center py-1 bg-amber-50 dark:bg-amber-900/30 rounded-lg">
                   <span className="text-amber-600 dark:text-amber-400 font-medium text-sm">{attendance.late.length}</span>
@@ -598,7 +489,7 @@ export function ClassDetail() {
                 </div>
                 <div className="flex-1 text-center py-1 bg-red-50 dark:bg-red-900/30 rounded-lg">
                   <span className="text-red-600 dark:text-red-400 font-medium text-sm">{attendance.absent.length}</span>
-                  <span className="text-red-500 dark:text-red-500 ml-1 text-xs">Out</span>
+                  <span className="text-red-500 dark:text-red-500 ml-1 text-xs">Absent</span>
                 </div>
               </div>
               {/* View Toggle */}
@@ -634,7 +525,7 @@ export function ClassDetail() {
               /* Photo Grid View - One Tap Attendance */
               <div className="p-3">
                 <div className="text-xs text-forest-500 dark:text-blush-400 text-center mb-3">
-                  Tap photo to mark present • Double-tap for late • Long press for absent
+                  Tap to cycle: Present → Late → Absent → Unmark
                 </div>
                 <div className="grid grid-cols-4 gap-3">
                   {enrolledStudents.map(student => {
@@ -826,82 +717,6 @@ export function ClassDetail() {
           )}
         </div>
       )}
-
-      {/* Photos Section */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-medium text-forest-700 dark:text-white flex items-center gap-2">
-            <Camera size={16} />
-            Photos
-          </h2>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handlePhotoUpload}
-            className="hidden"
-            aria-label="Upload photo"
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            className="flex items-center gap-1 px-3 py-1.5 bg-forest-600 text-white rounded-lg text-sm font-medium hover:bg-forest-700 disabled:opacity-50"
-          >
-            {isUploading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Uploading...
-              </>
-            ) : (
-              <>
-                <Plus size={16} />
-                Add Photo
-              </>
-            )}
-          </button>
-        </div>
-
-        {uploadError && (
-          <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            {uploadError}
-            <button
-              onClick={() => setUploadError(null)}
-              className="ml-2 text-red-500 hover:text-red-700"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
-
-        {classNotes?.media && classNotes.media.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3">
-            {classNotes.media.map(media => (
-              <div key={media.id} className="relative group">
-                <img
-                  src={media.url}
-                  alt={media.name}
-                  className="w-full aspect-[4/3] rounded-lg bg-blush-100 dark:bg-blush-800 object-cover"
-                />
-                <button
-                  onClick={() => handleDeleteMedia(media.id)}
-                  className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
-                >
-                  <Trash2 size={14} />
-                </button>
-                <div className="text-xs text-blush-500 dark:text-blush-400 mt-1 truncate">{media.name}</div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className="bg-blush-50 dark:bg-blush-800 border-2 border-dashed border-blush-200 dark:border-blush-600 rounded-xl p-8 text-center cursor-pointer hover:bg-blush-100 dark:hover:bg-blush-700 hover:border-blush-300 dark:hover:border-blush-500 transition-colors"
-          >
-            <Camera size={32} className="text-blush-300 dark:text-blush-600 mx-auto mb-2" />
-            <p className="text-blush-500 dark:text-blush-400 text-sm">Tap to add photos</p>
-          </div>
-        )}
-      </div>
 
       {/* Class Song */}
       <div className="mb-6 bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4">
