@@ -335,29 +335,51 @@ export function LiveNotes() {
     // overwritten when navigate() unmounts the component before effects flush
     saveWeekNotesToStorage(updatedWeekNotes);
 
-    // Auto wrap up: generate next week's plan from all notes
+    // Auto wrap up: use Claude AI to generate next week's plan from notes
     if (notesToProcess.length > 0) {
-      // Organize notes into dance class structure
-      const warmup: string[] = [];
-      const center: string[] = [];
-      const acrossFloor: string[] = [];
-      const combo: string[] = [];
-      const reminders: string[] = [];
-      const observations: string[] = [];
+      let planText = '';
 
-      notesToProcess.forEach((n: LiveNote) => {
-        const text = n.text.toLowerCase();
+      try {
+        const token = localStorage.getItem('dance-teaching-app-token') || '';
+        const response = await fetch('/.netlify/functions/organizeNotes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            notes: notesToProcess.map(n => ({ text: n.text, category: n.category })),
+            className: cls?.name || 'Dance Class',
+            classLevel: cls?.level,
+          }),
+        });
 
-        // Categorize by note type first
-        if (n.category === 'reminder') {
-          reminders.push(n.text);
-        } else if (n.category === 'observation') {
-          observations.push(n.text);
-        } else if (n.category === 'choreography') {
-          combo.push(n.text);
-        } else {
-          // Try to auto-categorize by content
-          if (text.includes('warm') || text.includes('stretch') || text.includes('plié') || text.includes('plie') || text.includes('tendu') || text.includes('relevé') || text.includes('releve')) {
+        if (response.ok) {
+          const result = await response.json();
+          planText = result.plan || '';
+        }
+      } catch (err) {
+        console.warn('AI organize failed, using fallback:', err);
+      }
+
+      // Fallback: keyword-based organization if AI call failed
+      if (!planText) {
+        const warmup: string[] = [];
+        const center: string[] = [];
+        const acrossFloor: string[] = [];
+        const combo: string[] = [];
+        const reminders: string[] = [];
+        const observations: string[] = [];
+
+        notesToProcess.forEach((n: LiveNote) => {
+          const text = n.text.toLowerCase();
+          if (n.category === 'reminder') {
+            reminders.push(n.text);
+          } else if (n.category === 'observation') {
+            observations.push(n.text);
+          } else if (n.category === 'choreography') {
+            combo.push(n.text);
+          } else if (text.includes('warm') || text.includes('stretch') || text.includes('plié') || text.includes('plie') || text.includes('tendu') || text.includes('relevé') || text.includes('releve')) {
             warmup.push(n.text);
           } else if (text.includes('across') || text.includes('floor') || text.includes('corner') || text.includes('diagonal') || text.includes('leap') || text.includes('turn') || text.includes('pirouette') || text.includes('chassé') || text.includes('chasse')) {
             acrossFloor.push(n.text);
@@ -366,46 +388,19 @@ export function LiveNotes() {
           } else if (text.includes('center') || text.includes('adagio') || text.includes('balance') || text.includes('port de bras')) {
             center.push(n.text);
           } else {
-            // Default to center for uncategorized covered items
             center.push(n.text);
           }
-        }
-      });
+        });
 
-      // Build organized plan
-      const planLines: string[] = [];
-
-      if (reminders.length > 0) {
-        planLines.push('📌 TO DO:');
-        reminders.forEach(r => planLines.push('  • ' + r));
+        const planLines: string[] = [];
+        if (reminders.length > 0) { planLines.push('📌 TO DO:'); reminders.forEach(r => planLines.push('  • ' + r)); }
+        if (warmup.length > 0) { planLines.push('🔥 WARM-UP:'); warmup.forEach(w => planLines.push('  • ' + w)); }
+        if (center.length > 0) { planLines.push('⭐ CENTER:'); center.forEach(c => planLines.push('  • ' + c)); }
+        if (acrossFloor.length > 0) { planLines.push('➡️ ACROSS THE FLOOR:'); acrossFloor.forEach(a => planLines.push('  • ' + a)); }
+        if (combo.length > 0) { planLines.push('🎵 COMBO/CHOREO:'); combo.forEach(c => planLines.push('  • ' + c)); }
+        if (observations.length > 0) { planLines.push('👀 NOTES:'); observations.forEach(o => planLines.push('  • ' + o)); }
+        planText = planLines.join('\n');
       }
-
-      if (warmup.length > 0) {
-        planLines.push('🔥 WARM-UP:');
-        warmup.forEach(w => planLines.push('  • ' + w));
-      }
-
-      if (center.length > 0) {
-        planLines.push('⭐ CENTER:');
-        center.forEach(c => planLines.push('  • ' + c));
-      }
-
-      if (acrossFloor.length > 0) {
-        planLines.push('➡️ ACROSS THE FLOOR:');
-        acrossFloor.forEach(a => planLines.push('  • ' + a));
-      }
-
-      if (combo.length > 0) {
-        planLines.push('🎵 COMBO/CHOREO:');
-        combo.forEach(c => planLines.push('  • ' + c));
-      }
-
-      if (observations.length > 0) {
-        planLines.push('👀 NOTES:');
-        observations.forEach(o => planLines.push('  • ' + o));
-      }
-
-      const planText = planLines.join('\n');
 
       const nextWeekStart = addWeeks(getWeekStart(), 1);
       const nextWeekOf = formatWeekOf(nextWeekStart);
