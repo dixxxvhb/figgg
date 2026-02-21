@@ -1,90 +1,104 @@
 import React from 'react';
 
+type CardVariant = 'standard' | 'elevated' | 'inset' | 'highlight' | 'stat' | 'modal';
+
 interface CardProps {
   children: React.ReactNode;
   className?: string;
   onClick?: () => void;
-  interactive?: boolean;
+  variant?: CardVariant;
   selected?: boolean;
   padding?: 'none' | 'sm' | 'md' | 'lg';
+  highlightColor?: string; // CSS color for highlight variant left border
+  // Legacy prop support
+  interactive?: boolean;
 }
 
 export function Card({
   children,
   className = '',
   onClick,
-  interactive = false,
+  variant = 'standard',
   selected = false,
   padding = 'md',
+  highlightColor,
+  interactive = false,
 }: CardProps) {
-  const baseStyles = 'bg-white rounded-xl border shadow-sm';
-
-  const borderStyles = selected
-    ? 'border-2 border-forest-500'
-    : 'border border-blush-200';
-
-  const interactiveStyles = interactive || onClick
-    ? 'hover:shadow-md hover:border-forest-300 transition-all cursor-pointer'
-    : '';
+  // Determine effective variant — interactive prop maps to elevated for backwards compat
+  const effectiveVariant = interactive && variant === 'standard' ? 'elevated' : variant;
 
   const paddingStyles = {
     none: '',
     sm: 'p-3',
     md: 'p-4',
-    lg: 'p-6',
+    lg: 'p-5',
   };
+
+  const variantStyles: Record<CardVariant, string> = {
+    standard: [
+      'rounded-[var(--radius-md)]',
+      'border',
+      'bg-[var(--surface-card)]',
+      'border-[var(--border-subtle)]',
+      'shadow-[var(--shadow-card)]',
+    ].join(' '),
+    elevated: [
+      'rounded-[var(--radius-md)]',
+      'border',
+      'bg-[var(--surface-card)]',
+      'border-[var(--border-subtle)]',
+      'shadow-[var(--shadow-card)]',
+      'transition-all',
+      'duration-[var(--duration-fast)]',
+      onClick ? 'cursor-pointer hover:shadow-[var(--shadow-card-hover)] hover:border-[var(--border-strong)] active:scale-[0.98]' : '',
+    ].join(' '),
+    inset: [
+      'rounded-[var(--radius-sm)]',
+      'border',
+      'bg-[var(--surface-inset)]',
+      'border-[var(--border-subtle)]',
+    ].join(' '),
+    highlight: [
+      'rounded-[var(--radius-md)]',
+      'border',
+      'bg-[var(--surface-card)]',
+      'border-[var(--border-subtle)]',
+      'shadow-[var(--shadow-card)]',
+      'border-l-[3px]',
+    ].join(' '),
+    stat: [
+      'rounded-[var(--radius-md)]',
+      'border',
+      'bg-[var(--accent-muted)]',
+      'border-[var(--border-subtle)]',
+      'shadow-[var(--shadow-card)]',
+      'text-center',
+    ].join(' '),
+    modal: [
+      'rounded-[var(--radius-lg)]',
+      'bg-[var(--surface-elevated)]',
+      'shadow-[var(--shadow-elevated)]',
+    ].join(' '),
+  };
+
+  const selectedStyles = selected ? 'ring-2 ring-[var(--accent-primary)]' : '';
 
   const Component = onClick ? 'button' : 'div';
 
+  const style: React.CSSProperties = {};
+  if (effectiveVariant === 'highlight' && highlightColor) {
+    style.borderLeftColor = highlightColor;
+  } else if (effectiveVariant === 'highlight') {
+    style.borderLeftColor = 'var(--accent-primary)';
+  }
+
   return (
     <Component
-      className={`${baseStyles} ${borderStyles} ${interactiveStyles} ${paddingStyles[padding]} ${className}`}
+      className={`${variantStyles[effectiveVariant]} ${selectedStyles} ${paddingStyles[padding]} ${className}`}
       onClick={onClick}
+      style={Object.keys(style).length > 0 ? style : undefined}
     >
       {children}
     </Component>
-  );
-}
-
-// Section header for consistent typography
-interface SectionHeaderProps {
-  title: string;
-  action?: React.ReactNode;
-  className?: string;
-}
-
-export function SectionHeader({ title, action, className = '' }: SectionHeaderProps) {
-  return (
-    <div className={`flex items-center justify-between mb-4 ${className}`}>
-      <h2 className="text-lg font-semibold text-forest-700">{title}</h2>
-      {action}
-    </div>
-  );
-}
-
-// Page container for consistent layout
-interface PageContainerProps {
-  children: React.ReactNode;
-  className?: string;
-  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
-}
-
-export function PageContainer({
-  children,
-  className = '',
-  maxWidth = 'lg',
-}: PageContainerProps) {
-  const widthStyles = {
-    sm: 'max-w-sm',
-    md: 'max-w-md',
-    lg: 'max-w-lg',
-    xl: 'max-w-xl',
-    full: 'max-w-4xl',
-  };
-
-  return (
-    <div className={`${widthStyles[maxWidth]} mx-auto px-4 py-6 pb-24 ${className}`}>
-      {children}
-    </div>
   );
 }
