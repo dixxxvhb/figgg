@@ -523,7 +523,7 @@ html.dark {
 @keyframes page-fade-in {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -532,7 +532,7 @@ html.dark {
 }
 
 .page-enter {
-  animation: page-fade-in 200ms ease-out;
+  animation: page-fade-in var(--duration-page) var(--ease-default);
 }
 
 /* Bottom sheet animations */
@@ -611,4 +611,64 @@ html.dark {
   .sticky {
     position: relative !important;
   }
+}
+
+/* ── Motion System Utilities ── */
+
+/* Staggered list entrance */
+@keyframes list-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger-in > * {
+  opacity: 0;
+  animation: list-item-in var(--duration-normal) var(--ease-out) forwards;
+}
+
+.stagger-in > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-in > *:nth-child(2) { animation-delay: 30ms; }
+.stagger-in > *:nth-child(3) { animation-delay: 60ms; }
+.stagger-in > *:nth-child(4) { animation-delay: 90ms; }
+.stagger-in > *:nth-child(5) { animation-delay: 120ms; }
+.stagger-in > *:nth-child(6) { animation-delay: 150ms; }
+.stagger-in > *:nth-child(7) { animation-delay: 180ms; }
+.stagger-in > *:nth-child(8) { animation-delay: 210ms; }
+.stagger-in > *:nth-child(9) { animation-delay: 240ms; }
+.stagger-in > *:nth-child(10) { animation-delay: 270ms; }
+.stagger-in > *:nth-child(n+11) { animation-delay: 300ms; }
+
+/* Skeleton loading pulse */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+.skeleton {
+  background-color: var(--surface-inset);
+  border-radius: var(--radius-md);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+/* Task completion fade */
+.task-completing {
+  transition: opacity var(--duration-normal) var(--ease-out),
+              transform var(--duration-normal) var(--ease-out);
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+/* Theme transition crossfade — apply to :root when switching themes */
+.theme-transitioning,
+.theme-transitioning * {
+  transition: background-color var(--duration-slow) ease-in-out,
+              color var(--duration-slow) ease-in-out,
+              border-color var(--duration-slow) ease-in-out,
+              box-shadow var(--duration-slow) ease-in-out !important;
 }
