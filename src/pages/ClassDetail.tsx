@@ -11,6 +11,7 @@ import { DropdownMenu } from '../components/common/DropdownMenu';
 import { ClassWeekNotes, Student, normalizeNoteCategory } from '../types';
 import { v4 as uuid } from 'uuid';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
+import { EmptyState } from '../components/common/EmptyState';
 import { getCategoryStyle, getCategoryLabel } from '../constants/noteCategories';
 
 function getDefaultClassNotes(classId: string): ClassWeekNotes {
@@ -817,16 +818,13 @@ export function ClassDetail() {
 
             {/* Student list */}
             {enrolledStudents.length === 0 ? (
-              <div className="p-6 text-center text-[var(--text-tertiary)]">
-                <Users size={32} className="mx-auto mb-2 text-[var(--text-tertiary)]" />
-                <p>No students enrolled in this class</p>
-                <button
-                  onClick={() => setShowAddStudentModal(true)}
-                  className="mt-3 text-sm text-[var(--accent-primary)] font-medium hover:opacity-80"
-                >
-                  + Add students
-                </button>
-              </div>
+              <EmptyState
+                icon={Users}
+                title="No students enrolled"
+                description="Add students to this class to get started."
+                actionLabel="Add students"
+                onAction={() => setShowAddStudentModal(true)}
+              />
             ) : (
               <div className="divide-y divide-[var(--border-subtle)]">
                 {enrolledStudents.map(student => {
@@ -1233,12 +1231,12 @@ function AddStudentToClassModal({
           )}
 
           {filteredStudents.length === 0 && (
-            <div className="p-8 text-center text-[var(--text-tertiary)]">
-              <Users size={32} className="mx-auto mb-2 text-[var(--text-tertiary)]" />
-              <p>No students found</p>
+            <div className="flex flex-col items-center justify-center py-16 px-4">
+              <Users size={48} className="text-[var(--text-tertiary)] mb-4" strokeWidth={1.5} />
+              <h3 className="type-h2 text-[var(--text-secondary)] mb-1">No students found</h3>
               <Link
                 to="/students"
-                className="mt-2 text-sm text-[var(--accent-primary)] font-medium hover:opacity-80"
+                className="mt-3 text-sm text-[var(--accent-primary)] font-medium hover:opacity-80"
                 onClick={onClose}
               >
                 Go to Students page to add new students

@@ -1,12 +1,13 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, BookOpen, Trophy, ChevronDown, ChevronUp, Volume2, Star, ClipboardList } from 'lucide-react';
-import { useAppData } from '../hooks/useAppData';
+import { Search, BookOpen, Trophy, ChevronDown, Volume2, Star, ClipboardList, Music, ExternalLink } from 'lucide-react';
+import { EmptyState } from '../components/common/EmptyState';
+import { useAppData } from '../contexts/AppDataContext';
 import { terminology, categoryLabels, searchTerminology } from '../data/terminology';
 import { TermCategory } from '../types';
 import { format, parseISO } from 'date-fns';
 
-type Tab = 'terminology' | 'competitions';
+type Tab = 'terminology' | 'competitions' | 'songs';
 
 // Category order for display
 const categoryOrder: TermCategory[] = [
@@ -44,7 +45,41 @@ export function Library() {
   const tabs = [
     { id: 'terminology' as Tab, label: 'Glossary', icon: BookOpen },
     { id: 'competitions' as Tab, label: 'Comps', icon: Trophy },
+    { id: 'songs' as Tab, label: 'Songs', icon: Music },
   ];
+
+  // Aggregate all songs from classes and competition dances
+  const allSongs = useMemo(() => {
+    const songs: { name: string; url?: string; source: string; sourceId: string; type: 'link' | 'recital' | 'comp' }[] = [];
+
+    // From class music links
+    data.classes.forEach(cls => {
+      cls.musicLinks.forEach(link => {
+        songs.push({ name: link.name, url: link.url, source: cls.name, sourceId: cls.id, type: 'link' });
+      });
+      if (cls.recitalSong) {
+        songs.push({ name: cls.recitalSong, source: cls.name, sourceId: cls.id, type: 'recital' });
+      }
+    });
+
+    // From competition dances
+    (data.competitionDances || []).forEach(dance => {
+      if (dance.musicTrack?.name) {
+        songs.push({ name: dance.musicTrack.name, source: dance.registrationName, sourceId: dance.id, type: 'comp' });
+      } else if (dance.songTitle) {
+        songs.push({ name: dance.songTitle, source: dance.registrationName, sourceId: dance.id, type: 'comp' });
+      }
+    });
+
+    // Deduplicate by name (keep first occurrence)
+    const seen = new Set<string>();
+    return songs.filter(s => {
+      const key = s.name.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [data.classes, data.competitionDances]);
 
   // Filter terms based on search and category
   const filteredTerms = useMemo(() => {
@@ -59,13 +94,10 @@ export function Library() {
 
   // Group terms by category
   const termsByCategory = useMemo(() => {
-    const grouped: Record<TermCategory, typeof terminology> = {} as any;
-
-    categoryOrder.forEach(cat => {
+    return categoryOrder.reduce((grouped, cat) => {
       grouped[cat] = filteredTerms.filter(t => t.category === cat);
-    });
-
-    return grouped;
+      return grouped;
+    }, {} as Record<TermCategory, typeof terminology>);
   }, [filteredTerms]);
 
   const toggleCategory = (category: TermCategory) => {
@@ -96,7 +128,7 @@ export function Library() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-colors min-h-[48px] ${
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-all duration-150 active:scale-[0.97] min-h-[48px] ${
               activeTab === tab.id
                 ? 'bg-forest-600 text-white'
                 : 'bg-forest-100 dark:bg-blush-800 text-forest-600 dark:text-forest-400 hover:bg-forest-200 dark:hover:bg-blush-700'
@@ -129,7 +161,7 @@ export function Library() {
             <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
               <button
                 onClick={() => setSelectedCategory('all')}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors min-h-[36px] ${
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 active:scale-95 min-h-[36px] ${
                   selectedCategory === 'all'
                     ? 'bg-forest-600 text-white'
                     : 'bg-forest-100 dark:bg-blush-800 text-forest-600 dark:text-forest-400'
@@ -143,7 +175,7 @@ export function Library() {
                   <button
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
-                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap min-h-[36px] ${
+                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 active:scale-95 whitespace-nowrap min-h-[36px] ${
                       selectedCategory === cat
                         ? 'bg-forest-600 text-white'
                         : 'bg-forest-100 dark:bg-blush-800 text-forest-600 dark:text-forest-400'
@@ -210,17 +242,13 @@ export function Library() {
                     <button
                       onClick={() => toggleCategory(category)}
                       aria-expanded={isExpanded}
-                      className="w-full flex items-center justify-between p-4 hover:bg-blush-50 dark:hover:bg-blush-700 active:bg-blush-100 dark:active:bg-blush-600 min-h-[56px]"
+                      className="w-full flex items-center justify-between p-4 hover:bg-blush-50 dark:hover:bg-blush-700 active:bg-blush-100 dark:active:bg-blush-600 transition-colors min-h-[56px]"
                     >
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-forest-700 dark:text-white">{categoryLabels[category]}</span>
                         <span className="text-sm text-blush-400 dark:text-blush-500">({terms.length})</span>
                       </div>
-                      {isExpanded ? (
-                        <ChevronUp size={20} className="text-blush-400 dark:text-blush-500" />
-                      ) : (
-                        <ChevronDown size={20} className="text-blush-400 dark:text-blush-500" />
-                      )}
+                      <ChevronDown size={20} className={`text-blush-400 dark:text-blush-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                     </button>
 
                     {isExpanded && (
@@ -291,6 +319,53 @@ export function Library() {
                 </div>
               );
             })
+          )}
+        </div>
+      )}
+
+      {/* Songs Tab */}
+      {activeTab === 'songs' && (
+        <div className="space-y-2">
+          {allSongs.length === 0 ? (
+            <EmptyState
+              icon={Music}
+              title="No songs yet"
+              description="Add music links to your classes to see them here."
+            />
+          ) : (
+            allSongs.map((song, i) => (
+              <div key={`${song.name}-${i}`} className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-3 flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  song.type === 'comp' ? 'bg-purple-100 dark:bg-purple-900/30' :
+                  song.type === 'recital' ? 'bg-amber-100 dark:bg-amber-900/30' :
+                  'bg-forest-100 dark:bg-forest-900/30'
+                }`}>
+                  <Music size={14} className={
+                    song.type === 'comp' ? 'text-purple-500' :
+                    song.type === 'recital' ? 'text-amber-500' :
+                    'text-forest-500'
+                  } />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-forest-900 dark:text-white text-sm truncate">{song.name}</div>
+                  <div className="text-xs text-blush-500 dark:text-blush-400 truncate">
+                    {song.source}
+                    {song.type === 'recital' && ' · Recital'}
+                    {song.type === 'comp' && ' · Competition'}
+                  </div>
+                </div>
+                {song.url && (
+                  <a
+                    href={song.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 text-blush-400 hover:text-forest-500 transition-colors"
+                  >
+                    <ExternalLink size={14} />
+                  </a>
+                )}
+              </div>
+            ))
           )}
         </div>
       )}

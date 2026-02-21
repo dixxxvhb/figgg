@@ -1,16 +1,20 @@
-import { useState, useMemo, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Copy, Eye } from 'lucide-react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, Copy, Eye, Calendar, MessageSquare, Sparkles, Loader2, CalendarOff } from 'lucide-react';
 import { format, addWeeks, startOfWeek, addDays } from 'date-fns';
-import { useAppData } from '../hooks/useAppData';
+import { useAppData } from '../contexts/AppDataContext';
 import { formatTimeDisplay, formatWeekOf, timeToMinutes } from '../utils/time';
-import { DayOfWeek, ClassWeekNotes, WeekNotes } from '../types';
+import { DayOfWeek, ClassWeekNotes, WeekNotes, WeekReflection, CalendarEvent } from '../types';
 import { Button } from '../components/common/Button';
+import { EmptyState } from '../components/common/EmptyState';
 import { v4 as uuid } from 'uuid';
+import { normalizeTitle } from '../utils/smartNotes';
+import { generatePlan } from '../services/ai';
 
 const DAYS: DayOfWeek[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
 export function WeekPlanner() {
+  const navigate = useNavigate();
   const { data, getWeekNotes, saveWeekNotes, getCurrentWeekNotes } = useAppData();
   const [weekOffset, setWeekOffset] = useState(0);
   const [showLastWeek, setShowLastWeek] = useState(false);
@@ -69,6 +73,31 @@ export function WeekPlanner() {
     return grouped;
   }, [data.classes]);
 
+  // Group calendar events by day of the viewing week
+  const eventsByDay = useMemo(() => {
+    const grouped: Record<DayOfWeek, CalendarEvent[]> = {
+      monday: [], tuesday: [], wednesday: [], thursday: [],
+      friday: [], saturday: [], sunday: [],
+    };
+
+    (data.calendarEvents || []).forEach(event => {
+      if (!event.date) return;
+      for (let i = 0; i < 7; i++) {
+        const dayDate = addDays(viewingWeekStart, i);
+        if (format(dayDate, 'yyyy-MM-dd') === event.date) {
+          grouped[DAYS[i]].push(event);
+          break;
+        }
+      }
+    });
+
+    DAYS.forEach(day => {
+      grouped[day].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+    });
+
+    return grouped;
+  }, [data.calendarEvents, viewingWeekStart]);
+
   const saveNotes = (updatedNotes: WeekNotes) => {
     setCurrentWeekNotes(updatedNotes);
     saveWeekNotes(updatedNotes);
@@ -77,24 +106,80 @@ export function WeekPlanner() {
   const copyFromLastWeek = () => {
     if (!lastWeekNotes) return;
 
-    const newNotes = {
-      ...currentWeekNotes,
-      classNotes: { ...lastWeekNotes.classNotes },
-    };
+    const copiedClassNotes: Record<string, ClassWeekNotes> = {};
 
-    // Reset isOrganized and liveNotes for each class
-    Object.keys(newNotes.classNotes).forEach(classId => {
-      newNotes.classNotes[classId] = {
-        ...newNotes.classNotes[classId],
+    // Build a map of this week's event titles → IDs for remapping
+    const thisWeekEventsByTitle = new Map<string, string>();
+    for (const events of Object.values(eventsByDay)) {
+      for (const ev of events) {
+        thisWeekEventsByTitle.set(normalizeTitle(ev.title), ev.id);
+      }
+    }
+
+    Object.entries(lastWeekNotes.classNotes).forEach(([id, notes]) => {
+      // For calendar events (cal-*), remap to this week's matching event ID
+      let targetId = id;
+      if (id.startsWith('cal-') && notes.eventTitle) {
+        const match = thisWeekEventsByTitle.get(normalizeTitle(notes.eventTitle));
+        if (match) targetId = match;
+        else return; // No matching event this week — skip
+      }
+
+      copiedClassNotes[targetId] = {
+        ...notes,
+        classId: targetId,
         liveNotes: [],
         isOrganized: false,
       };
     });
 
-    saveNotes(newNotes);
+    saveNotes({ ...currentWeekNotes, classNotes: copiedClassNotes });
   };
 
-  const updatePlan = (classId: string, plan: string) => {
+  const updateReflection = (field: keyof WeekReflection, value: string) => {
+    const reflection: WeekReflection = {
+      ...(currentWeekNotes.reflection || { date: new Date().toISOString() }),
+      [field]: value,
+      date: new Date().toISOString(),
+    };
+    saveNotes({ ...currentWeekNotes, reflection });
+  };
+
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+
+  const handleAIPlan = useCallback(async (classId: string) => {
+    const cls = data.classes.find(c => c.id === classId);
+    if (!cls) return;
+    setGeneratingId(classId);
+    try {
+      // Gather last week's notes for context
+      const lastNotes = lastWeekNotes?.classNotes[classId]?.liveNotes || [];
+      const prevPlans = lastWeekNotes?.classNotes[classId]?.plan
+        ? [lastWeekNotes.classNotes[classId].plan!]
+        : [];
+      const plan = await generatePlan({
+        classInfo: {
+          id: cls.id,
+          name: cls.name,
+          day: cls.day,
+          startTime: cls.startTime,
+          endTime: cls.endTime,
+          level: cls.level,
+          recitalSong: cls.recitalSong,
+          isRecitalSong: cls.isRecitalSong,
+        },
+        notes: lastNotes,
+        previousPlans: prevPlans,
+      });
+      updatePlan(classId, plan);
+    } catch (e) {
+      console.error('[WeekPlanner] AI plan generation failed', e);
+    } finally {
+      setGeneratingId(null);
+    }
+  }, [data.classes, lastWeekNotes]);
+
+  const updatePlan = (classId: string, plan: string, eventTitle?: string) => {
     const classNotes: ClassWeekNotes = currentWeekNotes.classNotes[classId] || {
       classId,
       plan: '',
@@ -106,7 +191,11 @@ export function WeekPlanner() {
       ...currentWeekNotes,
       classNotes: {
         ...currentWeekNotes.classNotes,
-        [classId]: { ...classNotes, plan },
+        [classId]: {
+          ...classNotes,
+          plan,
+          ...(eventTitle && { eventTitle }),
+        },
       },
     };
 
@@ -182,10 +271,20 @@ export function WeekPlanner() {
       )}
 
       {/* Week Grid */}
+      {data.classes.length === 0 && (!data.calendarEvents || data.calendarEvents.length === 0) ? (
+        <EmptyState
+          icon={CalendarOff}
+          title="No classes set up yet"
+          description="Add your schedule to start planning your week."
+          actionLabel="Go to Schedule"
+          onAction={() => navigate('/schedule')}
+        />
+      ) : (
       <div className="space-y-6">
         {DAYS.map(day => {
           const classes = classesByDay[day];
-          if (classes.length === 0) return null;
+          const dayEvents = eventsByDay[day] || [];
+          if (classes.length === 0 && dayEvents.length === 0) return null;
 
           const dayDate = addDays(viewingWeekStart, DAYS.indexOf(day));
           const dayLabel = format(dayDate, 'EEEE, MMM d');
@@ -234,9 +333,79 @@ export function WeekPlanner() {
                           rows={2}
                           className="w-full px-3 py-2 text-sm border border-blush-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent resize-none bg-white dark:bg-blush-800 text-forest-700 dark:text-white placeholder-blush-400"
                         />
-                        {classNotes?.liveNotes && classNotes.liveNotes.length > 0 && (
-                          <div className="mt-2 text-xs text-forest-600 dark:text-forest-400">
-                            {classNotes.liveNotes.length} note{classNotes.liveNotes.length !== 1 ? 's' : ''} from class
+                        <div className="flex items-center justify-between mt-1.5">
+                          <div className="text-xs text-forest-600 dark:text-forest-400">
+                            {classNotes?.liveNotes && classNotes.liveNotes.length > 0
+                              ? `${classNotes.liveNotes.length} note${classNotes.liveNotes.length !== 1 ? 's' : ''} from class`
+                              : ''}
+                          </div>
+                          <button
+                            onClick={() => handleAIPlan(cls.id)}
+                            disabled={generatingId === cls.id}
+                            className="flex items-center gap-1 px-2 py-1 text-[11px] text-forest-500 dark:text-forest-400 hover:bg-forest-50 dark:hover:bg-forest-900/30 rounded-md transition-colors disabled:opacity-50"
+                          >
+                            {generatingId === cls.id ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : (
+                              <Sparkles size={12} />
+                            )}
+                            {generatingId === cls.id ? 'Generating...' : 'AI Plan'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Calendar Events */}
+                {dayEvents.map(event => {
+                  const eventNotes = currentWeekNotes.classNotes[event.id];
+                  // Event IDs change weekly (include date), so match by normalized title
+                  const titleNorm = normalizeTitle(event.title);
+                  const lastWeekEventNotes = lastWeekNotes
+                    ? Object.values(lastWeekNotes.classNotes).find(
+                        n => n.eventTitle && normalizeTitle(n.eventTitle) === titleNorm
+                      )
+                    : undefined;
+
+                  return (
+                    <div
+                      key={event.id}
+                      className="bg-white dark:bg-blush-800 rounded-xl border border-amber-200 dark:border-amber-800 overflow-hidden"
+                    >
+                      <div className="px-4 py-3 flex items-center gap-3 border-l-4 border-amber-400">
+                        <div className="flex-1 min-w-0">
+                          <Link
+                            to={`/event/${event.id}`}
+                            className="font-medium text-forest-900 dark:text-white hover:text-forest-600 dark:hover:text-forest-400"
+                          >
+                            {event.title}
+                          </Link>
+                          <div className="text-sm text-blush-500 dark:text-blush-400 flex items-center gap-1">
+                            <Calendar size={12} />
+                            {event.startTime && event.startTime !== '00:00'
+                              ? formatTimeDisplay(event.startTime)
+                              : 'All day'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="px-4 py-3 bg-blush-50 dark:bg-blush-900/50">
+                        {showLastWeek && lastWeekEventNotes?.plan && (
+                          <div className="text-sm text-blush-500 dark:text-blush-400 mb-2">
+                            <span className="font-medium">Last session:</span> {lastWeekEventNotes.plan}
+                          </div>
+                        )}
+                        <textarea
+                          value={eventNotes?.plan || ''}
+                          onChange={(e) => updatePlan(event.id, e.target.value, event.title)}
+                          placeholder="Plan / prep notes for this event..."
+                          rows={2}
+                          className="w-full px-3 py-2 text-sm border border-amber-200 dark:border-amber-700 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none bg-white dark:bg-blush-800 text-forest-700 dark:text-white placeholder-blush-400"
+                        />
+                        {eventNotes?.liveNotes && eventNotes.liveNotes.length > 0 && (
+                          <div className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                            {eventNotes.liveNotes.length} note{eventNotes.liveNotes.length !== 1 ? 's' : ''} from event
                           </div>
                         )}
                       </div>
@@ -248,6 +417,55 @@ export function WeekPlanner() {
           );
         })}
       </div>
+      )}
+
+      {/* Weekly Reflection — show for current & past weeks */}
+      {weekOffset <= 0 && (
+        <div className="mt-8">
+          <div className="flex items-center gap-2 mb-3">
+            <MessageSquare size={16} className="text-forest-500" />
+            <h3 className="font-semibold text-forest-900 dark:text-white">Week Reflection</h3>
+          </div>
+          <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4 space-y-4">
+            <div>
+              <label className="text-xs font-medium text-blush-500 dark:text-blush-400 mb-1 block">What went well?</label>
+              <textarea
+                value={currentWeekNotes.reflection?.wentWell || ''}
+                onChange={e => updateReflection('wentWell', e.target.value)}
+                placeholder="Wins, breakthroughs, good moments..."
+                rows={2}
+                className="w-full px-3 py-2 text-sm border border-blush-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent resize-none bg-blush-50 dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-blush-500 dark:text-blush-400 mb-1 block">What was challenging?</label>
+              <textarea
+                value={currentWeekNotes.reflection?.challenges || ''}
+                onChange={e => updateReflection('challenges', e.target.value)}
+                placeholder="Hard moments, things that didn't go as planned..."
+                rows={2}
+                className="w-full px-3 py-2 text-sm border border-blush-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent resize-none bg-blush-50 dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-blush-500 dark:text-blush-400 mb-1 block">Focus for next week</label>
+              <textarea
+                value={currentWeekNotes.reflection?.nextWeekFocus || ''}
+                onChange={e => updateReflection('nextWeekFocus', e.target.value)}
+                placeholder="What to carry forward, adjust, or try..."
+                rows={2}
+                className="w-full px-3 py-2 text-sm border border-blush-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent resize-none bg-blush-50 dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400"
+              />
+            </div>
+            {currentWeekNotes.reflection?.aiSummary && (
+              <div className="pt-2 border-t border-blush-100 dark:border-blush-700">
+                <p className="text-xs font-medium text-forest-500 dark:text-forest-400 mb-1">AI Summary</p>
+                <p className="text-sm text-forest-700 dark:text-blush-200 leading-relaxed">{currentWeekNotes.reflection.aiSummary}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -4,9 +4,11 @@ import {
   Plus, Music, Clock, Layers, Star, Archive, ChevronRight,
   MoreVertical, Trash2, StarOff, ArchiveRestore
 } from 'lucide-react';
-import { loadData, saveData } from '../services/storage';
-import type { Choreography, ChoreographyListItem } from '../types/choreography';
+import { useAppData } from '../contexts/AppDataContext';
+import type { Choreography as ChoreographyType, ChoreographyListItem } from '../types/choreography';
 import { createEmptyChoreography } from '../types/choreography';
+import { useConfirmDialog } from '../components/common/ConfirmDialog';
+import { EmptyState } from '../components/common/EmptyState';
 
 type TabType = 'active' | 'all' | 'archive';
 
@@ -23,24 +25,23 @@ function formatDuration(seconds?: number): string {
 
 export function Choreography() {
   const navigate = useNavigate();
-  const [choreographies, setChoreographies] = useState<Choreography[]>([]);
+  const { data, updateChoreographies } = useAppData();
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
+  const [choreographies, setChoreographies] = useState<ChoreographyType[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('active');
   const [showNewModal, setShowNewModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newSong, setNewSong] = useState('');
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
 
-  // Load choreographies on mount
+  // Load choreographies from useAppData (re-syncs after cloud sync)
   useEffect(() => {
-    const data = loadData();
     setChoreographies(data.choreographies || []);
-  }, []);
+  }, [data.choreographies]);
 
   // Save helper
-  const persist = (updated: Choreography[]) => {
-    const data = loadData();
-    data.choreographies = updated;
-    saveData(data);
+  const persist = (updated: ChoreographyType[]) => {
+    updateChoreographies(updated);
     setChoreographies(updated);
   };
 
@@ -97,20 +98,21 @@ export function Choreography() {
   };
 
   // Delete choreography
-  const handleDelete = (id: string) => {
-    if (!confirm('Delete this choreography? This cannot be undone.')) return;
+  const handleDelete = async (id: string) => {
+    if (!await confirm('Delete this choreography? This cannot be undone.')) return;
     const updated = choreographies.filter(c => c.id !== id);
     persist(updated);
     setMenuOpen(null);
   };
 
   return (
-    <div className="h-full overflow-y-auto pb-24 bg-gray-50 dark:bg-blush-900">
+    <div className="h-full overflow-y-auto pb-24 bg-blush-50 dark:bg-blush-900">
+      {confirmDialog}
       <div className="max-w-2xl mx-auto px-4 py-6">
 
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Choreography</h1>
+          <h1 className="text-2xl font-bold text-forest-700 dark:text-white">Choreography</h1>
           <button
             onClick={() => setShowNewModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-forest-600 hover:bg-forest-700 text-white rounded-xl font-medium transition-colors"
@@ -133,7 +135,7 @@ export function Choreography() {
               className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-colors ${
                 activeTab === tab.key
                   ? 'bg-forest-600 text-white'
-                  : 'bg-white dark:bg-blush-800 text-gray-600 dark:text-blush-300 border border-gray-200 dark:border-blush-700'
+                  : 'bg-white dark:bg-blush-800 text-forest-600 dark:text-blush-300 border border-blush-200 dark:border-blush-700'
               }`}
             >
               <tab.icon size={16} />
@@ -144,48 +146,47 @@ export function Choreography() {
 
         {/* List */}
         {filteredList.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-blush-800 flex items-center justify-center">
-              <Music size={32} className="text-gray-400 dark:text-blush-500" />
-            </div>
-            <p className="text-gray-500 dark:text-blush-400 mb-4">
-              {activeTab === 'active'
-                ? 'No active dances. Star a dance to add it here.'
+          <EmptyState
+            icon={Music}
+            title={
+              activeTab === 'active'
+                ? 'No active dances'
                 : activeTab === 'archive'
-                  ? 'No archived dances.'
-                  : 'No choreography yet.'}
-            </p>
-            {activeTab !== 'archive' && (
-              <button
-                onClick={() => setShowNewModal(true)}
-                className="text-forest-600 dark:text-forest-400 font-medium hover:underline"
-              >
-                Create your first dance
-              </button>
-            )}
-          </div>
+                  ? 'No archived dances'
+                  : 'No choreography yet'
+            }
+            description={
+              activeTab === 'active'
+                ? 'Star a dance to add it here.'
+                : activeTab === 'archive'
+                  ? undefined
+                  : undefined
+            }
+            actionLabel={activeTab !== 'archive' ? 'Create your first dance' : undefined}
+            onAction={activeTab !== 'archive' ? () => setShowNewModal(true) : undefined}
+          />
         ) : (
           <div className="space-y-3">
             {filteredList.map(item => (
               <div
                 key={item.id}
-                className="bg-white dark:bg-blush-800 rounded-2xl border border-gray-200 dark:border-blush-700 overflow-hidden"
+                className="bg-white dark:bg-blush-800 rounded-2xl border border-blush-200 dark:border-blush-700 overflow-hidden"
               >
                 <Link
                   to={`/choreography/${item.id}`}
-                  className="flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-blush-700/50 transition-colors"
+                  className="flex items-center gap-4 p-4 hover:bg-blush-50 dark:hover:bg-blush-700/50 transition-colors"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-gray-800 dark:text-white truncate">{item.name}</h3>
+                      <h3 className="font-semibold text-forest-700 dark:text-white truncate">{item.name}</h3>
                       {item.isActive && (
                         <Star size={14} className="text-amber-500 fill-amber-500 flex-shrink-0" />
                       )}
                     </div>
-                    <p className="text-sm text-gray-500 dark:text-blush-400 truncate">
+                    <p className="text-sm text-blush-500 dark:text-blush-400 truncate">
                       {item.songTitle}{item.artist && ` — ${item.artist}`}
                     </p>
-                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-400 dark:text-blush-500">
+                    <div className="flex items-center gap-4 mt-2 text-xs text-blush-400 dark:text-blush-500">
                       {item.duration && (
                         <span className="flex items-center gap-1">
                           <Clock size={12} />
@@ -196,31 +197,31 @@ export function Choreography() {
                       <span>{item.formationCount} formations</span>
                     </div>
                   </div>
-                  <ChevronRight size={20} className="text-gray-400 dark:text-blush-500 flex-shrink-0" />
+                  <ChevronRight size={20} className="text-blush-400 dark:text-blush-500 flex-shrink-0" />
                 </Link>
 
                 {/* Action menu button */}
-                <div className="relative border-t border-gray-100 dark:border-blush-700">
+                <div className="relative border-t border-blush-100 dark:border-blush-700">
                   <button
                     onClick={(e) => {
                       e.preventDefault();
                       setMenuOpen(menuOpen === item.id ? null : item.id);
                     }}
-                    className="w-full flex items-center justify-center gap-2 py-2 text-sm text-gray-500 dark:text-blush-400 hover:bg-gray-50 dark:hover:bg-blush-700/50"
+                    className="w-full flex items-center justify-center gap-2 py-2 text-sm text-blush-500 dark:text-blush-400 hover:bg-blush-50 dark:hover:bg-blush-700/50"
                   >
                     <MoreVertical size={14} />
                     Options
                   </button>
 
                   {menuOpen === item.id && (
-                    <div className="absolute bottom-full left-0 right-0 mb-1 bg-white dark:bg-blush-800 rounded-xl shadow-lg border border-gray-200 dark:border-blush-700 overflow-hidden z-10">
+                    <div className="absolute bottom-full left-0 right-0 mb-1 bg-white dark:bg-blush-800 rounded-xl shadow-lg border border-blush-200 dark:border-blush-700 overflow-hidden z-10">
                       <button
                         onClick={() => toggleActive(item.id)}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-blush-200 hover:bg-gray-50 dark:hover:bg-blush-700"
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-forest-700 dark:text-blush-200 hover:bg-blush-50 dark:hover:bg-blush-700"
                       >
                         {item.isActive ? (
                           <>
-                            <StarOff size={16} className="text-gray-400" />
+                            <StarOff size={16} className="text-blush-400" />
                             Remove from Active
                           </>
                         ) : (
@@ -232,7 +233,7 @@ export function Choreography() {
                       </button>
                       <button
                         onClick={() => toggleArchive(item.id)}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-blush-200 hover:bg-gray-50 dark:hover:bg-blush-700"
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-forest-700 dark:text-blush-200 hover:bg-blush-50 dark:hover:bg-blush-700"
                       >
                         {item.isArchived ? (
                           <>
@@ -241,7 +242,7 @@ export function Choreography() {
                           </>
                         ) : (
                           <>
-                            <Archive size={16} className="text-gray-400" />
+                            <Archive size={16} className="text-blush-400" />
                             Archive
                           </>
                         )}
@@ -271,13 +272,13 @@ export function Choreography() {
             <div className="fixed inset-x-4 top-1/4 max-w-md mx-auto z-50">
               <div className="bg-white dark:bg-blush-800 rounded-2xl shadow-xl overflow-hidden">
                 <div className="p-6">
-                  <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">
+                  <h2 className="text-xl font-bold text-forest-700 dark:text-white mb-4">
                     New Choreography
                   </h2>
 
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-blush-300 mb-1">
+                      <label className="block text-sm font-medium text-forest-700 dark:text-blush-300 mb-1">
                         Dance Name
                       </label>
                       <input
@@ -285,13 +286,13 @@ export function Choreography() {
                         value={newName}
                         onChange={e => setNewName(e.target.value)}
                         placeholder="e.g., Nationals Jazz 2025"
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-blush-600 rounded-xl bg-white dark:bg-blush-700 text-gray-800 dark:text-white placeholder-gray-400"
+                        className="w-full px-4 py-3 border border-blush-300 dark:border-blush-600 rounded-xl bg-white dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400"
                         autoFocus
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-blush-300 mb-1">
+                      <label className="block text-sm font-medium text-forest-700 dark:text-blush-300 mb-1">
                         Song Title
                       </label>
                       <input
@@ -299,23 +300,23 @@ export function Choreography() {
                         value={newSong}
                         onChange={e => setNewSong(e.target.value)}
                         placeholder="e.g., Bad Guy"
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-blush-600 rounded-xl bg-white dark:bg-blush-700 text-gray-800 dark:text-white placeholder-gray-400"
+                        className="w-full px-4 py-3 border border-blush-300 dark:border-blush-600 rounded-xl bg-white dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="flex border-t border-gray-200 dark:border-blush-700">
+                <div className="flex border-t border-blush-200 dark:border-blush-700">
                   <button
                     onClick={() => setShowNewModal(false)}
-                    className="flex-1 py-4 text-gray-600 dark:text-blush-400 font-medium hover:bg-gray-50 dark:hover:bg-blush-700"
+                    className="flex-1 py-4 text-forest-600 dark:text-blush-400 font-medium hover:bg-blush-50 dark:hover:bg-blush-700"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleCreate}
                     disabled={!newName.trim() || !newSong.trim()}
-                    className="flex-1 py-4 text-forest-600 dark:text-forest-400 font-bold hover:bg-forest-50 dark:hover:bg-forest-900/20 disabled:opacity-50 disabled:cursor-not-allowed border-l border-gray-200 dark:border-blush-700"
+                    className="flex-1 py-4 text-forest-600 dark:text-forest-400 font-bold hover:bg-forest-50 dark:hover:bg-forest-900/20 disabled:opacity-50 disabled:cursor-not-allowed border-l border-blush-200 dark:border-blush-700"
                   >
                     Create
                   </button>

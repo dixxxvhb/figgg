@@ -1,11 +1,12 @@
 import { useState, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Plus, User, Phone, Mail, ChevronRight, X, Trash2, Award, AlertTriangle, TrendingUp, MessageSquare, Calendar, Music, Camera, BarChart3, UserCheck, Clock3, UserX } from 'lucide-react';
+import { Search, Plus, User, Phone, Mail, ChevronRight, X, Trash2, Award, AlertTriangle, TrendingUp, MessageSquare, Calendar, Music, Camera, BarChart3, UserCheck, Clock3, UserX, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
 import { Student, SkillNote, Class, CompetitionDance, WeekNotes } from '../types';
 import { Button } from '../components/common/Button';
 import { Card } from '../components/common/Card';
+import { EmptyState } from '../components/common/EmptyState';
 import { v4 as uuid } from 'uuid';
 import { processMediaFile } from '../utils/mediaCompression';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
@@ -229,17 +230,20 @@ export function Students() {
 
           {/* Students List */}
       {filteredStudents.length === 0 ? (
-        <div className="text-center py-12 text-[var(--text-tertiary)]">
-          {students.length === 0 ? (
-            <>
-              <User size={48} className="mx-auto mb-4 text-[var(--text-tertiary)]" />
-              <p>No students yet</p>
-              <p className="text-sm mt-1">Add your first student to get started</p>
-            </>
-          ) : (
-            <p>No students match your search</p>
-          )}
-        </div>
+        students.length === 0 ? (
+          <EmptyState
+            icon={User}
+            title="No students yet"
+            description="Add your first student to get started"
+            actionLabel="Add Student"
+            onAction={() => setShowAddModal(true)}
+          />
+        ) : (
+          <EmptyState
+            icon={Search}
+            title="No students match your search"
+          />
+        )
       ) : (
         <div className="space-y-4">
           {Object.keys(studentsByLetter).sort().map(letter => (
@@ -353,11 +357,11 @@ export function Students() {
                 })}
             </div>
             {students.filter(s => attendanceStats[s.id]?.total > 0).length === 0 && (
-              <div className="p-8 text-center text-[var(--text-tertiary)]">
-                <BarChart3 size={32} className="mx-auto mb-2 text-[var(--text-tertiary)]" />
-                <p>No attendance data yet</p>
-                <p className="text-sm mt-1">Mark attendance in class to see reports</p>
-              </div>
+              <EmptyState
+                icon={BarChart3}
+                title="No attendance data yet"
+                description="Mark attendance in class to see reports"
+              />
             )}
           </Card>
         </div>
@@ -978,7 +982,10 @@ function StudentDetailModal({
 
             {/* Notes List */}
             {student.skillNotes.length === 0 ? (
-              <div className="type-caption text-[var(--text-tertiary)] text-center py-4">No progress notes yet</div>
+              <div className="flex flex-col items-center justify-center py-8 px-4">
+                <FileText size={32} className="text-[var(--text-tertiary)] mb-2" strokeWidth={1.5} />
+                <p className="type-caption text-[var(--text-tertiary)]">No progress notes yet</p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {[...student.skillNotes].reverse().map(note => {

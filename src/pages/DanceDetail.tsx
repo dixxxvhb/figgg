@@ -3,11 +3,11 @@ import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, Clock, Users, User, Music, Edit2, Save, X,
   Plus, Trash2, Camera, Play, Pause, Upload,
-  ChevronDown, ChevronUp, Grid3X3, Scissors, Footprints
+  ChevronDown, ChevronUp, Grid3X3, Scissors, Footprints, Trophy, Award
 } from 'lucide-react';
-import { useAppData } from '../hooks/useAppData';
+import { useAppData } from '../contexts/AppDataContext';
 import { Button } from '../components/common/Button';
-import { RehearsalNote, MediaItem, DanceLevel, DanceStyle } from '../types';
+import { RehearsalNote, MediaItem, DanceLevel, DanceStyle, CompetitionResult } from '../types';
 import { v4 as uuid } from 'uuid';
 import { processMediaFile } from '../utils/mediaCompression';
 import { getStudentById } from '../data/students';
@@ -51,6 +51,8 @@ export function DanceDetail() {
   const [editRehearsalNotes, setEditRehearsalNotes] = useState('');
   const [editWorkOn, setEditWorkOn] = useState<string[]>(['']);
   const [mediaUploadError, setMediaUploadError] = useState<string | null>(null);
+  const [showAddResult, setShowAddResult] = useState(false);
+  const [newResult, setNewResult] = useState({ competitionName: '', placement: '', score: '', specialAwards: '', judgeNotes: '' });
 
   // Listen for save errors (e.g., storage quota exceeded)
   useEffect(() => {
@@ -60,6 +62,16 @@ export function DanceDetail() {
       }
     });
     return () => { unsubscribe(); };
+  }, []);
+
+  // Stop audio playback on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+    };
   }, []);
 
   const dance = data.competitionDances?.find(d => d.id === danceId);
@@ -361,6 +373,28 @@ export function DanceDetail() {
     cancelEditingRehearsal();
   };
 
+  const addResult = () => {
+    if (!dance || !newResult.competitionName.trim()) return;
+    const result: CompetitionResult = {
+      id: uuid(),
+      competitionId: '',
+      competitionName: newResult.competitionName.trim(),
+      date: new Date().toISOString().split('T')[0],
+      placement: newResult.placement.trim() || undefined,
+      score: newResult.score ? Number(newResult.score) : undefined,
+      specialAwards: newResult.specialAwards.trim() ? newResult.specialAwards.split(',').map(s => s.trim()) : undefined,
+      judgeNotes: newResult.judgeNotes.trim() || undefined,
+    };
+    updateCompetitionDance({ ...dance, results: [...(dance.results || []), result] });
+    setNewResult({ competitionName: '', placement: '', score: '', specialAwards: '', judgeNotes: '' });
+    setShowAddResult(false);
+  };
+
+  const deleteResult = (resultId: string) => {
+    if (!dance) return;
+    updateCompetitionDance({ ...dance, results: (dance.results || []).filter(r => r.id !== resultId) });
+  };
+
   const displayDance = isEditing ? editedDance : dance;
   if (!displayDance) return null;
 
@@ -382,10 +416,10 @@ export function DanceDetail() {
         </div>
         {isEditing ? (
           <div className="flex gap-2">
-            <button onClick={handleCancel} className="p-2 hover:bg-forest-100 rounded-lg text-forest-600">
+            <button onClick={handleCancel} className="p-2 hover:bg-forest-100 rounded-lg text-forest-600" aria-label="Cancel editing">
               <X size={20} />
             </button>
-            <button onClick={handleSave} className="p-2 bg-forest-100 text-forest-700 rounded-lg">
+            <button onClick={handleSave} className="p-2 bg-forest-100 text-forest-700 rounded-lg" aria-label="Save changes">
               <Save size={20} />
             </button>
           </div>
@@ -723,7 +757,7 @@ export function DanceDetail() {
             ))}
           </div>
         ) : (
-          <p className="text-forest-400 text-sm">No photos yet</p>
+          <p className="text-[var(--text-tertiary)] text-sm">No photos yet</p>
         )}
       </div>
 
@@ -982,8 +1016,114 @@ export function DanceDetail() {
             ))}
           </div>
         ) : (
-          <p className="text-forest-400 text-sm">No rehearsal notes yet. Add one to track your progress!</p>
+          <p className="text-[var(--text-tertiary)] text-sm">No rehearsal notes yet. Add one to track your progress!</p>
         )}
+      </div>
+
+      {/* ── Competition Results ── */}
+      <div className="mt-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold text-forest-700 dark:text-white flex items-center gap-2">
+            <Trophy size={18} />
+            Results
+          </h2>
+          <button
+            onClick={() => setShowAddResult(!showAddResult)}
+            className="flex items-center gap-1 px-3 py-1.5 bg-forest-600 text-white text-sm font-medium rounded-lg active:scale-95 transition-transform"
+          >
+            <Plus size={14} />
+            Add
+          </button>
+        </div>
+
+        {showAddResult && (
+          <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4 mb-3 space-y-3">
+            <input
+              value={newResult.competitionName}
+              onChange={e => setNewResult(prev => ({ ...prev, competitionName: e.target.value }))}
+              placeholder="Competition name"
+              className="w-full px-3 py-2 text-sm border border-blush-200 dark:border-blush-600 rounded-lg bg-white dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400 focus:ring-1 focus:ring-forest-500"
+            />
+            <div className="flex gap-2">
+              <input
+                value={newResult.placement}
+                onChange={e => setNewResult(prev => ({ ...prev, placement: e.target.value }))}
+                placeholder="Placement (1st, Gold, etc.)"
+                className="flex-1 px-3 py-2 text-sm border border-blush-200 dark:border-blush-600 rounded-lg bg-white dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400 focus:ring-1 focus:ring-forest-500"
+              />
+              <input
+                value={newResult.score}
+                onChange={e => setNewResult(prev => ({ ...prev, score: e.target.value }))}
+                placeholder="Score"
+                type="number"
+                className="w-24 px-3 py-2 text-sm border border-blush-200 dark:border-blush-600 rounded-lg bg-white dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400 focus:ring-1 focus:ring-forest-500"
+              />
+            </div>
+            <input
+              value={newResult.specialAwards}
+              onChange={e => setNewResult(prev => ({ ...prev, specialAwards: e.target.value }))}
+              placeholder="Special awards (comma-separated)"
+              className="w-full px-3 py-2 text-sm border border-blush-200 dark:border-blush-600 rounded-lg bg-white dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400 focus:ring-1 focus:ring-forest-500"
+            />
+            <textarea
+              value={newResult.judgeNotes}
+              onChange={e => setNewResult(prev => ({ ...prev, judgeNotes: e.target.value }))}
+              placeholder="Judge notes / feedback..."
+              rows={2}
+              className="w-full px-3 py-2 text-sm border border-blush-200 dark:border-blush-600 rounded-lg bg-white dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400 focus:ring-1 focus:ring-forest-500 resize-none"
+            />
+            <div className="flex gap-2">
+              <button onClick={addResult} disabled={!newResult.competitionName.trim()} className="px-4 py-2 bg-forest-600 text-white text-sm font-medium rounded-lg disabled:opacity-40 active:scale-95 transition-transform">
+                Save Result
+              </button>
+              <button onClick={() => setShowAddResult(false)} className="px-4 py-2 text-sm text-blush-500 hover:text-blush-700">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {displayDance.results && displayDance.results.length > 0 ? (
+          <div className="space-y-2">
+            {displayDance.results.map(result => (
+              <div key={result.id} className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="font-medium text-forest-900 dark:text-white text-sm">{result.competitionName}</div>
+                    <div className="flex items-center gap-2 mt-1">
+                      {result.placement && (
+                        <span className="text-xs px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full font-medium">
+                          {result.placement}
+                        </span>
+                      )}
+                      {result.score != null && (
+                        <span className="text-xs text-blush-500 dark:text-blush-400">{result.score} pts</span>
+                      )}
+                    </div>
+                  </div>
+                  <button onClick={() => deleteResult(result.id)} className="p-1 text-blush-400 hover:text-red-500">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                {result.specialAwards && result.specialAwards.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {result.specialAwards.map((award, i) => (
+                      <span key={i} className="text-[10px] px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full flex items-center gap-1">
+                        <Award size={10} />
+                        {award}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {result.judgeNotes && (
+                  <p className="text-xs text-blush-500 dark:text-blush-400 mt-2 italic">{result.judgeNotes}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : !showAddResult ? (
+          <p className="text-[var(--text-tertiary)] text-sm">No results recorded yet.</p>
+        ) : null}
       </div>
     </div>
   );

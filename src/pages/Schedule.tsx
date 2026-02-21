@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Calendar, MapPin, Clock, Trophy, Users, Car } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, MapPin, Clock, Trophy, Users, Car, CalendarOff } from 'lucide-react';
 import { format, addWeeks, startOfWeek, addDays, isWithinInterval, parseISO } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
 import { DayOfWeek, CalendarEvent } from '../types';
 import { formatTimeDisplay, timeToMinutes, getCurrentDayOfWeek } from '../utils/time';
+import { EmptyState } from '../components/common/EmptyState';
 import { estimateTravelTime, formatTravelTime } from '../services/location';
 
 const DAYS: { key: DayOfWeek; label: string; short: string }[] = [
@@ -272,9 +273,10 @@ export function Schedule() {
       {/* All items sorted by time */}
       <div className="space-y-3">
         {mergedSchedule.length === 0 && competitionsForDay.length === 0 ? (
-          <div className="text-center py-12 text-[var(--text-tertiary)]">
-            No classes on {DAYS.find(d => d.key === selectedDay)?.label}
-          </div>
+          <EmptyState
+            icon={CalendarOff}
+            title={`No classes on ${DAYS.find(d => d.key === selectedDay)?.label}`}
+          />
         ) : (
           mergedSchedule.map(item => {
             if (item.type === 'travel') {

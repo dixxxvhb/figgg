@@ -347,9 +347,10 @@ export function Settings() {
                   </div>
                 ))}
               {data.classes.filter(c => c.recitalSong).length === 0 && (
-                <div className="p-4 text-center text-blush-500 dark:text-blush-400">
+                <div className="p-4 text-center text-[var(--text-tertiary)]">
+                  <Music size={24} className="mx-auto mb-2 text-[var(--text-tertiary)]" strokeWidth={1.5} />
                   <p className="text-sm">No songs assigned yet</p>
-                  <p className="text-xs mt-0.5">Add songs in each class's detail page</p>
+                  <p className="text-xs mt-0.5 text-[var(--text-tertiary)]">Add songs in each class's detail page</p>
                 </div>
               )}
             </div>
