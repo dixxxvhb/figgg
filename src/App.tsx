@@ -1,15 +1,16 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Header, MobileNav } from './components/common/Header';
-import { QuickAddButton } from './components/common/QuickAddButton';
 import { PullToRefresh } from './components/common/PullToRefresh';
 import { Dashboard } from './pages/Dashboard';
 import { Schedule } from './pages/Schedule';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { SaveStatus } from './components/common/SaveStatus';
-import { LoadingSpinner } from './components/common/LoadingSpinner';
+import { PageSkeleton } from './components/common/PageSkeleton';
 import { SyncProvider } from './contexts/SyncContext';
+import { AppDataProvider } from './contexts/AppDataContext';
 import { loadData } from './services/storage';
+import { applyTheme } from './styles/applyTheme';
 
 // Lazy-loaded routes (not needed on initial load)
 const ClassDetail = lazy(() => import('./pages/ClassDetail').then(m => ({ default: m.ClassDetail })));
@@ -24,7 +25,19 @@ const FormationBuilder = lazy(() => import('./pages/FormationBuilder').then(m =>
 const Students = lazy(() => import('./pages/Students').then(m => ({ default: m.Students })));
 const Library = lazy(() => import('./pages/Library').then(m => ({ default: m.Library })));
 const Me = lazy(() => import('./pages/Me').then(m => ({ default: m.Me })));
+const TasksPage = lazy(() => import('./pages/TasksPage').then(m => ({ default: m.TasksPage })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
+const LaunchPlan = lazy(() => import('./pages/LaunchPlan').then(m => ({ default: m.LaunchPlan })));
+
+function NotFound() {
+  return (
+    <div className="page-w px-4 py-12 text-center">
+      <h1 className="text-2xl font-bold text-forest-700 dark:text-white mb-2">Page not found</h1>
+      <p className="text-blush-500 dark:text-blush-400 mb-4">This page doesn't exist.</p>
+      <a href="/" className="text-forest-600 dark:text-forest-400 font-medium hover:underline">Back to home</a>
+    </div>
+  );
+}
 
 function App() {
   // Apply display settings on app load
@@ -51,6 +64,11 @@ function App() {
     } else {
       document.documentElement.classList.remove('dark');
     }
+
+    // Apply color theme
+    if (settings?.themeId) {
+      applyTheme(settings.themeId, document.documentElement.classList.contains('dark'));
+    }
   }, []);
 
   // Cloud sync and calendar sync are now handled entirely by SyncProvider
@@ -60,41 +78,45 @@ function App() {
     <ErrorBoundary>
       <SyncProvider>
         <BrowserRouter>
-          <div className="min-h-screen bg-blush-50 dark:bg-blush-900 transition-colors">
-            <a href="#main-content" className="skip-link">
-              Skip to main content
-            </a>
-            <Header />
-            <main id="main-content" className="h-[calc(100dvh-120px)] lg:h-[calc(100dvh-56px)]">
-              <PullToRefresh>
-                <Suspense fallback={<LoadingSpinner />}>
-                  <ErrorBoundary>
-                    <Routes>
-                      <Route path="/" element={<Dashboard />} />
-                      <Route path="/schedule" element={<Schedule />} />
-                      <Route path="/class/:classId" element={<ClassDetail />} />
-                      <Route path="/class/:classId/notes" element={<LiveNotes />} />
-                      <Route path="/event/:eventId" element={<CalendarEventDetail />} />
-                      <Route path="/event/:eventId/notes" element={<EventNotes />} />
-                      <Route path="/plan" element={<WeekPlanner />} />
-                      <Route path="/choreography" element={<Choreography />} />
-                      <Route path="/choreography/:id" element={<ChoreographyDetail />} />
-                      <Route path="/dance/:danceId" element={<DanceDetail />} />
-                      <Route path="/formations" element={<FormationBuilder />} />
-                      <Route path="/formations/:danceId" element={<FormationBuilder />} />
-                      <Route path="/students" element={<Students />} />
-                      <Route path="/library" element={<Library />} />
-                      <Route path="/me" element={<Me />} />
-                      <Route path="/settings" element={<Settings />} />
-                    </Routes>
-                  </ErrorBoundary>
-                </Suspense>
-              </PullToRefresh>
-            </main>
-            <MobileNav />
-            <QuickAddButton />
-            <SaveStatus />
-          </div>
+          <AppDataProvider>
+            <div className="min-h-screen bg-blush-50 dark:bg-blush-900 transition-colors">
+              <a href="#main-content" className="skip-link">
+                Skip to main content
+              </a>
+              <Header />
+              <main id="main-content" className="h-[calc(100dvh-120px)] lg:h-[calc(100dvh-56px)]">
+                <PullToRefresh>
+                  <Suspense fallback={<PageSkeleton />}>
+                    <ErrorBoundary>
+                      <Routes>
+                        <Route path="/" element={<Dashboard />} />
+                        <Route path="/schedule" element={<Schedule />} />
+                        <Route path="/class/:classId" element={<ClassDetail />} />
+                        <Route path="/class/:classId/notes" element={<LiveNotes />} />
+                        <Route path="/event/:eventId" element={<CalendarEventDetail />} />
+                        <Route path="/event/:eventId/notes" element={<EventNotes />} />
+                        <Route path="/plan" element={<WeekPlanner />} />
+                        <Route path="/choreography" element={<Choreography />} />
+                        <Route path="/choreography/:id" element={<ChoreographyDetail />} />
+                        <Route path="/dance/:danceId" element={<DanceDetail />} />
+                        <Route path="/formations" element={<FormationBuilder />} />
+                        <Route path="/formations/:danceId" element={<FormationBuilder />} />
+                        <Route path="/students" element={<Students />} />
+                        <Route path="/library" element={<Library />} />
+                        <Route path="/me" element={<Me />} />
+                        <Route path="/tasks" element={<TasksPage />} />
+                        <Route path="/launch" element={<LaunchPlan />} />
+                        <Route path="/settings" element={<Settings />} />
+                        <Route path="*" element={<NotFound />} />
+                      </Routes>
+                    </ErrorBoundary>
+                  </Suspense>
+                </PullToRefresh>
+              </main>
+              <MobileNav />
+              <SaveStatus />
+            </div>
+          </AppDataProvider>
         </BrowserRouter>
       </SyncProvider>
     </ErrorBoundary>
