@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Pill, Clock, Zap, Moon, SkipForward, Undo2, Pencil, X, Check, Plus, Circle,
   CheckCircle2, CheckSquare, Flag, ChevronRight, Calendar, Bell, List, ChevronLeft, Trash2,
@@ -15,6 +16,7 @@ import {
 } from 'date-fns';
 import type { Class, Studio, Reminder, ReminderList, Subtask, RecurringSchedule, MedConfig, WellnessItemConfig } from '../types';
 import { DEFAULT_MED_CONFIG, DEFAULT_WELLNESS_ITEMS } from '../types';
+import { MoodTrends } from '../components/MoodTrends';
 
 const ICON_MAP: Record<string, LucideIcon> = {
   Droplets, Utensils, Footprints, Sun, Coffee, BedDouble, Sunrise, CloudSun, Sunset,
@@ -42,13 +44,13 @@ function formatTimeFromString(time24: string): string {
 
 function getDoseInfo(takenAt: number): { status: string; color: string; percent: number } {
   const hours = (Date.now() - takenAt) / (60 * 60 * 1000);
-  if (hours < 0.5) return { status: 'Kicking in', color: 'bg-amber-400', percent: 15 };
-  if (hours < 1) return { status: 'Building', color: 'bg-amber-500', percent: 40 };
-  if (hours < 2) return { status: 'Peak Focus', color: 'bg-green-500', percent: 100 };
-  if (hours < 3) return { status: 'Peak Focus', color: 'bg-green-500', percent: 90 };
-  if (hours < 4) return { status: 'Wearing Off', color: 'bg-orange-500', percent: 60 };
-  if (hours < 5) return { status: 'Low', color: 'bg-orange-600', percent: 30 };
-  return { status: 'Worn Off', color: 'bg-gray-400', percent: 10 };
+  if (hours < 0.5) return { status: 'Kicking in', color: 'bg-[var(--status-warning)]', percent: 15 };
+  if (hours < 1) return { status: 'Building', color: 'bg-[var(--status-warning)]', percent: 40 };
+  if (hours < 2) return { status: 'Peak Focus', color: 'bg-[var(--status-success)]', percent: 100 };
+  if (hours < 3) return { status: 'Peak Focus', color: 'bg-[var(--status-success)]', percent: 90 };
+  if (hours < 4) return { status: 'Wearing Off', color: 'bg-[var(--status-warning)]', percent: 60 };
+  if (hours < 5) return { status: 'Low', color: 'bg-[var(--status-warning)]', percent: 30 };
+  return { status: 'Worn Off', color: 'bg-[var(--surface-inset)]', percent: 10 };
 }
 
 function isTodayTimestamp(timestamp: number | null | undefined): boolean {
@@ -74,17 +76,57 @@ const DEFAULT_LISTS: ReminderList[] = [
 ];
 
 const PRIORITY_COLORS = {
-  none: 'text-gray-400 dark:text-blush-500',
+  none: 'text-[var(--text-tertiary)]',
   low: 'text-blue-500',
-  medium: 'text-orange-500',
-  high: 'text-red-500',
+  medium: 'text-[var(--status-warning)]',
+  high: 'text-[var(--status-danger)]',
 };
 
 type SmartListType = 'today' | 'scheduled' | 'all' | 'flagged';
 
+// Confetti burst — fires when all wellness items are checked
+const CONFETTI_COLORS = ['#f43f5e','#fb923c','#facc15','#4ade80','#60a5fa','#a78bfa','#f472b6'];
+function ConfettiBurst({ active }: { active: boolean }) {
+  if (!active) return null;
+  const particles = Array.from({ length: 36 }, (_, i) => ({
+    id: i,
+    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+    x: Math.random() * 100,
+    delay: Math.random() * 0.4,
+    duration: 1.2 + Math.random() * 0.8,
+    size: 5 + Math.random() * 6,
+    rotate: Math.random() * 360,
+  }));
+  return (
+    <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+      {particles.map(p => (
+        <div
+          key={p.id}
+          className="confetti-particle absolute top-0"
+          style={{
+            left: `${p.x}%`,
+            width: p.size,
+            height: p.size * (0.6 + Math.random() * 0.8),
+            backgroundColor: p.color,
+            borderRadius: Math.random() > 0.5 ? '50%' : '2px',
+            animationDelay: `${p.delay}s`,
+            animationDuration: `${p.duration}s`,
+            transform: `rotate(${p.rotate}deg)`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
   const { data, updateSelfCare } = useAppData();
+  const [searchParams] = useSearchParams();
+  const [showConfetti, setShowConfetti] = useState(false);
   const [activeTab, setActiveTab] = useState<'meds' | 'reminders'>(() => {
+    // URL query param takes priority (e.g. /me?tab=tasks from dashboard widget)
+    const urlTab = searchParams.get('tab');
+    if (urlTab === 'tasks') return 'reminders';
     // If initialTab prop is set (e.g. from /tasks route), use it
     if (initialTab) return initialTab;
     const target = sessionStorage.getItem('meTabTarget');
@@ -763,14 +805,15 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
   };
 
   return (
-    <div className="pb-24 bg-gray-50 dark:bg-blush-900">
+    <div className="pb-24 bg-[var(--surface-primary)]">
+      <ConfettiBurst active={showConfetti} />
       <div className="max-w-md mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-4">
-          <h1 className="text-xl font-bold text-gray-800 dark:text-white">
+          <h1 className="type-h1 text-[var(--text-primary)]">
             {activeTab === 'meds' ? 'Meds' : 'Tasks'}
           </h1>
-          <p className="text-sm text-gray-500 dark:text-blush-400">
+          <p className="type-caption text-[var(--text-secondary)]">
             {currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
           </p>
         </div>
@@ -780,7 +823,7 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
         <div className="space-y-3">
             {/* Status bar — compact inline */}
             {!skippedToday && activeDose && (
-              <div className={`rounded-xl px-3 py-2.5 ${activeDose.info.color} text-white flex items-center justify-between`}>
+              <div className={`rounded-[var(--radius-md)] px-3 py-2.5 ${activeDose.info.color} text-[var(--text-on-accent)] flex items-center justify-between`}>
                 <div className="flex items-center gap-2">
                   <Zap size={16} className="opacity-90" />
                   <span className="font-bold text-sm">{activeDose.info.status}</span>
@@ -792,13 +835,13 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
 
             {/* Skipped banner — compact */}
             {skippedToday && skippedDose1 && skippedDose2 && (
-              <div className="rounded-xl px-3 py-2.5 bg-slate-200 dark:bg-slate-700 flex items-center justify-between">
+              <div className="rounded-[var(--radius-md)] px-3 py-2.5 bg-[var(--surface-inset)] flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Moon size={16} className="text-slate-500 dark:text-slate-400" />
-                  <span className="font-semibold text-sm text-slate-700 dark:text-slate-200">Off Day</span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400">No meds today</span>
+                  <Moon size={16} className="text-[var(--text-tertiary)]" />
+                  <span className="font-semibold text-sm text-[var(--text-primary)]">Off Day</span>
+                  <span className="text-xs text-[var(--text-tertiary)]">No meds today</span>
                 </div>
-                <button onClick={handleUndoSkip} className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-lg">
+                <button onClick={handleUndoSkip} className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-card)] rounded-[var(--radius-sm)]">
                   <Undo2 size={12} /> Undo
                 </button>
               </div>
@@ -809,95 +852,95 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
               <>
                 <div className={`grid gap-2 ${(medConfig.maxDoses === 3 || showOptionalDose3 || dose3Time || skippedDose3) ? 'grid-cols-3' : 'grid-cols-2'}`}>
                   {/* Dose 1 */}
-                  <div className="bg-white dark:bg-blush-800 rounded-xl border border-gray-200 dark:border-blush-700 p-3">
+                  <div className="bg-[var(--surface-card)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] p-3">
                     {skippedDose1 && !dose1Time ? (
                       <div className="text-center">
-                        <SkipForward size={18} className="mx-auto text-slate-400 dark:text-slate-500 mb-1" />
-                        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Dose 1 Skipped</div>
+                        <SkipForward size={18} className="mx-auto text-[var(--text-tertiary)] mb-1" />
+                        <div className="text-xs font-semibold text-[var(--text-tertiary)] mb-2">Dose 1 Skipped</div>
                         <div className="flex gap-1">
-                          <button onClick={handleUndoSkipDose1} className="flex-1 px-2 py-1.5 text-xs text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600">Undo</button>
-                          <button onClick={handleTakeDose1} className="flex-1 px-2 py-1.5 text-xs bg-forest-600 text-white font-medium rounded-lg">Take</button>
+                          <button onClick={handleUndoSkipDose1} className="flex-1 px-2 py-1.5 text-xs text-[var(--text-secondary)] rounded-[var(--radius-sm)] hover:bg-[var(--surface-inset)]">Undo</button>
+                          <button onClick={handleTakeDose1} className="flex-1 px-2 py-1.5 text-xs bg-[var(--accent-primary)] text-[var(--text-on-accent)] font-medium rounded-[var(--radius-sm)]">Take</button>
                         </div>
                       </div>
                     ) : dose1Time ? (
-                      <div className="text-center">
-                        <Pill size={18} className="mx-auto text-green-600 dark:text-green-400 mb-1" />
-                        <div className="text-xs font-bold text-gray-800 dark:text-white">Dose 1</div>
-                        <div className="text-[11px] text-gray-500 dark:text-blush-400 mb-2">{formatTime12(new Date(dose1Time))} &bull; {dose1Info?.status}</div>
+                      <div className="text-center opacity-80">
+                        <Pill size={18} className="mx-auto text-[var(--status-success)] mb-1" />
+                        <div className="text-xs font-bold text-[var(--text-primary)]">Dose 1</div>
+                        <div className="type-caption text-[var(--text-secondary)] mb-2">{formatTime12(new Date(dose1Time))} &bull; {dose1Info?.status}</div>
                         <div className="flex gap-1">
-                          <button onClick={() => handleEditDose(1)} className="flex-1 px-2 py-1.5 text-xs border border-gray-200 dark:border-blush-600 text-gray-600 dark:text-blush-300 rounded-lg">Edit</button>
-                          <button onClick={handleUndoDose1} className="flex-1 px-2 py-1.5 text-xs text-red-500 dark:text-red-400 rounded-lg">Clear</button>
+                          <button onClick={() => handleEditDose(1)} className="flex-1 px-2 py-1.5 text-xs border border-[var(--border-subtle)] text-[var(--text-secondary)] rounded-[var(--radius-sm)]">Edit</button>
+                          <button onClick={handleUndoDose1} className="flex-1 px-2 py-1.5 text-xs text-[var(--status-danger)] rounded-[var(--radius-sm)]">Clear</button>
                         </div>
                       </div>
                     ) : (
                       <div className="text-center">
-                        <Pill size={18} className="mx-auto text-gray-400 dark:text-blush-400 mb-1" />
-                        <div className="text-xs font-bold text-gray-800 dark:text-white">Dose 1</div>
-                        <div className="text-[11px] text-gray-400 dark:text-blush-500 mb-2">Not taken</div>
-                        <button onClick={handleTakeDose1} className="w-full px-3 py-2 bg-forest-600 hover:bg-forest-700 text-white text-xs font-semibold rounded-lg min-h-[36px]">Take Now</button>
+                        <Pill size={18} className="mx-auto text-[var(--text-tertiary)] mb-1" />
+                        <div className="text-xs font-bold text-[var(--text-primary)]">Dose 1</div>
+                        <div className="type-caption text-[var(--text-tertiary)] mb-2">Not taken</div>
+                        <button onClick={handleTakeDose1} className="w-full px-3 py-2 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-[var(--text-on-accent)] text-xs font-semibold rounded-[var(--radius-sm)] min-h-[36px]">Take Now</button>
                       </div>
                     )}
                   </div>
 
                   {/* Dose 2 */}
-                  <div className="bg-white dark:bg-blush-800 rounded-xl border border-gray-200 dark:border-blush-700 p-3">
+                  <div className="bg-[var(--surface-card)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] p-3">
                     {skippedDose2 && !dose2Time ? (
                       <div className="text-center">
-                        <SkipForward size={18} className="mx-auto text-slate-400 dark:text-slate-500 mb-1" />
-                        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Dose 2 Skipped</div>
+                        <SkipForward size={18} className="mx-auto text-[var(--text-tertiary)] mb-1" />
+                        <div className="text-xs font-semibold text-[var(--text-tertiary)] mb-2">Dose 2 Skipped</div>
                         <div className="flex gap-1">
-                          <button onClick={handleUndoSkipDose2} className="flex-1 px-2 py-1.5 text-xs text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600">Undo</button>
-                          <button onClick={handleTakeDose2} className="flex-1 px-2 py-1.5 text-xs bg-amber-500 text-white font-medium rounded-lg">Take</button>
+                          <button onClick={handleUndoSkipDose2} className="flex-1 px-2 py-1.5 text-xs text-[var(--text-secondary)] rounded-[var(--radius-sm)] hover:bg-[var(--surface-inset)]">Undo</button>
+                          <button onClick={handleTakeDose2} className="flex-1 px-2 py-1.5 text-xs bg-[var(--accent-primary)] text-[var(--text-on-accent)] font-medium rounded-[var(--radius-sm)]">Take</button>
                         </div>
                       </div>
                     ) : dose2Time ? (
-                      <div className="text-center">
-                        <Pill size={18} className="mx-auto text-green-600 dark:text-green-400 mb-1" />
-                        <div className="text-xs font-bold text-gray-800 dark:text-white">Dose 2</div>
-                        <div className="text-[11px] text-gray-500 dark:text-blush-400 mb-2">{formatTime12(new Date(dose2Time))} &bull; {dose2Info?.status}</div>
+                      <div className="text-center opacity-80">
+                        <Pill size={18} className="mx-auto text-[var(--status-success)] mb-1" />
+                        <div className="text-xs font-bold text-[var(--text-primary)]">Dose 2</div>
+                        <div className="type-caption text-[var(--text-secondary)] mb-2">{formatTime12(new Date(dose2Time))} &bull; {dose2Info?.status}</div>
                         <div className="flex gap-1">
-                          <button onClick={() => handleEditDose(2)} className="flex-1 px-2 py-1.5 text-xs border border-gray-200 dark:border-blush-600 text-gray-600 dark:text-blush-300 rounded-lg">Edit</button>
-                          <button onClick={handleUndoDose2} className="flex-1 px-2 py-1.5 text-xs text-red-500 dark:text-red-400 rounded-lg">Clear</button>
+                          <button onClick={() => handleEditDose(2)} className="flex-1 px-2 py-1.5 text-xs border border-[var(--border-subtle)] text-[var(--text-secondary)] rounded-[var(--radius-sm)]">Edit</button>
+                          <button onClick={handleUndoDose2} className="flex-1 px-2 py-1.5 text-xs text-[var(--status-danger)] rounded-[var(--radius-sm)]">Clear</button>
                         </div>
                       </div>
                     ) : (
                       <div className="text-center">
-                        <Pill size={18} className="mx-auto text-gray-400 dark:text-blush-400 mb-1" />
-                        <div className="text-xs font-bold text-gray-800 dark:text-white">Dose 2</div>
-                        <div className="text-[11px] text-gray-400 dark:text-blush-500 mb-2">Not taken</div>
-                        <button onClick={handleTakeDose2} className="w-full px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg min-h-[36px]">Take Now</button>
+                        <Pill size={18} className="mx-auto text-[var(--text-tertiary)] mb-1" />
+                        <div className="text-xs font-bold text-[var(--text-primary)]">Dose 2</div>
+                        <div className="type-caption text-[var(--text-tertiary)] mb-2">Not taken</div>
+                        <button onClick={handleTakeDose2} className="w-full px-3 py-2 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-[var(--text-on-accent)] text-xs font-semibold rounded-[var(--radius-sm)] min-h-[36px]">Take Now</button>
                       </div>
                     )}
                   </div>
 
                   {/* Dose 3 — shown when maxDoses=3, OR when optional dose 3 is expanded/taken */}
                   {(medConfig.maxDoses === 3 || showOptionalDose3 || dose3Time || skippedDose3) && (
-                    <div className="bg-white dark:bg-blush-800 rounded-xl border border-gray-200 dark:border-blush-700 p-3">
+                    <div className="bg-[var(--surface-card)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] p-3">
                       {skippedDose3 && !dose3Time ? (
                         <div className="text-center">
-                          <SkipForward size={18} className="mx-auto text-slate-400 dark:text-slate-500 mb-1" />
-                          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Dose 3 Skipped</div>
+                          <SkipForward size={18} className="mx-auto text-[var(--text-tertiary)] mb-1" />
+                          <div className="text-xs font-semibold text-[var(--text-tertiary)] mb-2">Dose 3 Skipped</div>
                           <div className="flex gap-1">
-                            <button onClick={handleUndoSkipDose3} className="flex-1 px-2 py-1.5 text-xs text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-600">Undo</button>
-                            <button onClick={handleTakeDose3} className="flex-1 px-2 py-1.5 text-xs bg-purple-500 text-white font-medium rounded-lg">Take</button>
+                            <button onClick={handleUndoSkipDose3} className="flex-1 px-2 py-1.5 text-xs text-[var(--text-secondary)] rounded-[var(--radius-sm)] hover:bg-[var(--surface-inset)]">Undo</button>
+                            <button onClick={handleTakeDose3} className="flex-1 px-2 py-1.5 text-xs bg-[var(--accent-primary)] text-[var(--text-on-accent)] font-medium rounded-[var(--radius-sm)]">Take</button>
                           </div>
                         </div>
                       ) : dose3Time ? (
-                        <div className="text-center">
-                          <Pill size={18} className="mx-auto text-green-600 dark:text-green-400 mb-1" />
-                          <div className="text-xs font-bold text-gray-800 dark:text-white">Dose 3</div>
-                          <div className="text-[11px] text-gray-500 dark:text-blush-400 mb-2">{formatTime12(new Date(dose3Time))} &bull; {dose3Info?.status}</div>
+                        <div className="text-center opacity-80">
+                          <Pill size={18} className="mx-auto text-[var(--status-success)] mb-1" />
+                          <div className="text-xs font-bold text-[var(--text-primary)]">Dose 3</div>
+                          <div className="type-caption text-[var(--text-secondary)] mb-2">{formatTime12(new Date(dose3Time))} &bull; {dose3Info?.status}</div>
                           <div className="flex gap-1">
-                            <button onClick={() => handleEditDose(3)} className="flex-1 px-2 py-1.5 text-xs border border-gray-200 dark:border-blush-600 text-gray-600 dark:text-blush-300 rounded-lg">Edit</button>
-                            <button onClick={handleUndoDose3} className="flex-1 px-2 py-1.5 text-xs text-red-500 dark:text-red-400 rounded-lg">Clear</button>
+                            <button onClick={() => handleEditDose(3)} className="flex-1 px-2 py-1.5 text-xs border border-[var(--border-subtle)] text-[var(--text-secondary)] rounded-[var(--radius-sm)]">Edit</button>
+                            <button onClick={handleUndoDose3} className="flex-1 px-2 py-1.5 text-xs text-[var(--status-danger)] rounded-[var(--radius-sm)]">Clear</button>
                           </div>
                         </div>
                       ) : (
                         <div className="text-center">
-                          <Pill size={18} className="mx-auto text-gray-400 dark:text-blush-400 mb-1" />
-                          <div className="text-xs font-bold text-gray-800 dark:text-white">Dose 3</div>
-                          <div className="text-[11px] text-gray-400 dark:text-blush-500 mb-2">Not taken</div>
-                          <button onClick={handleTakeDose3} className="w-full px-3 py-2 bg-purple-500 hover:bg-purple-600 text-white text-xs font-semibold rounded-lg min-h-[36px]">Take Now</button>
+                          <Pill size={18} className="mx-auto text-[var(--text-tertiary)] mb-1" />
+                          <div className="text-xs font-bold text-[var(--text-primary)]">Dose 3</div>
+                          <div className="type-caption text-[var(--text-tertiary)] mb-2">Not taken</div>
+                          <button onClick={handleTakeDose3} className="w-full px-3 py-2 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-[var(--text-on-accent)] text-xs font-semibold rounded-[var(--radius-sm)] min-h-[36px]">Take Now</button>
                         </div>
                       )}
                     </div>
@@ -908,7 +951,7 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
                 {medConfig.maxDoses === 2 && dose2Time && !showOptionalDose3 && !dose3Time && !skippedDose3 && (
                   <button
                     onClick={() => { setShowOptionalDose3(true); haptic('light'); }}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-purple-300 dark:border-purple-600 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-[var(--radius-md)] border border-dashed border-[var(--border-subtle)] text-[var(--accent-primary)] hover:bg-[var(--accent-muted)] transition-colors"
                   >
                     <Zap size={14} />
                     <span className="text-xs font-medium">Long day? Add a 3rd dose</span>
@@ -917,12 +960,12 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
 
                 {/* Edit dose time — full width below grid when editing */}
                 {editingDose && (
-                  <div className="bg-white dark:bg-blush-800 rounded-xl border border-gray-200 dark:border-blush-700 p-3 flex items-center gap-3">
-                    <Pill size={16} className={editingDose === 1 ? 'text-forest-600 dark:text-forest-400' : editingDose === 2 ? 'text-amber-600 dark:text-amber-400' : 'text-purple-600 dark:text-purple-400'} />
-                    <span className="text-sm font-semibold text-gray-800 dark:text-white">Dose {editingDose}</span>
-                    <input type="time" value={editTimeValue} onChange={(e) => setEditTimeValue(e.target.value)} className="flex-1 px-2 py-1.5 text-sm border border-gray-300 dark:border-blush-600 rounded-lg bg-white dark:bg-blush-700 text-gray-800 dark:text-white" autoFocus />
-                    <button onClick={handleSaveEditTime} className="p-1.5 bg-green-500 hover:bg-green-600 text-white rounded-lg" aria-label="Save"><Check size={16} /></button>
-                    <button onClick={() => setEditingDose(null)} className="p-1.5 bg-gray-200 hover:bg-gray-300 dark:bg-blush-600 dark:hover:bg-blush-500 text-gray-600 dark:text-white rounded-lg" aria-label="Cancel"><X size={16} /></button>
+                  <div className="bg-[var(--surface-card)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] p-3 flex items-center gap-3">
+                    <Pill size={16} className="text-[var(--accent-primary)]" />
+                    <span className="text-sm font-semibold text-[var(--text-primary)]">Dose {editingDose}</span>
+                    <input type="time" value={editTimeValue} onChange={(e) => setEditTimeValue(e.target.value)} className="flex-1 px-2 py-1.5 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-sm)] bg-[var(--surface-inset)] text-[var(--text-primary)]" autoFocus />
+                    <button onClick={handleSaveEditTime} className="p-1.5 bg-[var(--status-success)] text-white rounded-[var(--radius-sm)]" aria-label="Save"><Check size={16} /></button>
+                    <button onClick={() => setEditingDose(null)} className="p-1.5 bg-[var(--surface-inset)] text-[var(--text-secondary)] rounded-[var(--radius-sm)]" aria-label="Cancel"><X size={16} /></button>
                   </div>
                 )}
 
@@ -931,35 +974,35 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
                   <div className="relative">
                     <button
                       onClick={() => setShowSkipOptions(!showSkipOptions)}
-                      className="w-full flex items-center justify-center gap-1.5 py-2 text-gray-400 dark:text-blush-500 hover:text-gray-600 dark:hover:text-blush-300"
+                      className="w-full flex items-center justify-center gap-1.5 py-2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
                     >
                       <SkipForward size={13} />
                       <span className="text-xs">Skip</span>
                       <ChevronRight size={12} className={`transition-transform ${showSkipOptions ? 'rotate-90' : ''}`} />
                     </button>
                     {showSkipOptions && (
-                      <div className="mt-1 bg-white dark:bg-blush-800 rounded-xl border border-gray-200 dark:border-blush-700 overflow-hidden">
+                      <div className="mt-1 bg-[var(--surface-card)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] overflow-hidden">
                         {!dose1Time && !skippedDose1 && (
-                          <button onClick={handleSkipDose1} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-blush-700 border-b border-gray-100 dark:border-blush-700">
-                            <SkipForward size={14} className="text-forest-600 dark:text-forest-400" />
-                            <span className="text-sm text-gray-800 dark:text-white">Skip Dose 1</span>
+                          <button onClick={handleSkipDose1} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-[var(--surface-inset)] border-b border-[var(--border-subtle)]">
+                            <SkipForward size={14} className="text-[var(--accent-primary)]" />
+                            <span className="text-sm text-[var(--text-primary)]">Skip Dose 1</span>
                           </button>
                         )}
                         {!dose2Time && !skippedDose2 && (
-                          <button onClick={handleSkipDose2} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-blush-700 border-b border-gray-100 dark:border-blush-700">
-                            <SkipForward size={14} className="text-amber-600 dark:text-amber-400" />
-                            <span className="text-sm text-gray-800 dark:text-white">Skip Dose 2</span>
+                          <button onClick={handleSkipDose2} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-[var(--surface-inset)] border-b border-[var(--border-subtle)]">
+                            <SkipForward size={14} className="text-[var(--status-warning)]" />
+                            <span className="text-sm text-[var(--text-primary)]">Skip Dose 2</span>
                           </button>
                         )}
                         {(medConfig.maxDoses === 3 || showOptionalDose3) && !dose3Time && !skippedDose3 && (
-                          <button onClick={handleSkipDose3} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-blush-700 border-b border-gray-100 dark:border-blush-700">
-                            <SkipForward size={14} className="text-purple-600 dark:text-purple-400" />
-                            <span className="text-sm text-gray-800 dark:text-white">Skip Dose 3</span>
+                          <button onClick={handleSkipDose3} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-[var(--surface-inset)] border-b border-[var(--border-subtle)]">
+                            <SkipForward size={14} className="text-[var(--accent-primary)]" />
+                            <span className="text-sm text-[var(--text-primary)]">Skip Dose 3</span>
                           </button>
                         )}
-                        <button onClick={handleSkipToday} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-blush-700">
-                          <Moon size={14} className="text-slate-500 dark:text-slate-400" />
-                          <span className="text-sm text-gray-800 dark:text-white">Skip all day</span>
+                        <button onClick={handleSkipToday} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-[var(--surface-inset)]">
+                          <Moon size={14} className="text-[var(--text-tertiary)]" />
+                          <span className="text-sm text-[var(--text-primary)]">Skip all day</span>
                         </button>
                       </div>
                     )}
@@ -969,45 +1012,58 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
             )}
 
             {/* Wellness check-in */}
-            <div className="bg-white dark:bg-blush-800 rounded-xl border border-gray-200 dark:border-blush-700 overflow-hidden">
-              <div className="px-3 py-2 border-b border-gray-100 dark:border-blush-700 flex items-center justify-between">
+            <div className="bg-[var(--surface-card)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] overflow-hidden">
+              <div className="px-3 py-2 border-b border-[var(--border-subtle)] flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-gray-500 dark:text-blush-400 uppercase tracking-wide">Daily Check-in</span>
+                  <span className="type-label text-[var(--text-tertiary)] uppercase tracking-wide">Daily Check-in</span>
                   {dayMode !== 'normal' && (
-                    <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${
-                      dayMode === 'light' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
-                      dayMode === 'comp' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                      'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                    <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-[var(--radius-full)] ${
+                      dayMode === 'light' ? 'bg-[var(--accent-muted)] text-[var(--accent-primary)]' :
+                      dayMode === 'comp' ? 'bg-[var(--status-warning)]/10 text-[var(--status-warning)]' :
+                      'bg-[var(--status-danger)]/10 text-[var(--status-danger)]'
                     }`}>
                       {dayMode}
                     </span>
                   )}
                 </div>
-                <span className="text-xs text-gray-400 dark:text-blush-500">
+                <span className="type-caption text-[var(--text-tertiary)]">
                   {ALL_WELLNESS_ITEMS.filter(i => wellnessStates[i.id]).length}/{ALL_WELLNESS_ITEMS.length}
                 </span>
               </div>
               {WELLNESS_SECTIONS.map(section => (
                 <div key={section.title}>
-                  <div className="px-3 py-1.5 flex items-center gap-1.5 bg-gray-50 dark:bg-blush-850">
-                    <section.Icon size={12} className="text-gray-400 dark:text-blush-500" />
-                    <span className="text-[11px] font-semibold text-gray-400 dark:text-blush-500 uppercase tracking-wide">{section.title}</span>
+                  <div className="px-3 py-1.5 flex items-center gap-1.5 bg-[var(--surface-inset)]">
+                    <section.Icon size={12} className="text-[var(--text-tertiary)]" />
+                    <span className="text-[11px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide">{section.title}</span>
                   </div>
                   {section.items.map(item => {
                     const done = wellnessStates[item.id];
                     return (
                       <button
                         key={item.id}
-                        onClick={() => { toggleWellness(item.id); haptic('light'); }}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${done ? 'opacity-50' : 'active:bg-gray-50 dark:active:bg-blush-700'}`}
+                        onClick={() => {
+                          toggleWellness(item.id);
+                          haptic('light');
+                          // Fire confetti if this is the last item being checked
+                          if (!done) {
+                            const othersDone = ALL_WELLNESS_ITEMS
+                              .filter(i => i.id !== item.id)
+                              .every(i => wellnessStates[i.id]);
+                            if (othersDone) {
+                              setShowConfetti(true);
+                              setTimeout(() => setShowConfetti(false), 2500);
+                            }
+                          }
+                        }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors ${done ? 'opacity-50' : 'active:bg-[var(--surface-inset)]'}`}
                       >
                         {done ? (
-                          <CheckCircle2 size={18} className="text-green-500 flex-shrink-0" fill="currentColor" strokeWidth={0} />
+                          <CheckCircle2 size={18} className="text-[var(--status-success)] flex-shrink-0" fill="currentColor" strokeWidth={0} />
                         ) : (
-                          <Circle size={18} className="text-gray-300 dark:text-blush-600 flex-shrink-0" strokeWidth={1.5} />
+                          <Circle size={18} className="text-[var(--border-subtle)] flex-shrink-0" strokeWidth={1.5} />
                         )}
-                        <item.Icon size={14} className={done ? 'text-gray-400 dark:text-blush-500' : 'text-gray-500 dark:text-blush-400'} />
-                        <span className={`text-sm ${done ? 'text-gray-400 dark:text-blush-500 line-through' : 'text-gray-700 dark:text-blush-200'}`}>{item.label}</span>
+                        <item.Icon size={14} className={done ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-secondary)]'} />
+                        <span className={`type-body ${done ? 'text-[var(--text-tertiary)] line-through' : 'text-[var(--text-primary)]'}`}>{item.label}</span>
                       </button>
                     );
                   })}
@@ -1015,6 +1071,9 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
               ))}
             </div>
         </div>
+
+        {/* Mood Trends */}
+        <MoodTrends checkIns={data.aiCheckIns || []} snapshots={data.learningData?.dailySnapshots || []} />
         </>)}
 
         {/* === Reminders Tab === */}
@@ -1025,27 +1084,27 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
             {/* Smart List Filters — compact pill row */}
             <div className="flex gap-2 mb-3 overflow-x-auto scrollbar-hide pb-1">
               {([
-                { id: 'today' as SmartListType, label: 'Today', count: smartCounts.today, activeClass: 'bg-blue-500 text-white', badgeClass: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400', Icon: CalendarDays },
-                { id: 'scheduled' as SmartListType, label: 'Scheduled', count: smartCounts.scheduled, activeClass: 'bg-red-500 text-white', badgeClass: 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400', Icon: Calendar },
-                { id: 'all' as SmartListType, label: 'All', count: smartCounts.all, activeClass: 'bg-purple-500 text-white', badgeClass: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400', Icon: Inbox },
-                { id: 'flagged' as SmartListType, label: 'Flagged', count: smartCounts.flagged, activeClass: 'bg-orange-500 text-white', badgeClass: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400', Icon: Flag },
-              ]).map(({ id, label, count, activeClass, badgeClass, Icon }) => {
+                { id: 'today' as SmartListType, label: 'Today', count: smartCounts.today, Icon: CalendarDays },
+                { id: 'scheduled' as SmartListType, label: 'Scheduled', count: smartCounts.scheduled, Icon: Calendar },
+                { id: 'all' as SmartListType, label: 'All', count: smartCounts.all, Icon: Inbox },
+                { id: 'flagged' as SmartListType, label: 'Flagged', count: smartCounts.flagged, Icon: Flag },
+              ]).map(({ id, label, count, Icon }) => {
                 const isActive = currentView === id;
                 return (
                   <button
                     key={id}
                     onClick={() => setCurrentView(id)}
-                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-colors min-h-[40px] flex-shrink-0 ${
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-[var(--radius-full)] text-sm font-semibold whitespace-nowrap transition-colors min-h-[40px] flex-shrink-0 ${
                       isActive
-                        ? activeClass
-                        : 'bg-white dark:bg-blush-800 border border-gray-200 dark:border-blush-700 text-gray-700 dark:text-blush-300'
+                        ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)]'
+                        : 'bg-[var(--surface-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)]'
                     }`}
                   >
                     <Icon size={14} />
                     {label}
                     {count > 0 && (
-                      <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
-                        isActive ? 'bg-white/25' : badgeClass
+                      <span className={`text-xs font-bold px-1.5 py-0.5 rounded-[var(--radius-full)] min-w-[20px] text-center ${
+                        isActive ? 'bg-white/25' : 'bg-[var(--accent-muted)] text-[var(--accent-primary)]'
                       }`}>
                         {count}
                       </span>
@@ -1058,7 +1117,7 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
             {/* Custom Lists — compact inline pills */}
             {lists.length > 0 && (
               <div className="flex items-center gap-2 mb-3 overflow-x-auto scrollbar-hide pb-1">
-                <span className="text-[11px] font-semibold text-gray-400 dark:text-blush-500 uppercase tracking-wide flex-shrink-0">Lists</span>
+                <span className="type-label text-[var(--text-tertiary)] uppercase tracking-wide flex-shrink-0">Lists</span>
                 {lists.map(list => {
                   const count = reminders.filter(r => !r.completed && r.listId === list.id).length;
                   const isActive = currentView === list.id;
@@ -1066,20 +1125,20 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
                     <button
                       key={list.id}
                       onClick={() => setCurrentView(list.id)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap flex-shrink-0 transition-colors ${
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-full)] text-sm font-medium whitespace-nowrap flex-shrink-0 transition-colors ${
                         isActive
                           ? 'text-white shadow-sm'
-                          : 'bg-white dark:bg-blush-800 border border-gray-200 dark:border-blush-700 text-gray-700 dark:text-blush-300'
+                          : 'bg-[var(--surface-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)]'
                       }`}
                       style={isActive ? { backgroundColor: list.color } : {}}
                     >
                       <div
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        className="w-2.5 h-2.5 rounded-[var(--radius-full)] flex-shrink-0"
                         style={{ backgroundColor: isActive ? 'rgba(255,255,255,0.5)' : list.color }}
                       />
                       {list.name}
                       {count > 0 && (
-                        <span className={`text-xs font-bold ${isActive ? 'text-white/70' : 'text-gray-400 dark:text-blush-500'}`}>
+                        <span className={`text-xs font-bold ${isActive ? 'text-white/70' : 'text-[var(--text-tertiary)]'}`}>
                           {count}
                         </span>
                       )}
@@ -1088,7 +1147,7 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
                 })}
                 <button
                   onClick={() => setShowNewList(true)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 flex-shrink-0"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-[var(--radius-full)] text-xs font-medium text-[var(--accent-primary)] hover:bg-[var(--accent-muted)] flex-shrink-0"
                 >
                   <Plus size={12} />
                   New
@@ -1098,17 +1157,17 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
 
             {/* Current View Header */}
             <div className="flex items-center justify-between mb-2">
-              <h2 className="text-lg font-bold" style={{ color: getViewColor() }}>
+              <h2 className="type-h2" style={{ color: getViewColor() }}>
                 {getViewTitle()}
               </h2>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-gray-400 dark:text-blush-500">
+                <span className="type-caption text-[var(--text-tertiary)]">
                   {filteredReminders.filter(r => !r.completed).length} tasks
                 </span>
                 {currentView !== 'today' && currentView !== 'scheduled' && currentView !== 'all' && currentView !== 'flagged' && currentView !== 'inbox' && (
                   <button
                     onClick={() => handleOpenEditList(lists.find(l => l.id === currentView)!)}
-                    className="p-1.5 rounded-lg text-gray-400 dark:text-blush-500 hover:text-gray-600 dark:hover:text-blush-300 hover:bg-gray-100 dark:hover:bg-blush-700"
+                    className="p-1.5 rounded-[var(--radius-sm)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-inset)]"
                   >
                     <Pencil size={14} />
                   </button>
@@ -1117,14 +1176,14 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
             </div>
 
             {/* Reminders List */}
-            <div className="bg-white dark:bg-blush-800 rounded-2xl border border-gray-200 dark:border-blush-700 overflow-hidden mb-4">
+            <div className="bg-[var(--surface-card)] rounded-[var(--radius-lg)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] overflow-hidden mb-4">
               {filteredReminders.length === 0 ? (
                 <div className="px-8 pt-6 pb-2 text-center">
-                  <CheckCircle2 size={32} className="mx-auto mb-2 text-green-500" />
-                  <p className="text-gray-600 dark:text-blush-300 font-medium text-sm">All caught up!</p>
+                  <CheckCircle2 size={32} className="mx-auto mb-2 text-[var(--status-success)]" />
+                  <p className="type-body font-medium text-[var(--text-secondary)]">All caught up!</p>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-100 dark:divide-blush-700">
+                <div className="divide-y divide-[var(--border-subtle)]">
                   {filteredReminders.map((reminder) => {
                     const SWIPE_THRESHOLD = 80;
                     return (
@@ -1133,11 +1192,11 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
                         className="relative overflow-hidden"
                       >
                         {/* Green reveal behind the swipe */}
-                        <div className="absolute inset-0 bg-green-500 flex items-center justify-end pr-6">
+                        <div className="absolute inset-0 bg-[var(--status-success)] flex items-center justify-end pr-6">
                           <Check size={24} className="text-white" />
                         </div>
                         <div
-                          className="relative bg-white dark:bg-blush-800 flex items-start gap-3 p-4 active:bg-gray-50 dark:active:bg-blush-700 cursor-pointer transition-transform"
+                          className="relative bg-[var(--surface-card)] flex items-start gap-3 p-4 active:bg-[var(--surface-inset)] cursor-pointer transition-transform"
                           style={{ touchAction: 'pan-y' }}
                           onTouchStart={(e) => {
                             const el = e.currentTarget;
@@ -1196,7 +1255,7 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
                             className="mt-0.5 flex-shrink-0"
                           >
                             {reminder.completed ? (
-                              <CheckCircle2 size={24} className="text-blue-500" fill="currentColor" strokeWidth={0} />
+                              <CheckCircle2 size={24} className="text-[var(--accent-primary)]" fill="currentColor" strokeWidth={0} />
                             ) : (
                               <Circle
                                 size={24}
@@ -1206,33 +1265,33 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
                             )}
                           </button>
                           <div className="flex-1 min-w-0">
-                            <p className={`font-medium ${reminder.completed ? 'text-gray-400 dark:text-blush-500 line-through' : 'text-gray-800 dark:text-white'}`}>
+                            <p className={`type-body font-medium ${reminder.completed ? 'text-[var(--text-tertiary)] line-through opacity-50' : 'text-[var(--text-primary)]'}`}>
                               {reminder.title}
                             </p>
                             {reminder.notes && (
-                              <p className="text-sm text-gray-400 dark:text-blush-500 line-clamp-1 mt-0.5">
+                              <p className="type-caption text-[var(--text-tertiary)] line-clamp-1 mt-0.5">
                                 {reminder.notes}
                               </p>
                             )}
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                               {reminder.dueDate && (
-                                <span className={`text-xs flex items-center gap-1 ${
+                                <span className={`type-label flex items-center gap-1 ${
                                   !reminder.completed && reminder.dueDate && isPast(startOfDay(parseISO(reminder.dueDate))) && reminder.dueDate !== todayStr
-                                    ? 'text-red-500'
-                                    : 'text-gray-400 dark:text-blush-500'
+                                    ? 'text-[var(--status-danger)]'
+                                    : 'text-[var(--text-tertiary)]'
                                 }`}>
                                   <Bell size={10} />
                                   {formatDueDate(reminder.dueDate, reminder.dueTime)}
                                 </span>
                               )}
                               {reminder.recurring && (
-                                <span className="text-xs text-gray-400 dark:text-blush-500 flex items-center gap-1">
+                                <span className="type-label text-[var(--text-tertiary)] flex items-center gap-1">
                                   <Repeat size={10} />
                                   {reminder.recurring.type}
                                 </span>
                               )}
                               {reminder.subtasks && reminder.subtasks.length > 0 && (
-                                <span className="text-xs text-gray-400 dark:text-blush-500">
+                                <span className="type-label text-[var(--text-tertiary)]">
                                   {reminder.subtasks.filter(s => s.completed).length}/{reminder.subtasks.length} subtasks
                                 </span>
                               )}
@@ -1245,7 +1304,7 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
                             }}
                             className="flex-shrink-0 p-1"
                           >
-                            <Flag size={18} className={reminder.flagged ? 'text-orange-500 fill-orange-500' : 'text-gray-300 dark:text-blush-600'} />
+                            <Flag size={18} className={reminder.flagged ? 'text-[var(--status-warning)] fill-current' : 'text-[var(--border-subtle)]'} />
                           </button>
                         </div>
                       </div>
@@ -1256,15 +1315,15 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
               )}
 
               {/* Inline quick-add — always visible */}
-              <div className="flex items-center gap-3 p-4 border-t border-gray-100 dark:border-blush-700">
-                <Plus size={20} className="text-gray-300 dark:text-blush-600 flex-shrink-0" />
+              <div className="flex items-center gap-3 p-4 border-t border-[var(--border-subtle)]">
+                <Plus size={20} className="text-[var(--border-subtle)] flex-shrink-0" />
                 <input
                   ref={inlineInputRef}
                   type="text"
                   value={inlineAddText}
                   onChange={(e) => setInlineAddText(e.target.value)}
                   placeholder="Add a reminder..."
-                  className="flex-1 bg-transparent text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-blush-500 outline-none"
+                  className="flex-1 bg-transparent text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && inlineAddText.trim()) handleInlineAdd();
                   }}
@@ -1274,7 +1333,7 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
               {completedCount > 0 && (
                 <button
                   onClick={() => setShowCompleted(!showCompleted)}
-                  className="w-full p-3 text-sm text-gray-500 dark:text-blush-400 flex items-center justify-center gap-1 border-t border-gray-100 dark:border-blush-700"
+                  className="w-full p-3 text-sm text-[var(--text-secondary)] flex items-center justify-center gap-1 border-t border-[var(--border-subtle)]"
                 >
                   {showCompleted ? 'Hide' : 'Show'} {completedCount} Completed
                   <ChevronRight size={14} className={showCompleted ? 'rotate-90 transition-transform' : 'transition-transform'} />
@@ -1284,15 +1343,15 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
 
             {/* New List Modal */}
             {showNewList && (
-              <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
-                <div className="bg-white dark:bg-blush-800 rounded-2xl w-full max-w-md overflow-hidden">
-                  <div className="p-4 border-b border-gray-100 dark:border-blush-700 flex items-center justify-between">
-                    <button onClick={() => setShowNewList(false)} className="text-blue-500 font-medium">Cancel</button>
-                    <h3 className="font-semibold text-gray-800 dark:text-white">New List</h3>
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
+                <div className="bg-[var(--surface-elevated)] rounded-[var(--radius-lg)] shadow-[var(--shadow-elevated)] w-full max-w-md overflow-hidden">
+                  <div className="p-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
+                    <button onClick={() => setShowNewList(false)} className="text-[var(--accent-primary)] font-medium">Cancel</button>
+                    <h3 className="type-h3 text-[var(--text-primary)]">New List</h3>
                     <button
                       onClick={handleAddList}
                       disabled={!newListName.trim()}
-                      className="text-blue-500 font-medium disabled:opacity-50"
+                      className="text-[var(--accent-primary)] font-medium disabled:opacity-50"
                     >
                       Done
                     </button>
@@ -1303,17 +1362,17 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
                       value={newListName}
                       onChange={(e) => setNewListName(e.target.value)}
                       placeholder="List Name"
-                      className="w-full px-4 py-3 bg-gray-100 dark:bg-blush-700 rounded-xl text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-blush-500 outline-none"
+                      className="w-full px-4 py-3 bg-[var(--surface-inset)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none"
                       autoFocus
                     />
                     <div>
-                      <label className="text-sm font-medium text-gray-500 dark:text-blush-400 mb-2 block">Color</label>
+                      <label className="type-label text-[var(--text-secondary)] mb-2 block">Color</label>
                       <div className="flex gap-2 flex-wrap">
                         {LIST_COLORS.map(color => (
                           <button
                             key={color}
                             onClick={() => setNewListColor(color)}
-                            className={`w-10 h-10 rounded-full ${newListColor === color ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`}
+                            className={`w-10 h-10 rounded-[var(--radius-full)] ${newListColor === color ? 'ring-2 ring-offset-2 ring-[var(--accent-primary)]' : ''}`}
                             style={{ backgroundColor: color }}
                           />
                         ))}
@@ -1326,15 +1385,15 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
 
             {/* Edit List Modal */}
             {editingList && (
-              <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4">
-                <div className="bg-white dark:bg-blush-800 rounded-2xl w-full max-w-md overflow-hidden">
-                  <div className="p-4 border-b border-gray-100 dark:border-blush-700 flex items-center justify-between">
-                    <button onClick={() => setEditingList(null)} className="text-blue-500 font-medium">Cancel</button>
-                    <h3 className="font-semibold text-gray-800 dark:text-white">Edit List</h3>
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
+                <div className="bg-[var(--surface-elevated)] rounded-[var(--radius-lg)] shadow-[var(--shadow-elevated)] w-full max-w-md overflow-hidden">
+                  <div className="p-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
+                    <button onClick={() => setEditingList(null)} className="text-[var(--accent-primary)] font-medium">Cancel</button>
+                    <h3 className="type-h3 text-[var(--text-primary)]">Edit List</h3>
                     <button
                       onClick={handleSaveEditList}
                       disabled={!editListName.trim()}
-                      className="text-blue-500 font-medium disabled:opacity-50"
+                      className="text-[var(--accent-primary)] font-medium disabled:opacity-50"
                     >
                       Done
                     </button>
@@ -1345,17 +1404,17 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
                       value={editListName}
                       onChange={(e) => setEditListName(e.target.value)}
                       placeholder="List Name"
-                      className="w-full px-4 py-3 bg-gray-100 dark:bg-blush-700 rounded-xl text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-blush-500 outline-none"
+                      className="w-full px-4 py-3 bg-[var(--surface-inset)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none"
                       autoFocus
                     />
                     <div>
-                      <label className="text-sm font-medium text-gray-500 dark:text-blush-400 mb-2 block">Color</label>
+                      <label className="type-label text-[var(--text-secondary)] mb-2 block">Color</label>
                       <div className="flex gap-2 flex-wrap">
                         {LIST_COLORS.map(color => (
                           <button
                             key={color}
                             onClick={() => setEditListColor(color)}
-                            className={`w-10 h-10 rounded-full ${editListColor === color ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`}
+                            className={`w-10 h-10 rounded-[var(--radius-full)] ${editListColor === color ? 'ring-2 ring-offset-2 ring-[var(--accent-primary)]' : ''}`}
                             style={{ backgroundColor: color }}
                           />
                         ))}
@@ -1363,12 +1422,12 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
                     </div>
                     <button
                       onClick={() => handleDeleteList(editingList.id)}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 rounded-xl font-medium"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[var(--status-danger)]/10 text-[var(--status-danger)] rounded-[var(--radius-md)] font-medium"
                     >
                       <Trash2 size={16} />
                       Delete List
                     </button>
-                    <p className="text-xs text-gray-400 dark:text-blush-500 text-center">
+                    <p className="type-caption text-[var(--text-tertiary)] text-center">
                       Tasks in this list will be moved to Reminders
                     </p>
                   </div>
@@ -1421,6 +1480,7 @@ function ReminderDetailView({ reminder, lists, onClose, onUpdate, onDelete, onTo
 
   const handleSave = () => {
     onUpdate(editedReminder);
+    onClose();
   };
 
   const handleAddSubtask = () => {
@@ -1450,87 +1510,87 @@ function ReminderDetailView({ reminder, lists, onClose, onUpdate, onDelete, onTo
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <button onClick={onClose} className="flex items-center gap-1 text-blue-500 font-medium">
+        <button onClick={onClose} className="flex items-center gap-1 text-[var(--accent-primary)] font-medium">
           <ChevronLeft size={20} />
           Back
         </button>
-        <button onClick={handleSave} className="text-blue-500 font-medium">
+        <button onClick={handleSave} className="text-[var(--accent-primary)] font-medium">
           Done
         </button>
       </div>
 
       {/* Main Card */}
-      <div className="bg-white dark:bg-blush-800 rounded-2xl border border-gray-200 dark:border-blush-700 overflow-hidden">
+      <div className="bg-[var(--surface-card)] rounded-[var(--radius-lg)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] overflow-hidden">
         {/* Title */}
-        <div className="p-4 border-b border-gray-100 dark:border-blush-700">
+        <div className="p-4 border-b border-[var(--border-subtle)]">
           <input
             type="text"
             value={editedReminder.title}
             onChange={(e) => setEditedReminder({ ...editedReminder, title: e.target.value })}
-            className="w-full text-lg font-semibold text-gray-800 dark:text-white bg-transparent outline-none"
+            className="w-full text-lg font-semibold text-[var(--text-primary)] bg-transparent outline-none"
             placeholder="Title"
           />
         </div>
 
         {/* Notes */}
-        <div className="p-4 border-b border-gray-100 dark:border-blush-700">
+        <div className="p-4 border-b border-[var(--border-subtle)]">
           <textarea
             value={editedReminder.notes || ''}
             onChange={(e) => setEditedReminder({ ...editedReminder, notes: e.target.value })}
-            className="w-full text-gray-600 dark:text-blush-300 bg-transparent outline-none resize-none"
+            className="w-full text-[var(--text-secondary)] bg-transparent outline-none resize-none"
             placeholder="Notes"
             rows={3}
           />
         </div>
 
         {/* URL */}
-        <div className="p-4 border-b border-gray-100 dark:border-blush-700 flex items-center gap-3">
-          <LinkIcon size={18} className="text-gray-400" />
+        <div className="p-4 border-b border-[var(--border-subtle)] flex items-center gap-3">
+          <LinkIcon size={18} className="text-[var(--text-tertiary)]" />
           <input
             type="url"
             value={editedReminder.url || ''}
             onChange={(e) => setEditedReminder({ ...editedReminder, url: e.target.value })}
-            className="flex-1 text-gray-600 dark:text-blush-300 bg-transparent outline-none"
+            className="flex-1 text-[var(--text-secondary)] bg-transparent outline-none"
             placeholder="Add URL"
           />
         </div>
 
         {/* Date & Time */}
-        <div className="p-4 border-b border-gray-100 dark:border-blush-700">
+        <div className="p-4 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-3 mb-3">
-            <Calendar size={18} className="text-gray-400" />
-            <span className="text-gray-600 dark:text-blush-300">Date</span>
+            <Calendar size={18} className="text-[var(--text-tertiary)]" />
+            <span className="text-[var(--text-secondary)]">Date</span>
             <input
               type="date"
               value={editedReminder.dueDate || ''}
               onChange={(e) => setEditedReminder({ ...editedReminder, dueDate: e.target.value || undefined })}
-              className="ml-auto px-3 py-1 rounded-lg bg-gray-100 dark:bg-blush-700 text-gray-800 dark:text-white border-0"
+              className="ml-auto px-3 py-1 rounded-[var(--radius-sm)] bg-[var(--surface-inset)] text-[var(--text-primary)] border-0"
             />
           </div>
           <div className="flex items-center gap-3">
-            <Clock size={18} className="text-gray-400" />
-            <span className="text-gray-600 dark:text-blush-300">Time</span>
+            <Clock size={18} className="text-[var(--text-tertiary)]" />
+            <span className="text-[var(--text-secondary)]">Time</span>
             <input
               type="time"
               value={editedReminder.dueTime || ''}
               onChange={(e) => setEditedReminder({ ...editedReminder, dueTime: e.target.value || undefined })}
-              className="ml-auto px-3 py-1 rounded-lg bg-gray-100 dark:bg-blush-700 text-gray-800 dark:text-white border-0"
+              className="ml-auto px-3 py-1 rounded-[var(--radius-sm)] bg-[var(--surface-inset)] text-[var(--text-primary)] border-0"
             />
           </div>
         </div>
 
         {/* Recurring */}
-        <div className="p-4 border-b border-gray-100 dark:border-blush-700">
+        <div className="p-4 border-b border-[var(--border-subtle)]">
           <button
             onClick={() => setShowRecurring(!showRecurring)}
             className="flex items-center gap-3 w-full"
           >
-            <Repeat size={18} className="text-gray-400" />
-            <span className="text-gray-600 dark:text-blush-300">Repeat</span>
-            <span className="ml-auto text-gray-400 dark:text-blush-500">
+            <Repeat size={18} className="text-[var(--text-tertiary)]" />
+            <span className="text-[var(--text-secondary)]">Repeat</span>
+            <span className="ml-auto text-[var(--text-tertiary)]">
               {editedReminder.recurring ? editedReminder.recurring.type : 'Never'}
             </span>
-            <ChevronRight size={16} className="text-gray-300" />
+            <ChevronRight size={16} className="text-[var(--border-subtle)]" />
           </button>
           {showRecurring && (
             <div className="mt-3 ml-8 space-y-2">
@@ -1547,10 +1607,10 @@ function ReminderDetailView({ reminder, lists, onClose, onUpdate, onDelete, onTo
                       });
                     }
                   }}
-                  className={`block w-full text-left px-3 py-2 rounded-lg ${
+                  className={`block w-full text-left px-3 py-2 rounded-[var(--radius-sm)] ${
                     editedReminder.recurring?.type === type
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-100 dark:bg-blush-700 text-gray-600 dark:text-blush-300'
+                      ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)]'
+                      : 'bg-[var(--surface-inset)] text-[var(--text-secondary)]'
                   }`}
                 >
                   {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -1558,10 +1618,10 @@ function ReminderDetailView({ reminder, lists, onClose, onUpdate, onDelete, onTo
               ))}
               <button
                 onClick={() => setEditedReminder({ ...editedReminder, recurring: undefined })}
-                className={`block w-full text-left px-3 py-2 rounded-lg ${
+                className={`block w-full text-left px-3 py-2 rounded-[var(--radius-sm)] ${
                   !editedReminder.recurring
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 dark:bg-blush-700 text-gray-600 dark:text-blush-300'
+                    ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)]'
+                    : 'bg-[var(--surface-inset)] text-[var(--text-secondary)]'
                 }`}
               >
                 Never
@@ -1571,23 +1631,23 @@ function ReminderDetailView({ reminder, lists, onClose, onUpdate, onDelete, onTo
         </div>
 
         {/* Priority */}
-        <div className="p-4 border-b border-gray-100 dark:border-blush-700">
+        <div className="p-4 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-3 mb-3">
-            <AlertCircle size={18} className="text-gray-400" />
-            <span className="text-gray-600 dark:text-blush-300">Priority</span>
+            <AlertCircle size={18} className="text-[var(--text-tertiary)]" />
+            <span className="text-[var(--text-secondary)]">Priority</span>
           </div>
           <div className="flex gap-2 ml-8">
             {(['none', 'low', 'medium', 'high'] as const).map(priority => (
               <button
                 key={priority}
                 onClick={() => setEditedReminder({ ...editedReminder, priority })}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+                className={`px-3 py-1.5 rounded-[var(--radius-sm)] text-sm font-medium ${
                   editedReminder.priority === priority
-                    ? priority === 'none' ? 'bg-gray-200 dark:bg-blush-600 text-gray-700 dark:text-white'
+                    ? priority === 'none' ? 'bg-[var(--surface-inset)] text-[var(--text-primary)]'
                     : priority === 'low' ? 'bg-blue-500 text-white'
-                    : priority === 'medium' ? 'bg-orange-500 text-white'
-                    : 'bg-red-500 text-white'
-                    : 'bg-gray-100 dark:bg-blush-700 text-gray-600 dark:text-blush-300'
+                    : priority === 'medium' ? 'bg-[var(--status-warning)] text-white'
+                    : 'bg-[var(--status-danger)] text-white'
+                    : 'bg-[var(--surface-inset)] text-[var(--text-secondary)]'
                 }`}
               >
                 {priority === 'none' ? 'None' : priority.charAt(0).toUpperCase() + priority.slice(1)}
@@ -1597,25 +1657,25 @@ function ReminderDetailView({ reminder, lists, onClose, onUpdate, onDelete, onTo
         </div>
 
         {/* List */}
-        <div className="p-4 border-b border-gray-100 dark:border-blush-700">
+        <div className="p-4 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-3 mb-3">
-            <List size={18} className="text-gray-400" />
-            <span className="text-gray-600 dark:text-blush-300">List</span>
+            <List size={18} className="text-[var(--text-tertiary)]" />
+            <span className="text-[var(--text-secondary)]">List</span>
           </div>
           <div className="flex gap-2 ml-8 flex-wrap">
             {lists.map(l => (
               <button
                 key={l.id}
                 onClick={() => setEditedReminder({ ...editedReminder, listId: l.id })}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 ${
+                className={`px-3 py-1.5 rounded-[var(--radius-sm)] text-sm font-medium flex items-center gap-2 ${
                   editedReminder.listId === l.id
                     ? 'text-white'
-                    : 'bg-gray-100 dark:bg-blush-700 text-gray-600 dark:text-blush-300'
+                    : 'bg-[var(--surface-inset)] text-[var(--text-secondary)]'
                 }`}
                 style={editedReminder.listId === l.id ? { backgroundColor: l.color } : {}}
               >
                 <div
-                  className="w-3 h-3 rounded-full"
+                  className="w-3 h-3 rounded-[var(--radius-full)]"
                   style={{ backgroundColor: editedReminder.listId === l.id ? 'rgba(255,255,255,0.5)' : l.color }}
                 />
                 {l.name}
@@ -1627,12 +1687,12 @@ function ReminderDetailView({ reminder, lists, onClose, onUpdate, onDelete, onTo
         {/* Flag */}
         <button
           onClick={() => setEditedReminder({ ...editedReminder, flagged: !editedReminder.flagged })}
-          className="w-full p-4 flex items-center gap-3 border-b border-gray-100 dark:border-blush-700"
+          className="w-full p-4 flex items-center gap-3 border-b border-[var(--border-subtle)]"
         >
-          <Flag size={18} className={editedReminder.flagged ? 'text-orange-500 fill-orange-500' : 'text-gray-400'} />
-          <span className="text-gray-600 dark:text-blush-300">Flagged</span>
-          <div className={`ml-auto w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-            editedReminder.flagged ? 'bg-orange-500 border-orange-500' : 'border-gray-300 dark:border-blush-600'
+          <Flag size={18} className={editedReminder.flagged ? 'text-[var(--status-warning)] fill-current' : 'text-[var(--text-tertiary)]'} />
+          <span className="text-[var(--text-secondary)]">Flagged</span>
+          <div className={`ml-auto w-5 h-5 rounded-[var(--radius-full)] border-2 flex items-center justify-center ${
+            editedReminder.flagged ? 'bg-[var(--status-warning)] border-[var(--status-warning)]' : 'border-[var(--border-subtle)]'
           }`}>
             {editedReminder.flagged && <Check size={12} className="text-white" />}
           </div>
@@ -1641,17 +1701,17 @@ function ReminderDetailView({ reminder, lists, onClose, onUpdate, onDelete, onTo
         {/* Subtasks */}
         <div className="p-4">
           <div className="flex items-center gap-3 mb-3">
-            <CheckCircle2 size={18} className="text-gray-400" />
-            <span className="text-gray-600 dark:text-blush-300 font-medium">Subtasks</span>
+            <CheckCircle2 size={18} className="text-[var(--text-tertiary)]" />
+            <span className="text-[var(--text-secondary)] font-medium">Subtasks</span>
           </div>
           <div className="space-y-2 ml-8">
             {editedReminder.subtasks?.map(subtask => (
               <div key={subtask.id} className="flex items-center gap-3">
                 <button onClick={() => onToggleSubtask(editedReminder.id, subtask.id)}>
                   {subtask.completed ? (
-                    <CheckCircle2 size={20} className="text-blue-500" fill="currentColor" strokeWidth={0} />
+                    <CheckCircle2 size={20} className="text-[var(--accent-primary)]" fill="currentColor" strokeWidth={0} />
                   ) : (
-                    <Circle size={20} className="text-gray-300 dark:text-blush-600" strokeWidth={1.5} />
+                    <Circle size={20} className="text-[var(--border-subtle)]" strokeWidth={1.5} />
                   )}
                 </button>
                 <input
@@ -1665,18 +1725,18 @@ function ReminderDetailView({ reminder, lists, onClose, onUpdate, onDelete, onTo
                       ),
                     });
                   }}
-                  className={`flex-1 bg-transparent outline-none ${subtask.completed ? 'text-gray-400 line-through' : 'text-gray-700 dark:text-blush-300'}`}
+                  className={`flex-1 bg-transparent outline-none ${subtask.completed ? 'text-[var(--text-tertiary)] line-through' : 'text-[var(--text-secondary)]'}`}
                 />
                 <button
                   onClick={() => handleDeleteSubtask(subtask.id)}
-                  className="text-gray-400 hover:text-red-500"
+                  className="text-[var(--text-tertiary)] hover:text-[var(--status-danger)]"
                 >
                   <X size={16} />
                 </button>
               </div>
             ))}
             <div className="flex items-center gap-3">
-              <Plus size={20} className="text-gray-300 dark:text-blush-600" />
+              <Plus size={20} className="text-[var(--border-subtle)]" />
               <input
                 type="text"
                 value={newSubtaskTitle}
@@ -1685,7 +1745,7 @@ function ReminderDetailView({ reminder, lists, onClose, onUpdate, onDelete, onTo
                   if (e.key === 'Enter') handleAddSubtask();
                 }}
                 placeholder="Add subtask..."
-                className="flex-1 bg-transparent text-gray-600 dark:text-blush-300 placeholder-gray-400 dark:placeholder-blush-500 outline-none"
+                className="flex-1 bg-transparent text-[var(--text-secondary)] placeholder-[var(--text-tertiary)] outline-none"
               />
             </div>
           </div>
@@ -1695,7 +1755,7 @@ function ReminderDetailView({ reminder, lists, onClose, onUpdate, onDelete, onTo
       {/* Delete Button */}
       <button
         onClick={() => onDelete(editedReminder.id)}
-        className="w-full p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 font-medium rounded-2xl flex items-center justify-center gap-2"
+        className="w-full p-4 bg-[var(--status-danger)]/10 text-[var(--status-danger)] font-medium rounded-[var(--radius-lg)] flex items-center justify-center gap-2"
       >
         <Trash2 size={18} />
         Delete Reminder
