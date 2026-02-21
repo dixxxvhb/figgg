@@ -1,16 +1,21 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, Music, Edit2, Save, X, Plus, Trash2, Play, History, ChevronDown, ChevronUp, FileText, Image, Users, UserCheck, UserX, Clock3, UserPlus, User, Grid3X3, List, Camera, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { ArrowLeft, Clock, MapPin, Music, Edit2, Save, X, Trash2, Play, History, ChevronDown, ChevronUp, FileText, Users, UserCheck, UserX, Clock3, UserPlus, User, ChevronLeft, ChevronRight, Star, CheckCircle, BookOpen, ClipboardList } from 'lucide-react';
 import { timeToMinutes } from '../utils/time';
-import { useAppData } from '../hooks/useAppData';
+import { useAppData } from '../contexts/AppDataContext';
+import { PlanDisplay } from '../components/common/PlanDisplay';
 import { formatTimeDisplay, formatWeekOf, getWeekStart } from '../utils/time';
-import { addWeeks, format } from 'date-fns';
+import { addWeeks, addDays, format } from 'date-fns';
 import { Button } from '../components/common/Button';
 import { DropdownMenu } from '../components/common/DropdownMenu';
-import { MediaItem, Student } from '../types';
+import { ClassWeekNotes, Student, normalizeNoteCategory } from '../types';
 import { v4 as uuid } from 'uuid';
-import { processMediaFile } from '../utils/mediaCompression';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
+import { getCategoryStyle, getCategoryLabel } from '../constants/noteCategories';
+
+function getDefaultClassNotes(classId: string): ClassWeekNotes {
+  return { classId, plan: '', liveNotes: [], isOrganized: false, media: [] };
+}
 
 export function ClassDetail() {
   const { classId } = useParams<{ classId: string }>();
@@ -18,10 +23,9 @@ export function ClassDetail() {
   const weekOffset = parseInt(searchParams.get('week') || '0', 10);
   const { data, updateClass, getCurrentWeekNotes, saveWeekNotes, getWeekNotes, updateStudent } = useAppData();
   const [isEditing, setIsEditing] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const [showLastWeek, setShowLastWeek] = useState(false);
+  const [showThisWeekNotes, setShowThisWeekNotes] = useState(false);
 
   const cls = data.classes.find(c => c.id === classId);
   const studio = cls ? data.studios.find(s => s.id === cls.studioId) : null;
@@ -41,6 +45,14 @@ export function ClassDetail() {
   // Calculate the week we're viewing based on offset from URL
   const viewingWeekStart = addWeeks(getWeekStart(), weekOffset);
   const viewingWeekOf = formatWeekOf(viewingWeekStart);
+
+  // Compute the actual class date for this week (viewingWeekStart is Monday)
+  const DAY_OFFSETS: Record<string, number> = {
+    monday: 0, tuesday: 1, wednesday: 2, thursday: 3, friday: 4, saturday: 5, sunday: 6,
+  };
+  const classDate = cls ? addDays(viewingWeekStart, DAY_OFFSETS[cls.day] ?? 0) : viewingWeekStart;
+  const classDateLabel = cls ? format(classDate, 'EEEE, MMM d') : '';
+  const weekLabel = weekOffset === 0 ? 'This Week' : weekOffset === 1 ? 'Next Week' : weekOffset === -1 ? 'Last Week' : `${weekOffset > 0 ? '+' : ''}${weekOffset} weeks`;
 
   // Get week notes for the week we're viewing (not necessarily current week)
   const getViewingWeekNotes = () => {
@@ -75,7 +87,6 @@ export function ClassDetail() {
   const [editedClass, setEditedClass] = useState(cls);
   const [showRoster, setShowRoster] = useState(false);
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
-  const [rosterViewMode, setRosterViewMode] = useState<'list' | 'grid'>('grid');
   const [isEditingPlan, setIsEditingPlan] = useState(false);
   const [editedPlan, setEditedPlan] = useState('');
   const [isEditingSong, setIsEditingSong] = useState(false);
@@ -83,136 +94,88 @@ export function ClassDetail() {
   const [isEditingChoreoNotes, setIsEditingChoreoNotes] = useState(false);
   const [editedChoreoNotes, setEditedChoreoNotes] = useState('');
 
-  // Get students enrolled in this class
-  // For rehearsal classes (with competitionDanceId), pull from the competition dance's dancerIds
-  const enrolledStudents = useMemo(() => {
-    if (!classId || !cls) return [];
-
-    // If this is a rehearsal class linked to a competition dance, get dancers from the dance
-    if (cls.competitionDanceId) {
-      const dance = data.competitionDances.find(d => d.id === cls.competitionDanceId);
-      if (dance?.dancerIds) {
-        return (data.students || []).filter(s => dance.dancerIds?.includes(s.id));
-      }
-    }
-
-    // Otherwise, get students enrolled in this class via classIds
-    return (data.students || []).filter(s => s.classIds.includes(classId));
-  }, [data.students, data.competitionDances, classId, cls]);
-
   // Get this week's attendance for this class
   const attendance = classNotes?.attendance || { present: [], absent: [], late: [] };
 
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  // Get students enrolled in this class
+  // Also include any students who appear in this week's attendance but aren't formally enrolled
+  const enrolledStudents = useMemo(() => {
+    if (!classId || !cls) return [];
 
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !classId) return;
+    let students: Student[];
 
-    setIsUploading(true);
-    setUploadError(null);
+    // Get students enrolled in this class via classIds
+    students = (data.students || []).filter(s => s.classIds?.includes(classId));
+    const enrolledIds = new Set(students.map(s => s.id));
 
-    try {
-      const result = await processMediaFile(file);
-
-      if ('error' in result) {
-        setUploadError(result.error);
-        setIsUploading(false);
-        e.target.value = '';
-        return;
+    // For rehearsal classes, also include dancers from the linked competition dance
+    if (cls.competitionDanceId) {
+      const dance = data.competitionDances.find(d => d.id === cls.competitionDanceId);
+      if (dance?.dancerIds) {
+        for (const dancerId of dance.dancerIds) {
+          if (!enrolledIds.has(dancerId)) {
+            const dancer = (data.students || []).find(s => s.id === dancerId);
+            if (dancer) {
+              students.push(dancer);
+              enrolledIds.add(dancerId);
+            }
+          }
+        }
       }
-
-      const { dataUrl, warning } = result;
-      if (warning) {
-        console.warn(warning);
-      }
-
-      const newMedia: MediaItem = {
-        id: uuid(),
-        type: 'image',
-        url: dataUrl,
-        name: file.name,
-        timestamp: new Date().toISOString(),
-      };
-
-      const updatedNotes = {
-        ...weekNotes,
-        classNotes: {
-          ...weekNotes.classNotes,
-          [classId]: {
-            classId,
-            plan: classNotes?.plan || '',
-            liveNotes: classNotes?.liveNotes || [],
-            isOrganized: classNotes?.isOrganized || false,
-            media: [...(classNotes?.media || []), newMedia],
-          },
-        },
-      };
-      setWeekNotes(updatedNotes);
-      saveWeekNotes(updatedNotes);
-    } catch (error) {
-      console.error('Upload failed:', error);
-      setUploadError('Failed to process file. Please try again.');
     }
 
-    setIsUploading(false);
-    e.target.value = '';
-  };
+    // Include students from attendance who aren't formally enrolled
+    const attendeeIds = [
+      ...(attendance.present || []),
+      ...(attendance.late || []),
+      ...(attendance.absent || []),
+    ];
+    for (const id of attendeeIds) {
+      if (!enrolledIds.has(id)) {
+        const student = (data.students || []).find(s => s.id === id);
+        if (student) {
+          students.push(student);
+          enrolledIds.add(id);
+        }
+      }
+    }
 
-  const handleDeleteMedia = (mediaId: string) => {
-    if (!classId || !classNotes) return;
+    return students;
+  }, [data.students, data.competitionDances, classId, cls, attendance]);
 
-    const updatedNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [classId]: {
-          ...classNotes,
-          media: (classNotes.media || []).filter(m => m.id !== mediaId),
-        },
-      },
-    };
-    setWeekNotes(updatedNotes);
-    saveWeekNotes(updatedNotes);
-  };
+  // Compute consecutive absence streaks per student (looking at past weeks, not current)
+  const absenceStreaks = useMemo(() => {
+    if (!classId) return new Map<string, number>();
+    const streaks = new Map<string, number>();
 
-  const handleDeleteAllMedia = async () => {
-    if (!classId) return;
-    if (!(await confirm('Delete all photos for this week?'))) return;
+    // Get past weeks with attendance for this class, sorted newest-first
+    const pastWeeks = data.weekNotes
+      .filter(w => w.weekOf < viewingWeekOf && w.classNotes[classId]?.attendance)
+      .sort((a, b) => b.weekOf.localeCompare(a.weekOf));
 
-    const existingNotes = classNotes || {
-      classId,
-      plan: '',
-      liveNotes: [],
-      isOrganized: false,
-      media: [],
-    };
+    for (const student of enrolledStudents) {
+      let streak = 0;
+      for (const week of pastWeeks) {
+        const att = week.classNotes[classId].attendance;
+        if (att?.absent?.includes(student.id)) {
+          streak++;
+        } else {
+          break;
+        }
+      }
+      if (streak >= 2) streaks.set(student.id, streak);
+    }
+    return streaks;
+  }, [classId, data.weekNotes, viewingWeekOf, enrolledStudents]);
 
-    const updatedNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [classId]: {
-          ...existingNotes,
-          media: [],
-        },
-      },
-    };
-    setWeekNotes(updatedNotes);
-    saveWeekNotes(updatedNotes);
-  };
+  const isRollCompleted = attendance.rollCompleted ?? false;
+
 
   const handleDeleteAllNotes = async () => {
     if (!classId) return;
     if (!(await confirm('Delete all notes for this week?'))) return;
 
-    const existingNotes = classNotes || {
-      classId,
-      plan: '',
-      liveNotes: [],
-      isOrganized: false,
-      media: [],
-    };
+    const existingNotes = classNotes || getDefaultClassNotes(classId!);
 
     const updatedNotes = {
       ...weekNotes,
@@ -237,13 +200,7 @@ export function ClassDetail() {
       ...weekNotes,
       classNotes: {
         ...weekNotes.classNotes,
-        [classId]: {
-          classId,
-          plan: '',
-          liveNotes: [],
-          isOrganized: false,
-          media: [],
-        },
+        [classId]: getDefaultClassNotes(classId),
       },
     };
     setWeekNotes(updatedNotes);
@@ -252,15 +209,15 @@ export function ClassDetail() {
 
   // Attendance functions
   const updateAttendance = (studentId: string, status: 'present' | 'absent' | 'late' | 'unmarked') => {
-    if (!classId) return;
+    if (!classId || isRollCompleted) return;
 
-    const existingNotes = classNotes || {
-      classId,
-      plan: '',
-      liveNotes: [],
-      isOrganized: false,
-      media: [],
-    };
+    // Auto-enroll student in this class if not already enrolled
+    const student = (data.students || []).find(s => s.id === studentId);
+    if (student && !student.classIds.includes(classId)) {
+      updateStudent({ ...student, classIds: [...student.classIds, classId] });
+    }
+
+    const existingNotes = classNotes || getDefaultClassNotes(classId!);
 
     // Remove student from all attendance lists first
     const newPresent = (existingNotes.attendance?.present || []).filter(id => id !== studentId);
@@ -272,6 +229,12 @@ export function ClassDetail() {
     else if (status === 'absent') newAbsent.push(studentId);
     else if (status === 'late') newLate.push(studentId);
 
+    // Clean up absence reason if no longer absent
+    const newAbsenceReasons = { ...(existingNotes.attendance?.absenceReasons || {}) };
+    if (status !== 'absent') {
+      delete newAbsenceReasons[studentId];
+    }
+
     const updatedNotes = {
       ...weekNotes,
       classNotes: {
@@ -282,7 +245,97 @@ export function ClassDetail() {
             present: newPresent,
             absent: newAbsent,
             late: newLate,
+            absenceReasons: newAbsenceReasons,
+            rollCompleted: existingNotes.attendance?.rollCompleted,
           },
+        },
+      },
+    };
+    setWeekNotes(updatedNotes);
+    saveWeekNotes(updatedNotes);
+  };
+
+  const updateAbsenceReason = (studentId: string, reason: string) => {
+    if (!classId || isRollCompleted) return;
+
+    const existingNotes = classNotes || getDefaultClassNotes(classId!);
+
+    const newAbsenceReasons = { ...(existingNotes.attendance?.absenceReasons || {}) };
+    if (reason) {
+      newAbsenceReasons[studentId] = reason;
+    } else {
+      delete newAbsenceReasons[studentId];
+    }
+
+    const updatedNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [classId]: {
+          ...existingNotes,
+          attendance: {
+            ...(existingNotes.attendance || { present: [], absent: [], late: [] }),
+            absenceReasons: newAbsenceReasons,
+          },
+        },
+      },
+    };
+    setWeekNotes(updatedNotes);
+    saveWeekNotes(updatedNotes);
+  };
+
+  const markAllPresent = () => {
+    if (!classId || isRollCompleted || enrolledStudents.length === 0) return;
+    const existingNotes = classNotes || getDefaultClassNotes(classId!);
+    const allStudentIds = enrolledStudents.map(s => s.id);
+    const updatedNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [classId]: {
+          ...existingNotes,
+          attendance: {
+            present: allStudentIds,
+            absent: [],
+            late: [],
+            absenceReasons: {},
+            rollCompleted: existingNotes.attendance?.rollCompleted,
+          },
+        },
+      },
+    };
+    setWeekNotes(updatedNotes);
+    saveWeekNotes(updatedNotes);
+  };
+
+  const completeRoll = () => {
+    if (!classId) return;
+    const existingNotes = classNotes || getDefaultClassNotes(classId!);
+    const updatedNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [classId]: {
+          ...existingNotes,
+          attendance: { ...attendance, rollCompleted: true },
+        },
+      },
+    };
+    setWeekNotes(updatedNotes);
+    saveWeekNotes(updatedNotes);
+  };
+
+  const reopenRoll = async () => {
+    if (!(await confirm('Reopen attendance for editing?'))) return;
+    if (!classId) return;
+    const existingNotes = classNotes || getDefaultClassNotes(classId!);
+    const updatedNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [classId]: {
+          ...existingNotes,
+          attendance: { ...attendance, rollCompleted: false },
         },
       },
     };
@@ -322,7 +375,7 @@ export function ClassDetail() {
     return (
       <div className="page-w px-4 py-6">
         <p>Class not found</p>
-        <Link to="/schedule" className="text-forest-600">Back to schedule</Link>
+        <Link to="/schedule" className="text-[var(--accent-primary)]">Back to schedule</Link>
       </div>
     );
   }
@@ -346,13 +399,7 @@ export function ClassDetail() {
 
   const savePlan = () => {
     if (!classId) return;
-    const existingNotes = classNotes || {
-      classId,
-      plan: '',
-      liveNotes: [],
-      isOrganized: false,
-      media: [],
-    };
+    const existingNotes = classNotes || getDefaultClassNotes(classId!);
     const updatedNotes = {
       ...weekNotes,
       classNotes: {
@@ -381,7 +428,7 @@ export function ClassDetail() {
       {confirmDialog}
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <Link to={`/schedule${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`} className="p-2 hover:bg-blush-100 dark:hover:bg-blush-800 rounded-lg text-forest-700 dark:text-white">
+        <Link to={`/schedule${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`} className="p-2 hover:bg-[var(--surface-card-hover)] rounded-lg text-[var(--text-primary)]">
           <ArrowLeft size={20} />
         </Link>
         <div className="flex-1">
@@ -391,34 +438,38 @@ export function ClassDetail() {
               value={displayClass.name}
               onChange={(e) => setEditedClass({ ...displayClass, name: e.target.value })}
               aria-label="Class name"
-              className="text-xl font-bold w-full border-b-2 border-forest-500 focus:outline-none bg-transparent text-forest-700 dark:text-white"
+              className="text-xl font-bold w-full border-b-2 border-[var(--accent-primary)] focus:outline-none bg-transparent text-[var(--text-primary)]"
             />
           ) : (
-            <h1 className="text-xl font-bold text-forest-700 dark:text-white">{displayClass.name}</h1>
+            <div>
+              <h1 className="text-xl font-bold text-[var(--text-primary)]">{displayClass.name}</h1>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-sm text-[var(--text-secondary)]">{classDateLabel}</span>
+                {weekOffset !== 0 && (
+                  <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-1.5 py-0.5 rounded-full font-medium">
+                    {weekLabel}
+                  </span>
+                )}
+              </div>
+            </div>
           )}
         </div>
         {isEditing ? (
           <div className="flex gap-2">
-            <button onClick={handleCancel} className="p-2 hover:bg-blush-100 dark:hover:bg-blush-800 rounded-lg text-forest-700 dark:text-white">
+            <button onClick={handleCancel} className="p-2 hover:bg-[var(--surface-card-hover)] rounded-lg text-[var(--text-primary)]" aria-label="Cancel editing">
               <X size={20} />
             </button>
-            <button onClick={handleSave} className="p-2 bg-forest-100 dark:bg-forest-900/30 text-forest-700 dark:text-forest-400 rounded-lg">
+            <button onClick={handleSave} className="p-2 bg-[var(--accent-muted)] text-[var(--accent-primary)] rounded-lg" aria-label="Save changes">
               <Save size={20} />
             </button>
           </div>
         ) : (
           <div className="flex items-center gap-1">
-            <button onClick={() => setIsEditing(true)} className="p-2 hover:bg-blush-100 dark:hover:bg-blush-800 rounded-lg text-forest-700 dark:text-white">
+            <button onClick={() => setIsEditing(true)} className="p-2 hover:bg-[var(--surface-card-hover)] rounded-lg text-[var(--text-primary)]" aria-label="Edit class">
               <Edit2 size={20} />
             </button>
             <DropdownMenu
               items={[
-                {
-                  label: 'Delete all media',
-                  icon: <Image size={16} />,
-                  onClick: handleDeleteAllMedia,
-                  danger: true,
-                },
                 {
                   label: 'Delete all notes',
                   icon: <FileText size={16} />,
@@ -439,13 +490,13 @@ export function ClassDetail() {
 
       {/* Class Navigation - Same Day */}
       {sameDayClasses.length > 1 && (
-        <div className="flex items-center justify-between mb-4 bg-blush-50 dark:bg-blush-800 rounded-xl p-2">
+        <div className="flex items-center justify-between mb-4 bg-[var(--surface-inset)] rounded-xl p-2">
           <Link
             to={prevClass ? `/class/${prevClass.id}${weekOffset !== 0 ? `?week=${weekOffset}` : ''}` : '#'}
             className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-colors ${
               prevClass
-                ? 'text-forest-600 dark:text-forest-400 hover:bg-white dark:hover:bg-blush-700'
-                : 'text-blush-300 dark:text-blush-600 pointer-events-none'
+                ? 'text-[var(--accent-primary)] hover:bg-[var(--surface-card)]'
+                : 'text-[var(--text-tertiary)] pointer-events-none'
             }`}
           >
             <ChevronLeft size={18} />
@@ -454,15 +505,15 @@ export function ClassDetail() {
             </span>
             <span className="text-sm font-medium sm:hidden">Prev</span>
           </Link>
-          <div className="text-xs text-forest-500 dark:text-blush-400">
+          <div className="text-xs text-[var(--text-secondary)]">
             {currentClassIndex + 1} of {sameDayClasses.length} classes
           </div>
           <Link
             to={nextClass ? `/class/${nextClass.id}${weekOffset !== 0 ? `?week=${weekOffset}` : ''}` : '#'}
             className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-colors ${
               nextClass
-                ? 'text-forest-600 dark:text-forest-400 hover:bg-white dark:hover:bg-blush-700'
-                : 'text-blush-300 dark:text-blush-600 pointer-events-none'
+                ? 'text-[var(--accent-primary)] hover:bg-[var(--surface-card)]'
+                : 'text-[var(--text-tertiary)] pointer-events-none'
             }`}
           >
             <span className="text-sm font-medium hidden sm:inline">
@@ -476,56 +527,49 @@ export function ClassDetail() {
 
       {/* Quick Info */}
       <div
-        className="rounded-xl p-4 mb-6 text-white"
-        style={{ backgroundColor: studio?.color || '#8b5cf6' }}
+        className="rounded-xl p-4 mb-6 bg-[var(--surface-card)] border border-[var(--border-subtle)]"
+        style={{ borderTop: `4px solid ${studio?.color || '#8b5cf6'}` }}
       >
-        <div className="flex items-center gap-4 mb-3">
-          <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-3 flex-wrap mb-3">
+          <span
+            className="text-xs font-medium px-2.5 py-1 rounded-full text-white"
+            style={{ backgroundColor: studio?.color || '#8b5cf6' }}
+          >
+            {studio?.name}
+          </span>
+          <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
             <Clock size={16} />
             <span>{formatTimeDisplay(displayClass.startTime)} - {formatTimeDisplay(displayClass.endTime)}</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <MapPin size={16} />
-            <span>{studio?.name}</span>
-          </div>
         </div>
         {displayClass.recitalSong && (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
             <Music size={16} />
             <span>Recital: {displayClass.recitalSong}</span>
           </div>
         )}
       </div>
 
-      {/* Start Notes Button */}
-      <Link to={`/class/${cls.id}/notes`} className="block mb-6">
-        <Button className="w-full" size="lg">
-          <Play size={18} className="mr-2" />
-          Start Class Notes
-        </Button>
-      </Link>
-
-
-      {/* Class Plan Section */}
-      <div className="mb-6">
-        <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4">
+      {/* This Week's Prep */}
+      <div className="mb-4">
+        <div className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-forest-700 dark:text-white flex items-center gap-2">
-              <FileText size={16} className="text-forest-500" />
-              Next Week's Plan
+            <h3 className="type-h3 text-[var(--text-primary)] flex items-center gap-2">
+              <ClipboardList size={16} className="text-[var(--accent-primary)]" />
+              This Week's Prep
             </h3>
             <div className="flex items-center gap-1">
               {isEditingPlan ? (
                 <div className="flex gap-1">
-                  <button onClick={cancelEditPlan} className="p-1.5 hover:bg-blush-100 dark:hover:bg-blush-700 rounded text-blush-500">
+                  <button onClick={cancelEditPlan} className="p-1.5 hover:bg-[var(--surface-card-hover)] rounded text-[var(--text-tertiary)]" aria-label="Cancel editing plan">
                     <X size={16} />
                   </button>
-                  <button onClick={savePlan} className="p-1.5 bg-forest-100 dark:bg-forest-900/30 text-forest-600 dark:text-forest-400 rounded">
+                  <button onClick={savePlan} className="p-1.5 bg-[var(--accent-muted)] text-[var(--accent-primary)] rounded" aria-label="Save plan">
                     <Save size={16} />
                   </button>
                 </div>
               ) : (
-                <button onClick={startEditPlan} className="p-1.5 hover:bg-blush-100 dark:hover:bg-blush-700 rounded text-blush-500">
+                <button onClick={startEditPlan} className="p-1.5 hover:bg-[var(--surface-card-hover)] rounded text-[var(--text-tertiary)]" aria-label="Edit plan">
                   <Edit2 size={16} />
                 </button>
               )}
@@ -535,220 +579,344 @@ export function ClassDetail() {
             <textarea
               value={editedPlan}
               onChange={(e) => setEditedPlan(e.target.value)}
-              placeholder="Enter plan for next week..."
+              placeholder="What's the plan for this class?"
               rows={6}
-              className="w-full text-sm text-forest-600 dark:text-blush-300 bg-blush-50 dark:bg-blush-900/50 rounded-lg p-3 border-0 focus:ring-2 focus:ring-forest-500 resize-none"
+              className="w-full text-sm text-[var(--text-primary)] bg-[var(--surface-inset)] rounded-lg p-3 border-0 focus:ring-2 focus:ring-[var(--accent-primary)] resize-none"
               autoFocus
             />
           ) : classNotes?.plan ? (
-            <div className="text-sm text-forest-600 dark:text-blush-300 whitespace-pre-wrap bg-blush-50 dark:bg-blush-900/50 rounded-lg p-3">
-              {classNotes.plan}
-            </div>
+            <PlanDisplay text={classNotes.plan} className="bg-[var(--surface-inset)] rounded-lg p-3" />
           ) : (
             <button
               onClick={startEditPlan}
-              className="w-full text-sm text-blush-400 dark:text-blush-500 italic py-4 hover:text-forest-500 dark:hover:text-forest-400 transition-colors"
+              className="w-full text-sm text-[var(--text-tertiary)] italic py-4 hover:text-[var(--accent-primary)] transition-colors"
             >
-              Tap to add a plan for next week...
+              Tap to add a plan for this class...
             </button>
           )}
         </div>
       </div>
 
+      {/* Last Week's Review */}
+      {lastWeekClassNotes && lastWeekClassNotes.liveNotes.length > 0 && (
+        <div className="mb-4">
+          <button
+            onClick={() => setShowLastWeek(!showLastWeek)}
+            className="w-full flex items-center justify-between p-3 bg-[var(--surface-inset)] rounded-xl border border-[var(--border-subtle)] hover:bg-[var(--surface-card-hover)] transition-colors"
+          >
+            <div className="flex items-center gap-2 text-[var(--accent-primary)]">
+              <History size={16} />
+              <span className="font-medium">Last Week's Review</span>
+              <span className="text-xs text-[var(--text-tertiary)]">
+                Week of {format(lastWeekStart, 'MMM d')}
+              </span>
+            </div>
+            {showLastWeek ? (
+              <ChevronUp size={18} className="text-[var(--text-tertiary)]" />
+            ) : (
+              <ChevronDown size={18} className="text-[var(--text-tertiary)]" />
+            )}
+          </button>
+
+          {showLastWeek && (() => {
+            // Group notes by category for scannable review (normalize legacy values)
+            const grouped = {
+              'worked-on': lastWeekClassNotes.liveNotes.filter(n => normalizeNoteCategory(n.category) === 'worked-on'),
+              'needs-work': lastWeekClassNotes.liveNotes.filter(n => normalizeNoteCategory(n.category) === 'needs-work'),
+              'next-week': lastWeekClassNotes.liveNotes.filter(n => normalizeNoteCategory(n.category) === 'next-week'),
+              'ideas': lastWeekClassNotes.liveNotes.filter(n => normalizeNoteCategory(n.category) === 'ideas'),
+              uncategorized: lastWeekClassNotes.liveNotes.filter(n => !n.category),
+            };
+
+            const categories = [
+              { key: 'worked-on' as const, label: getCategoryLabel('worked-on'), color: getCategoryStyle('worked-on') },
+              { key: 'needs-work' as const, label: getCategoryLabel('needs-work'), color: getCategoryStyle('needs-work') },
+              { key: 'next-week' as const, label: 'For This Week', color: getCategoryStyle('next-week') },
+              { key: 'ideas' as const, label: getCategoryLabel('ideas'), color: getCategoryStyle('ideas') },
+              { key: 'uncategorized' as const, label: 'General', color: getCategoryStyle('uncategorized') },
+            ];
+
+            return (
+              <div className="mt-3 space-y-3">
+                {categories.map(cat => {
+                  const notes = grouped[cat.key];
+                  if (notes.length === 0) return null;
+                  return (
+                    <div key={cat.key}>
+                      <div className={`inline-block text-xs px-2 py-0.5 rounded-full mb-1.5 font-medium ${cat.color}`}>
+                        {cat.label} ({notes.length})
+                      </div>
+                      <div className="space-y-1 pl-2 border-l-2 border-[var(--border-subtle)]">
+                        {notes.map(note => (
+                          <div key={note.id} className="bg-[var(--surface-card)] rounded-lg p-2.5 text-sm">
+                            <p className="text-[var(--text-primary)]">{note.text}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* Start Class Notes */}
+      {classNotes?.isOrganized ? (
+        <div className="mb-4 space-y-2">
+          <div className="flex items-center justify-center gap-2 py-3 bg-[var(--accent-muted)] rounded-xl border border-[var(--border-subtle)] text-[var(--accent-primary)]">
+            <CheckCircle size={18} />
+            <span className="font-medium">Class Notes Saved</span>
+          </div>
+          <Link to={`/class/${cls.id}/notes`} className="block">
+            <Button variant="secondary" className="w-full" size="sm">
+              <BookOpen size={16} className="mr-2" />
+              Review / Add More Notes
+            </Button>
+          </Link>
+        </div>
+      ) : (
+        <Link to={`/class/${cls.id}/notes`} className="block mb-4">
+          <Button className="w-full" size="lg">
+            <Play size={18} className="mr-2" />
+            {classNotes?.liveNotes?.length ? 'Continue Class Notes' : 'Start Class Notes'}
+          </Button>
+        </Link>
+      )}
+
+      {/* This Week's Notes (summary of notes already taken) */}
+      {classNotes?.liveNotes && classNotes.liveNotes.length > 0 && (
+        <div className="mb-6">
+          <button
+            onClick={() => setShowThisWeekNotes(!showThisWeekNotes)}
+            className="w-full flex items-center justify-between p-3 bg-[var(--accent-muted)] rounded-xl border border-[var(--border-subtle)] hover:bg-[var(--surface-card-hover)] transition-colors"
+          >
+            <div className="flex items-center gap-2 text-[var(--accent-primary)]">
+              <BookOpen size={16} />
+              <span className="font-medium">This Week's Notes</span>
+              <span className="text-xs bg-[var(--accent-primary)]/15 text-[var(--accent-primary)] px-1.5 py-0.5 rounded-full">
+                {classNotes.liveNotes.length}
+              </span>
+            </div>
+            {showThisWeekNotes ? (
+              <ChevronUp size={18} className="text-[var(--text-tertiary)]" />
+            ) : (
+              <ChevronDown size={18} className="text-[var(--text-tertiary)]" />
+            )}
+          </button>
+
+          {showThisWeekNotes && (
+            <div className="mt-3 space-y-2 pl-2 border-l-2 border-[var(--border-subtle)]">
+              {classNotes.liveNotes.map(note => (
+                <div key={note.id} className="bg-[var(--surface-card)] rounded-lg p-3 text-sm">
+                  {note.category && (() => {
+                    const nc = normalizeNoteCategory(note.category) || note.category;
+                    return (
+                      <span className={`inline-block text-xs px-2 py-0.5 rounded-full mb-1 ${getCategoryStyle(nc)}`}>
+                        {getCategoryLabel(nc)}
+                      </span>
+                    );
+                  })()}
+                  <p className="text-[var(--text-primary)]">{note.text}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Student Roster & Attendance */}
       <div className="mb-6">
         <button
           onClick={() => setShowRoster(!showRoster)}
-          className="w-full flex items-center justify-between p-4 bg-white dark:bg-blush-800 rounded-xl border border-forest-200 dark:border-blush-700 hover:border-forest-300 dark:hover:border-blush-600 transition-colors"
+          className="w-full flex items-center justify-between p-4 bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors"
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-forest-100 dark:bg-forest-900/30 flex items-center justify-center">
-              <Users size={20} className="text-forest-600 dark:text-forest-400" />
+            <div className="w-10 h-10 rounded-full bg-[var(--accent-muted)] flex items-center justify-center">
+              <Users size={20} className="text-[var(--accent-primary)]" />
             </div>
             <div className="text-left">
-              <div className="font-medium text-forest-700 dark:text-white">
+              <div className="font-medium text-[var(--text-primary)]">
                 Class Roster ({enrolledStudents.length})
               </div>
-              <div className="text-sm text-forest-500 dark:text-blush-400">
-                {attendance.present.length} present
-                {attendance.late.length > 0 && `, ${attendance.late.length} late`}
-                {attendance.absent.length > 0 && `, ${attendance.absent.length} absent`}
+              <div className="text-sm text-[var(--text-secondary)]">
+                {enrolledStudents.length === 0
+                  ? 'No students enrolled'
+                  : <>
+                      {attendance.present.length} present
+                      {attendance.late.length > 0 && `, ${attendance.late.length} late`}
+                      {attendance.absent.length > 0 && `, ${attendance.absent.length} absent`}
+                    </>
+                }
               </div>
             </div>
           </div>
           {showRoster ? (
-            <ChevronUp size={20} className="text-forest-400 dark:text-blush-400" />
+            <ChevronUp size={20} className="text-[var(--text-tertiary)]" />
           ) : (
-            <ChevronDown size={20} className="text-forest-400 dark:text-blush-400" />
+            <ChevronDown size={20} className="text-[var(--text-tertiary)]" />
           )}
         </button>
 
         {showRoster && (
-          <div className="mt-3 bg-white dark:bg-blush-800 rounded-xl border border-forest-200 dark:border-blush-700 overflow-hidden">
-            {/* Quick stats bar + View Toggle */}
-            <div className="flex items-center justify-between border-b border-forest-100 dark:border-blush-700 p-2">
-              <div className="flex gap-1 flex-1">
-                <div className="flex-1 text-center py-1 bg-green-50 dark:bg-green-900/30 rounded-lg">
-                  <span className="text-green-600 dark:text-green-400 font-medium text-sm">{attendance.present.length}</span>
-                  <span className="text-green-500 dark:text-green-500 ml-1 text-xs">Here</span>
-                </div>
-                <div className="flex-1 text-center py-1 bg-amber-50 dark:bg-amber-900/30 rounded-lg">
-                  <span className="text-amber-600 dark:text-amber-400 font-medium text-sm">{attendance.late.length}</span>
-                  <span className="text-amber-500 dark:text-amber-500 ml-1 text-xs">Late</span>
-                </div>
-                <div className="flex-1 text-center py-1 bg-red-50 dark:bg-red-900/30 rounded-lg">
-                  <span className="text-red-600 dark:text-red-400 font-medium text-sm">{attendance.absent.length}</span>
-                  <span className="text-red-500 dark:text-red-500 ml-1 text-xs">Out</span>
-                </div>
+          <div className="mt-3 bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] overflow-hidden">
+            {/* Quick stats bar */}
+            <div className="flex gap-1 border-b border-[var(--border-subtle)] p-2">
+              <div className="flex-1 text-center py-1 bg-green-50 dark:bg-green-900/30 rounded-lg">
+                <span className="text-green-600 dark:text-green-400 font-medium text-sm">{attendance.present.length}</span>
+                <span className="text-green-500 dark:text-green-500 ml-1 text-xs">Here</span>
               </div>
-              {/* View Toggle */}
-              <div className="flex gap-1 ml-2 bg-forest-100 dark:bg-blush-700 p-1 rounded-lg">
-                <button
-                  onClick={() => setRosterViewMode('grid')}
-                  className={`p-1.5 rounded ${rosterViewMode === 'grid' ? 'bg-white dark:bg-blush-600 shadow-sm text-forest-700 dark:text-white' : 'text-forest-500 dark:text-blush-400'}`}
-                >
-                  <Grid3X3 size={16} />
-                </button>
-                <button
-                  onClick={() => setRosterViewMode('list')}
-                  className={`p-1.5 rounded ${rosterViewMode === 'list' ? 'bg-white dark:bg-blush-600 shadow-sm text-forest-700 dark:text-white' : 'text-forest-500 dark:text-blush-400'}`}
-                >
-                  <List size={16} />
-                </button>
+              <div className="flex-1 text-center py-1 bg-amber-50 dark:bg-amber-900/30 rounded-lg">
+                <span className="text-amber-600 dark:text-amber-400 font-medium text-sm">{attendance.late.length}</span>
+                <span className="text-amber-500 dark:text-amber-500 ml-1 text-xs">Late</span>
+              </div>
+              <div className="flex-1 text-center py-1 bg-red-50 dark:bg-red-900/30 rounded-lg">
+                <span className="text-red-600 dark:text-red-400 font-medium text-sm">{attendance.absent.length}</span>
+                <span className="text-red-500 dark:text-red-500 ml-1 text-xs">Out</span>
               </div>
             </div>
 
+            {/* Roll Status Bar */}
+            {enrolledStudents.length > 0 && (
+              <div className="border-b border-[var(--border-subtle)] p-2 flex items-center justify-between">
+                {isRollCompleted ? (
+                  <>
+                    <div className="flex items-center gap-2 text-green-600 dark:text-green-400 text-sm font-medium">
+                      <CheckCircle size={16} />
+                      Roll Complete
+                    </div>
+                    <button
+                      onClick={reopenRoll}
+                      className="text-sm text-[var(--accent-primary)] font-medium hover:opacity-80 px-3 py-1 rounded-lg hover:bg-[var(--surface-card-hover)] transition-colors"
+                    >
+                      Edit
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex gap-2 w-full">
+                    <button
+                      onClick={markAllPresent}
+                      className="flex-1 py-2 text-sm font-medium text-[var(--accent-primary)] hover:bg-[var(--accent-muted)] rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                      <UserCheck size={16} />
+                      All Present
+                    </button>
+                    <button
+                      onClick={completeRoll}
+                      disabled={attendance.present.length === 0 && attendance.late.length === 0 && attendance.absent.length === 0}
+                      className="flex-1 py-2 text-sm font-medium text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      <CheckCircle size={16} />
+                      Complete Roll
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Student list */}
             {enrolledStudents.length === 0 ? (
-              <div className="p-6 text-center text-blush-500 dark:text-blush-400">
-                <Users size={32} className="mx-auto mb-2 text-blush-300 dark:text-blush-600" />
+              <div className="p-6 text-center text-[var(--text-tertiary)]">
+                <Users size={32} className="mx-auto mb-2 text-[var(--text-tertiary)]" />
                 <p>No students enrolled in this class</p>
                 <button
                   onClick={() => setShowAddStudentModal(true)}
-                  className="mt-3 text-sm text-forest-600 dark:text-forest-400 font-medium hover:text-forest-700 dark:hover:text-forest-300"
+                  className="mt-3 text-sm text-[var(--accent-primary)] font-medium hover:opacity-80"
                 >
                   + Add students
                 </button>
               </div>
-            ) : rosterViewMode === 'grid' ? (
-              /* Photo Grid View - One Tap Attendance */
-              <div className="p-3">
-                <div className="text-xs text-forest-500 dark:text-blush-400 text-center mb-3">
-                  Tap photo to mark present • Double-tap for late • Long press for absent
-                </div>
-                <div className="grid grid-cols-4 gap-3">
-                  {enrolledStudents.map(student => {
-                    const status = getAttendanceStatus(student.id);
-                    return (
-                      <button
-                        key={student.id}
-                        onClick={() => {
-                          // Cycle: unmarked → present → late → absent → unmarked
-                          const nextStatus = status === 'unmarked' ? 'present' :
-                                           status === 'present' ? 'late' :
-                                           status === 'late' ? 'absent' : 'unmarked';
-                          updateAttendance(student.id, nextStatus);
-                        }}
-                        className="flex flex-col items-center"
-                      >
-                        <div className={`relative w-16 h-16 rounded-full overflow-hidden border-4 transition-all ${
-                          status === 'present' ? 'border-green-500 shadow-green-200 shadow-lg' :
-                          status === 'late' ? 'border-amber-500 shadow-amber-200 shadow-lg' :
-                          status === 'absent' ? 'border-red-500 shadow-red-200 shadow-lg opacity-50' :
-                          'border-blush-200 dark:border-blush-700'
-                        }`}>
-                          {student.photo ? (
-                            <img src={student.photo} alt={student.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full bg-forest-100 dark:bg-forest-900/30 flex items-center justify-center">
-                              <User size={24} className="text-forest-400 dark:text-forest-500" />
-                            </div>
-                          )}
-                          {/* Status indicator */}
-                          {status !== 'unmarked' && (
-                            <div className={`absolute bottom-0 right-0 w-5 h-5 rounded-full flex items-center justify-center ${
-                              status === 'present' ? 'bg-green-500' :
-                              status === 'late' ? 'bg-amber-500' : 'bg-red-500'
-                            }`}>
-                              {status === 'present' && <UserCheck size={12} className="text-white" />}
-                              {status === 'late' && <Clock3 size={12} className="text-white" />}
-                              {status === 'absent' && <UserX size={12} className="text-white" />}
-                            </div>
-                          )}
-                        </div>
-                        <span className={`text-xs mt-1 font-medium truncate max-w-full ${
-                          status === 'absent' ? 'text-red-500' :
-                          status === 'late' ? 'text-amber-600' :
-                          status === 'present' ? 'text-green-600' : 'text-forest-600'
-                        }`}>
-                          {student.nickname || student.name.split(' ')[0]}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
             ) : (
-              /* List View */
-              <div className="divide-y divide-forest-100 dark:divide-blush-700">
+              <div className="divide-y divide-[var(--border-subtle)]">
                 {enrolledStudents.map(student => {
                   const status = getAttendanceStatus(student.id);
                   return (
-                    <div key={student.id} className="flex items-center p-3 gap-3">
-                      {/* Photo */}
-                      {student.photo ? (
-                        <img src={student.photo} alt={student.name} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-forest-100 dark:bg-forest-900/30 flex items-center justify-center flex-shrink-0">
-                          <User size={18} className="text-forest-400 dark:text-forest-500" />
+                    <div key={student.id} className="p-3">
+                      <div className="flex items-center gap-3">
+                        <Link
+                          to={`/students?highlight=${student.id}`}
+                          className="flex-1 min-w-0"
+                        >
+                          <div className="font-medium text-[var(--text-primary)] truncate">
+                            {student.nickname || student.name.split(' ')[0]}
+                          </div>
+                          <div className="text-xs text-[var(--text-secondary)] truncate">
+                            {student.name}
+                          </div>
+                          {student.skillNotes.length > 0 && (() => {
+                            const latest = student.skillNotes[student.skillNotes.length - 1];
+                            const catColors: Record<string, string> = {
+                              strength: 'bg-green-400',
+                              achievement: 'bg-blue-400',
+                              improvement: 'bg-amber-400',
+                              concern: 'bg-red-400',
+                              'parent-note': 'bg-purple-400',
+                            };
+                            return (
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${catColors[latest.category] || 'bg-blush-400'}`} />
+                                <span className="text-[10px] text-blush-400 dark:text-blush-500 truncate">{latest.text}</span>
+                              </div>
+                            );
+                          })()}
+                          {absenceStreaks.has(student.id) && (
+                            <div className="text-[10px] text-red-500 dark:text-red-400 mt-0.5">
+                              Absent {absenceStreaks.get(student.id)} weeks in a row
+                            </div>
+                          )}
+                        </Link>
+                        <div className={`flex gap-1 ${isRollCompleted ? 'opacity-50 pointer-events-none' : ''}`}>
+                          <button
+                            onClick={() => updateAttendance(student.id, status === 'present' ? 'unmarked' : 'present')}
+                            className={`p-2 rounded-lg transition-colors ${
+                              status === 'present'
+                                ? 'bg-green-500 text-white'
+                                : 'bg-blush-100 dark:bg-blush-700 text-blush-400 dark:text-blush-500 hover:bg-green-100 dark:hover:bg-green-900/50 hover:text-green-600 dark:hover:text-green-400'
+                            }`}
+                            title="Present"
+                          >
+                            <UserCheck size={18} />
+                          </button>
+                          <button
+                            onClick={() => updateAttendance(student.id, status === 'late' ? 'unmarked' : 'late')}
+                            className={`p-2 rounded-lg transition-colors ${
+                              status === 'late'
+                                ? 'bg-amber-500 text-white'
+                                : 'bg-blush-100 dark:bg-blush-700 text-blush-400 dark:text-blush-500 hover:bg-amber-100 dark:hover:bg-amber-900/50 hover:text-amber-600 dark:hover:text-amber-400'
+                            }`}
+                            title="Late"
+                          >
+                            <Clock3 size={18} />
+                          </button>
+                          <button
+                            onClick={() => updateAttendance(student.id, status === 'absent' ? 'unmarked' : 'absent')}
+                            className={`p-2 rounded-lg transition-colors ${
+                              status === 'absent'
+                                ? 'bg-red-500 text-white'
+                                : 'bg-blush-100 dark:bg-blush-700 text-blush-400 dark:text-blush-500 hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-600 dark:hover:text-red-400'
+                            }`}
+                            title="Absent"
+                          >
+                            <UserX size={18} />
+                          </button>
+                        </div>
+                      </div>
+                      {/* Absence reason */}
+                      {status === 'absent' && !isRollCompleted && (
+                        <input
+                          type="text"
+                          placeholder="Reason for absence..."
+                          value={attendance.absenceReasons?.[student.id] || ''}
+                          onChange={(e) => updateAbsenceReason(student.id, e.target.value)}
+                          className="w-full mt-2 text-xs px-3 py-1.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 placeholder-red-300 dark:placeholder-red-600"
+                        />
+                      )}
+                      {status === 'absent' && isRollCompleted && attendance.absenceReasons?.[student.id] && (
+                        <div className="text-xs text-red-500 dark:text-red-400 mt-1.5 ml-13">
+                          {attendance.absenceReasons[student.id]}
                         </div>
                       )}
-                      <Link
-                        to={`/students?highlight=${student.id}`}
-                        className="flex-1 min-w-0"
-                      >
-                        <div className="font-medium text-forest-700 dark:text-white truncate">
-                          {student.nickname || student.name.split(' ')[0]}
-                        </div>
-                        <div className="text-xs text-forest-400 dark:text-blush-400 truncate">
-                          {student.name}
-                        </div>
-                      </Link>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => updateAttendance(student.id, status === 'present' ? 'unmarked' : 'present')}
-                          className={`p-2 rounded-lg transition-colors ${
-                            status === 'present'
-                              ? 'bg-green-500 text-white'
-                              : 'bg-blush-100 dark:bg-blush-700 text-blush-400 dark:text-blush-500 hover:bg-green-100 dark:hover:bg-green-900/50 hover:text-green-600 dark:hover:text-green-400'
-                          }`}
-                          title="Present"
-                        >
-                          <UserCheck size={18} />
-                        </button>
-                        <button
-                          onClick={() => updateAttendance(student.id, status === 'late' ? 'unmarked' : 'late')}
-                          className={`p-2 rounded-lg transition-colors ${
-                            status === 'late'
-                              ? 'bg-amber-500 text-white'
-                              : 'bg-blush-100 dark:bg-blush-700 text-blush-400 dark:text-blush-500 hover:bg-amber-100 dark:hover:bg-amber-900/50 hover:text-amber-600 dark:hover:text-amber-400'
-                          }`}
-                          title="Late"
-                        >
-                          <Clock3 size={18} />
-                        </button>
-                        <button
-                          onClick={() => updateAttendance(student.id, status === 'absent' ? 'unmarked' : 'absent')}
-                          className={`p-2 rounded-lg transition-colors ${
-                            status === 'absent'
-                              ? 'bg-red-500 text-white'
-                              : 'bg-blush-100 dark:bg-blush-700 text-blush-400 dark:text-blush-500 hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-600 dark:hover:text-red-400'
-                          }`}
-                          title="Absent"
-                        >
-                          <UserX size={18} />
-                        </button>
-                      </div>
                     </div>
                   );
                 })}
@@ -756,10 +924,10 @@ export function ClassDetail() {
             )}
 
             {/* Add student button */}
-            <div className="border-t border-forest-100 dark:border-blush-700 p-3">
+            <div className="border-t border-[var(--border-subtle)] p-3">
               <button
                 onClick={() => setShowAddStudentModal(true)}
-                className="w-full flex items-center justify-center gap-2 py-2 text-forest-600 dark:text-forest-400 hover:bg-forest-50 dark:hover:bg-blush-700 rounded-lg transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-2 text-[var(--accent-primary)] hover:bg-[var(--accent-muted)] rounded-lg transition-colors"
               >
                 <UserPlus size={18} />
                 <span className="font-medium">Add Students to Class</span>
@@ -782,131 +950,10 @@ export function ClassDetail() {
         />
       )}
 
-      {/* Last Week's Notes */}
-      {lastWeekClassNotes && lastWeekClassNotes.liveNotes.length > 0 && (
-        <div className="mb-6">
-          <button
-            onClick={() => setShowLastWeek(!showLastWeek)}
-            className="w-full flex items-center justify-between p-3 bg-blush-50 dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 hover:bg-blush-100 dark:hover:bg-blush-700 transition-colors"
-          >
-            <div className="flex items-center gap-2 text-forest-600 dark:text-forest-400">
-              <History size={16} />
-              <span className="font-medium">Last Week's Notes</span>
-              <span className="text-xs text-forest-400 dark:text-blush-400">
-                ({lastWeekClassNotes.liveNotes.length} notes)
-              </span>
-            </div>
-            {showLastWeek ? (
-              <ChevronUp size={18} className="text-forest-400 dark:text-blush-400" />
-            ) : (
-              <ChevronDown size={18} className="text-forest-400 dark:text-blush-400" />
-            )}
-          </button>
-
-          {showLastWeek && (
-            <div className="mt-3 space-y-2 pl-2 border-l-2 border-blush-200 dark:border-blush-600">
-              {lastWeekClassNotes.liveNotes.map(note => (
-                <div key={note.id} className="bg-white dark:bg-blush-800 rounded-lg p-3 text-sm">
-                  {note.category && (
-                    <span className={`inline-block text-xs px-2 py-0.5 rounded-full mb-1 ${
-                      note.category === 'covered' ? 'bg-forest-100 text-forest-700' :
-                      note.category === 'observation' ? 'bg-blush-200 text-blush-700' :
-                      note.category === 'reminder' ? 'bg-blue-100 text-blue-700' :
-                      'bg-purple-100 text-purple-700'
-                    }`}>
-                      {note.category === 'covered' ? 'Covered' :
-                       note.category === 'observation' ? 'Student Note' :
-                       note.category === 'reminder' ? 'Next Week' : 'Choreo'}
-                    </span>
-                  )}
-                  <p className="text-forest-600 dark:text-blush-200">{note.text}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Photos Section */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-medium text-forest-700 dark:text-white flex items-center gap-2">
-            <Camera size={16} />
-            Photos
-          </h2>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handlePhotoUpload}
-            className="hidden"
-            aria-label="Upload photo"
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            className="flex items-center gap-1 px-3 py-1.5 bg-forest-600 text-white rounded-lg text-sm font-medium hover:bg-forest-700 disabled:opacity-50"
-          >
-            {isUploading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Uploading...
-              </>
-            ) : (
-              <>
-                <Plus size={16} />
-                Add Photo
-              </>
-            )}
-          </button>
-        </div>
-
-        {uploadError && (
-          <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            {uploadError}
-            <button
-              onClick={() => setUploadError(null)}
-              className="ml-2 text-red-500 hover:text-red-700"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
-
-        {classNotes?.media && classNotes.media.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3">
-            {classNotes.media.map(media => (
-              <div key={media.id} className="relative group">
-                <img
-                  src={media.url}
-                  alt={media.name}
-                  className="w-full aspect-[4/3] rounded-lg bg-blush-100 dark:bg-blush-800 object-cover"
-                />
-                <button
-                  onClick={() => handleDeleteMedia(media.id)}
-                  className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
-                >
-                  <Trash2 size={14} />
-                </button>
-                <div className="text-xs text-blush-500 dark:text-blush-400 mt-1 truncate">{media.name}</div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className="bg-blush-50 dark:bg-blush-800 border-2 border-dashed border-blush-200 dark:border-blush-600 rounded-xl p-8 text-center cursor-pointer hover:bg-blush-100 dark:hover:bg-blush-700 hover:border-blush-300 dark:hover:border-blush-500 transition-colors"
-          >
-            <Camera size={32} className="text-blush-300 dark:text-blush-600 mx-auto mb-2" />
-            <p className="text-blush-500 dark:text-blush-400 text-sm">Tap to add photos</p>
-          </div>
-        )}
-      </div>
-
       {/* Class Song */}
-      <div className="mb-6 bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4">
+      <div className="mb-6 bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4">
         <div className="flex items-center justify-between mb-3">
-          <label className="flex items-center gap-2 text-sm font-medium text-forest-700 dark:text-blush-200">
+          <label className="type-label flex items-center gap-2 text-[var(--text-primary)]">
             <Music size={16} />
             Song
           </label>
@@ -920,7 +967,7 @@ export function ClassDetail() {
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
                   cls?.isRecitalSong
                     ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700'
-                    : 'bg-blush-100 dark:bg-blush-700 text-blush-600 dark:text-blush-300 border border-blush-300 dark:border-blush-600'
+                    : 'bg-[var(--surface-inset)] text-[var(--text-secondary)] border border-[var(--border-subtle)]'
                 }`}
               >
                 <Star size={12} className={cls?.isRecitalSong ? 'fill-purple-500' : ''} />
@@ -931,7 +978,7 @@ export function ClassDetail() {
               <div className="flex gap-1">
                 <button
                   onClick={() => setIsEditingSong(false)}
-                  className="p-1.5 hover:bg-blush-100 dark:hover:bg-blush-700 rounded text-blush-500"
+                  className="p-1.5 hover:bg-[var(--surface-card-hover)] rounded text-[var(--text-tertiary)]"
                 >
                   <X size={16} />
                 </button>
@@ -940,7 +987,7 @@ export function ClassDetail() {
                     updateClass({ ...cls!, recitalSong: editedSong });
                     setIsEditingSong(false);
                   }}
-                  className="p-1.5 bg-forest-100 dark:bg-forest-900/30 text-forest-600 dark:text-forest-400 rounded"
+                  className="p-1.5 bg-[var(--accent-muted)] text-[var(--accent-primary)] rounded"
                 >
                   <Save size={16} />
                 </button>
@@ -951,7 +998,7 @@ export function ClassDetail() {
                   setEditedSong(cls?.recitalSong || '');
                   setIsEditingSong(true);
                 }}
-                className="p-1.5 hover:bg-blush-100 dark:hover:bg-blush-700 rounded text-blush-500"
+                className="p-1.5 hover:bg-[var(--surface-card-hover)] rounded text-[var(--text-tertiary)]"
               >
                 <Edit2 size={16} />
               </button>
@@ -973,32 +1020,32 @@ export function ClassDetail() {
                 setIsEditingSong(false);
               }
             }}
-            className="w-full px-3 py-2 border border-blush-300 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-blush-50 dark:bg-blush-900/50 text-forest-700 dark:text-white"
+            className="w-full px-3 py-2 border border-[var(--border-subtle)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent bg-[var(--surface-inset)] text-[var(--text-primary)]"
           />
         ) : cls?.recitalSong ? (
-          <p className="text-forest-700 dark:text-blush-200 font-medium">{cls.recitalSong}</p>
+          <p className="text-[var(--text-primary)] font-medium">{cls.recitalSong}</p>
         ) : (
           <button
             onClick={() => {
               setEditedSong('');
               setIsEditingSong(true);
             }}
-            className="text-blush-400 dark:text-blush-500 italic hover:text-forest-600 dark:hover:text-forest-400 transition-colors"
+            className="text-[var(--text-tertiary)] italic hover:text-[var(--accent-primary)] transition-colors"
           >
             + Add song
           </button>
         )}
         {cls?.recitalSong && !isEditingSong && (
-          <p className="text-xs text-blush-500 dark:text-blush-400 mt-2">
+          <p className="text-xs text-[var(--text-tertiary)] mt-2">
             Tap the badge to switch between recital and combo
           </p>
         )}
       </div>
 
       {/* Choreography Notes */}
-      <div className="mb-6 bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4">
+      <div className="mb-6 bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4">
         <div className="flex items-center justify-between mb-3">
-          <label className="flex items-center gap-2 text-sm font-medium text-forest-700 dark:text-blush-200">
+          <label className="type-label flex items-center gap-2 text-[var(--text-primary)]">
             <FileText size={16} />
             Choreography Notes
           </label>
@@ -1006,7 +1053,7 @@ export function ClassDetail() {
             <div className="flex gap-1">
               <button
                 onClick={() => setIsEditingChoreoNotes(false)}
-                className="p-1.5 hover:bg-blush-100 dark:hover:bg-blush-700 rounded text-blush-500"
+                className="p-1.5 hover:bg-[var(--surface-card-hover)] rounded text-[var(--text-tertiary)]"
               >
                 <X size={16} />
               </button>
@@ -1015,7 +1062,7 @@ export function ClassDetail() {
                   updateClass({ ...cls!, choreographyNotes: editedChoreoNotes });
                   setIsEditingChoreoNotes(false);
                 }}
-                className="p-1.5 bg-forest-100 dark:bg-forest-900/30 text-forest-600 dark:text-forest-400 rounded"
+                className="p-1.5 bg-[var(--accent-muted)] text-[var(--accent-primary)] rounded"
               >
                 <Save size={16} />
               </button>
@@ -1026,7 +1073,7 @@ export function ClassDetail() {
                 setEditedChoreoNotes(cls?.choreographyNotes || '');
                 setIsEditingChoreoNotes(true);
               }}
-              className="p-1.5 hover:bg-blush-100 dark:hover:bg-blush-700 rounded text-blush-500"
+              className="p-1.5 hover:bg-[var(--surface-card-hover)] rounded text-[var(--text-tertiary)]"
             >
               <Edit2 size={16} />
             </button>
@@ -1039,10 +1086,10 @@ export function ClassDetail() {
             placeholder="Enter choreography notes..."
             rows={4}
             autoFocus
-            className="w-full px-3 py-2 border border-blush-300 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-blush-50 dark:bg-blush-900/50 text-forest-700 dark:text-white resize-none"
+            className="w-full px-3 py-2 border border-[var(--border-subtle)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent bg-[var(--surface-inset)] text-[var(--text-primary)] resize-none"
           />
         ) : cls?.choreographyNotes ? (
-          <p className="text-forest-600 dark:text-blush-300 whitespace-pre-wrap text-sm">
+          <p className="type-body text-[var(--text-secondary)] whitespace-pre-wrap">
             {cls.choreographyNotes}
           </p>
         ) : (
@@ -1051,7 +1098,7 @@ export function ClassDetail() {
               setEditedChoreoNotes('');
               setIsEditingChoreoNotes(true);
             }}
-            className="text-blush-400 dark:text-blush-500 italic hover:text-forest-600 dark:hover:text-forest-400 transition-colors text-sm"
+            className="text-[var(--text-tertiary)] italic hover:text-[var(--accent-primary)] transition-colors text-sm"
           >
             + Add choreography notes
           </button>
@@ -1099,27 +1146,27 @@ function AddStudentToClassModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
-      <div className="bg-white dark:bg-blush-900 w-full max-w-lg max-h-[85vh] overflow-hidden rounded-t-2xl sm:rounded-2xl flex flex-col">
-        <div className="sticky top-0 bg-white dark:bg-blush-900 border-b border-blush-200 dark:border-blush-700 px-4 py-3 flex items-center justify-between">
+      <div className="bg-[var(--surface-card)] w-full max-w-lg max-h-[85vh] overflow-hidden rounded-t-2xl sm:rounded-2xl flex flex-col">
+        <div className="sticky top-0 bg-[var(--surface-card)] border-b border-[var(--border-subtle)] px-4 py-3 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-forest-900 dark:text-white">
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">
               Manage Roster
             </h2>
-            <p className="text-sm text-blush-500 dark:text-blush-400">{className}</p>
+            <p className="text-sm text-[var(--text-secondary)]">{className}</p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-blush-100 dark:hover:bg-blush-800 rounded-lg text-forest-700 dark:text-white">
+          <button onClick={onClose} className="p-2 hover:bg-[var(--surface-card-hover)] rounded-lg text-[var(--text-primary)]">
             <X size={20} />
           </button>
         </div>
 
         {/* Search */}
-        <div className="px-4 py-3 border-b border-blush-100 dark:border-blush-700">
+        <div className="px-4 py-3 border-b border-[var(--border-subtle)]">
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search students..."
-            className="w-full px-3 py-2 border border-blush-300 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-white dark:bg-blush-800 text-forest-700 dark:text-white placeholder-blush-400"
+            className="w-full px-3 py-2 border border-[var(--border-subtle)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent bg-[var(--surface-inset)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)]"
             autoFocus
           />
         </div>
@@ -1128,7 +1175,7 @@ function AddStudentToClassModal({
           {/* Currently Enrolled */}
           {enrolledStudents.length > 0 && (
             <div className="p-4">
-              <div className="text-sm font-medium text-blush-500 dark:text-blush-400 mb-2">
+              <div className="type-label text-[var(--text-secondary)] mb-2">
                 In This Class ({enrolledStudents.length})
               </div>
               <div className="space-y-2">
@@ -1138,10 +1185,10 @@ function AddStudentToClassModal({
                     className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg"
                   >
                     <div>
-                      <div className="font-medium text-forest-900 dark:text-white">
+                      <div className="font-medium text-[var(--text-primary)]">
                         {student.nickname || student.name.split(' ')[0]}
                       </div>
-                      <div className="text-xs text-blush-500 dark:text-blush-400">{student.name}</div>
+                      <div className="text-xs text-[var(--text-secondary)]">{student.name}</div>
                     </div>
                     <button
                       onClick={() => onRemove(student.id)}
@@ -1157,25 +1204,25 @@ function AddStudentToClassModal({
 
           {/* Not Enrolled */}
           {notEnrolledStudents.length > 0 && (
-            <div className="p-4 border-t border-blush-100 dark:border-blush-700">
-              <div className="text-sm font-medium text-blush-500 dark:text-blush-400 mb-2">
+            <div className="p-4 border-t border-[var(--border-subtle)]">
+              <div className="type-label text-[var(--text-secondary)] mb-2">
                 Add to Class ({notEnrolledStudents.length})
               </div>
               <div className="space-y-2">
                 {notEnrolledStudents.map(student => (
                   <div
                     key={student.id}
-                    className="flex items-center justify-between p-3 bg-blush-50 dark:bg-blush-800 rounded-lg"
+                    className="flex items-center justify-between p-3 bg-[var(--surface-inset)] rounded-lg"
                   >
                     <div>
-                      <div className="font-medium text-forest-900 dark:text-white">
+                      <div className="font-medium text-[var(--text-primary)]">
                         {student.nickname || student.name.split(' ')[0]}
                       </div>
-                      <div className="text-xs text-blush-500 dark:text-blush-400">{student.name}</div>
+                      <div className="text-xs text-[var(--text-secondary)]">{student.name}</div>
                     </div>
                     <button
                       onClick={() => onAdd(student.id)}
-                      className="px-3 py-1.5 text-sm text-forest-600 bg-forest-100 hover:bg-forest-200 rounded-lg font-medium"
+                      className="px-3 py-1.5 text-sm text-[var(--accent-primary)] bg-[var(--accent-muted)] hover:opacity-80 rounded-lg font-medium"
                     >
                       + Add
                     </button>
@@ -1186,12 +1233,12 @@ function AddStudentToClassModal({
           )}
 
           {filteredStudents.length === 0 && (
-            <div className="p-8 text-center text-blush-500 dark:text-blush-400">
-              <Users size={32} className="mx-auto mb-2 text-blush-300 dark:text-blush-600" />
+            <div className="p-8 text-center text-[var(--text-tertiary)]">
+              <Users size={32} className="mx-auto mb-2 text-[var(--text-tertiary)]" />
               <p>No students found</p>
               <Link
                 to="/students"
-                className="mt-2 text-sm text-forest-600 dark:text-forest-400 font-medium hover:text-forest-700 dark:hover:text-forest-300"
+                className="mt-2 text-sm text-[var(--accent-primary)] font-medium hover:opacity-80"
                 onClick={onClose}
               >
                 Go to Students page to add new students
@@ -1200,7 +1247,7 @@ function AddStudentToClassModal({
           )}
         </div>
 
-        <div className="sticky bottom-0 border-t border-blush-200 dark:border-blush-700 p-4 bg-white dark:bg-blush-900 pb-safe">
+        <div className="sticky bottom-0 border-t border-[var(--border-subtle)] p-4 bg-[var(--surface-card)] pb-safe">
           <Button onClick={onClose} className="w-full">
             Done
           </Button>
