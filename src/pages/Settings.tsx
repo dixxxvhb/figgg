@@ -13,6 +13,7 @@ import { DEFAULT_MED_CONFIG, DEFAULT_WELLNESS_ITEMS, DEFAULT_AI_CONFIG } from '.
 import type { MedConfig, WellnessItemConfig, AIConfig } from '../types';
 import { fetchCalendarEvents } from '../services/calendar';
 import { Button } from '../components/common/Button';
+import { Card } from '../components/common/Card';
 import { themes } from '../styles/themes';
 import { applyTheme } from '../styles/applyTheme';
 
@@ -149,10 +150,16 @@ export function Settings() {
   };
 
   const handleThemeChange = (id: string) => {
+    // Add crossfade transition class
+    document.documentElement.classList.add('theme-transitioning');
     setThemeId(id);
     applyTheme(id, document.documentElement.classList.contains('dark'));
     updateSettings({ ...data.settings, themeId: id });
     refreshData();
+    // Remove transition class after 400ms
+    setTimeout(() => {
+      document.documentElement.classList.remove('theme-transitioning');
+    }, 400);
   };
 
   const handleCloudSync = async () => {
@@ -265,37 +272,37 @@ export function Settings() {
       <div className="flex items-center gap-2 mb-4">
         <Link
           to="/"
-          className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-blush-200 dark:hover:bg-blush-700 transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[var(--surface-card-hover)] transition-colors"
         >
-          <ArrowLeft size={18} className="text-forest-600 dark:text-white" />
+          <ArrowLeft size={18} className="text-[var(--text-primary)]" />
         </Link>
-        <h1 className="text-xl font-bold text-forest-700 dark:text-white">More</h1>
+        <h1 className="type-h1">More</h1>
       </div>
 
       {/* Teaching Tools */}
       <section className="mb-5">
-        <h2 className="text-xs font-semibold text-blush-500 dark:text-blush-400 uppercase tracking-wider mb-1.5 px-1">Teaching Tools</h2>
-        <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 shadow-sm overflow-hidden">
+        <h2 className="type-h3 mb-1.5 px-1">Teaching Tools</h2>
+        <div className="space-y-2">
           {([
-            { to: '/students', icon: Users, iconBg: 'bg-forest-100 dark:bg-forest-900/50', iconColor: 'text-forest-600 dark:text-forest-400', label: 'Students', sub: `${(data.students || []).length} enrolled` },
-            { to: '/formations', icon: Grid3X3, iconBg: 'bg-purple-100 dark:bg-purple-900/50', iconColor: 'text-purple-600 dark:text-purple-400', label: 'Formations', sub: 'Stage layouts' },
-            { to: '/library', icon: BookOpen, iconBg: 'bg-blue-100 dark:bg-blue-900/50', iconColor: 'text-blue-600 dark:text-blue-400', label: 'Library', sub: 'Glossary & exercises' },
-          ] as const).map((item, i, arr) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={`flex items-center justify-between px-3 py-2.5 hover:bg-blush-50 dark:hover:bg-blush-700 transition-colors ${i < arr.length - 1 ? 'border-b border-blush-100 dark:border-blush-700' : ''}`}
-            >
-              <div className="flex items-center gap-2.5">
-                <div className={`w-7 h-7 ${item.iconBg} rounded-lg flex items-center justify-center`}>
-                  <item.icon size={15} className={item.iconColor} />
+            { to: '/students', icon: Users, label: 'Students', sub: `${(data.students || []).length} enrolled` },
+            { to: '/formations', icon: Grid3X3, label: 'Formations', sub: 'Stage layouts' },
+            { to: '/library', icon: BookOpen, label: 'Library', sub: 'Glossary & exercises' },
+          ] as const).map((item) => (
+            <Link key={item.to} to={item.to} className="block">
+              <Card variant="elevated" padding="sm">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] flex items-center justify-center">
+                      <item.icon size={24} className="text-[var(--accent-primary)]" />
+                    </div>
+                    <div>
+                      <div className="type-h2">{item.label}</div>
+                      <div className="type-caption">{item.sub}</div>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} className="text-[var(--text-tertiary)]" />
                 </div>
-                <div>
-                  <div className="text-sm font-medium text-forest-700 dark:text-white">{item.label}</div>
-                  <div className="text-xs text-forest-400 dark:text-blush-400">{item.sub}</div>
-                </div>
-              </div>
-              <ChevronRight size={16} className="text-forest-400" />
+              </Card>
             </Link>
           ))}
         </div>
@@ -305,76 +312,79 @@ export function Settings() {
       <section className="mb-5">
         <button
           onClick={() => setShowRecitalSongs(!showRecitalSongs)}
-          className="w-full flex items-center justify-between px-3 py-2.5 bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 shadow-sm hover:border-purple-300 dark:hover:border-purple-600 transition-colors"
+          className="w-full"
         >
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 bg-purple-100 dark:bg-purple-900/50 rounded-lg flex items-center justify-center">
-              <Music size={15} className="text-purple-600 dark:text-purple-400" />
-            </div>
-            <div className="text-left">
-              <div className="text-sm font-medium text-forest-700 dark:text-white">Recital Songs</div>
-              <div className="text-xs text-forest-400 dark:text-blush-400">
-                {data.classes.filter(c => c.recitalSong && c.isRecitalSong).length} recital • {data.classes.filter(c => c.recitalSong && !c.isRecitalSong).length} combos
+          <Card variant="elevated" padding="sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] flex items-center justify-center">
+                  <Music size={24} className="text-[var(--accent-primary)]" />
+                </div>
+                <div className="text-left">
+                  <div className="type-h2">Recital Songs</div>
+                  <div className="type-caption">
+                    {data.classes.filter(c => c.recitalSong && c.isRecitalSong).length} recital &middot; {data.classes.filter(c => c.recitalSong && !c.isRecitalSong).length} combos
+                  </div>
+                </div>
               </div>
+              {showRecitalSongs ? <ChevronUp size={16} className="text-[var(--text-tertiary)]" /> : <ChevronDown size={16} className="text-[var(--text-tertiary)]" />}
             </div>
-          </div>
-          {showRecitalSongs ? <ChevronUp size={16} className="text-forest-400" /> : <ChevronDown size={16} className="text-forest-400" />}
+          </Card>
         </button>
 
         {showRecitalSongs && (
-          <div className="mt-2 bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 overflow-hidden">
-            <div className="divide-y divide-blush-100 dark:divide-blush-700">
+          <Card variant="standard" padding="none" className="mt-2 overflow-hidden">
+            <div className="divide-y divide-[var(--border-subtle)]">
               {data.classes
                 .filter(c => c.recitalSong)
                 .sort((a, b) => a.name.localeCompare(b.name))
                 .map(cls => (
                   <div key={cls.id} className="flex items-center justify-between px-3 py-2">
                     <div className="flex-1 min-w-0 mr-2">
-                      <div className="font-medium text-forest-700 dark:text-white text-sm truncate">{cls.name}</div>
-                      <div className="text-xs text-forest-400 dark:text-blush-400 truncate">{cls.recitalSong}</div>
+                      <div className="font-medium text-[var(--text-primary)] text-sm truncate">{cls.name}</div>
+                      <div className="type-caption truncate">{cls.recitalSong}</div>
                     </div>
                     <button
                       onClick={() => updateClass({ ...cls, isRecitalSong: !cls.isRecitalSong })}
                       className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
                         cls.isRecitalSong
-                          ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-700'
-                          : 'bg-blush-100 dark:bg-blush-700 text-blush-600 dark:text-blush-300 border border-blush-300 dark:border-blush-600'
+                          ? 'bg-[var(--accent-muted)] text-[var(--accent-primary)] border border-[var(--accent-primary)]'
+                          : 'bg-[var(--surface-inset)] text-[var(--text-secondary)] border border-[var(--border-subtle)]'
                       }`}
                     >
-                      <Star size={10} className={cls.isRecitalSong ? 'fill-purple-500' : ''} />
+                      <Star size={10} className={cls.isRecitalSong ? 'fill-[var(--accent-primary)]' : ''} />
                       {cls.isRecitalSong ? 'Recital' : 'Combo'}
                     </button>
                   </div>
                 ))}
               {data.classes.filter(c => c.recitalSong).length === 0 && (
                 <div className="p-4 text-center text-[var(--text-tertiary)]">
-                  <Music size={24} className="mx-auto mb-2 text-[var(--text-tertiary)]" strokeWidth={1.5} />
                   <p className="text-sm">No songs assigned yet</p>
-                  <p className="text-xs mt-0.5 text-[var(--text-tertiary)]">Add songs in each class's detail page</p>
+                  <p className="text-xs mt-0.5">Add songs in each class's detail page</p>
                 </div>
               )}
             </div>
-          </div>
+          </Card>
         )}
       </section>
 
       {/* Display */}
       <section className="mb-5">
-        <h2 className="text-xs font-semibold text-blush-500 dark:text-blush-400 uppercase tracking-wider mb-1.5 px-1">Display</h2>
-        <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-3 shadow-sm space-y-3">
+        <h2 className="type-h3 mb-1.5 px-1">Display</h2>
+        <Card variant="standard" padding="sm" className="space-y-3">
           {/* Theme */}
           <div className="flex items-center gap-2">
-            <Palette size={14} className="text-forest-600 dark:text-forest-400 flex-shrink-0" />
+            <Palette size={14} className="text-[var(--accent-primary)] flex-shrink-0" />
             <div className="flex gap-3 overflow-x-auto flex-1 pb-0.5">
               {themes.map(theme => (
                 <button
                   key={theme.id}
                   onClick={() => handleThemeChange(theme.id)}
-                  className={`flex-shrink-0 flex flex-col items-center gap-1 transition-all ${themeId === theme.id ? 'scale-110' : 'opacity-60 hover:opacity-100'}`}
+                  className={`flex-shrink-0 flex flex-col items-center gap-1.5 transition-all ${themeId === theme.id ? 'scale-110' : 'opacity-60 hover:opacity-100'}`}
                 >
                   <div className="relative">
                     <div
-                      className={`w-8 h-8 rounded-full border-2 ${themeId === theme.id ? 'border-forest-600 dark:border-white shadow-md' : 'border-blush-300 dark:border-blush-600'} ${theme.special === 'rainbow' && themeId === theme.id ? 'swatch-rainbow-spin' : ''}`}
+                      className={`w-12 h-12 rounded-full border-2 transition-all ${themeId === theme.id ? 'ring-2 ring-[var(--accent-primary)] border-[var(--accent-primary)] shadow-md' : 'border-[var(--border-subtle)]'} ${theme.special === 'rainbow' && themeId === theme.id ? 'swatch-rainbow-spin' : ''}`}
                       style={theme.special === 'rainbow'
                         ? { background: 'conic-gradient(#f43f5e, #fb923c, #facc15, #4ade80, #60a5fa, #a78bfa, #f472b6, #f43f5e)' }
                         : { backgroundColor: theme.preview.primary }
@@ -382,11 +392,11 @@ export function Settings() {
                     />
                     {themeId === theme.id && (
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <Check size={12} className={theme.special === 'rainbow' ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]' : 'text-white drop-shadow-md'} />
+                        <Check size={14} className={theme.special === 'rainbow' ? 'text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]' : 'text-white drop-shadow-md'} />
                       </div>
                     )}
                   </div>
-                  <span className={`text-[9px] font-medium leading-none text-center max-w-[40px] truncate transition-colors ${themeId === theme.id ? 'text-forest-600 dark:text-forest-400' : 'text-blush-400 dark:text-blush-500'}`}>
+                  <span className="type-label text-center max-w-[48px] truncate">
                     {theme.name.split(' ')[0]}
                   </span>
                 </button>
@@ -394,26 +404,36 @@ export function Settings() {
             </div>
           </div>
 
-          {/* Font Size — inline row */}
-          <div className="flex items-center gap-2 border-t border-blush-100 dark:border-blush-700 pt-3">
-            <Type size={14} className="text-forest-600 dark:text-forest-400 flex-shrink-0" />
-            <div className="grid grid-cols-3 gap-1.5 flex-1">
-              {([['normal', 'Aa', 'text-xs'], ['large', 'Aa', 'text-sm'], ['extra-large', 'Aa', 'text-base']] as const).map(([size, label, textClass]) => (
+          {/* Font Size — preview sentences */}
+          <div className="border-t border-[var(--border-subtle)] pt-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Type size={14} className="text-[var(--accent-primary)] flex-shrink-0" />
+              <span className="type-label">Text Size</span>
+            </div>
+            <div className="space-y-1.5">
+              {([
+                ['normal', 'text-sm', 'Default'],
+                ['large', 'text-base', 'Large'],
+                ['extra-large', 'text-lg', 'Extra Large'],
+              ] as const).map(([size, textClass, label]) => (
                 <button
                   key={size}
                   onClick={() => handleFontSizeChange(size)}
-                  className={`px-2 py-1.5 rounded-lg ${textClass} font-medium transition-colors ${
-                    fontSize === size ? 'bg-forest-600 text-white' : 'bg-forest-100 text-forest-600 dark:bg-blush-700 dark:text-blush-300'
+                  className={`w-full px-3 py-2 rounded-[var(--radius-sm)] ${textClass} text-left transition-colors ${
+                    fontSize === size
+                      ? 'border-[var(--accent-primary)] bg-[var(--surface-highlight)] border text-[var(--text-primary)]'
+                      : 'border border-[var(--border-subtle)] bg-[var(--surface-inset)] text-[var(--text-secondary)]'
                   }`}
                 >
-                  {label}
+                  <span className="font-medium">{label}</span>
+                  <span className="ml-2 opacity-70">The quick brown fox</span>
                 </button>
               ))}
             </div>
           </div>
 
           {/* Dark Mode — tight row */}
-          <div className="flex items-center justify-between border-t border-blush-100 dark:border-blush-700 pt-2">
+          <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-2">
             <button
               onClick={handleDarkModeToggle}
               role="switch"
@@ -421,34 +441,34 @@ export function Settings() {
               className="w-full flex items-center justify-between py-1 rounded-lg transition-colors"
             >
               <div className="flex items-center gap-2">
-                {darkMode ? <Moon size={14} className="text-blush-500" /> : <Sun size={14} className="text-amber-500" />}
-                <span className="text-sm font-medium text-forest-700 dark:text-white">Dark Mode</span>
+                {darkMode ? <Moon size={14} className="text-[var(--text-secondary)]" /> : <Sun size={14} className="text-[var(--accent-secondary)]" />}
+                <span className="text-sm font-medium text-[var(--text-primary)]">Dark Mode</span>
               </div>
-              <div className={`w-10 h-6 rounded-full p-0.5 transition-colors ${darkMode ? 'bg-blush-500' : 'bg-blush-300 dark:bg-blush-600'}`}>
+              <div className={`w-10 h-6 rounded-full p-0.5 transition-colors ${darkMode ? 'bg-[var(--accent-primary)]' : 'bg-[var(--border-subtle)]'}`}>
                 <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${darkMode ? 'translate-x-4' : 'translate-x-0'}`} />
               </div>
             </button>
           </div>
-        </div>
+        </Card>
       </section>
 
       {/* Medications */}
       <section className="mb-5">
-        <h2 className="text-xs font-semibold text-blush-500 dark:text-blush-400 uppercase tracking-wider mb-1.5 px-1">Medications</h2>
-        <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-3 shadow-sm space-y-3">
+        <h2 className="type-h3 mb-1.5 px-1">Medications</h2>
+        <Card variant="standard" padding="sm" className="space-y-3">
           {/* Med Type */}
           <div className="flex items-center gap-2">
-            <Pill size={14} className="text-purple-600 dark:text-purple-400 flex-shrink-0" />
-            <span className="text-sm font-medium text-forest-700 dark:text-white flex-1">Type</span>
+            <Pill size={14} className="text-[var(--accent-primary)] flex-shrink-0" />
+            <span className="text-sm font-medium text-[var(--text-primary)] flex-1">Type</span>
             <div className="grid grid-cols-2 gap-1.5">
               {(['IR', 'XR'] as const).map(type => (
                 <button
                   key={type}
                   onClick={() => handleMedConfigChange({ medType: type })}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-[var(--radius-sm)] text-xs font-medium transition-colors ${
                     medConfig.medType === type
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-purple-100 text-purple-600 dark:bg-blush-700 dark:text-blush-300'
+                      ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)]'
+                      : 'bg-[var(--surface-inset)] text-[var(--text-secondary)]'
                   }`}
                 >
                   {type}
@@ -458,17 +478,17 @@ export function Settings() {
           </div>
 
           {/* Dose Count */}
-          <div className="flex items-center gap-2 border-t border-blush-100 dark:border-blush-700 pt-3">
-            <span className="text-sm font-medium text-forest-700 dark:text-white flex-1 pl-6">Daily Doses</span>
+          <div className="flex items-center gap-2 border-t border-[var(--border-subtle)] pt-3">
+            <span className="text-sm font-medium text-[var(--text-primary)] flex-1 pl-6">Daily Doses</span>
             <div className="grid grid-cols-2 gap-1.5">
               {([2, 3] as const).map(count => (
                 <button
                   key={count}
                   onClick={() => handleMedConfigChange({ maxDoses: count })}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-[var(--radius-sm)] text-xs font-medium transition-colors ${
                     medConfig.maxDoses === count
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-purple-100 text-purple-600 dark:bg-blush-700 dark:text-blush-300'
+                      ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)]'
+                      : 'bg-[var(--surface-inset)] text-[var(--text-secondary)]'
                   }`}
                 >
                   {count}x
@@ -479,8 +499,8 @@ export function Settings() {
 
           {/* IR Timing */}
           {medConfig.medType === 'IR' && (
-            <div className="border-t border-blush-100 dark:border-blush-700 pt-3 space-y-2.5">
-              <div className="text-[11px] font-bold uppercase tracking-widest text-blush-400 dark:text-blush-500 pl-6">IR Timing</div>
+            <div className="border-t border-[var(--border-subtle)] pt-3 space-y-2.5">
+              <div className="type-label pl-6">IR Timing</div>
               <TimingRow label="Peak" value={medConfig.irPeakHours} suffix="h" min={1} max={6} onChange={v => handleMedConfigChange({ irPeakHours: v })} />
               <TimingRow label="Duration" value={medConfig.irDurationHours} suffix="h" min={2} max={8} onChange={v => handleMedConfigChange({ irDurationHours: v })} />
               <TimingRow label="D2 window" value={medConfig.dose2WindowStart} suffix="h" min={2} max={8} onChange={v => handleMedConfigChange({ dose2WindowStart: v })} secondValue={medConfig.dose2WindowEnd} onSecondChange={v => handleMedConfigChange({ dose2WindowEnd: v })} secondMin={3} secondMax={10} />
@@ -492,56 +512,60 @@ export function Settings() {
 
           {/* XR Timing */}
           {medConfig.medType === 'XR' && (
-            <div className="border-t border-blush-100 dark:border-blush-700 pt-3 space-y-2.5">
-              <div className="text-[11px] font-bold uppercase tracking-widest text-blush-400 dark:text-blush-500 pl-6">XR Timing</div>
+            <div className="border-t border-[var(--border-subtle)] pt-3 space-y-2.5">
+              <div className="type-label pl-6">XR Timing</div>
               <TimingRow label="Peak" value={medConfig.xrPeakHours} suffix="h" min={3} max={12} onChange={v => handleMedConfigChange({ xrPeakHours: v })} />
               <TimingRow label="Duration" value={medConfig.xrDurationHours} suffix="h" min={6} max={16} onChange={v => handleMedConfigChange({ xrDurationHours: v })} />
             </div>
           )}
-        </div>
+        </Card>
       </section>
 
       {/* Wellness Checklist */}
       <section className="mb-5">
         <button
           onClick={() => setShowWellnessEditor(!showWellnessEditor)}
-          className="w-full flex items-center justify-between px-3 py-2.5 bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 shadow-sm hover:border-green-300 dark:hover:border-green-600 transition-colors"
+          className="w-full"
         >
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 bg-green-100 dark:bg-green-900/50 rounded-lg flex items-center justify-center">
-              <Heart size={15} className="text-green-600 dark:text-green-400" />
-            </div>
-            <div className="text-left">
-              <div className="text-sm font-medium text-forest-700 dark:text-white">Wellness Checklist</div>
-              <div className="text-xs text-forest-400 dark:text-blush-400">
-                {wellnessItems.filter(i => i.enabled).length} active items
+          <Card variant="elevated" padding="sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] flex items-center justify-center">
+                  <Heart size={24} className="text-[var(--accent-primary)]" />
+                </div>
+                <div className="text-left">
+                  <div className="type-h2">Wellness Checklist</div>
+                  <div className="type-caption">
+                    {wellnessItems.filter(i => i.enabled).length} active items
+                  </div>
+                </div>
               </div>
+              {showWellnessEditor ? <ChevronUp size={16} className="text-[var(--text-tertiary)]" /> : <ChevronDown size={16} className="text-[var(--text-tertiary)]" />}
             </div>
-          </div>
-          {showWellnessEditor ? <ChevronUp size={16} className="text-forest-400" /> : <ChevronDown size={16} className="text-forest-400" />}
+          </Card>
         </button>
 
         {showWellnessEditor && (
-          <div className="mt-2 bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 overflow-hidden">
+          <Card variant="standard" padding="none" className="mt-2 overflow-hidden">
             {(['morning', 'afternoon', 'evening'] as const).map(section => {
               const sectionItems = wellnessItems
                 .filter(i => i.section === section)
                 .sort((a, b) => a.order - b.order);
               return (
                 <div key={section}>
-                  <div className="px-3 py-1.5 flex items-center justify-between bg-blush-50 dark:bg-blush-850 border-b border-blush-100 dark:border-blush-700">
-                    <span className="text-[11px] font-bold uppercase tracking-widest text-blush-400 dark:text-blush-500">
+                  <div className="px-3 py-1.5 flex items-center justify-between bg-[var(--surface-inset)] border-b border-[var(--border-subtle)]">
+                    <span className="type-label">
                       {section}
                     </span>
                     <button
                       onClick={() => handleAddWellnessItem(section)}
-                      className="text-xs text-forest-600 dark:text-forest-400 flex items-center gap-0.5"
+                      className="text-xs text-[var(--accent-primary)] flex items-center gap-0.5"
                     >
                       <Plus size={12} /> Add
                     </button>
                   </div>
                   {sectionItems.map(item => (
-                    <div key={item.id} className="px-3 py-2 flex items-center gap-2 border-b border-blush-50 dark:border-blush-700/50">
+                    <div key={item.id} className="px-3 py-2 flex items-center gap-2 border-b border-[var(--surface-inset)]">
                       {editingWellnessId === item.id ? (
                         <WellnessItemEditor
                           item={item}
@@ -554,26 +578,26 @@ export function Settings() {
                             onClick={() => handleToggleWellnessItem(item.id)}
                             className={`w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 transition-colors ${
                               item.enabled
-                                ? 'bg-green-500 border-green-500 text-white'
-                                : 'border-blush-300 dark:border-blush-600'
+                                ? 'bg-[var(--status-success)] border-[var(--status-success)] text-white'
+                                : 'border-[var(--border-subtle)]'
                             }`}
                           >
                             {item.enabled && <Check size={12} />}
                           </button>
-                          <span className={`text-sm flex-1 ${item.enabled ? 'text-forest-700 dark:text-white' : 'text-blush-400 dark:text-blush-500 line-through'}`}>
+                          <span className={`text-sm flex-1 ${item.enabled ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)] line-through'}`}>
                             {item.label}
                           </span>
                           {item.conditions && Object.keys(item.conditions).length > 0 && (
-                            <span className="text-[10px] text-blush-400 dark:text-blush-500 bg-blush-50 dark:bg-blush-700 px-1.5 py-0.5 rounded-full">
+                            <span className="text-[10px] text-[var(--text-tertiary)] bg-[var(--surface-inset)] px-1.5 py-0.5 rounded-full">
                               {item.conditions.onlyOnClassDays ? 'class days' :
                                item.conditions.onlyOnOffDays ? 'off days' :
                                item.conditions.requiresMedsTaken ? 'meds taken' : 'conditional'}
                             </span>
                           )}
-                          <button onClick={() => setEditingWellnessId(item.id)} className="text-blush-400 hover:text-forest-600 dark:hover:text-white p-1">
+                          <button onClick={() => setEditingWellnessId(item.id)} className="text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] p-1">
                             <Pencil size={12} />
                           </button>
-                          <button onClick={() => handleDeleteWellnessItem(item.id)} className="text-blush-400 hover:text-red-500 p-1">
+                          <button onClick={() => handleDeleteWellnessItem(item.id)} className="text-[var(--text-tertiary)] hover:text-[var(--status-danger)] p-1">
                             <Trash2 size={12} />
                           </button>
                         </>
@@ -583,45 +607,45 @@ export function Settings() {
                 </div>
               );
             })}
-            <div className="px-3 py-2 border-t border-blush-100 dark:border-blush-700">
-              <button onClick={handleResetWellness} className="text-xs text-blush-400 dark:text-blush-500 hover:text-red-500">
+            <div className="px-3 py-2 border-t border-[var(--border-subtle)]">
+              <button onClick={handleResetWellness} className="text-xs text-[var(--text-tertiary)] hover:text-[var(--status-danger)]">
                 Reset to defaults
               </button>
             </div>
-          </div>
+          </Card>
         )}
       </section>
 
       {/* AI Assistant */}
       <section className="mb-5">
-        <h2 className="text-xs font-semibold text-blush-500 dark:text-blush-400 uppercase tracking-wider mb-1.5 px-1">AI Assistant</h2>
-        <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-3 shadow-sm space-y-3">
+        <h2 className="type-h3 mb-1.5 px-1">AI Assistant</h2>
+        <Card variant="standard" padding="sm" className="space-y-3">
           {/* Morning check-in toggle */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Bot size={14} className="text-forest-600 dark:text-forest-400" />
-              <span className="text-sm font-medium text-forest-700 dark:text-white">Morning check-in</span>
+              <Bot size={14} className="text-[var(--accent-primary)]" />
+              <span className="text-sm font-medium text-[var(--text-primary)]">Morning check-in</span>
             </div>
             <button
               onClick={() => handleAiConfigChange({ morningCheckInEnabled: !aiConfig.morningCheckInEnabled })}
               role="switch"
               aria-checked={aiConfig.morningCheckInEnabled}
-              className={`w-10 h-6 rounded-full p-0.5 transition-colors ${aiConfig.morningCheckInEnabled ? 'bg-forest-500' : 'bg-blush-300 dark:bg-blush-600'}`}
+              className={`w-10 h-6 rounded-full p-0.5 transition-colors ${aiConfig.morningCheckInEnabled ? 'bg-[var(--accent-primary)]' : 'bg-[var(--border-subtle)]'}`}
             >
               <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${aiConfig.morningCheckInEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
             </button>
           </div>
 
           {/* Afternoon check-in toggle + time */}
-          <div className="flex items-center justify-between border-t border-blush-100 dark:border-blush-700 pt-3">
+          <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-3">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-forest-700 dark:text-white pl-6">Afternoon check-in</span>
+              <span className="text-sm font-medium text-[var(--text-primary)] pl-6">Afternoon check-in</span>
             </div>
             <div className="flex items-center gap-2">
               <select
                 value={aiConfig.afternoonCheckInTime}
                 onChange={e => handleAiConfigChange({ afternoonCheckInTime: e.target.value })}
-                className="text-xs px-2 py-1 bg-blush-50 dark:bg-blush-700 border border-blush-200 dark:border-blush-600 rounded-lg text-forest-700 dark:text-white"
+                className="text-xs px-2 py-1 bg-[var(--surface-inset)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-[var(--text-primary)]"
               >
                 {['12:00', '13:00', '14:00', '15:00', '16:00'].map(t => (
                   <option key={t} value={t}>{t === '12:00' ? '12 PM' : t === '13:00' ? '1 PM' : t === '14:00' ? '2 PM' : t === '15:00' ? '3 PM' : '4 PM'}</option>
@@ -631,7 +655,7 @@ export function Settings() {
                 onClick={() => handleAiConfigChange({ afternoonCheckInEnabled: !aiConfig.afternoonCheckInEnabled })}
                 role="switch"
                 aria-checked={aiConfig.afternoonCheckInEnabled}
-                className={`w-10 h-6 rounded-full p-0.5 transition-colors ${aiConfig.afternoonCheckInEnabled ? 'bg-forest-500' : 'bg-blush-300 dark:bg-blush-600'}`}
+                className={`w-10 h-6 rounded-full p-0.5 transition-colors ${aiConfig.afternoonCheckInEnabled ? 'bg-[var(--accent-primary)]' : 'bg-[var(--border-subtle)]'}`}
               >
                 <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${aiConfig.afternoonCheckInEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
               </button>
@@ -639,17 +663,17 @@ export function Settings() {
           </div>
 
           {/* Tone */}
-          <div className="flex items-center gap-2 border-t border-blush-100 dark:border-blush-700 pt-3">
-            <span className="text-sm font-medium text-forest-700 dark:text-white pl-6 flex-1">Tone</span>
+          <div className="flex items-center gap-2 border-t border-[var(--border-subtle)] pt-3">
+            <span className="text-sm font-medium text-[var(--text-primary)] pl-6 flex-1">Tone</span>
             <div className="grid grid-cols-3 gap-1.5">
               {(['supportive', 'direct', 'minimal'] as const).map(tone => (
                 <button
                   key={tone}
                   onClick={() => handleAiConfigChange({ tone })}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium capitalize transition-colors ${
+                  className={`px-2.5 py-1.5 rounded-[var(--radius-sm)] text-xs font-medium capitalize transition-colors ${
                     aiConfig.tone === tone
-                      ? 'bg-forest-600 text-white'
-                      : 'bg-forest-100 text-forest-600 dark:bg-blush-700 dark:text-blush-300'
+                      ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)]'
+                      : 'bg-[var(--surface-inset)] text-[var(--text-secondary)]'
                   }`}
                 >
                   {tone}
@@ -659,60 +683,60 @@ export function Settings() {
           </div>
 
           {/* Auto-plan */}
-          <div className="flex items-center justify-between border-t border-blush-100 dark:border-blush-700 pt-3">
-            <span className="text-sm font-medium text-forest-700 dark:text-white pl-6">Auto day plan</span>
+          <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-3">
+            <span className="text-sm font-medium text-[var(--text-primary)] pl-6">Auto day plan</span>
             <button
               onClick={() => handleAiConfigChange({ autoPlanEnabled: !aiConfig.autoPlanEnabled })}
               role="switch"
               aria-checked={aiConfig.autoPlanEnabled}
-              className={`w-10 h-6 rounded-full p-0.5 transition-colors ${aiConfig.autoPlanEnabled ? 'bg-forest-500' : 'bg-blush-300 dark:bg-blush-600'}`}
+              className={`w-10 h-6 rounded-full p-0.5 transition-colors ${aiConfig.autoPlanEnabled ? 'bg-[var(--accent-primary)]' : 'bg-[var(--border-subtle)]'}`}
             >
               <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${aiConfig.autoPlanEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
             </button>
           </div>
-        </div>
+        </Card>
       </section>
 
       {/* Sync */}
       <section className="mb-5">
-        <h2 className="text-xs font-semibold text-blush-500 dark:text-blush-400 uppercase tracking-wider mb-1.5 px-1">Sync</h2>
-        <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 shadow-sm overflow-hidden">
+        <h2 className="type-h3 mb-1.5 px-1">Sync</h2>
+        <Card variant="standard" padding="none" className="overflow-hidden">
           {/* Cloud Sync row */}
-          <div className="px-3 py-2.5 flex items-center justify-between border-b border-blush-100 dark:border-blush-700">
+          <div className="px-3 py-2.5 flex items-center justify-between border-b border-[var(--border-subtle)]">
             <div className="flex items-center gap-2">
-              <Cloud size={14} className="text-blue-600 dark:text-blue-400" />
-              <span className="text-sm font-medium text-forest-700 dark:text-white">Cloud Sync</span>
-              <span className="text-xs text-forest-400 dark:text-blush-500">Auto</span>
+              <Cloud size={14} className="text-[var(--accent-primary)]" />
+              <span className="text-sm font-medium text-[var(--text-primary)]">Cloud Sync</span>
+              <span className="text-xs text-[var(--text-tertiary)]">Auto</span>
             </div>
             <button
               onClick={handleCloudSync}
               disabled={cloudSyncing}
-              className="text-xs font-medium text-forest-600 dark:text-forest-400 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-forest-50 dark:bg-forest-900/30 hover:bg-forest-100 dark:hover:bg-forest-900/50 transition-colors disabled:opacity-50"
+              className="text-xs font-medium text-[var(--accent-primary)] flex items-center gap-1 px-2.5 py-1 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] hover:bg-[var(--surface-highlight)] transition-colors disabled:opacity-50"
             >
               <RefreshCw size={12} className={cloudSyncing ? 'animate-spin' : ''} />
               {cloudSyncing ? 'Syncing' : 'Sync'}
             </button>
           </div>
           {cloudStatus === 'success' && (
-            <div className="text-xs text-green-600 bg-green-50 dark:bg-green-900/30 px-3 py-1.5">Synced!</div>
+            <div className="text-xs text-[var(--status-success)] bg-[var(--surface-highlight)] px-3 py-1.5">Synced!</div>
           )}
           {cloudStatus === 'error' && (
-            <div className="text-xs text-red-600 bg-red-50 dark:bg-red-900/30 px-3 py-1.5">Sync failed — check connection</div>
+            <div className="text-xs text-[var(--status-danger)] bg-[var(--surface-highlight)] px-3 py-1.5">Sync failed -- check connection</div>
           )}
 
           {/* Calendar row */}
-          <div className="px-3 py-2.5 flex items-center justify-between border-b border-blush-100 dark:border-blush-700">
+          <div className="px-3 py-2.5 flex items-center justify-between border-b border-[var(--border-subtle)]">
             <div className="flex items-center gap-2">
-              <Calendar size={14} className={data.calendarEvents?.length ? 'text-green-600 dark:text-green-400' : 'text-amber-500'} />
-              <span className="text-sm font-medium text-forest-700 dark:text-white">Calendar</span>
+              <Calendar size={14} className={data.calendarEvents?.length ? 'text-[var(--status-success)]' : 'text-[var(--status-warning)]'} />
+              <span className="text-sm font-medium text-[var(--text-primary)]">Calendar</span>
               {data.calendarEvents && data.calendarEvents.length > 0 && (
-                <span className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-1.5 py-0.5 rounded-full">{data.calendarEvents.length}</span>
+                <span className="text-xs bg-[var(--accent-muted)] text-[var(--accent-primary)] px-1.5 py-0.5 rounded-full">{data.calendarEvents.length}</span>
               )}
             </div>
             <button
               onClick={handleSyncCalendar}
               disabled={isSyncing || calendarUrls.length === 0}
-              className="text-xs font-medium text-forest-600 dark:text-forest-400 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-forest-50 dark:bg-forest-900/30 hover:bg-forest-100 dark:hover:bg-forest-900/50 transition-colors disabled:opacity-50"
+              className="text-xs font-medium text-[var(--accent-primary)] flex items-center gap-1 px-2.5 py-1 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] hover:bg-[var(--surface-highlight)] transition-colors disabled:opacity-50"
             >
               <RefreshCw size={12} className={isSyncing ? 'animate-spin' : ''} />
               {isSyncing ? 'Syncing' : 'Sync'}
@@ -723,8 +747,8 @@ export function Settings() {
           <div className="px-3 py-2 space-y-1.5">
             {calendarUrls.map((url, i) => (
               <div key={i} className="flex items-center gap-1.5 text-xs">
-                <span className="text-forest-500 dark:text-blush-400 truncate flex-1">{url.replace(/^https?:\/\//, '').slice(0, 40)}...</span>
-                <button onClick={() => handleRemoveCalendar(url)} className="text-red-400 hover:text-red-600 flex-shrink-0">x</button>
+                <span className="text-[var(--text-secondary)] truncate flex-1">{url.replace(/^https?:\/\//, '').slice(0, 40)}...</span>
+                <button onClick={() => handleRemoveCalendar(url)} className="text-[var(--text-tertiary)] hover:text-[var(--status-danger)] flex-shrink-0">x</button>
               </div>
             ))}
             <div className="flex gap-1.5">
@@ -734,26 +758,26 @@ export function Settings() {
                 onChange={(e) => setNewCalendarUrl(e.target.value)}
                 placeholder="Add calendar URL..."
                 aria-label="Calendar URL"
-                className="flex-1 px-2 py-1.5 text-xs border border-blush-200 dark:border-blush-600 rounded-lg bg-blush-50 dark:bg-blush-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-forest-500"
+                className="flex-1 px-2 py-1.5 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-sm)] bg-[var(--surface-inset)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
               />
               <Button size="sm" onClick={handleAddCalendar}>Add</Button>
             </div>
-            {syncError && <div className="text-xs text-red-600">{syncError}</div>}
-            {syncSuccess && <div className="text-xs text-green-600">Calendar synced!</div>}
+            {syncError && <div className="text-xs text-[var(--status-danger)]">{syncError}</div>}
+            {syncSuccess && <div className="text-xs text-[var(--status-success)]">Calendar synced!</div>}
           </div>
-        </div>
+        </Card>
       </section>
 
       {/* Studios */}
       <section className="mb-5">
-        <h2 className="text-xs font-semibold text-blush-500 dark:text-blush-400 uppercase tracking-wider mb-1.5 px-1">Studios</h2>
-        <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 shadow-sm overflow-hidden divide-y divide-blush-100 dark:divide-blush-700">
+        <h2 className="type-h3 mb-1.5 px-1">Studios</h2>
+        <div className="space-y-2">
           {data.studios.map(studio => (
-            <div key={studio.id} className="px-3 py-2">
+            <Card key={studio.id} variant="standard" padding="sm">
               <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: studio.color }} />
-                <span className="text-sm font-medium text-forest-700 dark:text-white flex-1">{studio.name}</span>
-                <span className="text-xs text-forest-400 dark:text-blush-500">{studio.shortName}</span>
+                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: studio.color }} />
+                <span className="type-h2 flex-1">{studio.name}</span>
+                <span className="type-caption">{studio.shortName}</span>
               </div>
               {editingStudio === studio.id ? (
                 <div className="mt-1.5 flex gap-1.5 ml-5">
@@ -763,11 +787,11 @@ export function Settings() {
                     onChange={(e) => setStudioAddress(e.target.value)}
                     placeholder="Studio address..."
                     aria-label="Studio address"
-                    className="flex-1 px-2 py-1 text-xs border border-blush-200 dark:border-blush-600 rounded-lg bg-blush-50 dark:bg-blush-700 dark:text-white"
+                    className="flex-1 px-2 py-1 text-xs border border-[var(--border-subtle)] rounded-[var(--radius-sm)] bg-[var(--surface-inset)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
                   />
                   <button
                     onClick={() => { updateStudio(studio.id, { address: studioAddress }); setEditingStudio(null); }}
-                    className="px-2 py-1 bg-forest-600 text-white rounded-lg text-xs"
+                    className="px-2 py-1 bg-[var(--accent-primary)] text-[var(--text-on-accent)] rounded-[var(--radius-sm)] text-xs"
                   >
                     <Check size={12} />
                   </button>
@@ -775,39 +799,39 @@ export function Settings() {
               ) : (
                 <button
                   onClick={() => { setEditingStudio(studio.id); setStudioAddress(studio.address); }}
-                  className="ml-5 mt-0.5 text-xs text-forest-500 dark:text-forest-400 flex items-center gap-1 hover:text-forest-600"
+                  className="ml-5 mt-0.5 type-caption flex items-center gap-1 hover:text-[var(--accent-primary)]"
                 >
                   <MapPin size={11} />
                   {studio.address || 'Add address'}
                 </button>
               )}
-            </div>
+            </Card>
           ))}
         </div>
       </section>
 
       {/* Data & Stats */}
       <section className="mb-5">
-        <h2 className="text-xs font-semibold text-blush-500 dark:text-blush-400 uppercase tracking-wider mb-1.5 px-1">Data</h2>
-        <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 shadow-sm overflow-hidden">
+        <h2 className="type-h3 mb-1.5 px-1">Data</h2>
+        <Card variant="standard" padding="none" className="overflow-hidden">
           {/* Backup buttons */}
-          <div className="flex gap-2 px-3 py-2.5 border-b border-blush-100 dark:border-blush-700">
-            <button onClick={handleExport} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-forest-50 dark:bg-forest-900/30 text-forest-600 dark:text-forest-400 rounded-lg text-xs font-medium hover:bg-forest-100 dark:hover:bg-forest-900/50 transition-colors">
+          <div className="flex gap-2 px-3 py-2.5 border-b border-[var(--border-subtle)]">
+            <button onClick={handleExport} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[var(--accent-muted)] text-[var(--accent-primary)] rounded-[var(--radius-sm)] text-xs font-medium hover:bg-[var(--surface-highlight)] transition-colors">
               <Download size={12} /> Export
             </button>
             <label className="flex-1">
               <input type="file" accept=".json" onChange={handleImport} className="hidden" aria-label="Import backup file" />
-              <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blush-100 dark:bg-blush-700 text-forest-700 dark:text-white rounded-lg text-xs font-medium hover:bg-blush-200 dark:hover:bg-blush-600 cursor-pointer transition-colors">
+              <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[var(--surface-inset)] text-[var(--text-primary)] rounded-[var(--radius-sm)] text-xs font-medium hover:bg-[var(--surface-card-hover)] cursor-pointer transition-colors">
                 <Upload size={12} /> Import
               </div>
             </label>
           </div>
           {showImportSuccess && (
-            <div className="text-xs text-green-600 bg-green-50 dark:bg-green-900/30 px-3 py-1.5">Imported!</div>
+            <div className="text-xs text-[var(--status-success)] bg-[var(--surface-highlight)] px-3 py-1.5">Imported!</div>
           )}
 
           {/* Stats grid */}
-          <div className="grid grid-cols-3 gap-px bg-blush-100 dark:bg-blush-700">
+          <div className="grid grid-cols-3 gap-3 p-3">
             {[
               { label: 'Classes', value: data.classes.length },
               { label: 'Studios', value: data.studios.length },
@@ -816,19 +840,19 @@ export function Settings() {
               { label: 'Week Notes', value: data.weekNotes.length },
               { label: 'Events', value: data.calendarEvents?.length || 0 },
             ].map(stat => (
-              <div key={stat.label} className="bg-white dark:bg-blush-800 px-2.5 py-2 text-center">
-                <div className="text-base font-semibold text-forest-700 dark:text-white">{stat.value}</div>
-                <div className="text-xs text-forest-400 dark:text-blush-500">{stat.label}</div>
-              </div>
+              <Card key={stat.label} variant="stat" padding="sm">
+                <div className="type-stat text-2xl">{stat.value}</div>
+                <div className="type-label mt-0.5">{stat.label}</div>
+              </Card>
             ))}
           </div>
-        </div>
+        </Card>
       </section>
 
       {/* App Version */}
-      <div className="mt-4 text-center">
-        <span className="text-xs text-forest-400 dark:text-blush-500 flex items-center justify-center gap-1">
-          <Sparkles size={10} /> DIXXX v1.0
+      <div className="mt-4 text-center mb-8">
+        <span className="font-display italic text-[13px] text-[var(--text-tertiary)] flex items-center justify-center gap-1">
+          <Sparkles size={10} /> FIGGG v1.0
         </span>
       </div>
     </div>
@@ -847,30 +871,30 @@ function TimingRow({
   const isRange = secondValue !== undefined && onSecondChange;
   return (
     <div className="flex items-center gap-2 pl-6">
-      <span className="text-xs text-forest-600 dark:text-blush-300 w-16 flex-shrink-0">{label}</span>
+      <span className="text-xs text-[var(--text-secondary)] w-16 flex-shrink-0">{label}</span>
       <div className="flex items-center gap-1.5 flex-1">
         <button
           onClick={() => value > min && onChange(value - 0.5)}
-          className="w-6 h-6 rounded-md bg-blush-100 dark:bg-blush-700 text-forest-600 dark:text-blush-300 text-xs font-bold flex items-center justify-center"
+          className="w-6 h-6 rounded-md bg-[var(--surface-inset)] text-[var(--text-secondary)] text-xs font-bold flex items-center justify-center"
         >-</button>
-        <span className="text-sm font-medium text-forest-700 dark:text-white w-8 text-center">{value}{suffix}</span>
+        <span className="text-sm font-medium text-[var(--text-primary)] w-8 text-center">{value}{suffix}</span>
         <button
           onClick={() => value < max && onChange(value + 0.5)}
-          className="w-6 h-6 rounded-md bg-blush-100 dark:bg-blush-700 text-forest-600 dark:text-blush-300 text-xs font-bold flex items-center justify-center"
+          className="w-6 h-6 rounded-md bg-[var(--surface-inset)] text-[var(--text-secondary)] text-xs font-bold flex items-center justify-center"
         >+</button>
       </div>
       {isRange && (
         <>
-          <span className="text-xs text-blush-400">to</span>
+          <span className="text-xs text-[var(--text-tertiary)]">to</span>
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => secondValue > (secondMin || min) && onSecondChange(secondValue - 0.5)}
-              className="w-6 h-6 rounded-md bg-blush-100 dark:bg-blush-700 text-forest-600 dark:text-blush-300 text-xs font-bold flex items-center justify-center"
+              className="w-6 h-6 rounded-md bg-[var(--surface-inset)] text-[var(--text-secondary)] text-xs font-bold flex items-center justify-center"
             >-</button>
-            <span className="text-sm font-medium text-forest-700 dark:text-white w-8 text-center">{secondValue}{suffix}</span>
+            <span className="text-sm font-medium text-[var(--text-primary)] w-8 text-center">{secondValue}{suffix}</span>
             <button
               onClick={() => secondValue < (secondMax || max) && onSecondChange(secondValue + 0.5)}
-              className="w-6 h-6 rounded-md bg-blush-100 dark:bg-blush-700 text-forest-600 dark:text-blush-300 text-xs font-bold flex items-center justify-center"
+              className="w-6 h-6 rounded-md bg-[var(--surface-inset)] text-[var(--text-secondary)] text-xs font-bold flex items-center justify-center"
             >+</button>
           </div>
         </>
@@ -921,7 +945,7 @@ function WellnessItemEditor({
         type="text"
         value={label}
         onChange={e => setLabel(e.target.value)}
-        className="w-full px-2 py-1.5 text-sm border border-blush-200 dark:border-blush-600 rounded-lg bg-blush-50 dark:bg-blush-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-forest-500"
+        className="w-full px-2 py-1.5 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-sm)] bg-[var(--surface-inset)] text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
         autoFocus
       />
       {/* Icon picker */}
@@ -934,8 +958,8 @@ function WellnessItemEditor({
               onClick={() => setIcon(name)}
               className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${
                 icon === name
-                  ? 'bg-forest-600 text-white'
-                  : 'bg-blush-100 dark:bg-blush-700 text-forest-600 dark:text-blush-300'
+                  ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)]'
+                  : 'bg-[var(--surface-inset)] text-[var(--text-secondary)]'
               }`}
               title={name}
             >
@@ -956,8 +980,8 @@ function WellnessItemEditor({
             onClick={() => cond.set(!cond.value)}
             className={`text-[11px] px-2 py-1 rounded-full border transition-colors ${
               cond.value
-                ? 'bg-forest-100 dark:bg-forest-900/30 border-forest-300 dark:border-forest-700 text-forest-700 dark:text-forest-300'
-                : 'border-blush-200 dark:border-blush-600 text-blush-400 dark:text-blush-500'
+                ? 'bg-[var(--accent-muted)] border-[var(--accent-primary)] text-[var(--accent-primary)]'
+                : 'border-[var(--border-subtle)] text-[var(--text-tertiary)]'
             }`}
           >
             {cond.label}
@@ -966,8 +990,8 @@ function WellnessItemEditor({
       </div>
       {/* Save/Cancel */}
       <div className="flex gap-2">
-        <button onClick={handleSave} className="px-3 py-1 bg-forest-600 text-white rounded-lg text-xs font-medium">Save</button>
-        <button onClick={onCancel} className="px-3 py-1 bg-blush-100 dark:bg-blush-700 text-forest-700 dark:text-white rounded-lg text-xs font-medium">Cancel</button>
+        <button onClick={handleSave} className="px-3 py-1 bg-[var(--accent-primary)] text-[var(--text-on-accent)] rounded-[var(--radius-sm)] text-xs font-medium">Save</button>
+        <button onClick={onCancel} className="px-3 py-1 bg-[var(--surface-inset)] text-[var(--text-primary)] rounded-[var(--radius-sm)] text-xs font-medium">Cancel</button>
       </div>
     </div>
   );
