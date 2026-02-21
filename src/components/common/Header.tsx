@@ -49,7 +49,7 @@ function SyncIndicator() {
   return (
     <button
       onClick={handleTap}
-      className={`relative p-1.5 ${color} active:scale-90 transition-transform`}
+      className={`relative p-2 min-h-[44px] min-w-[44px] flex items-center justify-center ${color} active:scale-90 transition-transform`}
       role="status"
       aria-live="polite"
       aria-label={title}
@@ -190,7 +190,7 @@ export function MobileNav() {
               key={path}
               to={path}
               onClick={() => handleNavClick(path)}
-              className={`flex flex-col items-center justify-center gap-0.5 min-w-[36px] min-h-[48px] px-1 py-1 transition-all duration-150 active:scale-95 ${
+              className={`flex flex-col items-center justify-center gap-0.5 min-w-[44px] min-h-[48px] px-1 py-1 transition-all duration-150 active:scale-95 ${
                 active
                   ? 'text-[var(--accent-primary)]'
                   : 'text-[var(--text-tertiary)]'

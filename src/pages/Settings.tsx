@@ -272,7 +272,7 @@ export function Settings() {
       <div className="flex items-center gap-2 mb-4">
         <Link
           to="/"
-          className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[var(--surface-card-hover)] transition-colors"
+          className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-[var(--surface-card-hover)] transition-colors"
         >
           <ArrowLeft size={18} className="text-[var(--text-primary)]" />
         </Link>

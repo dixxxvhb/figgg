@@ -211,7 +211,7 @@ export function Schedule() {
               </div>
               {!isSelected && (hasClasses || hasCalendarEvents || hasCompetitions) && (
                 <div className="flex gap-0.5 justify-center mt-1">
-                  {hasClasses && <div className="w-1.5 h-1.5 rounded-full bg-forest-400" />}
+                  {hasClasses && <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]" />}
                   {hasCalendarEvents && <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
                   {hasCompetitions && <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />}
                 </div>
@@ -324,8 +324,8 @@ export function Schedule() {
                       {cls.recitalSong && (
                         <div className={`text-sm mt-2 font-medium ${
                           cls.isRecitalSong
-                            ? 'text-purple-600 dark:text-purple-400'
-                            : 'text-blush-500 dark:text-blush-400'
+                            ? 'text-purple-600'
+                            : 'text-[var(--text-secondary)]'
                         }`}>
                           {cls.isRecitalSong ? '⭐ Recital: ' : 'Combo: '}{cls.recitalSong}
                         </div>
