@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { format, differenceInDays, parseISO } from 'date-fns';
+import { format, differenceInDays, parseISO, addDays, isAfter } from 'date-fns';
 import {
   Trophy,
   ChevronRight,
@@ -29,6 +29,7 @@ import { WeekStats } from '../components/Dashboard/WeekStats';
 import { TodaysAgenda } from '../components/Dashboard/TodaysAgenda';
 import { MorningBriefing } from '../components/Dashboard/MorningBriefing';
 import { RemindersWidget } from '../components/Dashboard/RemindersWidget';
+import { ScratchpadWidget } from '../components/Dashboard/ScratchpadWidget';
 import { LaunchPlanWidget } from '../components/Dashboard/LaunchPlanWidget';
 import { EventCountdown } from '../components/Dashboard/EventCountdown';
 import { StreakCard } from '../components/Dashboard/StreakCard';
@@ -36,7 +37,7 @@ import { WeeklyInsight } from '../components/Dashboard/WeeklyInsight';
 import { WeekMomentumBar } from '../components/Dashboard/WeekMomentumBar';
 import { SortableWidget } from '../components/Dashboard/SortableWidget';
 import { CalendarEvent, DEFAULT_MED_CONFIG, DEFAULT_AI_CONFIG } from '../types';
-import type { AICheckIn, DayPlan, DayPlanItem, Reminder, WeekNotes } from '../types';
+import type { AICheckIn, DayPlan, DayPlanItem, Reminder, RecurringSchedule, WeekNotes, ClassWeekNotes, LiveNote, RehearsalNote, CompetitionDance } from '../types';
 import { AICheckInWidget } from '../components/Dashboard/AICheckInWidget';
 import { DayPlanWidget } from '../components/Dashboard/DayPlanWidget';
 import { useCheckInStatus } from '../hooks/useCheckInStatus';
@@ -79,6 +80,7 @@ const DEFAULT_WIDGET_ORDER = [
   'streak',
   'weekly-insight',
   'launch-plan',
+  'scratchpad',
 ] as const;
 
 const WIDGET_LABELS: Record<string, string> = {
@@ -90,10 +92,11 @@ const WIDGET_LABELS: Record<string, string> = {
   'streak': 'Streak',
   'weekly-insight': 'Weekly Insight',
   'launch-plan': 'Launch Plan',
+  'scratchpad': 'Scratchpad',
 };
 
 export function Dashboard() {
-  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, refreshData } = useAppData();
+  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, refreshData, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes } = useAppData();
   const stats = useTeachingStats(data);
   const medConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
   const selfCareStatus = useSelfCareStatus(data.selfCare, medConfig);
@@ -105,7 +108,7 @@ export function Dashboard() {
   });
 
   // AI check-in
-  const aiConfig = data.settings?.aiConfig || DEFAULT_AI_CONFIG;
+  const aiConfig = { ...DEFAULT_AI_CONFIG, ...(data.settings?.aiConfig || {}) };
   const checkInStatus = useCheckInStatus(data.aiCheckIns, aiConfig, currentMinute);
   // Keep widget mounted after submit/error until it self-dismisses
   const [checkInActive, setCheckInActive] = useState(false);
@@ -127,7 +130,11 @@ export function Dashboard() {
   const planInFlightRef = useRef(false);
 
   const generateDayPlan = useCallback(async (checkInMood?: string, checkInMessage?: string) => {
-    if (planInFlightRef.current) return;
+    if (planInFlightRef.current) {
+      // Already generating — show spinner so user knows it's working
+      setIsReplanning(true);
+      return;
+    }
     planInFlightRef.current = true;
     setIsReplanning(true);
     try {
@@ -392,6 +399,134 @@ export function Dashboard() {
           planUpdated = true;
           break;
         }
+
+        // ── Class Exceptions ────────────────────────────────────────────────
+        case 'markClassException': {
+          if (!action.exceptionType) break;
+          const dayName = getCurrentDayOfWeek();
+          const todayClasses = getClassesByDay(dataRef.current.classes, dayName);
+          const targetIds = action.scope === 'specific' && action.classIds?.length
+            ? action.classIds
+            : todayClasses.map(c => c.id);
+          if (targetIds.length === 0) break;
+          const exWeekNotes = getCurrentWeekNotes();
+          for (const classId of targetIds) {
+            const existing: ClassWeekNotes = exWeekNotes.classNotes[classId] || {
+              classId, plan: '', liveNotes: [], isOrganized: false,
+            };
+            exWeekNotes.classNotes[classId] = {
+              ...existing,
+              exception: {
+                type: action.exceptionType,
+                ...(action.subName ? { subName: action.subName } : {}),
+                ...(action.reason ? { reason: action.reason as 'sick' | 'personal' | 'holiday' | 'other' } : {}),
+              },
+            };
+          }
+          saveWeekNotes(exWeekNotes);
+          break;
+        }
+
+        // ── Class Notes ─────────────────────────────────────────────────────
+        case 'addClassNote': {
+          if (!action.classId || !action.text) break;
+          const cnWeekNotes = getCurrentWeekNotes();
+          const cnExisting: ClassWeekNotes = cnWeekNotes.classNotes[action.classId] || {
+            classId: action.classId, plan: '', liveNotes: [], isOrganized: false,
+          };
+          const newNote: LiveNote = {
+            id: `ai-note-${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            text: action.text,
+            category: (action.noteCategory as LiveNote['category']) || undefined,
+          };
+          cnWeekNotes.classNotes[action.classId] = {
+            ...cnExisting,
+            liveNotes: [...cnExisting.liveNotes, newNote],
+          };
+          saveWeekNotes(cnWeekNotes);
+          break;
+        }
+        case 'setClassPlan': {
+          if (!action.classId || !action.plan) break;
+          const cpWeekNotes = getCurrentWeekNotes();
+          const cpExisting: ClassWeekNotes = cpWeekNotes.classNotes[action.classId] || {
+            classId: action.classId, plan: '', liveNotes: [], isOrganized: false,
+          };
+          cpWeekNotes.classNotes[action.classId] = { ...cpExisting, plan: action.plan };
+          saveWeekNotes(cpWeekNotes);
+          break;
+        }
+        case 'setNextWeekGoal': {
+          if (!action.classId || !action.goal) break;
+          const ngWeekNotes = getCurrentWeekNotes();
+          const ngExisting: ClassWeekNotes = ngWeekNotes.classNotes[action.classId] || {
+            classId: action.classId, plan: '', liveNotes: [], isOrganized: false,
+          };
+          ngWeekNotes.classNotes[action.classId] = { ...ngExisting, nextWeekGoal: action.goal };
+          saveWeekNotes(ngWeekNotes);
+          break;
+        }
+
+        // ── Launch Plan ─────────────────────────────────────────────────────
+        case 'completeLaunchTask': {
+          if (!action.taskId || !dataRef.current.launchPlan) break;
+          const tasks = dataRef.current.launchPlan.tasks.map(t =>
+            t.id === action.taskId
+              ? { ...t, completed: true, completedAt: new Date().toISOString() }
+              : t
+          );
+          // Also mark matching day plan item done
+          if (currentPlan) {
+            const planIdx = currentPlan.items.findIndex(i => i.sourceId === action.taskId && i.category === 'launch');
+            if (planIdx >= 0) {
+              const updatedItems = [...currentPlan.items];
+              updatedItems[planIdx] = { ...updatedItems[planIdx], completed: true };
+              currentPlan = { ...currentPlan, items: updatedItems };
+              planUpdated = true;
+            }
+          }
+          updateLaunchPlan({ tasks });
+          break;
+        }
+        case 'skipLaunchTask': {
+          if (!action.taskId || !dataRef.current.launchPlan) break;
+          const skipTasks = dataRef.current.launchPlan.tasks.map(t =>
+            t.id === action.taskId
+              ? { ...t, skipped: true, skippedAt: new Date().toISOString() }
+              : t
+          );
+          updateLaunchPlan({ tasks: skipTasks });
+          break;
+        }
+        case 'addLaunchNote': {
+          if (!action.taskId || !action.note || !dataRef.current.launchPlan) break;
+          const noteTasks = dataRef.current.launchPlan.tasks.map(t =>
+            t.id === action.taskId ? { ...t, notes: action.note } : t
+          );
+          updateLaunchPlan({ tasks: noteTasks });
+          break;
+        }
+
+        // ── Rehearsal Notes ─────────────────────────────────────────────────
+        case 'addRehearsalNote': {
+          if (!action.danceId || !action.notes) break;
+          const dance = (dataRef.current.competitionDances || []).find(d => d.id === action.danceId);
+          if (!dance) break;
+          const newRehearsalNote: RehearsalNote = {
+            id: `ai-rn-${Date.now()}`,
+            date: todayKey,
+            notes: action.notes,
+            workOn: action.workOn || [],
+            media: [],
+          };
+          const updatedDance: CompetitionDance = {
+            ...dance,
+            rehearsalNotes: [newRehearsalNote, ...(dance.rehearsalNotes || [])],
+          };
+          updateCompetitionDance(updatedDance);
+          break;
+        }
       }
     }
 
@@ -401,7 +536,7 @@ export function Dashboard() {
     if (planUpdated && currentPlan) {
       saveDayPlan(currentPlan as DayPlan);
     }
-  }, [updateSelfCare, saveDayPlan, medConfig]);
+  }, [updateSelfCare, saveDayPlan, medConfig, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance]);
 
   const handleCheckInSubmit = useCallback(async (message: string) => {
     const type = frozenCheckInType;
@@ -433,7 +568,7 @@ export function Dashboard() {
       }
       return result;
     } catch (e) {
-      // Save a record so the check-in doesn't keep re-appearing on error
+      // Save a record so the check-in doesn't keep re-appearing on page refresh
       saveAICheckIn({
         id: `ci-err-${Date.now()}`,
         date: todayStr,
@@ -442,9 +577,8 @@ export function Dashboard() {
         aiResponse: '',
         timestamp: new Date().toISOString(),
       });
-      // Return fallback response instead of throwing — throwing causes a re-render
-      // race where the widget unmounts before its catch block can display the error
-      return { response: 'Something went wrong. Check in later.', adjustments: [] };
+      // Throw so widget can show its error state with retry button
+      throw e;
     }
   }, [frozenCheckInType, saveAICheckIn, aiConfig.autoPlanEnabled, generateDayPlan, executeAIActions]);
 
@@ -480,6 +614,18 @@ export function Dashboard() {
       });
     }
 
+    // Sync launch items with launch plan
+    if (item.category === 'launch' && item.sourceId && data.launchPlan) {
+      const tasks = data.launchPlan.tasks.map(t =>
+        t.id === item.sourceId
+          ? newCompleted
+            ? { ...t, completed: true, completedAt: new Date().toISOString() }
+            : { ...t, completed: false, completedAt: undefined }
+          : t
+      );
+      updateLaunchPlan({ tasks });
+    }
+
     const updated: DayPlan = {
       ...data.dayPlan,
       items: data.dayPlan.items.map(i =>
@@ -493,6 +639,54 @@ export function Dashboard() {
     const todayStr = format(new Date(), 'yyyy-MM-dd');
     return data.dayPlan?.date === todayStr ? data.dayPlan : null;
   }, [data.dayPlan]);
+
+  // Toggle reminder completion from dashboard widget
+  const handleToggleReminder = useCallback((id: string) => {
+    const sc = data.selfCare || {};
+    const reminders = sc.reminders || [];
+    const target = reminders.find(r => r.id === id);
+    if (!target) return;
+
+    const nowCompleted = !target.completed;
+    let updated = reminders.map(r =>
+      r.id === id ? { ...r, completed: nowCompleted, completedAt: nowCompleted ? new Date().toISOString() : undefined, updatedAt: new Date().toISOString() } : r
+    );
+
+    // Generate next instance for recurring tasks
+    if (nowCompleted && target.recurring && target.dueDate) {
+      const getNext = (dateStr: string, rec: RecurringSchedule): string | null => {
+        const d = parseISO(dateStr);
+        let next: Date;
+        switch (rec.type) {
+          case 'daily': next = addDays(d, rec.interval); break;
+          case 'weekly': next = addDays(d, 7 * rec.interval); break;
+          case 'monthly': next = new Date(d); next.setMonth(next.getMonth() + rec.interval); break;
+          case 'yearly': next = new Date(d); next.setFullYear(next.getFullYear() + rec.interval); break;
+          default: return null;
+        }
+        if (rec.endDate && isAfter(next, parseISO(rec.endDate))) return null;
+        return format(next, 'yyyy-MM-dd');
+      };
+      const nextDate = getNext(target.dueDate, target.recurring);
+      if (nextDate) {
+        updated = [...updated, {
+          ...target,
+          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          completed: false,
+          completedAt: undefined,
+          dueDate: nextDate,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }];
+      }
+    }
+
+    updateSelfCare({ reminders: updated });
+  }, [data.selfCare, updateSelfCare]);
+
+  const handleScratchpadChange = useCallback((text: string) => {
+    updateSelfCare({ scratchpad: text });
+  }, [updateSelfCare]);
 
   const [isEditingLayout, setIsEditingLayout] = useState(false);
 
@@ -631,7 +825,7 @@ export function Dashboard() {
   };
 
   const lastNotes = classInfo.class ? getLastWeekNotes(classInfo.class.id) : [];
-  const enrolledStudents = classInfo.class ? (data.students || []).filter(s => s.classIds.includes(classInfo.class!.id)) : [];
+  const enrolledStudents = classInfo.class ? (data.students || []).filter(s => s.classIds?.includes(classInfo.class!.id)) : [];
 
   const recentlyEndedClass = useMemo(() => {
     if (classInfo.status === 'during') return null;
@@ -721,26 +915,28 @@ export function Dashboard() {
   }, [hour, todayClasses, todayCalendarEvents, classInfo, selfCareStatus, currentMinute, recentlyEndedClass, data.selfCare?.skippedDoseDate, todayStr2, todayMood]);
 
   return (
-    <div className="pb-24 bg-blush-50 dark:bg-blush-900 min-h-screen">
+    <div className="pb-24 bg-[var(--surface-primary)] min-h-screen">
       {/* ── Greeting — clean edge-to-edge, no colored bar ── */}
       <div className="px-4 pt-8 pb-2">
         <div className="page-w">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-sm text-blush-500 dark:text-blush-400 tracking-wide">{greeting}</p>
-              <h1 className="text-3xl font-display text-blush-900 dark:text-blush-100 mt-0.5 leading-tight">
-                {dayName}, <span className="text-forest-600 dark:text-forest-400">{dateStr}</span>
+              <p className="type-caption uppercase tracking-wider text-[var(--text-secondary)]">
+                {greeting.startsWith('Good') ? <>{greeting}, <span className="text-[var(--accent-primary)] font-medium">Dixon</span></> : greeting}
+              </p>
+              <h1 className="type-display text-[var(--text-primary)] mt-0.5 leading-tight">
+                {dayName}, <span className="text-[var(--accent-primary)]">{dateStr}</span>
               </h1>
               {greetingSub && (
-                <p className="text-sm text-blush-400 dark:text-blush-500 mt-1">{greetingSub}</p>
+                <p className="text-sm text-[var(--text-tertiary)] mt-1">{greetingSub}</p>
               )}
             </div>
             <button
               onClick={() => setIsEditingLayout(!isEditingLayout)}
               className={`mt-1 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
                 isEditingLayout
-                  ? 'bg-forest-600 text-white'
-                  : 'bg-blush-100 dark:bg-blush-700 text-blush-500 dark:text-blush-400'
+                  ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)]'
+                  : 'bg-[var(--surface-inset)] text-[var(--text-secondary)]'
               }`}
             >
               {isEditingLayout ? <Check size={13} /> : <Pencil size={13} />}
@@ -756,8 +952,8 @@ export function Dashboard() {
           <Link
             to="/choreography"
             className={`block rounded-2xl overflow-hidden ${
-              daysUntilComp <= 3 ? 'bg-red-500' : daysUntilComp <= 7 ? 'bg-orange-500' : 'bg-forest-600'
-            } text-white shadow-sm`}
+              daysUntilComp <= 3 ? 'bg-[var(--status-danger)]' : daysUntilComp <= 7 ? 'bg-[var(--status-warning)]' : 'bg-[var(--accent-primary)]'
+            } text-[var(--text-on-accent)] shadow-sm`}
           >
             <div className="p-4">
               <div className="flex items-center justify-between">
@@ -765,7 +961,7 @@ export function Dashboard() {
                   <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center"><Trophy size={20} /></div>
                   <div>
                     <div className="font-semibold">{nextComp.name}</div>
-                    <div className="text-sm text-white/80">{format(parseISO(nextComp.date), 'EEEE, MMM d')}</div>
+                    <div className="text-sm opacity-80">{format(parseISO(nextComp.date), 'EEEE, MMM d')}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -784,29 +980,30 @@ export function Dashboard() {
         </div>
       )}
 
-      <div className="page-w px-4 pt-4 space-y-4">
+      <div className="page-w px-4 pt-4 space-y-6">
         <EventCountdown competitions={data.competitions} />
 
         {/* ── Hero Card — only shows during active class/event or recently ended ── */}
         {classInfo.class && classInfo.status === 'during' ? (
-          <div className="bg-white dark:bg-blush-800 rounded-2xl overflow-hidden ring-2 ring-forest-500/30 dark:ring-forest-400/20 shadow-lg shadow-forest-500/10">
+          <div className="bg-[var(--surface-card)] rounded-2xl overflow-hidden ring-2 ring-[var(--accent-primary)]/30 shadow-lg shadow-[var(--accent-primary)]/10 relative">
+            <div className="teaching-border-pulse absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl bg-[var(--accent-primary)]" />
             <div className="p-5">
               <div className="flex items-center justify-between mb-3">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest bg-forest-600 text-white px-2.5 py-1 rounded-full">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest bg-[var(--accent-primary)] text-[var(--text-on-accent)] px-2.5 py-1 rounded-full">
                   <span className="w-1.5 h-1.5 bg-white rounded-full live-dot" />
                   Teaching Now
                 </span>
                 <div className="text-right">
-                  <span className="text-3xl font-display text-forest-600 dark:text-forest-400 leading-none">
+                  <span className="type-stat text-[var(--accent-primary)] leading-none">
                     {classInfo.timeRemaining}
                   </span>
-                  <span className="text-[11px] text-blush-400 dark:text-blush-500 ml-1">min left</span>
+                  <span className="text-[11px] text-[var(--text-tertiary)] ml-1">min left</span>
                 </div>
               </div>
 
-              <h2 className="text-2xl font-display text-blush-900 dark:text-white leading-tight line-clamp-2 mb-3">{classInfo.class.name}</h2>
+              <h2 className="type-h1 text-[var(--text-primary)] leading-tight line-clamp-2 mb-3">{classInfo.class.name}</h2>
 
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-blush-500 dark:text-blush-400 mb-4">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[var(--text-secondary)] mb-4">
                 <span className="flex items-center gap-1 text-[--color-honey] dark:text-[--color-honey-light] font-medium">
                   <Clock size={14} />{formatTimeDisplay(classInfo.class.startTime)} - {formatTimeDisplay(classInfo.class.endTime)}
                 </span>
@@ -816,8 +1013,8 @@ export function Dashboard() {
 
               <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm mb-3 ${
                 currentClassHasPlan
-                  ? 'bg-[#f0f5f1] dark:bg-blush-700 text-[--color-sage-dark] dark:text-[--color-sage-light]'
-                  : 'bg-orange-50 dark:bg-blush-700 text-orange-700 dark:text-orange-400'
+                  ? 'bg-[var(--accent-muted)] text-[var(--accent-primary)]'
+                  : 'bg-[var(--surface-inset)] text-[var(--status-warning)]'
               }`}>
                 <FileText size={15} />
                 {currentClassHasPlan ? 'Plan ready' : <Link to="/plan" className="hover:underline">No plan — tap to add</Link>}
@@ -836,16 +1033,16 @@ export function Dashboard() {
                   return aA === bA ? 0 : aA ? -1 : 1;
                 });
                 return (
-                  <div className="bg-blush-50 dark:bg-blush-700/40 rounded-xl px-3 py-2.5 mb-3">
-                    <div className="text-[11px] font-medium text-blush-400 dark:text-blush-500 mb-1.5 flex items-center gap-1 uppercase tracking-wide">
+                  <div className="bg-[var(--surface-inset)] rounded-xl px-3 py-2.5 mb-3">
+                    <div className="type-caption text-[var(--text-tertiary)] mb-1.5 flex items-center gap-1">
                       <AlertCircle size={11} /> From Last Week
                     </div>
-                    <ul className="text-sm text-blush-700 dark:text-blush-300 space-y-1">
+                    <ul className="text-sm text-[var(--text-secondary)] space-y-1">
                       {sorted.map(note => {
                         const action = isActionItem(note.text) || note.category === 'reminder' || note.category === 'next-week';
                         return (
-                          <li key={note.id} className={`flex items-start gap-1.5 ${action ? 'font-medium text-forest-700 dark:text-forest-400' : ''}`}>
-                            <span className={`mt-0.5 ${action ? 'text-forest-500' : 'text-blush-300 dark:text-blush-600'}`}>{action ? '\u2192' : '\u2022'}</span>
+                          <li key={note.id} className={`flex items-start gap-1.5 ${action ? 'font-medium text-[var(--accent-primary)]' : ''}`}>
+                            <span className={`mt-0.5 ${action ? 'text-[var(--accent-primary)]' : 'text-[var(--text-tertiary)]'}`}>{action ? '\u2192' : '\u2022'}</span>
                             <span className="line-clamp-2">{note.text}</span>
                           </li>
                         );
@@ -857,7 +1054,7 @@ export function Dashboard() {
 
               <Link
                 to={`/class/${classInfo.class.id}/notes`}
-                className="flex items-center justify-center gap-2 w-full bg-forest-600 hover:bg-forest-700 active:bg-forest-800 text-white py-3.5 rounded-xl font-semibold transition-colors"
+                className="flex items-center justify-center gap-2 w-full bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] active:opacity-90 text-[var(--text-on-accent)] py-3.5 rounded-xl font-semibold transition-colors"
               >
                 <Play size={18} />Continue Class
               </Link>
@@ -871,9 +1068,9 @@ export function Dashboard() {
                 const upNextTime = showEvent ? nextEvent!.startTime : nextCls?.startTime;
                 if (!upNextName) return null;
                 return (
-                  <div className="flex items-center gap-2 mt-3 px-3 py-2 bg-blush-50 dark:bg-blush-700/30 rounded-xl">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-blush-400 dark:text-blush-500">Then</span>
-                    <span className="text-sm font-medium text-blush-700 dark:text-blush-300 truncate">{upNextName}</span>
+                  <div className="flex items-center gap-2 mt-3 px-3 py-2 bg-[var(--surface-inset)] rounded-xl">
+                    <span className="type-caption text-[var(--text-tertiary)]">Then</span>
+                    <span className="text-sm font-medium text-[var(--text-primary)] truncate">{upNextName}</span>
                     <span className="text-sm font-semibold text-[--color-honey] dark:text-[--color-honey-light] ml-auto flex-shrink-0">{formatTimeDisplay(upNextTime!)}</span>
                   </div>
                 );
@@ -887,16 +1084,16 @@ export function Dashboard() {
             const remaining = endMins - currentMinute;
             const locationLine = currentCalendarEvent.location?.split('\n').filter(Boolean)[0];
             return (
-              <div className="bg-white dark:bg-blush-800 rounded-2xl overflow-hidden ring-2 ring-amber-400/30 dark:ring-amber-500/20 shadow-lg shadow-amber-400/10">
+              <div className="bg-[var(--surface-card)] rounded-2xl overflow-hidden ring-2 ring-amber-400/30 shadow-lg shadow-amber-400/10">
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-3">
                     <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest bg-amber-500 text-white px-2.5 py-1 rounded-full">
                       <span className="w-1.5 h-1.5 bg-white rounded-full live-dot" />Live
                     </span>
-                    <div><span className="text-3xl font-display text-amber-600 dark:text-amber-400 leading-none">{remaining}</span><span className="text-[11px] text-blush-400 ml-1">min left</span></div>
+                    <div><span className="type-stat text-amber-600 dark:text-amber-400 leading-none">{remaining}</span><span className="text-[11px] text-[var(--text-tertiary)] ml-1">min left</span></div>
                   </div>
-                  <h2 className="text-2xl font-display text-blush-900 dark:text-white leading-tight line-clamp-2 mb-3">{currentCalendarEvent.title}</h2>
-                  <div className="flex flex-wrap items-center gap-3 text-sm text-blush-500 dark:text-blush-400 mb-4">
+                  <h2 className="type-h1 text-[var(--text-primary)] leading-tight line-clamp-2 mb-3">{currentCalendarEvent.title}</h2>
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--text-secondary)] mb-4">
                     <span className="flex items-center gap-1 text-[--color-honey] dark:text-[--color-honey-light] font-medium"><Clock size={14} />{formatTimeDisplay(currentCalendarEvent.startTime)}{currentCalendarEvent.endTime && currentCalendarEvent.endTime !== '00:00' && <> - {formatTimeDisplay(currentCalendarEvent.endTime)}</>}</span>
                     {locationLine && <span className="flex items-center gap-1"><MapPin size={14} />{locationLine}</span>}
                   </div>
@@ -906,18 +1103,18 @@ export function Dashboard() {
             );
           })()
         ) : recentlyEndedClass ? (
-          <div className="bg-white dark:bg-blush-800 rounded-2xl overflow-hidden border border-blush-200 dark:border-blush-700">
+          <div className="bg-[var(--surface-card)] rounded-2xl overflow-hidden border border-[var(--border-subtle)]">
             <div className="p-5">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 bg-forest-50 dark:bg-forest-900/30 rounded-xl flex items-center justify-center">
-                  <MessageSquare size={18} className="text-forest-600 dark:text-forest-400" />
+                <div className="w-9 h-9 bg-[var(--accent-muted)] rounded-xl flex items-center justify-center">
+                  <MessageSquare size={18} className="text-[var(--accent-primary)]" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-display text-blush-900 dark:text-white">{recentlyEndedClass.name}</h2>
-                  <p className="text-sm text-blush-500 dark:text-blush-400">Just ended — anything to capture?</p>
+                  <h2 className="text-lg font-display text-[var(--text-primary)]">{recentlyEndedClass.name}</h2>
+                  <p className="text-sm text-[var(--text-secondary)]">Just ended — anything to capture?</p>
                 </div>
               </div>
-              <Link to={`/class/${recentlyEndedClass.id}/notes`} className="flex items-center justify-center gap-2 w-full bg-forest-600 hover:bg-forest-700 active:bg-forest-800 text-white py-3.5 rounded-xl font-semibold transition-colors"><Play size={18} />Capture Notes</Link>
+              <Link to={`/class/${recentlyEndedClass.id}/notes`} className="flex items-center justify-center gap-2 w-full bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] active:opacity-90 text-[var(--text-on-accent)] py-3.5 rounded-xl font-semibold transition-colors"><Play size={18} />Capture Notes</Link>
             </div>
           </div>
         ) : null}
@@ -938,11 +1135,11 @@ export function Dashboard() {
           const next = todayPlan.items.find(i => !i.completed);
           if (!next) return null;
           return (
-            <div className="flex items-center gap-3 px-4 py-3 bg-forest-600 text-white rounded-2xl">
+            <div className="flex items-center gap-3 px-4 py-3 bg-[var(--accent-primary)] text-[var(--text-on-accent)] rounded-2xl">
               <div className="flex-1 min-w-0">
-                <div className="text-[10px] uppercase tracking-widest text-forest-200 font-bold">Next up</div>
+                <div className="type-caption text-white/70">Next up</div>
                 <div className="text-sm font-semibold truncate">{next.title}</div>
-                {next.time && <div className="text-xs text-forest-200">{formatTimeDisplay(next.time)}</div>}
+                {next.time && <div className="text-xs text-white/70">{formatTimeDisplay(next.time)}</div>}
               </div>
               <button
                 onClick={() => handleTogglePlanItem(next.id)}
@@ -1009,7 +1206,7 @@ export function Dashboard() {
                   />
                 )}
                 {id === 'reminders' && (
-                  <RemindersWidget reminders={data.selfCare?.reminders || []} />
+                  <RemindersWidget reminders={data.selfCare?.reminders || []} onToggle={handleToggleReminder} />
                 )}
                 {id === 'week-momentum' && (
                   <WeekMomentumBar stats={stats} />
@@ -1018,13 +1215,16 @@ export function Dashboard() {
                   <WeekStats stats={stats} />
                 )}
                 {id === 'streak' && (
-                  <StreakCard selfCare={data.selfCare} notesThisWeek={stats.classesThisWeek.completed} totalClassesThisWeek={stats.classesThisWeek.total} />
+                  <StreakCard selfCare={data.selfCare} learningData={data.learningData} notesThisWeek={stats.classesThisWeek.completed} totalClassesThisWeek={stats.classesThisWeek.total} />
                 )}
                 {id === 'weekly-insight' && (
-                  <WeeklyInsight stats={stats} classes={data.classes} />
+                  <WeeklyInsight stats={stats} classes={data.classes} competitions={data.competitions} weekNotes={data.weekNotes} />
                 )}
                 {id === 'launch-plan' && (
                   <LaunchPlanWidget launchPlan={data.launchPlan} />
+                )}
+                {id === 'scratchpad' && (
+                  <ScratchpadWidget value={data.selfCare?.scratchpad || ''} onChange={handleScratchpadChange} />
                 )}
               </SortableWidget>
             ))}

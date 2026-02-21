@@ -1,26 +1,22 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { format, parseISO, differenceInDays } from 'date-fns';
+import { format, parseISO, differenceInDays, addDays } from 'date-fns';
 import {
-  Calendar,
-  Clock,
-  MapPin,
-  Users,
   ChevronRight,
   Car,
-  AlertTriangle,
   Trophy,
-  Zap,
+  Sun,
+  MapPin,
+  Users,
+  AlertTriangle,
   FileText,
-  Battery,
-  BatteryLow,
-  BatteryMedium,
-  BatteryFull,
-  BatteryWarning
+  Calendar,
 } from 'lucide-react';
-import type { Class, Studio, Competition, CompetitionDance, CalendarEvent, SelfCareData, WeekNotes } from '../../types';
+import type { Class, Studio, Competition, CompetitionDance, CalendarEvent, SelfCareData, WeekNotes, DayOfWeek, MedConfig } from '../../types';
+import { getClassesByDay } from '../../data/classes';
 import { formatTimeDisplay, timeToMinutes, formatWeekOf, getWeekStart } from '../../utils/time';
 import { estimateTravelTime, formatTravelTime } from '../../services/location';
+import { useSelfCareStatus } from '../../hooks/useSelfCareStatus';
 
 interface TodaysAgendaProps {
   classes: Class[];
@@ -31,8 +27,14 @@ interface TodaysAgendaProps {
   competitionDances: CompetitionDance[];
   calendarEvents: CalendarEvent[];
   selfCare: SelfCareData | undefined;
+  medConfig?: MedConfig;
   currentClassId?: string;
+  allClasses?: Class[];
+  allCalendarEvents?: CalendarEvent[];
+  currentMinute: number;
 }
+
+type ItemStatus = 'past' | 'current' | 'next' | 'upcoming';
 
 type AgendaItem = {
   type: 'class' | 'event' | 'travel';
@@ -49,80 +51,21 @@ type AgendaItem = {
   fromStudio?: string;
   toStudio?: string;
   location?: string;
+  status?: ItemStatus;
+  exception?: { type: 'cancelled' | 'subbed'; subName?: string };
 };
 
-function getEnergyFromDose(doseTime: number | null | undefined, doseDate: string | null | undefined, classStartMinutes: number): 'peak' | 'building' | 'fading' | 'low' | 'none' {
-  if (!doseTime || !doseDate) return 'none';
-
-  const today = format(new Date(), 'yyyy-MM-dd');
-  if (doseDate !== today) return 'none';
-
-  const doseDate_obj = new Date(doseTime);
-  const doseMinutes = doseDate_obj.getHours() * 60 + doseDate_obj.getMinutes();
-  const minutesSinceDose = classStartMinutes - doseMinutes;
-  const hoursSinceDose = minutesSinceDose / 60;
-
-  // IR medication timing
-  if (hoursSinceDose < 0.5) return 'building';
-  if (hoursSinceDose < 1) return 'building';
-  if (hoursSinceDose < 3) return 'peak';
-  if (hoursSinceDose < 4) return 'fading';
-  return 'low';
-}
-
-function getEffectiveEnergy(
-  selfCare: SelfCareData | undefined,
-  classStartMinutes: number
-): 'peak' | 'building' | 'fading' | 'low' | 'none' {
-  if (!selfCare) return 'none';
-
-  const today = format(new Date(), 'yyyy-MM-dd');
-
-  // Check if user skipped meds today
-  if (selfCare.skippedDoseDate === today) return 'none';
-
-  // Get energy from both doses
-  const dose1Energy = getEnergyFromDose(selfCare.dose1Time, selfCare.dose1Date, classStartMinutes);
-  const dose2Energy = getEnergyFromDose(selfCare.dose2Time, selfCare.dose2Date, classStartMinutes);
-
-  // Return best energy level from either dose
-  const energyPriority: Record<string, number> = { peak: 4, building: 3, fading: 2, low: 1, none: 0 };
-  return energyPriority[dose1Energy] >= energyPriority[dose2Energy] ? dose1Energy : dose2Energy;
-}
-
-const EnergyIcon = ({ energy }: { energy: 'peak' | 'building' | 'fading' | 'low' | 'none' }) => {
-  switch (energy) {
-    case 'peak':
-      return <BatteryFull size={14} className="text-green-500" />;
-    case 'building':
-      return <BatteryMedium size={14} className="text-amber-500" />;
-    case 'fading':
-      return <BatteryLow size={14} className="text-orange-500" />;
-    case 'low':
-      return <BatteryWarning size={14} className="text-red-500" />;
-    default:
-      return <Battery size={14} className="text-blush-400" />;
+function statusToEnergy(status: string | null): 'peak' | 'building' | 'fading' | 'low' | 'none' {
+  if (!status) return 'none';
+  switch (status) {
+    case 'Peak Window': return 'peak';
+    case 'Building': return 'building';
+    case 'Wearing Off':
+    case 'Tapering': return 'fading';
+    case 'Expired': return 'low';
+    default: return 'none';
   }
-};
-
-const EnergyBadge = ({ energy }: { energy: 'peak' | 'building' | 'fading' | 'low' | 'none' }) => {
-  const config = {
-    peak: { label: 'Peak', bg: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' },
-    building: { label: 'Building', bg: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' },
-    fading: { label: 'Fading', bg: 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' },
-    low: { label: 'Low', bg: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' },
-    none: { label: '', bg: '' },
-  };
-
-  if (energy === 'none') return null;
-
-  return (
-    <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${config[energy].bg} flex items-center gap-1`}>
-      <EnergyIcon energy={energy} />
-      {config[energy].label}
-    </span>
-  );
-};
+}
 
 export function TodaysAgenda({
   classes,
@@ -133,71 +76,83 @@ export function TodaysAgenda({
   competitionDances,
   calendarEvents,
   selfCare,
+  medConfig,
   currentClassId,
+  allClasses,
+  allCalendarEvents,
+  currentMinute,
 }: TodaysAgendaProps) {
   const today = format(new Date(), 'yyyy-MM-dd');
   const weekOf = formatWeekOf(getWeekStart());
   const currentWeekNotes = weekNotes.find(w => w.weekOf === weekOf);
+  const medStatus = useSelfCareStatus(selfCare, medConfig);
+  const skippedToday = selfCare?.skippedDoseDate === today;
 
-  // Build agenda items with travel times inserted
   const agendaItems = useMemo(() => {
     const items: AgendaItem[] = [];
 
-    // Add classes
     classes.forEach(c => {
       const studio = studios.find(s => s.id === c.studioId);
-      const studentCount = students.filter(s => s.classIds.includes(c.id)).length;
+      const studentCount = students.filter(s => s.classIds?.includes(c.id)).length;
       const classNotes = currentWeekNotes?.classNotes[c.id];
       const hasPlan = !!(classNotes?.plan && classNotes.plan.trim().length > 0);
       const classStartMinutes = timeToMinutes(c.startTime);
-      const energy = getEffectiveEnergy(selfCare, classStartMinutes);
+      const minutesFromNow = classStartMinutes - currentMinute;
+      const energy = skippedToday ? 'none' as const : statusToEnergy(medStatus.projectedStatus(minutesFromNow));
 
       items.push({
-        type: 'class',
-        id: c.id,
-        name: c.name,
-        startTime: c.startTime,
-        endTime: c.endTime,
-        studioId: c.studioId,
-        studio,
-        studentCount,
-        hasPlan,
-        energy,
+        type: 'class', id: c.id, name: c.name,
+        startTime: c.startTime, endTime: c.endTime,
+        studioId: c.studioId, studio, studentCount, hasPlan, energy,
+        exception: classNotes?.exception,
       });
     });
 
-    // Add calendar events
     calendarEvents
       .filter(e => e.date === today && e.startTime && e.startTime !== '00:00')
       .forEach(e => {
-        const classStartMinutes = timeToMinutes(e.startTime);
-        const energy = getEffectiveEnergy(selfCare, classStartMinutes);
+        const eventStartMinutes = timeToMinutes(e.startTime);
+        const minutesFromNow = eventStartMinutes - currentMinute;
+        const energy = skippedToday ? 'none' as const : statusToEnergy(medStatus.projectedStatus(minutesFromNow));
         items.push({
-          type: 'event',
-          id: e.id,
-          name: e.title,
-          startTime: e.startTime,
-          endTime: e.endTime,
-          location: e.location,
-          energy,
+          type: 'event', id: e.id, name: e.title,
+          startTime: e.startTime, endTime: e.endTime,
+          location: e.location, energy,
         });
       });
 
-    // Sort by start time
     items.sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
 
-    // Insert travel times between items at different studios
+    // Assign status: past, current, next, upcoming
+    let foundNext = false;
+    items.forEach(item => {
+      if (item.type === 'travel') return;
+      const start = timeToMinutes(item.startTime);
+      const end = item.endTime && item.endTime !== '00:00'
+        ? timeToMinutes(item.endTime)
+        : start + 60;
+
+      if (start <= currentMinute && currentMinute < end) {
+        item.status = 'current';
+      } else if (end <= currentMinute) {
+        item.status = 'past';
+      } else if (!foundNext) {
+        item.status = 'next';
+        foundNext = true;
+      } else {
+        item.status = 'upcoming';
+      }
+    });
+
     const itemsWithTravel: AgendaItem[] = [];
     for (let i = 0; i < items.length; i++) {
       const current = items[i];
       const prev = items[i - 1];
 
-      // Check if we need travel time between this and previous item
       if (prev && current.type === 'class' && prev.type === 'class') {
         if (prev.studioId && current.studioId && prev.studioId !== current.studioId) {
           const prevStudio = studios.find(s => s.id === prev.studioId);
           const currStudio = studios.find(s => s.id === current.studioId);
-
           if (prevStudio && currStudio) {
             const travelMins = estimateTravelTime(prevStudio, currStudio);
             if (travelMins) {
@@ -209,6 +164,7 @@ export function TodaysAgenda({
                 travelMinutes: travelMins,
                 fromStudio: prevStudio.shortName,
                 toStudio: currStudio.shortName,
+                status: prev.status === 'past' ? 'past' : undefined,
               });
             }
           }
@@ -219,9 +175,8 @@ export function TodaysAgenda({
     }
 
     return itemsWithTravel;
-  }, [classes, studios, students, calendarEvents, currentWeekNotes, selfCare, today]);
+  }, [classes, studios, students, calendarEvents, currentWeekNotes, medStatus, skippedToday, today, currentMinute]);
 
-  // Get upcoming competition within 7 days
   const upcomingComp = useMemo(() => {
     const now = new Date();
     return competitions
@@ -233,50 +188,85 @@ export function TodaysAgenda({
       .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime())[0];
   }, [competitions]);
 
-  const daysUntilComp = upcomingComp
-    ? differenceInDays(parseISO(upcomingComp.date), new Date())
-    : null;
+  const daysUntilComp = upcomingComp ? differenceInDays(parseISO(upcomingComp.date), new Date()) : null;
 
-  // Get competition prep status
   const compPrepStatus = useMemo(() => {
     if (!upcomingComp) return null;
-
     const compDances = competitionDances.filter(d => upcomingComp.dances?.includes(d.id));
     const readyDances = compDances.filter(d => d.rehearsalNotes && d.rehearsalNotes.length > 0);
     const needsCostumes = compDances.filter(d => !d.costume?.hair && !d.costume?.shoes);
-
-    return {
-      total: compDances.length,
-      ready: readyDances.length,
-      needsCostumes: needsCostumes.length,
-    };
+    return { total: compDances.length, ready: readyDances.length, needsCostumes: needsCostumes.length };
   }, [upcomingComp, competitionDances]);
 
-  if (agendaItems.length === 0 && !upcomingComp) {
-    return null;
-  }
+  const nextClassId = useMemo(() => {
+    if (currentClassId) return currentClassId;
+    const upcoming = agendaItems.find(
+      item => item.type === 'class' && (item.status === 'current' || item.status === 'next')
+    );
+    return upcoming?.id || agendaItems.find(item => item.type === 'class')?.id;
+  }, [agendaItems, currentClassId]);
+
+  const tomorrowPreview = useMemo(() => {
+    const realAgendaItems = agendaItems.filter(i => i.type !== 'travel');
+    const hasActiveItems = realAgendaItems.some(i => i.status !== 'past');
+    // Show tomorrow if no items today OR all items are past
+    if (hasActiveItems) return null;
+
+    const tomorrow = addDays(new Date(), 1);
+    const tomorrowStr = format(tomorrow, 'yyyy-MM-dd');
+    const days: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const tomorrowDay = days[tomorrow.getDay()];
+
+    const tomorrowClasses = allClasses ? getClassesByDay(allClasses, tomorrowDay) : [];
+    const tomorrowEvents = (allCalendarEvents || [])
+      .filter(e => e.date === tomorrowStr && e.startTime && e.startTime !== '00:00');
+
+    type TomorrowItem = { name: string; time: string; studio?: Studio; location?: string; type: 'class' | 'event'; id: string };
+    const items: TomorrowItem[] = [];
+
+    tomorrowClasses.forEach(c => {
+      items.push({ name: c.name, time: c.startTime, studio: studios.find(s => s.id === c.studioId), type: 'class', id: c.id });
+    });
+
+    tomorrowEvents.forEach(e => {
+      items.push({ name: e.title, time: e.startTime, location: e.location?.split('\n').filter(Boolean)[0], type: 'event', id: e.id });
+    });
+
+    items.sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
+    if (items.length === 0) return null;
+
+    return { first: items[0], totalCount: items.length, dayLabel: format(tomorrow, 'EEEE') };
+  }, [agendaItems, allClasses, allCalendarEvents, studios]);
+
+  const realItems = agendaItems.filter(i => i.type !== 'travel');
+  const hasRealItems = realItems.length > 0;
+  const allPast = hasRealItems && realItems.every(i => i.status === 'past');
+  // Show today's items only if some are still current/next/upcoming; otherwise show tomorrow
+  const showTodayItems = hasRealItems && !allPast;
+  const displayItems = showTodayItems ? agendaItems : [];
 
   return (
-    <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 overflow-hidden">
-      <div className="px-4 py-3 border-b border-blush-100 dark:border-blush-700 flex items-center justify-between">
-        <h2 className="font-semibold text-blush-800 dark:text-white flex items-center gap-2">
-          <Calendar size={16} className="text-forest-600" />
-          Today's Agenda
+    <div className="bg-[var(--surface-card)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
+      {/* Section header */}
+      <div className="px-4 py-3 flex items-center justify-between border-b border-[var(--border-subtle)]">
+        <h2 className="type-h1 text-[var(--text-primary)]">
+          {showTodayItems ? 'Today' : tomorrowPreview ? 'Looking Ahead' : allPast ? 'Done for Today' : 'Today'}
         </h2>
-        <Link to="/schedule" className="text-sm text-forest-600 dark:text-forest-500 hover:text-forest-700">
-          Full Week →
+        <Link to="/schedule" className="type-label text-[var(--accent-primary)]">
+          Full Week
         </Link>
       </div>
 
-      <div className="divide-y divide-blush-100 dark:divide-blush-700">
-        {agendaItems.map(item => {
+      <div className="divide-y divide-[var(--border-subtle)]">
+        {displayItems.map(item => {
+          const isPast = item.status === 'past';
+          const isCurrent = item.status === 'current';
+          const isNext = item.status === 'next';
+
           if (item.type === 'travel') {
             return (
-              <div
-                key={item.id}
-                className="px-4 py-2 bg-blush-50 dark:bg-blush-700/30 flex items-center gap-2 text-sm text-blush-600 dark:text-blush-400"
-              >
-                <Car size={14} className="text-blush-500" />
+              <div key={item.id} className={`px-4 py-2 bg-[var(--surface-inset)] flex items-center gap-2 text-sm text-[var(--text-secondary)] ${isPast ? 'opacity-40' : ''}`}>
+                <Car size={14} className="text-[var(--text-tertiary)]" />
                 <span className="font-medium">{formatTravelTime(item.travelMinutes!)}</span>
                 <span>drive to {item.toStudio}</span>
               </div>
@@ -289,82 +279,154 @@ export function TodaysAgenda({
               <Link
                 key={item.id}
                 to={`/event/${item.id}`}
-                className="block px-4 py-3 hover:bg-blush-50 dark:hover:bg-blush-700/50 transition-colors"
+                className={`flex items-center gap-4 px-4 py-3.5 transition-colors ${
+                  isPast ? 'opacity-40' :
+                  isCurrent ? 'bg-amber-50/50 dark:bg-amber-900/10 border-l-4 border-amber-500' :
+                  isNext ? 'bg-amber-50/30 dark:bg-amber-900/5' :
+                  'hover:bg-[var(--surface-card-hover)]'
+                }`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-blush-800 dark:text-white flex items-center gap-2 flex-wrap">
-                      <span className="truncate">{item.name}</span>
-                      <span className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded">
+                {/* Big time on left */}
+                <div className="flex-shrink-0 w-14 text-right">
+                  <div className={`text-lg font-display leading-none tabular-nums ${
+                    isPast ? 'text-[var(--text-tertiary)]' :
+                    isCurrent ? 'text-amber-600 dark:text-amber-400' :
+                    'text-[--color-honey] dark:text-[--color-honey-light]'
+                  }`}>
+                    {formatTimeDisplay(item.startTime)}
+                  </div>
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-[var(--text-primary)] flex items-center gap-2">
+                    <span className="truncate">{item.name}</span>
+                    {isCurrent && (
+                      <span className="type-label text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                        Now
+                      </span>
+                    )}
+                    {isNext && (
+                      <span className="type-label text-[var(--accent-primary)] bg-[var(--accent-muted)] px-1.5 py-0.5 rounded-full flex-shrink-0">
+                        Next
+                      </span>
+                    )}
+                    {!isCurrent && !isNext && (
+                      <span className="type-label text-amber-600 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded-full flex-shrink-0">
                         Event
                       </span>
-                      {item.energy !== 'none' && <EnergyBadge energy={item.energy!} />}
-                    </div>
-                    <div className="text-sm text-blush-500 dark:text-blush-400 flex items-center gap-2 mt-0.5">
-                      <Clock size={12} />
-                      <span>{formatTimeDisplay(item.startTime)}</span>
-                      {locationLine && (
-                        <>
-                          <span className="text-blush-300">•</span>
-                          <span className="truncate">{locationLine}</span>
-                        </>
-                      )}
-                    </div>
+                    )}
                   </div>
-                  <ChevronRight size={16} className="text-blush-400 flex-shrink-0" />
+                  {locationLine && !isPast && (
+                    <div className="text-sm text-[var(--text-tertiary)] mt-0.5 flex items-center gap-1 truncate">
+                      <MapPin size={11} className="flex-shrink-0" />
+                      <span className="truncate">{locationLine}</span>
+                    </div>
+                  )}
                 </div>
+
+                {!isPast && <ChevronRight size={16} className="text-[var(--text-tertiary)] flex-shrink-0" />}
               </Link>
             );
           }
 
           // Class item
           const isActive = item.id === currentClassId;
-          return (
-            <Link
-              key={item.id}
-              to={`/class/${item.id}`}
-              className={`block px-4 py-3 hover:bg-blush-50 dark:hover:bg-blush-700/50 transition-colors ${
-                isActive ? 'bg-forest-50 dark:bg-forest-900/20' : ''
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-blush-800 dark:text-white flex items-center gap-2 flex-wrap">
-                    <span className="truncate">{item.name}</span>
-                    {isActive && <span className="w-2 h-2 bg-forest-500 rounded-full flex-shrink-0" />}
-                    {item.energy !== 'none' && <EnergyBadge energy={item.energy!} />}
-                  </div>
-                  <div className="text-sm text-blush-500 dark:text-blush-400 flex items-center gap-2 mt-0.5 flex-wrap">
-                    <span className="flex items-center gap-1">
-                      <Clock size={12} />
-                      {formatTimeDisplay(item.startTime)}
+          const hasException = !!item.exception;
+          const classItemContent = (
+            <>
+              {/* Big time on left */}
+              <div className="flex-shrink-0 w-14 text-right">
+                <div className={`text-lg font-display leading-none tabular-nums ${
+                  hasException || isPast ? 'text-[var(--text-tertiary)]' :
+                  isCurrent || isActive ? 'text-[var(--accent-primary)]' :
+                  'text-[--color-honey] dark:text-[--color-honey-light]'
+                }`}>
+                  {formatTimeDisplay(item.startTime)}
+                </div>
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-[var(--text-primary)] flex items-center gap-2">
+                  <span className="truncate">{item.name}</span>
+                  {!hasException && isCurrent && (
+                    <span className="type-label text-[var(--text-on-accent)] bg-[var(--accent-primary)] px-1.5 py-0.5 rounded-full flex-shrink-0">
+                      Now
                     </span>
+                  )}
+                  {!hasException && isNext && (
+                    <span className="type-label text-[var(--accent-primary)] bg-[var(--accent-muted)] px-1.5 py-0.5 rounded-full flex-shrink-0">
+                      Next
+                    </span>
+                  )}
+                  {!hasException && isActive && !isCurrent && <span className="w-2 h-2 bg-[var(--accent-primary)] rounded-full flex-shrink-0" />}
+                  {hasException && item.exception?.type === 'cancelled' && (
+                    <span className="type-label text-[var(--text-tertiary)] bg-[var(--surface-inset)] px-1.5 py-0.5 rounded-full flex-shrink-0">
+                      Cancelled
+                    </span>
+                  )}
+                  {hasException && item.exception?.type === 'subbed' && (
+                    <span className="type-label text-[var(--status-success)] bg-[var(--accent-muted)] px-1.5 py-0.5 rounded-full flex-shrink-0">
+                      Sub{item.exception.subName ? `: ${item.exception.subName}` : ''}
+                    </span>
+                  )}
+                </div>
+                {!isPast && !hasException && (
+                  <div className="flex items-center gap-2 mt-0.5 text-sm text-[var(--text-tertiary)]">
                     {item.studio && (
                       <span className="flex items-center gap-1">
-                        <MapPin size={12} />
+                        <MapPin size={11} className="flex-shrink-0" />
                         {item.studio.shortName}
                       </span>
                     )}
                     <span className="flex items-center gap-1">
-                      <Users size={12} />
+                      <Users size={11} className="flex-shrink-0" />
                       {item.studentCount}
                     </span>
-                    {item.hasPlan === false && (
+                    {item.hasPlan === false && (isCurrent || isNext || isActive || item.id === nextClassId) && (
                       <span className="flex items-center gap-1 text-orange-500 dark:text-orange-400">
-                        <AlertTriangle size={12} />
+                        <AlertTriangle size={11} />
                         No plan
                       </span>
                     )}
-                    {item.hasPlan === true && (
-                      <span className="flex items-center gap-1 text-forest-600 dark:text-forest-400">
-                        <FileText size={12} />
+                    {item.hasPlan === true && (isCurrent || isNext || isActive || item.id === nextClassId) && (
+                      <span className="flex items-center gap-1 text-[--color-sage] dark:text-[--color-sage-light]">
+                        <FileText size={11} />
                         Ready
                       </span>
                     )}
                   </div>
-                </div>
-                <ChevronRight size={16} className="text-blush-400 flex-shrink-0 mt-1" />
+                )}
               </div>
+
+              {!isPast && !hasException && <ChevronRight size={16} className="text-[var(--text-tertiary)] flex-shrink-0" />}
+            </>
+          );
+
+          if (hasException) {
+            return (
+              <div
+                key={item.id}
+                className="flex items-center gap-4 px-4 py-3.5 opacity-50"
+              >
+                {classItemContent}
+              </div>
+            );
+          }
+
+          return (
+            <Link
+              key={item.id}
+              to={`/class/${item.id}`}
+              className={`flex items-center gap-4 px-4 py-3.5 transition-colors ${
+                isPast ? 'opacity-40' :
+                isCurrent || isActive ? 'bg-[var(--accent-muted)] border-l-4 border-[var(--accent-primary)]' :
+                isNext ? 'bg-[var(--accent-muted)]/50' :
+                'hover:bg-[var(--surface-card-hover)]'
+              }`}
+            >
+              {classItemContent}
             </Link>
           );
         })}
@@ -373,42 +435,94 @@ export function TodaysAgenda({
         {upcomingComp && daysUntilComp !== null && compPrepStatus && (
           <Link
             to="/choreography"
-            className="block px-4 py-3 hover:bg-blush-50 dark:hover:bg-blush-700/50 transition-colors border-t-2 border-dashed border-blush-200 dark:border-blush-600"
+            className="flex items-center gap-4 px-4 py-3.5 hover:bg-[var(--surface-card-hover)] transition-colors"
           >
-            <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                daysUntilComp <= 3 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-amber-100 dark:bg-amber-900/30'
+            <div className="flex-shrink-0 w-14 text-right">
+              <div className={`text-lg font-display leading-none tabular-nums ${
+                daysUntilComp <= 3 ? 'text-red-500 dark:text-red-400' : 'text-amber-500 dark:text-amber-400'
               }`}>
-                <Trophy size={20} className={daysUntilComp <= 3 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'} />
+                {daysUntilComp === 0 ? 'NOW' : `${daysUntilComp}d`}
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-blush-800 dark:text-white flex items-center gap-2">
-                  <span className="truncate">{upcomingComp.name}</span>
-                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
-                    daysUntilComp <= 3
-                      ? 'bg-red-500 text-white'
-                      : 'bg-amber-500 text-white'
-                  }`}>
-                    {daysUntilComp === 0 ? 'TODAY' : `${daysUntilComp}d`}
-                  </span>
-                </div>
-                <div className="text-sm text-blush-500 dark:text-blush-400 flex items-center gap-2 mt-0.5">
-                  <span>{compPrepStatus.ready}/{compPrepStatus.total} dances ready</span>
-                  {compPrepStatus.needsCostumes > 0 && (
-                    <span className="text-orange-500">• {compPrepStatus.needsCostumes} need costumes</span>
-                  )}
-                </div>
-              </div>
-              <ChevronRight size={16} className="text-blush-400 flex-shrink-0" />
             </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-[var(--text-primary)] flex items-center gap-2">
+                <Trophy size={14} className={daysUntilComp <= 3 ? 'text-[var(--status-danger)]' : 'text-[var(--status-warning)]'} />
+                <span className="truncate">{upcomingComp.name}</span>
+              </div>
+              <div className="text-sm text-[var(--text-tertiary)] mt-0.5">
+                {compPrepStatus.ready}/{compPrepStatus.total} dances ready
+                {compPrepStatus.needsCostumes > 0 && (
+                  <span className="text-orange-500"> · {compPrepStatus.needsCostumes} need costumes</span>
+                )}
+              </div>
+            </div>
+
+            <ChevronRight size={16} className="text-[var(--text-tertiary)] flex-shrink-0" />
           </Link>
         )}
       </div>
 
-      {agendaItems.length === 0 && upcomingComp && (
-        <div className="px-4 py-6 text-center text-blush-500 dark:text-blush-400">
-          <Zap size={24} className="mx-auto mb-2 opacity-50" />
-          <p className="text-sm">No classes today - rest up for competition!</p>
+      {/* Empty state when no items today */}
+      {!showTodayItems && !upcomingComp && !tomorrowPreview && (
+        <div className="px-4 py-6 text-center text-[var(--text-tertiary)]">
+          <Calendar size={20} className="mx-auto mb-2 opacity-50" />
+          <p className="text-sm">{allPast ? 'All done for today' : 'No classes today'}</p>
+        </div>
+      )}
+
+      {!showTodayItems && upcomingComp && !tomorrowPreview && (
+        <div className="px-4 py-6 text-center text-[var(--text-tertiary)]">
+          <p className="text-sm">{allPast ? 'All done — rest up for competition' : 'No classes today — rest up for competition'}</p>
+        </div>
+      )}
+
+      {/* First Thing Tomorrow — shown when today is empty OR all past */}
+      {tomorrowPreview && !showTodayItems && (
+        <div className="px-4 py-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Sun size={14} className="text-amber-500" />
+            <h3 className="type-label text-[var(--text-secondary)]">
+              First Thing {tomorrowPreview.dayLabel}
+            </h3>
+          </div>
+          <Link
+            to={tomorrowPreview.first.type === 'class' ? `/class/${tomorrowPreview.first.id}` : `/event/${tomorrowPreview.first.id}`}
+            className="flex items-center gap-4 py-2 hover:bg-[var(--surface-card-hover)] -mx-1 px-1 rounded-xl transition-colors"
+          >
+            <div className="flex-shrink-0 w-14 text-right">
+              <div className="text-lg font-display text-[--color-honey] dark:text-[--color-honey-light] leading-none">
+                {formatTimeDisplay(tomorrowPreview.first.time)}
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-[var(--text-primary)] flex items-center gap-2">
+                <span className="truncate">{tomorrowPreview.first.name}</span>
+                {tomorrowPreview.first.type === 'event' && (
+                  <span className="type-label text-amber-600 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                    Event
+                  </span>
+                )}
+              </div>
+              <div className="text-sm text-[var(--text-tertiary)] mt-0.5 flex items-center gap-2">
+                {tomorrowPreview.first.studio && (
+                  <span className="flex items-center gap-1">
+                    <MapPin size={11} />
+                    {tomorrowPreview.first.studio.shortName}
+                  </span>
+                )}
+                {tomorrowPreview.first.location && (
+                  <span className="truncate">{tomorrowPreview.first.location}</span>
+                )}
+              </div>
+            </div>
+            <ChevronRight size={16} className="text-[var(--text-tertiary)] flex-shrink-0" />
+          </Link>
+          {tomorrowPreview.totalCount > 1 && (
+            <p className="type-caption text-[var(--text-tertiary)] mt-1 pl-[4.5rem]">
+              + {tomorrowPreview.totalCount - 1} more {tomorrowPreview.dayLabel}
+            </p>
+          )}
         </div>
       )}
     </div>
