@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIG — Final Pick</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Serif+Display&family=Inter:wght@300;400;500;600;700&family=Sora:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', -apple-system, sans-serif;
+    background: #0a0a0a;
+    color: #e5e5e5;
+    line-height: 1.6;
+  }
+
+  .page-header {
+    text-align: center;
+    padding: 60px 24px 40px;
+  }
+  .page-header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 42px;
+    font-weight: 400;
+    margin-bottom: 8px;
+  }
+  .page-header p {
+    color: #737373;
+    font-size: 16px;
+  }
+
+  /* Option sections */
+  .option {
+    max-width: 1100px;
+    margin: 0 auto 24px;
+    padding: 0 24px;
+  }
+
+  .option-card {
+    border: 2px solid #1f1f1f;
+    border-radius: 24px;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+  .option-card:hover { border-color: #333; }
+
+  .option-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    padding: 32px 36px 0;
+  }
+
+  .option-tag {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .option-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 28px;
+    font-weight: 400;
+  }
+
+  .option-desc {
+    padding: 12px 36px 0;
+    color: #737373;
+    font-size: 14px;
+    max-width: 600px;
+    line-height: 1.7;
+  }
+
+  .option-details {
+    padding: 20px 36px 0;
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+
+  .detail-group h4 {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #525252;
+    margin-bottom: 6px;
+  }
+
+  .palette-strip {
+    display: flex;
+    gap: 4px;
+    height: 32px;
+  }
+
+  .swatch {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .font-preview {
+    font-size: 18px;
+  }
+
+  /* Phone mockups container */
+  .mockups {
+    display: flex;
+    gap: 20px;
+    padding: 28px 36px 36px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .phone {
+    width: 340px;
+    min-width: 340px;
+    border-radius: 28px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .phone-bar {
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .phone-label {
+    text-align: center;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #525252;
+    margin-top: 8px;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ============ SHARED DASHBOARD STRUCTURE ============ */
+  .dash { padding: 18px; }
+  .dash .greet { font-size: 13px; margin-bottom: 1px; }
+  .dash .name { font-size: 26px; margin-bottom: 18px; }
+  .dash .hero {
+    border-radius: 18px;
+    padding: 20px;
+    margin-bottom: 14px;
+  }
+  .dash .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 9px;
+    border-radius: 16px;
+    margin-bottom: 10px;
+  }
+  .dash .badge .dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .dash .hero .cls { font-size: 18px; font-weight: 600; margin-bottom: 3px; }
+  .dash .hero .meta { font-size: 12px; }
+  .dash .hero .btn {
+    margin-top: 14px;
+    border: none;
+    padding: 9px 18px;
+    border-radius: 9px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .dash .stats {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .dash .stat {
+    flex: 1;
+    border-radius: 12px;
+    padding: 14px 8px;
+    text-align: center;
+  }
+  .dash .stat .num { font-size: 22px; font-weight: 700; }
+  .dash .stat .lbl {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .dash .sec-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    margin-top: 16px;
+  }
+  .dash .sec-head h3 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .dash .sec-head a {
+    font-size: 11px;
+    text-decoration: none;
+  }
+  .dash .agenda {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 12px;
+    margin-bottom: 8px;
+  }
+  .dash .agenda .tm { text-align: center; min-width: 44px; }
+  .dash .agenda .tm .t { font-size: 13px; font-weight: 600; }
+  .dash .agenda .tm .p { font-size: 9px; text-transform: uppercase; }
+  .dash .agenda .info .tt { font-size: 13px; font-weight: 500; }
+  .dash .agenda .info .st { font-size: 11px; }
+
+  /* Reminder widget */
+  .dash .reminder {
+    border-radius: 12px;
+    padding: 14px;
+    margin-top: 12px;
+  }
+  .dash .reminder .r-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .dash .reminder .r-head h4 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .dash .reminder .r-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 13px;
+  }
+  .dash .reminder .r-check {
+    width: 18px; height: 18px;
+    border-radius: 5px;
+    border: 2px solid;
+    flex-shrink: 0;
+  }
+
+  .nav {
+    display: flex;
+    justify-content: space-around;
+    padding: 8px 0 16px;
+  }
+  .nav .ni {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    font-size: 9px;
+  }
+  .nav .ni svg { width: 20px; height: 20px; }
+
+  /* ============ B LIGHT ============ */
+  .b-light { font-family: 'Inter', sans-serif; background: #f5f0eb; color: #1c1917; }
+  .b-light .greet { color: #78716c; }
+  .b-light .name { font-family: 'Fraunces', serif; font-weight: 400; color: #292524; }
+  .b-light .hero { background: #fff; border: 1px solid #e7e0d8; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .b-light .badge { background: #fef3c7; color: #92400e; }
+  .b-light .badge .dot { background: #d97706; }
+  .b-light .hero .cls { font-family: 'Fraunces', serif; font-weight: 400; color: #292524; }
+  .b-light .hero .meta { color: #78716c; }
+  .b-light .hero .btn { background: #c2785a; color: #fff; }
+  .b-light .stat { background: #fff; border: 1px solid #e7e0d8; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+  .b-light .stat .num { font-family: 'Fraunces', serif; font-weight: 400; color: #c2785a; }
+  .b-light .stat .lbl { color: #78716c; }
+  .b-light .sec-head h3 { color: #78716c; }
+  .b-light .sec-head a { color: #c2785a; }
+  .b-light .agenda { background: #fff; border: 1px solid #e7e0d8; }
+  .b-light .agenda .tm .t { color: #c2785a; }
+  .b-light .agenda .tm .p { color: #a8a29e; }
+  .b-light .agenda .info .tt { color: #292524; }
+  .b-light .agenda .info .st { color: #78716c; }
+  .b-light .reminder { background: #fff; border: 1px solid #e7e0d8; }
+  .b-light .reminder .r-head h4 { color: #78716c; }
+  .b-light .reminder .r-check { border-color: #d6d3d1; }
+  .b-light .reminder .r-item { color: #44403c; }
+  .b-light-nav { background: #fff; border-top: 1px solid #e7e0d8; }
+  .b-light-nav .ni { color: #a8a29e; }
+  .b-light-nav .ni.on { color: #c2785a; }
+
+  /* ============ B DARK ============ */
+  .b-dark { font-family: 'Inter', sans-serif; background: #1a1714; color: #e7e0d8; }
+  .b-dark .greet { color: #78716c; }
+  .b-dark .name { font-family: 'Fraunces', serif; font-weight: 400; color: #f5f0eb; }
+  .b-dark .hero { background: #231f1a; border: 1px solid #33302a; }
+  .b-dark .badge { background: rgba(194,120,90,0.15); color: #d4956f; }
+  .b-dark .badge .dot { background: #d4956f; }
+  .b-dark .hero .cls { font-family: 'Fraunces', serif; font-weight: 400; color: #f5f0eb; }
+  .b-dark .hero .meta { color: #78716c; }
+  .b-dark .hero .btn { background: #c2785a; color: #fff; }
+  .b-dark .stat { background: #231f1a; border: 1px solid #33302a; }
+  .b-dark .stat .num { font-family: 'Fraunces', serif; font-weight: 400; color: #d4956f; }
+  .b-dark .stat .lbl { color: #6b6560; }
+  .b-dark .sec-head h3 { color: #78716c; }
+  .b-dark .sec-head a { color: #d4956f; }
+  .b-dark .agenda { background: #231f1a; border: 1px solid #33302a; }
+  .b-dark .agenda .tm .t { color: #d4956f; }
+  .b-dark .agenda .tm .p { color: #6b6560; }
+  .b-dark .agenda .info .tt { color: #f5f0eb; }
+  .b-dark .agenda .info .st { color: #6b6560; }
+  .b-dark .reminder { background: #231f1a; border: 1px solid #33302a; }
+  .b-dark .reminder .r-head h4 { color: #78716c; }
+  .b-dark .reminder .r-check { border-color: #44403c; }
+  .b-dark .reminder .r-item { color: #a8a29e; }
+  .b-dark-nav { background: #1a1714; border-top: 1px solid #33302a; }
+  .b-dark-nav .ni { color: #44403c; }
+  .b-dark-nav .ni.on { color: #d4956f; }
+
+  /* ============ C ============ */
+  .c-dk { font-family: 'Space Grotesk', sans-serif; background: #0f1729; color: #e2e8f0; }
+  .c-dk .greet { color: #64748b; }
+  .c-dk .name { font-family: 'DM Serif Display', serif; color: #f1f5f9; }
+  .c-dk .hero { background: linear-gradient(135deg, #1e1b4b 0%, #172044 100%); border: 1px solid #2e2b5e; }
+  .c-dk .badge { background: rgba(167,139,250,0.15); color: #a78bfa; }
+  .c-dk .badge .dot { background: #a78bfa; }
+  .c-dk .hero .cls { color: #f1f5f9; }
+  .c-dk .hero .meta { color: #64748b; }
+  .c-dk .hero .btn { background: #a78bfa; color: #0f1729; }
+  .c-dk .stat { background: #141d33; border: 1px solid #1e2d4a; }
+  .c-dk .stat .num { color: #a78bfa; }
+  .c-dk .stat .lbl { color: #475569; }
+  .c-dk .sec-head h3 { color: #64748b; }
+  .c-dk .sec-head a { color: #a78bfa; }
+  .c-dk .agenda { background: #141d33; border: 1px solid #1e2d4a; }
+  .c-dk .agenda .tm .t { color: #a78bfa; }
+  .c-dk .agenda .tm .p { color: #475569; }
+  .c-dk .agenda .info .tt { color: #e2e8f0; }
+  .c-dk .agenda .info .st { color: #475569; }
+  .c-dk .reminder { background: #141d33; border: 1px solid #1e2d4a; }
+  .c-dk .reminder .r-head h4 { color: #64748b; }
+  .c-dk .reminder .r-check { border-color: #334155; }
+  .c-dk .reminder .r-item { color: #94a3b8; }
+  .c-dk-nav { background: #0f1729; border-top: 1px solid #1e2d4a; }
+  .c-dk-nav .ni { color: #334155; }
+  .c-dk-nav .ni.on { color: #a78bfa; }
+
+  /* ============ HYBRID ============ */
+  .h-dk { font-family: 'Inter', sans-serif; background: #1c1917; color: #fafaf9; }
+  .h-dk .greet { color: #a8a29e; }
+  .h-dk .name { font-family: 'Fraunces', serif; font-weight: 400; color: #fafaf9; }
+  .h-dk .hero { background: linear-gradient(135deg, #292218 0%, #1c1917 100%); border: 1px solid #3d3428; }
+  .h-dk .badge { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .h-dk .badge .dot { background: #fbbf24; }
+  .h-dk .hero .cls { font-family: 'Fraunces', serif; font-weight: 400; color: #fafaf9; }
+  .h-dk .hero .meta { color: #a8a29e; }
+  .h-dk .hero .btn { background: #fbbf24; color: #1c1917; }
+  .h-dk .stat { background: #292524; border: 1px solid #33302d; }
+  .h-dk .stat .num { font-family: 'Fraunces', serif; font-weight: 400; color: #fbbf24; }
+  .h-dk .stat .lbl { color: #78716c; }
+  .h-dk .sec-head h3 { color: #a8a29e; }
+  .h-dk .sec-head a { color: #fbbf24; }
+  .h-dk .agenda { background: #292524; border: 1px solid #33302d; }
+  .h-dk .agenda .tm .t { color: #fbbf24; }
+  .h-dk .agenda .tm .p { color: #78716c; }
+  .h-dk .agenda .info .tt { color: #fafaf9; }
+  .h-dk .agenda .info .st { color: #78716c; }
+  .h-dk .reminder { background: #292524; border: 1px solid #33302d; }
+  .h-dk .reminder .r-head h4 { color: #a8a29e; }
+  .h-dk .reminder .r-check { border-color: #44403c; }
+  .h-dk .reminder .r-item { color: #d6d3d1; }
+  .h-dk-nav { background: #1c1917; border-top: 1px solid #292524; }
+  .h-dk-nav .ni { color: #44403c; }
+  .h-dk-nav .ni.on { color: #fbbf24; }
+
+  .h-lt { font-family: 'Inter', sans-serif; background: #f5f0eb; color: #1c1917; }
+  .h-lt .greet { color: #78716c; }
+  .h-lt .name { font-family: 'Fraunces', serif; font-weight: 400; color: #292524; }
+  .h-lt .hero { background: #fff; border: 1px solid #e7e0d8; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .h-lt .badge { background: #fef3c7; color: #92400e; }
+  .h-lt .badge .dot { background: #d97706; }
+  .h-lt .hero .cls { font-family: 'Fraunces', serif; font-weight: 400; color: #292524; }
+  .h-lt .hero .meta { color: #78716c; }
+  .h-lt .hero .btn { background: #c2785a; color: #fff; }
+  .h-lt .stat { background: #fff; border: 1px solid #e7e0d8; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+  .h-lt .stat .num { font-family: 'Fraunces', serif; font-weight: 400; color: #c2785a; }
+  .h-lt .stat .lbl { color: #78716c; }
+  .h-lt .sec-head h3 { color: #78716c; }
+  .h-lt .sec-head a { color: #c2785a; }
+  .h-lt .agenda { background: #fff; border: 1px solid #e7e0d8; }
+  .h-lt .agenda .tm .t { color: #c2785a; }
+  .h-lt .agenda .tm .p { color: #a8a29e; }
+  .h-lt .agenda .info .tt { color: #292524; }
+  .h-lt .agenda .info .st { color: #78716c; }
+  .h-lt .reminder { background: #fff; border: 1px solid #e7e0d8; }
+  .h-lt .reminder .r-head h4 { color: #78716c; }
+  .h-lt .reminder .r-check { border-color: #d6d3d1; }
+  .h-lt .reminder .r-item { color: #44403c; }
+  .h-lt-nav { background: #fff; border-top: 1px solid #e7e0d8; }
+  .h-lt-nav .ni { color: #a8a29e; }
+  .h-lt-nav .ni.on { color: #c2785a; }
+
+  /* Nav SVGs */
+  .nav-svg { width: 20px; height: 20px; }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    padding: 60px 24px 80px;
+    color: #525252;
+    font-size: 14px;
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Pick Your FIG</h1>
+  <p>B, C, or the hybrid — each one shown with more detail so you can feel it.</p>
+</div>
+
+<!-- ====== OPTION 1: SOFT STONE (B) ====== -->
+<div class="option">
+  <div class="option-card">
+    <div class="option-header">
+      <span class="option-tag" style="background: rgba(194,120,90,0.15); color: #c2785a;">Option 1</span>
+      <h2 class="option-title" style="color: #c2785a;">Soft Stone</h2>
+    </div>
+    <p class="option-desc">Warm cream light mode + warm charcoal dark mode. Terracotta accent both ways. Fraunces headlines give it personality without being precious. Feels like a well-worn journal you actually love opening.</p>
+    <div class="option-details">
+      <div class="detail-group">
+        <h4>Light Palette</h4>
+        <div class="palette-strip">
+          <div class="swatch" style="background: #f5f0eb;"></div>
+          <div class="swatch" style="background: #fff; border-color: #e7e0d8;"></div>
+          <div class="swatch" style="background: #e7e0d8;"></div>
+          <div class="swatch" style="background: #c2785a;"></div>
+          <div class="swatch" style="background: #d97706;"></div>
+          <div class="swatch" style="background: #292524;"></div>
+        </div>
+      </div>
+      <div class="detail-group">
+        <h4>Dark Palette</h4>
+        <div class="palette-strip">
+          <div class="swatch" style="background: #1a1714;"></div>
+          <div class="swatch" style="background: #231f1a;"></div>
+          <div class="swatch" style="background: #33302a;"></div>
+          <div class="swatch" style="background: #d4956f;"></div>
+          <div class="swatch" style="background: #eab308;"></div>
+          <div class="swatch" style="background: #f5f0eb;"></div>
+        </div>
+      </div>
+      <div class="detail-group">
+        <h4>Fonts</h4>
+        <div class="font-preview" style="font-family: 'Fraunces', serif; color: #c2785a;">Fraunces</div>
+        <div style="font-family: 'Inter', sans-serif; font-size: 13px; color: #737373;">+ Inter</div>
+      </div>
+    </div>
+
+    <div class="mockups">
+      <!-- B Light -->
+      <div>
+        <div class="phone" style="border: 2px solid #e7e0d8;">
+          <div class="phone-bar" style="background: #f5f0eb; color: #292524;">9:41</div>
+          <div class="dash b-light">
+            <div class="greet">Good morning</div>
+            <div class="name">Dixon</div>
+            <div class="hero">
+              <div class="badge"><div class="dot"></div> Teaching Now</div>
+              <div class="cls">Modern Technique 18</div>
+              <div class="meta">Exchange Dance &middot; 9:30 - 11:00 AM</div>
+              <button class="btn">Continue Notes</button>
+            </div>
+            <div class="stats">
+              <div class="stat"><div class="num">3</div><div class="lbl">Today</div></div>
+              <div class="stat"><div class="num">12</div><div class="lbl">Students</div></div>
+              <div class="stat"><div class="num">5</div><div class="lbl">Notes</div></div>
+            </div>
+            <div class="sec-head"><h3>Up Next</h3><a href="#">See all</a></div>
+            <div class="agenda">
+              <div class="tm"><div class="t">1:00</div><div class="p">PM</div></div>
+              <div class="info"><div class="tt">Advanced Workshop</div><div class="st">ME Dance Theatre &middot; 1.5 hrs</div></div>
+            </div>
+            <div class="agenda">
+              <div class="tm"><div class="t">5:30</div><div class="p">PM</div></div>
+              <div class="info"><div class="tt">Choreo Rehearsal</div><div class="st">Exchange Dance &middot; 1 hr</div></div>
+            </div>
+            <div class="reminder">
+              <div class="r-head"><h4>Reminders</h4></div>
+              <div class="r-item"><div class="r-check"></div> Send iDance registrations</div>
+              <div class="r-item"><div class="r-check"></div> Update rehearsal playlist</div>
+            </div>
+          </div>
+          <div class="nav b-light-nav">
+            <div class="ni on"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span>Home</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Schedule</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span>Notes</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span>Students</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><span>Tasks</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span>DWDC</span></div>
+          </div>
+        </div>
+        <div class="phone-label">Light Mode</div>
+      </div>
+
+      <!-- B Dark -->
+      <div>
+        <div class="phone" style="border: 2px solid #33302a;">
+          <div class="phone-bar" style="background: #1a1714; color: #f5f0eb;">9:41</div>
+          <div class="dash b-dark">
+            <div class="greet">Good morning</div>
+            <div class="name">Dixon</div>
+            <div class="hero">
+              <div class="badge"><div class="dot"></div> Teaching Now</div>
+              <div class="cls">Modern Technique 18</div>
+              <div class="meta">Exchange Dance &middot; 9:30 - 11:00 AM</div>
+              <button class="btn">Continue Notes</button>
+            </div>
+            <div class="stats">
+              <div class="stat"><div class="num">3</div><div class="lbl">Today</div></div>
+              <div class="stat"><div class="num">12</div><div class="lbl">Students</div></div>
+              <div class="stat"><div class="num">5</div><div class="lbl">Notes</div></div>
+            </div>
+            <div class="sec-head"><h3>Up Next</h3><a href="#">See all</a></div>
+            <div class="agenda">
+              <div class="tm"><div class="t">1:00</div><div class="p">PM</div></div>
+              <div class="info"><div class="tt">Advanced Workshop</div><div class="st">ME Dance Theatre &middot; 1.5 hrs</div></div>
+            </div>
+            <div class="agenda">
+              <div class="tm"><div class="t">5:30</div><div class="p">PM</div></div>
+              <div class="info"><div class="tt">Choreo Rehearsal</div><div class="st">Exchange Dance &middot; 1 hr</div></div>
+            </div>
+            <div class="reminder">
+              <div class="r-head"><h4>Reminders</h4></div>
+              <div class="r-item"><div class="r-check"></div> Send iDance registrations</div>
+              <div class="r-item"><div class="r-check"></div> Update rehearsal playlist</div>
+            </div>
+          </div>
+          <div class="nav b-dark-nav">
+            <div class="ni on"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span>Home</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Schedule</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span>Notes</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span>Students</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><span>Tasks</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span>DWDC</span></div>
+          </div>
+        </div>
+        <div class="phone-label">Dark Mode</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== OPTION 2: NIGHT STUDIO (C) ====== -->
+<div class="option">
+  <div class="option-card">
+    <div class="option-header">
+      <span class="option-tag" style="background: rgba(167,139,250,0.15); color: #a78bfa;">Option 2</span>
+      <h2 class="option-title" style="color: #a78bfa;">Night Studio</h2>
+    </div>
+    <p class="option-desc">Deep navy + lavender. The astrophysicist energy. Contemplative and spacious. Dark-mode-only by nature — this palette IS the night. Space Grotesk gives it a modern, geometric feel that's miles from DWDC's organic warmth.</p>
+    <div class="option-details">
+      <div class="detail-group">
+        <h4>Palette</h4>
+        <div class="palette-strip">
+          <div class="swatch" style="background: #0f1729;"></div>
+          <div class="swatch" style="background: #141d33;"></div>
+          <div class="swatch" style="background: #1e2d4a;"></div>
+          <div class="swatch" style="background: #a78bfa;"></div>
+          <div class="swatch" style="background: #818cf8;"></div>
+          <div class="swatch" style="background: #f1f5f9;"></div>
+        </div>
+      </div>
+      <div class="detail-group">
+        <h4>Light Mode?</h4>
+        <div style="font-size: 13px; color: #525252; max-width: 200px;">Would need a separate light palette. Could do pale blue-gray + indigo. Doable but this concept is strongest in the dark.</div>
+      </div>
+      <div class="detail-group">
+        <h4>Fonts</h4>
+        <div class="font-preview" style="font-family: 'DM Serif Display', serif; color: #a78bfa;">DM Serif</div>
+        <div style="font-family: 'Space Grotesk', sans-serif; font-size: 13px; color: #737373;">+ Space Grotesk</div>
+      </div>
+    </div>
+
+    <div class="mockups">
+      <!-- C Dark -->
+      <div>
+        <div class="phone" style="border: 2px solid #1e2d4a;">
+          <div class="phone-bar" style="background: #0f1729; color: #f1f5f9;">9:41</div>
+          <div class="dash c-dk">
+            <div class="greet">Good morning</div>
+            <div class="name">Dixon</div>
+            <div class="hero">
+              <div class="badge"><div class="dot"></div> Teaching Now</div>
+              <div class="cls">Modern Technique 18</div>
+              <div class="meta">Exchange Dance &middot; 9:30 - 11:00 AM</div>
+              <button class="btn">Continue Notes</button>
+            </div>
+            <div class="stats">
+              <div class="stat"><div class="num">3</div><div class="lbl">Today</div></div>
+              <div class="stat"><div class="num">12</div><div class="lbl">Students</div></div>
+              <div class="stat"><div class="num">5</div><div class="lbl">Notes</div></div>
+            </div>
+            <div class="sec-head"><h3>Up Next</h3><a href="#">See all</a></div>
+            <div class="agenda">
+              <div class="tm"><div class="t">1:00</div><div class="p">PM</div></div>
+              <div class="info"><div class="tt">Advanced Workshop</div><div class="st">ME Dance Theatre &middot; 1.5 hrs</div></div>
+            </div>
+            <div class="agenda">
+              <div class="tm"><div class="t">5:30</div><div class="p">PM</div></div>
+              <div class="info"><div class="tt">Choreo Rehearsal</div><div class="st">Exchange Dance &middot; 1 hr</div></div>
+            </div>
+            <div class="reminder">
+              <div class="r-head"><h4>Reminders</h4></div>
+              <div class="r-item"><div class="r-check"></div> Send iDance registrations</div>
+              <div class="r-item"><div class="r-check"></div> Update rehearsal playlist</div>
+            </div>
+          </div>
+          <div class="nav c-dk-nav">
+            <div class="ni on"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span>Home</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Schedule</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span>Notes</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span>Students</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><span>Tasks</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span>DWDC</span></div>
+          </div>
+        </div>
+        <div class="phone-label">Dark Mode</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== OPTION 3: HYBRID (A+B) ====== -->
+<div class="option">
+  <div class="option-card" style="border-color: #3d3428;">
+    <div class="option-header">
+      <span class="option-tag" style="background: rgba(251,191,36,0.15); color: #fbbf24;">Option 3</span>
+      <h2 class="option-title" style="color: #fbbf24;">The Hybrid</h2>
+    </div>
+    <p class="option-desc">Warm Ink dark mode (charcoal + amber) paired with Soft Stone light mode (cream + terracotta). Same Fraunces font both ways. Two modes that feel like different times of day but clearly the same app. Terracotta bridges both.</p>
+    <div class="option-details">
+      <div class="detail-group">
+        <h4>Dark Palette (Warm Ink)</h4>
+        <div class="palette-strip">
+          <div class="swatch" style="background: #1c1917;"></div>
+          <div class="swatch" style="background: #292524;"></div>
+          <div class="swatch" style="background: #44403c;"></div>
+          <div class="swatch" style="background: #fbbf24;"></div>
+          <div class="swatch" style="background: #c2785a;"></div>
+          <div class="swatch" style="background: #fafaf9;"></div>
+        </div>
+      </div>
+      <div class="detail-group">
+        <h4>Light Palette (Soft Stone)</h4>
+        <div class="palette-strip">
+          <div class="swatch" style="background: #f5f0eb;"></div>
+          <div class="swatch" style="background: #fff; border-color: #e7e0d8;"></div>
+          <div class="swatch" style="background: #e7e0d8;"></div>
+          <div class="swatch" style="background: #c2785a;"></div>
+          <div class="swatch" style="background: #d97706;"></div>
+          <div class="swatch" style="background: #292524;"></div>
+        </div>
+      </div>
+      <div class="detail-group">
+        <h4>Fonts</h4>
+        <div class="font-preview" style="font-family: 'Fraunces', serif; color: #fbbf24;">Fraunces</div>
+        <div style="font-family: 'Inter', sans-serif; font-size: 13px; color: #737373;">+ Inter</div>
+      </div>
+    </div>
+
+    <div class="mockups">
+      <!-- Hybrid Dark -->
+      <div>
+        <div class="phone" style="border: 2px solid #3d3428;">
+          <div class="phone-bar" style="background: #1c1917; color: #fafaf9;">9:41</div>
+          <div class="dash h-dk">
+            <div class="greet">Good morning</div>
+            <div class="name">Dixon</div>
+            <div class="hero">
+              <div class="badge"><div class="dot"></div> Teaching Now</div>
+              <div class="cls">Modern Technique 18</div>
+              <div class="meta">Exchange Dance &middot; 9:30 - 11:00 AM</div>
+              <button class="btn">Continue Notes</button>
+            </div>
+            <div class="stats">
+              <div class="stat"><div class="num">3</div><div class="lbl">Today</div></div>
+              <div class="stat"><div class="num">12</div><div class="lbl">Students</div></div>
+              <div class="stat"><div class="num">5</div><div class="lbl">Notes</div></div>
+            </div>
+            <div class="sec-head"><h3>Up Next</h3><a href="#">See all</a></div>
+            <div class="agenda">
+              <div class="tm"><div class="t">1:00</div><div class="p">PM</div></div>
+              <div class="info"><div class="tt">Advanced Workshop</div><div class="st">ME Dance Theatre &middot; 1.5 hrs</div></div>
+            </div>
+            <div class="agenda">
+              <div class="tm"><div class="t">5:30</div><div class="p">PM</div></div>
+              <div class="info"><div class="tt">Choreo Rehearsal</div><div class="st">Exchange Dance &middot; 1 hr</div></div>
+            </div>
+            <div class="reminder">
+              <div class="r-head"><h4>Reminders</h4></div>
+              <div class="r-item"><div class="r-check"></div> Send iDance registrations</div>
+              <div class="r-item"><div class="r-check"></div> Update rehearsal playlist</div>
+            </div>
+          </div>
+          <div class="nav h-dk-nav">
+            <div class="ni on"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span>Home</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Schedule</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span>Notes</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span>Students</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><span>Tasks</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span>DWDC</span></div>
+          </div>
+        </div>
+        <div class="phone-label">Dark Mode (Warm Ink)</div>
+      </div>
+
+      <!-- Hybrid Light -->
+      <div>
+        <div class="phone" style="border: 2px solid #e7e0d8;">
+          <div class="phone-bar" style="background: #f5f0eb; color: #292524;">9:41</div>
+          <div class="dash h-lt">
+            <div class="greet">Good morning</div>
+            <div class="name">Dixon</div>
+            <div class="hero">
+              <div class="badge"><div class="dot"></div> Teaching Now</div>
+              <div class="cls">Modern Technique 18</div>
+              <div class="meta">Exchange Dance &middot; 9:30 - 11:00 AM</div>
+              <button class="btn">Continue Notes</button>
+            </div>
+            <div class="stats">
+              <div class="stat"><div class="num">3</div><div class="lbl">Today</div></div>
+              <div class="stat"><div class="num">12</div><div class="lbl">Students</div></div>
+              <div class="stat"><div class="num">5</div><div class="lbl">Notes</div></div>
+            </div>
+            <div class="sec-head"><h3>Up Next</h3><a href="#">See all</a></div>
+            <div class="agenda">
+              <div class="tm"><div class="t">1:00</div><div class="p">PM</div></div>
+              <div class="info"><div class="tt">Advanced Workshop</div><div class="st">ME Dance Theatre &middot; 1.5 hrs</div></div>
+            </div>
+            <div class="agenda">
+              <div class="tm"><div class="t">5:30</div><div class="p">PM</div></div>
+              <div class="info"><div class="tt">Choreo Rehearsal</div><div class="st">Exchange Dance &middot; 1 hr</div></div>
+            </div>
+            <div class="reminder">
+              <div class="r-head"><h4>Reminders</h4></div>
+              <div class="r-item"><div class="r-check"></div> Send iDance registrations</div>
+              <div class="r-item"><div class="r-check"></div> Update rehearsal playlist</div>
+            </div>
+          </div>
+          <div class="nav h-lt-nav">
+            <div class="ni on"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span>Home</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Schedule</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span>Notes</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span>Students</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><span>Tasks</span></div>
+            <div class="ni"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span>DWDC</span></div>
+          </div>
+        </div>
+        <div class="phone-label">Light Mode (Soft Stone)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  Each mockup includes the full dashboard: hero card, stats, agenda, reminders, and all 6 nav tabs.<br><br>
+  Pick the one that feels like <em>yours</em>. Or tell me to tweak — swap a color, change a font, mix pieces.
+</div>
+
+</body>
+</html>

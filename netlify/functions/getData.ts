@@ -1,17 +1,6 @@
 import { getStore } from "@netlify/blobs";
 import type { Context } from "@netlify/functions";
-
-// Validate the session token server-side
-async function validateToken(token: string): Promise<boolean> {
-  const expectedPassword = Netlify.env.get("VITE_APP_PASSWORD") || "dance2024";
-  const secret = Netlify.env.get("SESSION_SECRET") || "dance-app-secret-2024";
-  const encoder = new TextEncoder();
-  const data = encoder.encode(expectedPassword + secret);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const expectedToken = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
-  return token === expectedToken;
-}
+import { validateToken } from "./_shared/auth.ts";
 
 export default async (request: Request, _context: Context) => {
   // Check auth - support both header and query param (for sendBeacon)
@@ -27,7 +16,7 @@ export default async (request: Request, _context: Context) => {
   }
 
   try {
-    const store = getStore("app-data");
+    const store = getStore({ name: "app-data", consistency: "strong" });
     const data = await store.get("main", { type: "json" });
 
     return new Response(JSON.stringify(data || null), {

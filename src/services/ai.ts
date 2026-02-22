@@ -31,6 +31,7 @@ interface GeneratePlanOptions {
   progressionHints?: string[];
   repetitionFlags?: string[];
   attendanceNote?: string;
+  expandedSummary?: string;
 }
 
 async function getToken(): Promise<string> {
@@ -98,8 +99,20 @@ export interface AIAction {
     | 'suggestOptionalDose3' // suggest a 3rd dose for a long/heavy day
     | 'reschedulePlanItem'  // change a plan item's time
     | 'batchToggleWellness' // check off multiple wellness items at once
-    | 'setDayMode'         // set day mode (light/normal/intense/comp) — adapts wellness + plan
-    | 'addWeekReflection'; // store a weekly reflection in weekNotes
+    | 'setDayMode'          // set day mode (light/normal/intense/comp) — adapts wellness + plan
+    | 'addWeekReflection'   // store a weekly reflection in weekNotes
+    // Class exception actions
+    | 'markClassException'  // mark today's classes as cancelled or covered by a sub
+    // Class note actions
+    | 'addClassNote'        // add a live note to a specific class this week
+    | 'setClassPlan'        // set the weekly plan text for a class
+    | 'setNextWeekGoal'     // set the next-week goal for a class
+    // Launch plan actions
+    | 'completeLaunchTask'  // mark a DWDC launch task as done
+    | 'skipLaunchTask'      // skip a DWDC launch task
+    | 'addLaunchNote'       // add a note to a DWDC launch task
+    // Rehearsal note actions
+    | 'addRehearsalNote';   // add a rehearsal note to a competition dance
   // Common fields
   id?: string;
   ids?: string[];  // for batch operations
@@ -123,6 +136,50 @@ export interface AIAction {
   challenges?: string;
   nextWeekFocus?: string;
   aiSummary?: string;
+  // Class exception fields
+  scope?: 'all' | 'specific';
+  classIds?: string[];
+  exceptionType?: 'cancelled' | 'subbed';
+  subName?: string;
+  reason?: string;
+  // Class note fields
+  classId?: string;
+  text?: string;
+  noteCategory?: string;
+  plan?: string;
+  goal?: string;
+  // Launch task fields
+  taskId?: string;
+  note?: string;
+  // Rehearsal note fields
+  danceId?: string;
+  notes?: string;
+  workOn?: string[];
+}
+
+export async function expandNotes(
+  className: string,
+  date: string,
+  notes: LiveNote[],
+): Promise<string> {
+  const token = await getToken();
+
+  const response = await fetch(`${API_BASE}/expandNotes`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ className, date, notes }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error || `HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.expanded as string;
 }
 
 export async function callAICheckIn(

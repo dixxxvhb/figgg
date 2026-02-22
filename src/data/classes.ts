@@ -39,7 +39,7 @@ export const initialClasses: Class[] = [
   // TUESDAY - Arts with Heart (Morning)
   {
     id: 'class-awh-tue-0930',
-    name: 'Beginner Lyrical',
+    name: 'Beginner/Intermediate Lyrical',
     day: 'tuesday',
     startTime: '09:30',
     endTime: '10:15',
@@ -50,7 +50,7 @@ export const initialClasses: Class[] = [
   },
   {
     id: 'class-awh-tue-1015',
-    name: 'Beginner Ballet',
+    name: 'Beginner/Intermediate Ballet',
     day: 'tuesday',
     startTime: '10:15',
     endTime: '11:15',
@@ -99,7 +99,7 @@ export const initialClasses: Class[] = [
     name: 'Ballet 10+',
     day: 'tuesday',
     startTime: '16:50',
-    endTime: '17:45',
+    endTime: '17:50',
     studioId: 'caa',
     recitalSong: 'Love Today (Orchestra Version) - MIKA',
     choreographyNotes: 'Entering in two groups. Center work: call and response, back and forth. "Love love me, love love me". "I\'ve been trying for so long" – start some crosses.',
@@ -110,7 +110,7 @@ export const initialClasses: Class[] = [
     name: 'Jazz 10+',
     day: 'tuesday',
     startTime: '17:50',
-    endTime: '18:45',
+    endTime: '18:50',
     studioId: 'caa',
     recitalSong: 'H.A.P.P.Y - Jessie J',
     choreographyNotes: 'Everyone out starting with claps and unison. Simple technique skills. Maybe one line at a time. Some unison, start small. Don\'t move until "OOOOOO I CAN TAKE IT".',
@@ -121,7 +121,7 @@ export const initialClasses: Class[] = [
     name: 'Ballet 2/3',
     day: 'tuesday',
     startTime: '18:50',
-    endTime: '19:45',
+    endTime: '19:50',
     studioId: 'caa',
     recitalSong: 'To Love You More - Celine Dion',
     choreographyNotes: 'Starting at 3:27: soutenu → plié sissonne → écarté → rond de jambe → développé back → cabriole (back and front with beat) → renversé → pas de bourrée → sissonne, sissonne → pirouette → big jump. Big part: half petite allégro, half grand allégro.',
@@ -132,7 +132,7 @@ export const initialClasses: Class[] = [
     name: 'Jazz 2/3',
     day: 'tuesday',
     startTime: '19:50',
-    endTime: '20:45',
+    endTime: '20:50',
     studioId: 'caa',
     recitalSong: 'For This Love - Jessie J',
     choreographyNotes: '',
@@ -141,10 +141,10 @@ export const initialClasses: Class[] = [
 
   // WEDNESDAY - Celebration Arts Academy
   {
-    id: 'class-caa-wed-1845',
+    id: 'class-caa-wed-1850',
     name: 'Contemporary 2',
     day: 'wednesday',
-    startTime: '18:45',
+    startTime: '18:50',
     endTime: '19:50',
     studioId: 'caa',
     recitalSong: '',
@@ -163,27 +163,10 @@ export const initialClasses: Class[] = [
     musicLinks: [],
   },
 
-  // THURSDAY - Starbound Performers (Competition Team Rehearsal)
-  {
-    id: 'class-starbound-thu-1730',
-    name: 'Acro & Competition Prep',
-    day: 'thursday',
-    startTime: '17:30',
-    endTime: '19:30',
-    studioId: 'starbound',
-    recitalSong: '',
-    choreographyNotes: 'Acro with Yahia. Reviewing acro skills. Creating and finishing acro dance number.',
-    musicLinks: [],
-  },
-
 ];
 
 export function getClassesByDay(classes: Class[], day: string): Class[] {
   return classes
     .filter(c => c.day === day.toLowerCase())
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
-}
-
-export function getClassesByStudio(classes: Class[], studioId: string): Class[] {
-  return classes.filter(c => c.studioId === studioId);
 }

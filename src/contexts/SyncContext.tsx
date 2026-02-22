@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { syncFromCloud, loadData, updateCalendarEvents } from '../services/storage';
 import { fetchCalendarEvents } from '../services/calendar';
+import { initAuthToken } from '../services/cloudStorage';
 
 type SyncStatus = 'idle' | 'syncing' | 'success' | 'error' | 'offline';
 
@@ -10,6 +11,7 @@ interface SyncContextType {
   setStatus: (status: SyncStatus) => void;
   markSynced: () => void;
   triggerSync: () => Promise<void>;
+  syncCalendars: () => Promise<void>;
 }
 
 const SyncContext = createContext<SyncContextType | null>(null);
@@ -18,10 +20,12 @@ const SyncContext = createContext<SyncContextType | null>(null);
 const DEFAULT_CALENDAR_URLS = [
   'https://api.band.us/ical?token=aAAxADU0MWQxZTdiZjdhYWQwMDBiMWY3ZTNjNWFhYmY3YzViNTE5YTRjYmU',
   'https://p157-caldav.icloud.com/published/2/MTk1MzE5NDQxMTk1MzE5NHQAH6rjzS_gyID08NDG-fjEKQfC3E7w4dd7G44gheLnuiNy7AexoNdl9WLiOmXdxEKxVknTHHKwIrJgJMYJfkY',
+  'webcal://p157-caldav.icloud.com/published/2/MTk1MzE5NDQxMTk1MzE5NHQAH6rjzS_gyID08NDG-fhT8lUzOWzIPh08c6kuiNKGwZzEu5nxAQZsjW1lZmK4qwjjsB3WCmkRGIUo3RFl1HM',
 ];
 
 // Sync all calendar URLs (defaults + any saved in settings) in parallel
 async function syncAllCalendars() {
+  await initAuthToken();
   const data = loadData();
   const urls = new Set<string>(DEFAULT_CALENDAR_URLS);
 
@@ -35,12 +39,19 @@ async function syncAllCalendars() {
     Array.from(urls).map(url => fetchCalendarEvents(url))
   );
 
-  const allEvents = results
-    .filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof fetchCalendarEvents>>> => r.status === 'fulfilled')
-    .flatMap(r => r.value);
+  const fulfilled = results.filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof fetchCalendarEvents>>> => r.status === 'fulfilled');
+  const allEvents = fulfilled.flatMap(r => r.value);
+  const failedCount = results.filter(r => r.status === 'rejected').length;
 
   if (allEvents.length > 0) {
     updateCalendarEvents(allEvents);
+    // Notify UI to reload data — the local-data-saved event from saveData
+    // may be blocked by isSavingRef if cloud sync is also saving simultaneously
+    window.dispatchEvent(new CustomEvent('calendar-sync-complete'));
+  } else if (failedCount === results.length && results.length > 0) {
+    // All calendar URLs failed — notify UI
+    console.warn(`Calendar sync: all ${failedCount} URL(s) failed`);
+    window.dispatchEvent(new CustomEvent('calendar-sync-failed'));
   }
 }
 
@@ -57,6 +68,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const dataSyncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const calendarSyncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isSyncingRef = useRef(false);
+  const lastSyncTimeRef = useRef(0); // Prevents double-sync from interval + visibilitychange
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -76,16 +88,21 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     timeoutRef.current = setTimeout(() => setStatusState('idle'), 2000);
   }, []);
 
-  // Unified sync: cloud data
+  // Unified sync: cloud data (always force — skip grace period)
   const triggerSync = useCallback(async () => {
     if (isSyncingRef.current || !navigator.onLine) return;
+
+    // Skip if a sync completed within the last 30 seconds (prevents double-fire)
+    const now = Date.now();
+    if (now - lastSyncTimeRef.current < 30_000) return;
 
     isSyncingRef.current = true;
     setStatusState('syncing');
 
     try {
-      const result = await syncFromCloud();
+      const result = await syncFromCloud(true);
       if (result) {
+        lastSyncTimeRef.current = Date.now();
         setLastSynced(new Date());
         setStatusState('success');
         if (timeoutRef.current) {
@@ -136,6 +153,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   }, [triggerSync]);
 
   // Data sync: on mount + every 5 minutes
+  // Uses merge-aware sync (never blind overwrite)
   useEffect(() => {
     triggerSync();
 
@@ -161,7 +179,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Sync when app becomes visible
+  // Sync when app becomes visible — merge local + cloud data
+  // syncFromCloud(force=true) bypasses grace period, merges both directions,
+  // and pushes the merged result back to cloud
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -175,7 +195,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   }, [triggerSync]);
 
   return (
-    <SyncContext.Provider value={{ status, lastSynced, setStatus, markSynced, triggerSync }}>
+    <SyncContext.Provider value={{ status, lastSynced, setStatus, markSynced, triggerSync, syncCalendars: syncAllCalendars }}>
       {children}
     </SyncContext.Provider>
   );

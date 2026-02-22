@@ -8,19 +8,21 @@ interface PullToRefreshProps {
 }
 
 export function PullToRefresh({ children, onRefresh }: PullToRefreshProps) {
-  const { triggerSync, status } = useSyncStatus();
+  const { triggerSync, syncCalendars, status } = useSyncStatus();
   const [displayDistance, setDisplayDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const indicatorRef = useRef<HTMLDivElement>(null);
   const startYRef = useRef(0);
+  const startXRef = useRef(0);
   const pullDistanceRef = useRef(0);
   const isPullingRef = useRef(false);
   const isRefreshingRef = useRef(false);
+  const directionLockedRef = useRef<'vertical' | 'horizontal' | null>(null);
 
   const THRESHOLD = 80;
   const MAX_PULL = 120;
-  const MIN_PULL_START = 10; // Minimum px before starting pull
+  const DIRECTION_LOCK_PX = 15; // Lock direction after this many px of movement
 
   // Keep ref in sync with state for use in native event handler
   useEffect(() => {
@@ -29,9 +31,31 @@ export function PullToRefresh({ children, onRefresh }: PullToRefreshProps) {
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (containerRef.current && containerRef.current.scrollTop <= 0) {
+      // Check if touch started inside a nested scrollable element
+      let target = e.target as HTMLElement | null;
+      while (target && target !== containerRef.current) {
+        const isTextarea = target.tagName === 'TEXTAREA';
+        if (isTextarea) {
+          isPullingRef.current = false;
+          return;
+        }
+        const style = window.getComputedStyle(target);
+        const isScrollable = (
+          (style.overflowY === 'auto' || style.overflowY === 'scroll') &&
+          target.scrollHeight > target.clientHeight
+        );
+        if (isScrollable) {
+          isPullingRef.current = false;
+          return;
+        }
+        target = target.parentElement;
+      }
+
       startYRef.current = e.touches[0].clientY;
+      startXRef.current = e.touches[0].clientX;
       isPullingRef.current = true;
       pullDistanceRef.current = 0;
+      directionLockedRef.current = null;
     }
   }, []);
 
@@ -44,14 +68,34 @@ export function PullToRefresh({ children, onRefresh }: PullToRefreshProps) {
       if (!isPullingRef.current || isRefreshingRef.current) return;
 
       const currentY = e.touches[0].clientY;
-      const diff = currentY - startYRef.current;
+      const currentX = e.touches[0].clientX;
+      const diffY = currentY - startYRef.current;
+      const diffX = currentX - startXRef.current;
 
-      // Only activate pull-to-refresh when at top AND pulling down
-      if (diff > MIN_PULL_START && el.scrollTop <= 0) {
-        // Only prevent default when we're actually pulling to refresh
+      // Determine direction lock
+      if (!directionLockedRef.current) {
+        const totalMove = Math.abs(diffX) + Math.abs(diffY);
+        if (totalMove > DIRECTION_LOCK_PX) {
+          if (Math.abs(diffX) > Math.abs(diffY)) {
+            // Horizontal scroll - bail out
+            directionLockedRef.current = 'horizontal';
+            isPullingRef.current = false;
+            return;
+          }
+          directionLockedRef.current = 'vertical';
+        } else {
+          return; // Not enough movement to decide yet
+        }
+      }
+
+      if (directionLockedRef.current !== 'vertical') return;
+
+      // Only activate pull-to-refresh when at top AND pulling down significantly
+      if (diffY > DIRECTION_LOCK_PX && el.scrollTop <= 0) {
         e.preventDefault();
 
-        const resistance = Math.min((diff - MIN_PULL_START) * 0.4, MAX_PULL);
+        const activePull = diffY - DIRECTION_LOCK_PX;
+        const resistance = Math.min(activePull * 0.4, MAX_PULL);
         pullDistanceRef.current = resistance;
 
         // Update indicator directly via DOM for smooth animation (no React re-render)
@@ -59,8 +103,8 @@ export function PullToRefresh({ children, onRefresh }: PullToRefreshProps) {
           indicatorRef.current.style.height = `${resistance}px`;
           indicatorRef.current.style.opacity = '1';
         }
-      } else if (diff < 0) {
-        // User is scrolling down, not pulling - disable pull mode
+      } else if (diffY < 0) {
+        // User is scrolling up, not pulling - disable pull mode
         isPullingRef.current = false;
         pullDistanceRef.current = 0;
       }
@@ -74,13 +118,18 @@ export function PullToRefresh({ children, onRefresh }: PullToRefreshProps) {
     const distance = pullDistanceRef.current;
     isPullingRef.current = false;
     pullDistanceRef.current = 0;
+    directionLockedRef.current = null;
 
     if (distance >= THRESHOLD && !isRefreshing) {
       setIsRefreshing(true);
       setDisplayDistance(THRESHOLD * 0.5);
 
       try {
-        await triggerSync();
+        // Sync both cloud data AND calendars
+        await Promise.all([
+          triggerSync(),
+          syncCalendars(),
+        ]);
         if (onRefresh) {
           await onRefresh();
         }
@@ -99,7 +148,7 @@ export function PullToRefresh({ children, onRefresh }: PullToRefreshProps) {
         indicatorRef.current.style.opacity = '0';
       }
     }
-  }, [isRefreshing, triggerSync, onRefresh]);
+  }, [isRefreshing, triggerSync, syncCalendars, onRefresh]);
 
   const progress = Math.min(displayDistance / THRESHOLD, 1);
   const shouldTrigger = displayDistance >= THRESHOLD;
@@ -107,7 +156,7 @@ export function PullToRefresh({ children, onRefresh }: PullToRefreshProps) {
   return (
     <div
       ref={containerRef}
-      className="h-full overflow-y-auto overscroll-none"
+      className="h-full overflow-y-auto overscroll-y-none"
       style={{ WebkitOverflowScrolling: 'touch' }}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}

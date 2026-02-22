@@ -7,14 +7,27 @@ export function useCurrentClass(classes: Class[]): CurrentClassInfo {
   const [currentTime, setCurrentTime] = useState(getCurrentTimeMinutes());
   const [currentDay, setCurrentDay] = useState<DayOfWeek>(getCurrentDayOfWeek());
 
-  // Update time every minute
+  // Update time every 30 seconds + immediately on app foreground
   useEffect(() => {
-    const interval = setInterval(() => {
+    const update = () => {
       setCurrentTime(getCurrentTimeMinutes());
       setCurrentDay(getCurrentDayOfWeek());
-    }, 30000);
+    };
 
-    return () => clearInterval(interval);
+    const interval = setInterval(update, 30000);
+
+    // Immediately refresh when app comes back to foreground
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        update();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
 
   const result = useMemo(() => {

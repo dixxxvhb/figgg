@@ -103,7 +103,7 @@ export const students: Student[] = [
     birthdate: '2013-01-01', // Age 12
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-wed-1845', 'class-caa-tue-1550'], // Contemporary 2, Jazz 1
+    classIds: ['class-caa-wed-1850', 'class-caa-tue-1550'], // Contemporary 2, Jazz 1
     createdAt: new Date().toISOString(),
   },
   {
@@ -142,7 +142,7 @@ export const students: Student[] = [
     birthdate: '2011-01-01', // Age 14
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-wed-1845', 'class-caa-tue-1950', 'class-caa-tue-1850'], // Contemporary 2, Jazz 2/3
+    classIds: ['class-caa-wed-1850', 'class-caa-tue-1950', 'class-caa-tue-1850'], // Contemporary 2, Jazz 2/3
     createdAt: new Date().toISOString(),
   },
   {
@@ -155,7 +155,7 @@ export const students: Student[] = [
     birthdate: '2009-01-01', // Age 16
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-wed-1845', 'class-caa-tue-1950', 'class-caa-tue-1850'], // Contemporary 2, Jazz 2/3
+    classIds: ['class-caa-wed-1850', 'class-caa-tue-1950', 'class-caa-tue-1850'], // Contemporary 2, Jazz 2/3
     createdAt: new Date().toISOString(),
   },
   {
@@ -168,7 +168,7 @@ export const students: Student[] = [
     birthdate: '2012-01-01', // Age 13
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-wed-1845', 'class-caa-tue-1950', 'class-caa-tue-1850'], // Contemporary 2, Jazz 2/3
+    classIds: ['class-caa-wed-1850', 'class-caa-tue-1950', 'class-caa-tue-1850'], // Contemporary 2, Jazz 2/3
     createdAt: new Date().toISOString(),
   },
   {
@@ -181,7 +181,7 @@ export const students: Student[] = [
     birthdate: '2009-01-01', // Age 16
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-wed-1845', 'class-caa-tue-1950', 'class-caa-tue-1850'], // Contemporary 2, Jazz 2/3
+    classIds: ['class-caa-wed-1850', 'class-caa-tue-1950', 'class-caa-tue-1850'], // Contemporary 2, Jazz 2/3
     createdAt: new Date().toISOString(),
   },
   {
@@ -272,7 +272,7 @@ export const students: Student[] = [
     birthdate: '2009-01-01', // Age 16
     notes: '',
     skillNotes: [],
-    classIds: ['class-caa-wed-1845', 'class-caa-tue-1950', 'class-caa-tue-1850'], // Contemporary 2, Jazz 2/3
+    classIds: ['class-caa-wed-1850', 'class-caa-tue-1950', 'class-caa-tue-1850'], // Contemporary 2, Jazz 2/3
     createdAt: new Date().toISOString(),
   },
   {

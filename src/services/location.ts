@@ -95,13 +95,6 @@ export function findNearestStudio(
   return nearest;
 }
 
-export function formatDistance(meters: number): string {
-  if (meters < 1000) {
-    return `${Math.round(meters)}m`;
-  }
-  return `${(meters / 1000).toFixed(1)}km`;
-}
-
 // Estimate driving time between two studios
 // Uses a rough average speed of 30mph (48km/h) for suburban driving
 export function estimateTravelTime(studio1: Studio, studio2: Studio): number | null {

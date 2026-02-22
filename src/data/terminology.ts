@@ -1886,7 +1886,7 @@ function fuzzyMatch(text: string, query: string): boolean {
 }
 
 // Search function with fuzzy matching
-export function searchTerminology(query: string): TerminologyEntry[] {
+export function searchTerminology(query: string, boostCategories?: TermCategory[]): TerminologyEntry[] {
   if (!query.trim()) return terminology;
 
   const lower = query.toLowerCase().trim();
@@ -1916,6 +1916,9 @@ export function searchTerminology(query: string): TerminologyEntry[] {
     // Style match
     if (t.style?.toLowerCase().includes(lower)) score += 5;
 
+    // Category boost when a note tag is selected
+    if (boostCategories?.includes(t.category)) score += 15;
+
     return { term: t, score };
   });
 
@@ -1925,16 +1928,3 @@ export function searchTerminology(query: string): TerminologyEntry[] {
     .map(s => s.term);
 }
 
-// Get terms by category
-export function getTermsByCategory(category: TermCategory): TerminologyEntry[] {
-  return terminology.filter(t => t.category === category);
-}
-
-// Legacy compatibility function
-export function findCorrectTerm(input: string): TerminologyEntry | undefined {
-  const lower = input.toLowerCase();
-  return terminology.find(t =>
-    t.term.toLowerCase() === lower ||
-    t.alternateSpellings?.some(s => s.toLowerCase() === lower)
-  );
-}

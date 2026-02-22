@@ -11,6 +11,9 @@ createRoot(document.getElementById('root')!).render(
 
 // Register service worker for offline support
 if ('serviceWorker' in navigator) {
+  // Guard against reload loops: only reload once per SW update
+  let hasReloaded = false;
+
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then((registration) => {
       // Check for updates
@@ -18,11 +21,26 @@ if ('serviceWorker' in navigator) {
         const newWorker = registration.installing;
         if (newWorker) {
           newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
-              // New service worker activated, show update banner
-              window.dispatchEvent(new CustomEvent('sw-update-available'));
+            if (newWorker.state === 'activated' && navigator.serviceWorker.controller && !hasReloaded) {
+              // New service worker activated — reload to pick up fresh JS bundles
+              // Without this, the page keeps running stale cached JavaScript
+              hasReloaded = true;
+              window.location.reload();
             }
           });
+        }
+      });
+
+      // Periodic update check — ensures PWA picks up new deploys
+      // Check every 15 minutes while the app is open
+      setInterval(() => {
+        registration.update();
+      }, 15 * 60 * 1000);
+
+      // Also check when user returns to the app (tab/PWA becomes visible)
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          registration.update();
         }
       });
     }).catch((error) => {

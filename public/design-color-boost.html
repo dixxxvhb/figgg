@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIG — Soft Stone + Color Boost</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,300&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #0a0a0a;
+    color: #e5e5e5;
+    line-height: 1.6;
+  }
+
+  .page-header {
+    text-align: center;
+    padding: 48px 24px 12px;
+  }
+  .page-header h1 {
+    font-family: 'Fraunces', serif;
+    font-size: 36px;
+    font-weight: 400;
+    color: #c2785a;
+    margin-bottom: 6px;
+  }
+  .page-header p { color: #737373; font-size: 15px; max-width: 500px; margin: 0 auto; }
+
+  /* Accent showcase */
+  .accent-section {
+    max-width: 960px;
+    margin: 40px auto 0;
+    padding: 0 24px;
+  }
+  .accent-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #525252;
+    margin-bottom: 12px;
+  }
+  .accent-desc {
+    font-size: 14px;
+    color: #737373;
+    margin-bottom: 24px;
+    max-width: 480px;
+    line-height: 1.6;
+  }
+
+  /* Palette row */
+  .pal {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .pal-dot {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.06);
+    position: relative;
+  }
+  .pal-dot span {
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px;
+    color: #525252;
+    white-space: nowrap;
+  }
+
+  /* Mockup grid */
+  .mock-grid {
+    display: flex;
+    gap: 20px;
+    max-width: 960px;
+    margin: 32px auto;
+    padding: 0 24px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .phone {
+    width: 340px;
+    min-width: 340px;
+    border-radius: 28px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .phone-bar {
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .phone-label {
+    text-align: center;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #525252;
+    margin-top: 8px;
+    margin-bottom: 24px;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 8px rgba(217,119,6,0.15); }
+    50% { box-shadow: 0 0 16px rgba(217,119,6,0.25); }
+  }
+
+  /* Shared dash */
+  .dash { padding: 18px; font-family: 'Inter', sans-serif; }
+  .dash .greet { font-size: 13px; margin-bottom: 1px; }
+  .dash .name { font-family: 'Fraunces', serif; font-size: 26px; font-weight: 400; margin-bottom: 18px; }
+  .dash .hero { border-radius: 18px; padding: 20px; margin-bottom: 14px; }
+  .dash .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em; padding: 3px 9px; border-radius: 16px; margin-bottom: 10px;
+  }
+  .dash .badge .dot { width: 5px; height: 5px; border-radius: 50%; animation: pulse 2s ease-in-out infinite; }
+  .dash .hero .cls { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 400; margin-bottom: 3px; }
+  .dash .hero .meta { font-size: 12px; }
+  .dash .hero .btn {
+    margin-top: 14px; border: none; padding: 9px 18px; border-radius: 9px;
+    font-weight: 600; font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  .dash .stats { display: flex; gap: 10px; margin-bottom: 14px; }
+  .dash .stat { flex: 1; border-radius: 12px; padding: 14px 8px; text-align: center; }
+  .dash .stat .num { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 400; }
+  .dash .stat .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .dash .sec-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; margin-top: 16px; }
+  .dash .sec-head h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .dash .sec-head a { font-size: 11px; text-decoration: none; }
+  .dash .agenda { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; margin-bottom: 8px; }
+  .dash .agenda .tm { text-align: center; min-width: 44px; }
+  .dash .agenda .tm .t { font-size: 13px; font-weight: 600; }
+  .dash .agenda .tm .p { font-size: 9px; text-transform: uppercase; }
+  .dash .agenda .info .tt { font-size: 13px; font-weight: 500; }
+  .dash .agenda .info .st { font-size: 11px; }
+
+  .dash .tasks { border-radius: 12px; padding: 14px; margin-top: 12px; }
+  .dash .tasks .t-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .dash .tasks .t-head h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .dash .t-item { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 13px; }
+  .dash .t-check { width: 18px; height: 18px; border-radius: 5px; border: 2px solid; flex-shrink: 0; }
+  .dash .t-done { position: relative; }
+  .dash .t-done::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 10px; height: 10px;
+    border-radius: 3px;
+  }
+
+  /* Week momentum bar */
+  .dash .momentum { margin-top: 14px; }
+  .dash .momentum .m-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .dash .momentum .m-bar { height: 6px; border-radius: 3px; overflow: hidden; }
+  .dash .momentum .m-fill { height: 100%; border-radius: 3px; }
+
+  .nav { display: flex; justify-content: space-around; padding: 8px 0 16px; }
+  .nav .ni { display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 9px; }
+  .nav .ni svg { width: 20px; height: 20px; }
+
+  /* ============ LIGHT MODE ============ */
+  .lt { background: #f5f0eb; color: #1c1917; }
+  .lt .greet { color: #78716c; }
+  .lt .name { color: #292524; }
+  .lt .hero { background: #fff; border: 1px solid #e7e0d8; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .lt .badge { background: #fef3c7; color: #92400e; }
+  .lt .badge .dot { background: #d97706; }
+  .lt .hero .cls { color: #292524; }
+  .lt .hero .meta { color: #78716c; }
+  .lt .hero .btn { background: #c2785a; color: #fff; }
+  .lt .stat { background: #fff; border: 1px solid #e7e0d8; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+  .lt .stat .num { color: #c2785a; }
+  .lt .stat .lbl { color: #78716c; }
+  .lt .sec-head h3 { color: #78716c; }
+  .lt .sec-head a { color: #c2785a; }
+  .lt .agenda { background: #fff; border: 1px solid #e7e0d8; }
+  .lt .agenda .tm .t { color: #d97706; }
+  .lt .agenda .tm .p { color: #a8a29e; }
+  .lt .agenda .info .tt { color: #292524; }
+  .lt .agenda .info .st { color: #78716c; }
+  .lt .tasks { background: #fff; border: 1px solid #e7e0d8; }
+  .lt .tasks .t-head h4 { color: #78716c; }
+  .lt .tasks .t-head a { color: #c2785a; font-size: 11px; text-decoration: none; }
+  .lt .t-check { border-color: #d6d3d1; }
+  .lt .t-item { color: #44403c; }
+  .lt .t-done .t-check { border-color: #6b8f71; background: #6b8f71; }
+  .lt .t-done .t-check::after { background: #fff; width: 8px; height: 8px; border-radius: 2px; content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); }
+  .lt .t-done span { color: #a8a29e; text-decoration: line-through; }
+  .lt .momentum .m-label { color: #a8a29e; }
+  .lt .momentum .m-bar { background: #e7e0d8; }
+  .lt .momentum .m-fill { background: linear-gradient(90deg, #c2785a, #d97706); }
+  .lt-nav { background: #fff; border-top: 1px solid #e7e0d8; }
+  .lt-nav .ni { color: #a8a29e; }
+  .lt-nav .ni.on { color: #c2785a; }
+
+  /* ============ DARK MODE ============ */
+  .dk { background: #1a1714; color: #e7e0d8; }
+  .dk .greet { color: #78716c; }
+  .dk .name { color: #f5f0eb; }
+  .dk .hero { background: #231f1a; border: 1px solid rgba(194,120,90,0.12); animation: glow 4s ease-in-out infinite; }
+  .dk .badge { background: rgba(217,119,6,0.15); color: #f59e0b; }
+  .dk .badge .dot { background: #f59e0b; }
+  .dk .hero .cls { color: #f5f0eb; }
+  .dk .hero .meta { color: #78716c; }
+  .dk .hero .btn { background: #c2785a; color: #fff; }
+  .dk .stat { background: #231f1a; border: 1px solid #33302a; }
+  .dk .stat .num { color: #d97706; }
+  .dk .stat .lbl { color: #6b6560; }
+  .dk .sec-head h3 { color: #78716c; }
+  .dk .sec-head a { color: #d4956f; }
+  .dk .agenda { background: #231f1a; border: 1px solid #33302a; }
+  .dk .agenda .tm .t { color: #f59e0b; }
+  .dk .agenda .tm .p { color: #6b6560; }
+  .dk .agenda .info .tt { color: #f5f0eb; }
+  .dk .agenda .info .st { color: #6b6560; }
+  .dk .tasks { background: #231f1a; border: 1px solid #33302a; }
+  .dk .tasks .t-head h4 { color: #78716c; }
+  .dk .tasks .t-head a { color: #d4956f; font-size: 11px; text-decoration: none; }
+  .dk .t-check { border-color: #44403c; }
+  .dk .t-item { color: #a8a29e; }
+  .dk .t-done .t-check { border-color: #6b8f71; background: #6b8f71; }
+  .dk .t-done .t-check::after { background: #1a1714; width: 8px; height: 8px; border-radius: 2px; content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); }
+  .dk .t-done span { color: #57534e; text-decoration: line-through; }
+  .dk .momentum .m-label { color: #6b6560; }
+  .dk .momentum .m-bar { background: #33302a; }
+  .dk .momentum .m-fill { background: linear-gradient(90deg, #c2785a, #d97706); }
+  .dk-nav { background: #1a1714; border-top: 1px solid #33302a; }
+  .dk-nav .ni { color: #44403c; }
+  .dk-nav .ni.on { color: #d4956f; }
+
+  /* Divider */
+  .divider { max-width: 960px; margin: 16px auto; height: 1px; background: #1f1f1f; }
+
+  /* Accent call-outs */
+  .callouts {
+    max-width: 960px;
+    margin: 40px auto;
+    padding: 0 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .callout {
+    background: #111;
+    border: 1px solid #1f1f1f;
+    border-radius: 14px;
+    padding: 20px;
+  }
+  .callout .c-swatch {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    margin-bottom: 10px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .callout h4 { font-size: 14px; margin-bottom: 4px; }
+  .callout p { font-size: 12px; color: #737373; line-height: 1.5; }
+
+  .footer {
+    text-align: center;
+    padding: 48px 24px 64px;
+    color: #525252;
+    font-size: 14px;
+    max-width: 440px;
+    margin: 0 auto;
+    line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Soft Stone + Color Boost</h1>
+  <p>Same Soft Stone base — now with honey gold times, sage green completions, and a subtle warm glow on the hero card in dark mode.</p>
+</div>
+
+<!-- Accent palette showcase -->
+<div class="accent-section">
+  <div class="accent-label">The Color System</div>
+  <div style="display: flex; gap: 48px; flex-wrap: wrap;">
+    <div>
+      <div class="accent-label" style="margin-top: 12px;">Primary</div>
+      <div class="pal">
+        <div class="pal-dot" style="background: #c2785a;"><span>Terra</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="accent-label" style="margin-top: 12px;">Time Accent</div>
+      <div class="pal">
+        <div class="pal-dot" style="background: #d97706;"><span>Honey</span></div>
+        <div class="pal-dot" style="background: #f59e0b;"><span>Gold</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="accent-label" style="margin-top: 12px;">Done / Success</div>
+      <div class="pal">
+        <div class="pal-dot" style="background: #6b8f71;"><span>Sage</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="accent-label" style="margin-top: 12px;">Self-Care / Soft Alert</div>
+      <div class="pal">
+        <div class="pal-dot" style="background: #c4878e;"><span>Rose</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="accent-desc" style="margin-top: 24px;">Terracotta stays the main personality. Honey/gold lights up <strong>times and numbers</strong>. Sage marks <strong>completions</strong>. Rose is for <strong>self-care / meds only</strong> — a tiny warm breath that separates personal from teaching.</p>
+</div>
+
+<div class="divider"></div>
+
+<!-- Mockups -->
+<div class="mock-grid">
+  <!-- LIGHT -->
+  <div>
+    <div class="phone" style="border: 2px solid #e7e0d8;">
+      <div class="phone-bar" style="background: #f5f0eb; color: #292524;">9:41</div>
+      <div class="dash lt">
+        <div class="greet">Good morning</div>
+        <div class="name">Dixon</div>
+        <div class="hero">
+          <div class="badge"><div class="dot"></div> Teaching Now</div>
+          <div class="cls">Modern Technique 18</div>
+          <div class="meta">Exchange Dance &middot; 9:30 - 11:00 AM</div>
+          <button class="btn">Continue Notes</button>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="num">3</div><div class="lbl">Today</div></div>
+          <div class="stat"><div class="num">12</div><div class="lbl">Students</div></div>
+          <div class="stat"><div class="num">5</div><div class="lbl">Notes</div></div>
+        </div>
+        <div class="sec-head"><h3>Up Next</h3><a href="#">See all</a></div>
+        <div class="agenda">
+          <div class="tm"><div class="t">1:00</div><div class="p">PM</div></div>
+          <div class="info"><div class="tt">Advanced Workshop</div><div class="st">ME Dance Theatre &middot; 1.5 hrs</div></div>
+        </div>
+        <div class="agenda">
+          <div class="tm"><div class="t">5:30</div><div class="p">PM</div></div>
+          <div class="info"><div class="tt">Choreo Rehearsal</div><div class="st">Exchange Dance &middot; 1 hr</div></div>
+        </div>
+        <div class="tasks">
+          <div class="t-head"><h4>Reminders</h4><a href="#">2 left</a></div>
+          <div class="t-item t-done"><div class="t-check" style="position:relative;"></div><span>Book iDance space</span></div>
+          <div class="t-item"><div class="t-check"></div> Send music to lighting</div>
+          <div class="t-item"><div class="t-check"></div> Update rehearsal playlist</div>
+        </div>
+        <div class="momentum">
+          <div class="m-label">Week Momentum</div>
+          <div class="m-bar"><div class="m-fill" style="width: 68%;"></div></div>
+        </div>
+      </div>
+      <div class="nav lt-nav">
+        <div class="ni on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span>Home</span></div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Schedule</span></div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span>Notes</span></div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span>Students</span></div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><span>Tasks</span></div>
+        <div class="ni" style="color: #c4878e;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg><span>Me</span></div>
+      </div>
+    </div>
+    <div class="phone-label">Light Mode</div>
+  </div>
+
+  <!-- DARK -->
+  <div>
+    <div class="phone" style="border: 2px solid #33302a;">
+      <div class="phone-bar" style="background: #1a1714; color: #f5f0eb;">9:41</div>
+      <div class="dash dk">
+        <div class="greet">Good morning</div>
+        <div class="name">Dixon</div>
+        <div class="hero">
+          <div class="badge"><div class="dot"></div> Teaching Now</div>
+          <div class="cls">Modern Technique 18</div>
+          <div class="meta">Exchange Dance &middot; 9:30 - 11:00 AM</div>
+          <button class="btn">Continue Notes</button>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="num">3</div><div class="lbl">Today</div></div>
+          <div class="stat"><div class="num">12</div><div class="lbl">Students</div></div>
+          <div class="stat"><div class="num">5</div><div class="lbl">Notes</div></div>
+        </div>
+        <div class="sec-head"><h3>Up Next</h3><a href="#">See all</a></div>
+        <div class="agenda">
+          <div class="tm"><div class="t">1:00</div><div class="p">PM</div></div>
+          <div class="info"><div class="tt">Advanced Workshop</div><div class="st">ME Dance Theatre &middot; 1.5 hrs</div></div>
+        </div>
+        <div class="agenda">
+          <div class="tm"><div class="t">5:30</div><div class="p">PM</div></div>
+          <div class="info"><div class="tt">Choreo Rehearsal</div><div class="st">Exchange Dance &middot; 1 hr</div></div>
+        </div>
+        <div class="tasks">
+          <div class="t-head"><h4>Reminders</h4><a href="#">2 left</a></div>
+          <div class="t-item t-done"><div class="t-check" style="position:relative;"></div><span>Book iDance space</span></div>
+          <div class="t-item"><div class="t-check"></div> Send music to lighting</div>
+          <div class="t-item"><div class="t-check"></div> Update rehearsal playlist</div>
+        </div>
+        <div class="momentum">
+          <div class="m-label">Week Momentum</div>
+          <div class="m-bar"><div class="m-fill" style="width: 68%;"></div></div>
+        </div>
+      </div>
+      <div class="nav dk-nav">
+        <div class="ni on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span>Home</span></div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Schedule</span></div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span>Notes</span></div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span>Students</span></div>
+        <div class="ni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><span>Tasks</span></div>
+        <div class="ni" style="color: #c4878e;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg><span>Me</span></div>
+      </div>
+    </div>
+    <div class="phone-label">Dark Mode</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- Accent call-outs -->
+<div class="callouts">
+  <div class="callout">
+    <div class="c-swatch" style="background: #d97706;"></div>
+    <h4 style="color: #d97706;">Honey / Gold — Time & Numbers</h4>
+    <p>All times (1:00 PM, 5:30 PM) and stat numbers glow honey in dark mode. Terracotta handles buttons and links. Two warm tones playing off each other = more depth.</p>
+  </div>
+  <div class="callout">
+    <div class="c-swatch" style="background: #6b8f71;"></div>
+    <h4 style="color: #6b8f71;">Sage — Done States</h4>
+    <p>Completed tasks get a sage green check. Just enough green to feel alive and rewarding, but muted enough it's not DWDC forest green. A completely different shade.</p>
+  </div>
+  <div class="callout">
+    <div class="c-swatch" style="background: #c4878e;"></div>
+    <h4 style="color: #c4878e;">Dusty Rose — Self-Care / Me</h4>
+    <p>The "Me" tab icon + any meds/self-care sections get this warm rose. It separates personal care from teaching at a glance. Subtle, not loud.</p>
+  </div>
+  <div class="callout">
+    <div class="c-swatch" style="background: linear-gradient(135deg, #231f1a, #2a2318); border-color: rgba(194,120,90,0.12);"></div>
+    <h4 style="color: #d4956f;">Warm Glow — Hero Card Edge</h4>
+    <p>Dark mode hero card gets a very subtle terracotta border glow that pulses slowly. Makes the current class card feel warm and alive. Like a candle in a dark room.</p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<div class="footer">
+  Same Soft Stone foundation. Four purpose-driven accent colors that each have a <em>job</em> — not just decoration.<br><br>
+  Say the word and I'll implement it.
+</div>
+
+</body>
+</html>

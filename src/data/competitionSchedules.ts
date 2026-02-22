@@ -442,24 +442,3 @@ export function getScheduleForCompetition(competitionId: string): CompetitionSch
   return [];
 }
 
-// Helper to get call time for a specific dance at a specific competition
-export function getCallTimeForDance(competitionId: string, danceId: string): CompetitionScheduleEntry | undefined {
-  const schedule = getScheduleForCompetition(competitionId);
-  return schedule.find(entry => entry.danceId === danceId);
-}
-
-// Helper to get all entries for a specific day
-export function getEntriesForDay(competitionId: string, date: string): CompetitionScheduleEntry[] {
-  const schedule = getScheduleForCompetition(competitionId);
-  return schedule.filter(entry => entry.performanceDate === date)
-    .sort((a, b) => a.entryNumber - b.entryNumber);
-}
-
-// Helper to get earliest call time for a dancer on a specific day
-export function getEarliestCallTimeForDancer(competitionId: string, dancerName: string, date: string): CompetitionScheduleEntry | undefined {
-  const dayEntries = getEntriesForDay(competitionId, date);
-  const dancerEntries = dayEntries.filter(entry =>
-    entry.dancers.some(d => d.toLowerCase().includes(dancerName.toLowerCase()))
-  );
-  return dancerEntries[0]; // Already sorted by entry number, which is chronological
-}

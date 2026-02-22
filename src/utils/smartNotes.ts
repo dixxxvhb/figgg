@@ -1,5 +1,38 @@
 import { WeekNotes, ClassWeekNotes } from '../types';
 
+/**
+ * Normalizes event titles for fuzzy matching across weeks.
+ * - Lowercases
+ * - Strips trailing parentheticals: "Hip Hop (Saturday)" → "hip hop"
+ * - Strips trailing day-of-week suffixes: "Rehearsal - Saturday" → "rehearsal"
+ * - Expands common abbreviations: "w" → "with", "beg" → "beginner", etc.
+ * - Strips punctuation (slashes, hyphens used as separators)
+ * - Collapses internal whitespace: "Ballet  Basics" → "ballet basics"
+ */
+export function normalizeTitle(title: string): string {
+  let t = title
+    .toLowerCase()
+    .replace(/\s*\([^)]*\)\s*$/, '')                        // strip trailing (...)
+    .replace(/\s*[-–—]\s*(mon|tue|wed|thu|fri|sat|sun)\w*\s*$/i, '') // strip "- Saturday" etc.
+    .replace(/[/\-–—]/g, ' ')                               // slashes & dashes → spaces
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Expand common abbreviations (word-boundary safe)
+  const abbreviations: Record<string, string> = {
+    'w': 'with',
+    'beg': 'beginner',
+    'int': 'intermediate',
+    'adv': 'advanced',
+    'rehrs': 'rehearsal',
+    'reh': 'rehearsal',
+  };
+
+  t = t.split(' ').map(word => abbreviations[word] || word).join(' ');
+
+  return t;
+}
+
 export interface PastSession {
   weekOf: string;
   eventId: string;
@@ -16,7 +49,7 @@ export function findMatchingPastSessions(
   eventTitle: string,
   currentEventId: string
 ): PastSession[] {
-  const titleLower = eventTitle.toLowerCase().trim();
+  const titleNorm = normalizeTitle(eventTitle);
   const matches: PastSession[] = [];
 
   for (const week of allWeekNotes) {
@@ -24,7 +57,7 @@ export function findMatchingPastSessions(
       if (
         eventId !== currentEventId &&
         classNotes.eventTitle &&
-        classNotes.eventTitle.toLowerCase().trim() === titleLower
+        normalizeTitle(classNotes.eventTitle) === titleNorm
       ) {
         matches.push({
           weekOf: week.weekOf,

@@ -54,6 +54,15 @@ export async function processMediaFile(file: File): Promise<{ dataUrl: string; w
   if (file.type.startsWith('image/')) {
     try {
       const compressedDataUrl = await compressImage(file);
+      // If compression made the image larger (e.g. converting PNG to JPEG), use original
+      if (compressedDataUrl.length > file.size * 1.37) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve({ dataUrl: e.target?.result as string });
+          reader.onerror = () => reject({ error: 'Failed to read file' });
+          reader.readAsDataURL(file);
+        });
+      }
       return { dataUrl: compressedDataUrl };
     } catch (error) {
       console.error('Image compression failed:', error);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { AppData, Class, WeekNotes, Project, Competition, CompetitionDance, Student, AttendanceRecord, CalendarEvent, SelfCareData, LaunchPlanData } from '../types';
+import { AppData, Class, WeekNotes, Project, Competition, CompetitionDance, Student, CalendarEvent, SelfCareData, LaunchPlanData } from '../types';
 import type { AICheckIn, DayPlan } from '../types';
 import type { Choreography } from '../types/choreography';
 import { loadData, saveData, saveWeekNotes as saveWeekNotesToStorage, saveSelfCareToStorage, saveLaunchPlanToStorage, saveDayPlanToStorage } from '../services/storage';
@@ -90,6 +90,12 @@ export function useAppData() {
     setData(prev => ({
       ...prev,
       classes: prev.classes.filter(c => c.id !== classId),
+      // Cascade: remove class from all enrolled students' classIds
+      students: (prev.students || []).map(s =>
+        s.classIds?.includes(classId)
+          ? { ...s, classIds: s.classIds.filter(id => id !== classId) }
+          : s
+      ),
     }));
   }, []);
 
@@ -162,6 +168,12 @@ export function useAppData() {
     setData(prev => ({
       ...prev,
       competitions: prev.competitions.filter(c => c.id !== competitionId),
+      // Cascade: remove orphaned competition dances
+      competitionDances: (prev.competitionDances || []).filter(d => {
+        // Keep dances that belong to OTHER competitions
+        const otherComps = prev.competitions.filter(c => c.id !== competitionId);
+        return otherComps.some(c => c.dances?.includes(d.id));
+      }),
     }));
   }, []);
 
@@ -182,6 +194,17 @@ export function useAppData() {
     setData(prev => ({
       ...prev,
       competitionDances: (prev.competitionDances || []).filter(d => d.id !== danceId),
+      // Cascade: remove dance from competitions and unlink rehearsal classes
+      competitions: prev.competitions.map(c =>
+        c.dances?.includes(danceId)
+          ? { ...c, dances: c.dances.filter(id => id !== danceId) }
+          : c
+      ),
+      classes: prev.classes.map(c =>
+        c.competitionDanceId === danceId
+          ? { ...c, competitionDanceId: undefined }
+          : c
+      ),
     }));
   }, []);
 
@@ -260,26 +283,16 @@ export function useAppData() {
     setData(prev => ({
       ...prev,
       students: (prev.students || []).filter(s => s.id !== studentId),
+      // Cascade: remove student from competition dance rosters
+      competitionDances: (prev.competitionDances || []).map(d =>
+        d.dancerIds?.includes(studentId)
+          ? { ...d, dancerIds: d.dancerIds.filter(id => id !== studentId) }
+          : d
+      ),
     }));
   }, []);
 
-  // Attendance management
-  const saveAttendance = useCallback((record: AttendanceRecord) => {
-    setData(prev => {
-      const attendance = prev.attendance || [];
-      const index = attendance.findIndex(a => a.classId === record.classId && a.date === record.date);
-      if (index !== -1) {
-        const updated = [...attendance];
-        updated[index] = record;
-        return { ...prev, attendance: updated };
-      }
-      return { ...prev, attendance: [...attendance, record] };
-    });
-  }, []);
-
-  const getAttendanceForClass = useCallback((classId: string, weekOf: string): AttendanceRecord | undefined => {
-    return (data.attendance || []).find(a => a.classId === classId && a.weekOf === weekOf);
-  }, [data.attendance]);
+  // Note: attendance is stored in weekNotes.classNotes[classId].attendance (not the legacy data.attendance array)
 
   // Self-care (meds + reminders) — uses immediate cloud save, not debounced
   // Medication data is critical and must sync before user locks phone
@@ -368,9 +381,6 @@ export function useAppData() {
     addStudent,
     updateStudent,
     deleteStudent,
-    // Attendance management
-    saveAttendance,
-    getAttendanceForClass,
     // Calendar events
     updateCalendarEvent,
     // Self-care & choreography

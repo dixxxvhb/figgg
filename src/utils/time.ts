@@ -1,4 +1,4 @@
-import { format, parse, isWithinInterval, addMinutes, differenceInMinutes, startOfWeek, endOfWeek, addWeeks, isSameWeek } from 'date-fns';
+import { format, startOfWeek } from 'date-fns';
 import { Class, DayOfWeek } from '../types';
 
 const DAYS_MAP: Record<DayOfWeek, number> = {
@@ -78,22 +78,7 @@ export function getWeekStart(date: Date = new Date()): Date {
   return startOfWeek(date, { weekStartsOn: 1 }); // Monday
 }
 
-export function getWeekEnd(date: Date = new Date()): Date {
-  return endOfWeek(date, { weekStartsOn: 1 });
-}
-
-export function getLastWeekStart(): Date {
-  return addWeeks(getWeekStart(), -1);
-}
-
 export function formatWeekOf(date: Date): string {
   return format(date, 'yyyy-MM-dd');
 }
 
-export function isSameWeekAs(date1: Date, date2: Date): boolean {
-  return isSameWeek(date1, date2, { weekStartsOn: 1 });
-}
-
-export function getClassDuration(cls: Class): number {
-  return timeToMinutes(cls.endTime) - timeToMinutes(cls.startTime);
-}

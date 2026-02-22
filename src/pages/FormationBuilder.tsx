@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, Copy, ChevronLeft, ChevronRight, Play, Pause, Users, Grid3X3, RotateCcw, HelpCircle, X, Lightbulb, Move, Eye, EyeOff, Zap, List } from 'lucide-react';
-import { useAppData } from '../hooks/useAppData';
+import { useAppData } from '../contexts/AppDataContext';
 import { v4 as uuid } from 'uuid';
 import { DancerPosition, Formation, TransitionStyle } from '../types';
 
@@ -74,22 +74,24 @@ function easeInOutCubic(t: number): number {
 
 // Calculate stagger delay for each dancer based on transition type
 function getStaggerDelay(index: number, total: number, type: TransitionStyle, dancers: DancerPosition[]): number {
+  if (total <= 1) return 0;
   switch (type) {
     case 'direct':
       return 0;
     case 'staggered':
-      return (index / total) * 0.3; // 30% max stagger
-    case 'wave-lr':
-      // Sort by x position, use that for delay
+      return (index / (total - 1)) * 0.3; // 30% max stagger
+    case 'wave-lr': {
       const sortedLR = [...dancers].sort((a, b) => a.x - b.x);
       const posLR = sortedLR.findIndex(d => d.id === dancers[index].id);
-      return (posLR / total) * 0.5;
-    case 'wave-rl':
+      return (posLR / (total - 1)) * 0.5;
+    }
+    case 'wave-rl': {
       const sortedRL = [...dancers].sort((a, b) => b.x - a.x);
       const posRL = sortedRL.findIndex(d => d.id === dancers[index].id);
-      return (posRL / total) * 0.5;
+      return (posRL / (total - 1)) * 0.5;
+    }
     case 'cascade':
-      return (index / total) * 0.7; // 70% max stagger for cascade
+      return (index / (total - 1)) * 0.7; // 70% max stagger for cascade
     default:
       return 0;
   }
@@ -161,6 +163,7 @@ export function FormationBuilder() {
   const [animationProgress, setAnimationProgress] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const animationRef = useRef<number | null>(null);
+  const pauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const stageRef = useRef<HTMLDivElement>(null);
 
@@ -274,7 +277,8 @@ export function FormationBuilder() {
           setCurrentFormationIndex(formationIdx);
 
           // Small pause between formations
-          setTimeout(() => {
+          pauseTimerRef.current = setTimeout(() => {
+            pauseTimerRef.current = null;
             if (formationIdx < formations.length - 1) {
               playNextTransition();
             } else {
@@ -294,6 +298,10 @@ export function FormationBuilder() {
   const stopPlayback = useCallback(() => {
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
+    }
+    if (pauseTimerRef.current) {
+      clearTimeout(pauseTimerRef.current);
+      pauseTimerRef.current = null;
     }
     setIsPlaying(false);
     setIsTransitioning(false);
@@ -396,6 +404,29 @@ export function FormationBuilder() {
     })));
   };
 
+  // Import dancers from the competition dance roster (student records)
+  const rosterStudents = useMemo(() => {
+    if (!dance?.dancerIds) return [];
+    return dance.dancerIds
+      .map(id => data.students?.find(s => s.id === id))
+      .filter(Boolean) as { id: string; name: string; nickname?: string }[];
+  }, [dance?.dancerIds, data.students]);
+
+  const importFromRoster = () => {
+    if (rosterStudents.length === 0) return;
+    const newDancers: DancerPosition[] = rosterStudents.map((s, i) => ({
+      id: uuid(),
+      name: s.nickname || s.name.split(' ')[0],
+      x: 20 + (i % 4) * 20,
+      y: 30 + Math.floor(i / 4) * 25,
+      color: DANCER_COLORS[i % DANCER_COLORS.length],
+    }));
+    setFormations(prev => prev.map(f => ({
+      ...f,
+      dancers: newDancers.map(d => ({ ...d, id: uuid() })),
+    })));
+  };
+
   // Remove dancer
   const removeDancer = (dancerId: string) => {
     const dancerIndex = currentFormation.dancers.findIndex(d => d.id === dancerId);
@@ -462,6 +493,9 @@ export function FormationBuilder() {
     return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
+      }
+      if (pauseTimerRef.current) {
+        clearTimeout(pauseTimerRef.current);
       }
     };
   }, []);
@@ -1004,6 +1038,18 @@ export function FormationBuilder() {
           <summary className="flex items-center justify-between p-4 cursor-pointer list-none">
             <h3 className="font-medium text-forest-700 dark:text-white">Dancers ({currentFormation.dancers.length})</h3>
             <div className="flex items-center gap-2">
+              {rosterStudents.length > 0 && (
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    importFromRoster();
+                  }}
+                  className="flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg text-sm hover:bg-blue-200 dark:hover:bg-blue-900/50"
+                >
+                  <Users size={14} />
+                  Roster
+                </button>
+              )}
               <button
                 onClick={(e) => {
                   e.preventDefault();

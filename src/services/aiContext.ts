@@ -33,7 +33,8 @@ export interface AIContextPayload {
     topTitles: string[];     // max 5
   };
   // Launch
-  launchTasks: string[];      // max 3 titles
+  launchTasks: string[];      // max 5 titles (legacy, kept for compat)
+  launchTaskList: Array<{ id: string; title: string; category: string; milestone: boolean }>;  // with IDs for actions
   // Wellness
   wellnessProgress: { done: number; total: number };
   wellnessItems?: Array<{ id: string; label: string; done: boolean }>;  // for day plan sourceId matching
@@ -52,6 +53,11 @@ export interface AIContextPayload {
   dayMode?: 'light' | 'normal' | 'intense' | 'comp';
   // Last week reflection (for AI to reference patterns)
   lastReflection?: string;
+  // Class lookup tables (for AI to resolve fuzzy class names → IDs)
+  todayClassList: Array<{ id: string; name: string; startTime: string }>;
+  weekClassList: Array<{ id: string; name: string; day: string; startTime: string }>;
+  // Competition dance lookup (for rehearsal notes)
+  competitionDanceList: Array<{ id: string; registrationName: string; songTitle: string }>;
   // Preferences
   tone: 'supportive' | 'direct' | 'minimal';
 }
@@ -116,7 +122,7 @@ export function buildAIContext(
     .map(r => r.title);
 
   // Launch tasks
-  const launchTasks = (data.launchPlan?.tasks || [])
+  const activeLaunchTasks = (data.launchPlan?.tasks || [])
     .filter(t => !t.completed && !t.skipped)
     .sort((a, b) => {
       // Milestones first, then by scheduled date (earlier = more urgent)
@@ -124,8 +130,14 @@ export function buildAIContext(
       if (!a.milestone && b.milestone) return 1;
       return (a.scheduledDate || '').localeCompare(b.scheduledDate || '');
     })
-    .slice(0, 3)
-    .map(t => t.title);
+    .slice(0, 5);
+  const launchTasks = activeLaunchTasks.map(t => t.title);
+  const launchTaskList = activeLaunchTasks.map(t => ({
+    id: t.id,
+    title: t.title,
+    category: t.category,
+    milestone: !!t.milestone,
+  }));
 
   // Wellness progress — if today's states haven't been initialized yet, report configured item count
   const wellnessStates = (sc?.unifiedTaskDate === todayStr) ? (sc?.unifiedTaskStates || {}) : {};
@@ -167,6 +179,27 @@ export function buildAIContext(
     ? (sc?.dayMode || 'normal')
     : 'normal';
 
+  // Class lookup tables for AI name → ID resolution
+  const todayClassList = todayClasses.map(c => ({
+    id: c.id,
+    name: c.name,
+    startTime: c.startTime,
+  }));
+  const allDays: DayOfWeek[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+  const weekClassList = allDays.flatMap(d =>
+    getClassesByDay(data.classes, d).map(c => ({
+      id: c.id,
+      name: c.name,
+      day: d,
+      startTime: c.startTime,
+    }))
+  );
+  const competitionDanceList = (data.competitionDances || []).map(d => ({
+    id: d.id,
+    registrationName: d.registrationName,
+    songTitle: d.songTitle,
+  }));
+
   // Last week reflection — find most recent reflection from weekNotes
   const sortedWeeks = [...(data.weekNotes || [])].sort((a, b) => b.weekOf.localeCompare(a.weekOf));
   const lastReflection = sortedWeeks.find(w => w.reflection)?.reflection;
@@ -183,6 +216,10 @@ export function buildAIContext(
     schedule,
     tasks: { overdueCount, todayDueCount, topTitles },
     launchTasks,
+    launchTaskList,
+    todayClassList,
+    weekClassList,
+    competitionDanceList,
     wellnessProgress: { done, total },
     wellnessItems: wellnessItemsList,
     dayPlan: dayPlanPayload,

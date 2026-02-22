@@ -1,9 +1,7 @@
-const CACHE_NAME = 'dance-notes-v1';
+const CACHE_NAME = 'dance-notes-v3';
 
-// App shell files to precache
+// App shell files to precache (NOT index.html — navigation is network-first)
 const PRECACHE_URLS = [
-  '/',
-  '/index.html',
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
@@ -36,32 +34,22 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch: stale-while-revalidate for app shell, network-first for API
+// Fetch strategy:
+// - API calls: network-only (localStorage is the offline fallback)
+// - Navigation (index.html): network-first (ensures latest Vite bundle hashes)
+// - Static assets (JS/CSS/images): stale-while-revalidate (content-hashed filenames)
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
 
-  // Network-first for API calls (Netlify functions)
+  // Network-only for API calls (Netlify functions)
+  // NEVER cache API responses — localStorage is the offline fallback
   if (url.pathname.startsWith('/.netlify/functions/')) {
     event.respondWith(
       fetch(event.request)
-        .then((response) => {
-          // Cache successful getData responses
-          if (url.pathname.includes('getData') && response.ok) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseClone);
-            });
-          }
-          return response;
-        })
         .catch(() => {
-          // Fallback to cache for getData when offline
-          if (url.pathname.includes('getData')) {
-            return caches.match(event.request);
-          }
           return new Response(JSON.stringify({ error: 'Offline' }), {
             status: 503,
             headers: { 'Content-Type': 'application/json' },
@@ -71,7 +59,31 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Stale-while-revalidate for app shell and static assets
+  // Network-first for navigation requests (HTML pages / SPA routes)
+  // This ensures index.html always loads the latest Vite bundle references
+  // so PWA users get fresh code after deploys instead of stale cached bundles
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          // Cache the fresh response for offline fallback
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+          return networkResponse;
+        })
+        .catch(() => {
+          // Offline: serve cached index.html
+          return caches.match('/index.html')
+            .then((cached) => cached || caches.match(event.request));
+        })
+    );
+    return;
+  }
+
+  // Stale-while-revalidate for static assets (JS, CSS, images, fonts)
+  // Safe because Vite uses content-hashed filenames (index-abc123.js)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request)

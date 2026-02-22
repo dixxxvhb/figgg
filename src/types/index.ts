@@ -29,7 +29,6 @@ export interface Class {
   isRecitalSong?: boolean; // true = recital song, false/undefined = class combo
   choreographyNotes?: string;
   musicLinks: MusicLink[];
-  studentIds?: string[]; // Enrolled students
   level?: 'beginner' | 'intermediate' | 'advanced'; // Class difficulty
   competitionDanceId?: string; // For rehearsal classes - links to CompetitionDance for roster
 }
@@ -88,6 +87,11 @@ export interface ClassWeekNotes {
   };
   eventTitle?: string; // Calendar event title — persisted for cross-session matching
   carryForwardDismissed?: boolean; // True = user dismissed the carry-forward banner
+  exception?: {
+    type: 'cancelled' | 'subbed';
+    subName?: string; // only used when type === 'subbed'
+    reason?: 'sick' | 'personal' | 'holiday' | 'other';
+  };
 }
 
 export interface WeekReflection {
@@ -209,6 +213,19 @@ export interface CompetitionDance {
     duration?: string; // "2:24"
     uploadedAt: string;
   };
+  // Competition results per event
+  results?: CompetitionResult[];
+}
+
+export interface CompetitionResult {
+  id: string;
+  competitionId: string;   // links to Competition.id
+  competitionName: string;
+  date: string;            // ISO date
+  placement?: string;      // "1st", "2nd", "Top 10", "Gold", etc.
+  score?: number;          // Numerical score if provided
+  specialAwards?: string[];// "Judges Award", "Crowd Favorite", etc.
+  judgeNotes?: string;     // Free-text notes from adjudication
 }
 
 export interface RehearsalNote {
@@ -617,6 +634,8 @@ export interface SelfCareData {
   suggestedDose3Date?: string;                   // YYYY-MM-DD when AI suggested optional 3rd dose
   dayMode?: 'light' | 'normal' | 'intense' | 'comp';  // current day mode
   dayModeDate?: string;                          // YYYY-MM-DD, auto-resets daily
+  // Quick scratchpad — ephemeral notes on Dashboard
+  scratchpad?: string;
   // Timestamp for cross-device conflict resolution (ISO string)
   selfCareModified?: string;
 }

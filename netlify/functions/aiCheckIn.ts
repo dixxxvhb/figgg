@@ -96,6 +96,26 @@ Day Mode:
 Week Reflection:
   { "type": "addWeekReflection", "wentWell": "...", "challenges": "...", "nextWeekFocus": "...", "aiSummary": "1-sentence week summary" } — capture weekly reflection
 
+Class Exceptions (use todayClassList from context for IDs):
+  { "type": "markClassException", "scope": "all", "exceptionType": "cancelled", "reason": "sick" } — cancel all today's classes
+  { "type": "markClassException", "scope": "all", "exceptionType": "subbed", "subName": "Jasmine" } — mark all today's classes as covered by a sub
+  { "type": "markClassException", "scope": "specific", "classIds": ["class-id-1", "class-id-2"], "exceptionType": "subbed", "subName": "Jasmine" } — mark specific classes only
+  Valid reasons: "sick", "personal", "holiday", "other"
+
+Class Notes (use weekClassList from context to resolve class name → ID):
+  { "type": "addClassNote", "classId": "...", "text": "...", "noteCategory": "needs-work" } — add a live note to a class this week
+  { "type": "setClassPlan", "classId": "...", "plan": "..." } — set the weekly plan for a class
+  { "type": "setNextWeekGoal", "classId": "...", "goal": "..." } — set the next-week goal for a class
+  Valid noteCategories: "worked-on", "needs-work", "next-week", "ideas"
+
+Launch Plan (use launchTaskList from context for IDs):
+  { "type": "completeLaunchTask", "taskId": "..." } — mark a DWDC launch task complete
+  { "type": "skipLaunchTask", "taskId": "..." } — skip a DWDC launch task
+  { "type": "addLaunchNote", "taskId": "...", "note": "..." } — add a note to a launch task
+
+Rehearsal Notes (use competitionDanceList from context for IDs):
+  { "type": "addRehearsalNote", "danceId": "...", "notes": "...", "workOn": ["item1", "item2"] } — add rehearsal note to a competition dance
+
 RULES FOR ACTIONS:
 - Only include actions when the user's message implies them. Don't add random wellness toggles.
 - Use suggestOptionalDose3 when: the user mentions a long/packed day, says they need a boost, or the schedule has 4+ hours of commitments. Only when maxDoses=2 (if already on 3x, dose 3 is always available).
@@ -107,7 +127,12 @@ RULES FOR ACTIONS:
 - Use reschedulePlanItem when user says things like "push X to after class", "move X to 3pm". Match the title from the day plan items in context.
 - Use batchToggleWellness when user lists multiple completed activities ("drank water, ate, went for a walk") — more efficient than multiple toggleWellness actions.
 - Use setDayMode when: user says it's a light/chill day → "light"; packed teaching/rehearsal → "intense"; competition day → "comp". This adapts the wellness checklist and plan. Don't set "normal" — that's the default.
-- If the context already shows a dayMode, don't re-set it unless the user explicitly wants to change it.`;
+- If the context already shows a dayMode, don't re-set it unless the user explicitly wants to change it.
+- CLASS EXCEPTIONS: When user says they're sick, calling out, or found/have a sub for today → use markClassException. Use scope "all" unless they specify which classes. Resolve sub name exactly as said. Use reason: sick/personal/holiday/other as appropriate.
+- CLASS NOTES: When user mentions a note, observation, or plan for a specific class → use addClassNote or setClassPlan. Match the class name from weekClassList (fuzzy is ok, e.g., "Ballet 1" matches "Ballet 1 Beginner"). If ambiguous (multiple plausible matches), ask in your response instead of guessing.
+- LAUNCH TASKS: When user says they finished, skipped, or wants to note something about a DWDC task → use completeLaunchTask/skipLaunchTask/addLaunchNote. Match from launchTaskList.
+- REHEARSAL NOTES: When user mentions rehearsal notes or working on a competition piece → use addRehearsalNote. Match dance from competitionDanceList.
+- FUZZY RESOLUTION: You must always include the actual ID (from the lookup lists) in actions, not the name. If you can't confidently match a name to an ID, ask for clarification instead.`;
 
     // Build rich context
     const contextLines = [
@@ -150,8 +175,25 @@ RULES FOR ACTIONS:
     }
 
     // Launch
-    if (payload.launchTasks?.length > 0) {
+    if (payload.launchTaskList?.length > 0) {
+      contextLines.push(`DWDC launch tasks (use taskId for actions):\n${payload.launchTaskList.map((t: { id: string; title: string; category: string; milestone: boolean }) => `  [${t.id}] ${t.milestone ? '★ ' : ''}${t.title} (${t.category})`).join("\n")}`);
+    } else if (payload.launchTasks?.length > 0) {
       contextLines.push(`DWDC launch priorities: ${payload.launchTasks.join(", ")}`);
+    }
+
+    // Today's classes with IDs (for class exception + note actions)
+    if (payload.todayClassList?.length > 0) {
+      contextLines.push(`Today's classes (use classId for actions):\n${payload.todayClassList.map((c: { id: string; name: string; startTime: string }) => `  [${c.id}] ${c.startTime} — ${c.name}`).join("\n")}`);
+    }
+
+    // This week's full class list (for class note actions targeting any day)
+    if (payload.weekClassList?.length > 0) {
+      contextLines.push(`All classes this week (use classId for notes):\n${payload.weekClassList.map((c: { id: string; name: string; day: string; startTime: string }) => `  [${c.id}] ${c.day} ${c.startTime} — ${c.name}`).join("\n")}`);
+    }
+
+    // Competition dances (for rehearsal note actions)
+    if (payload.competitionDanceList?.length > 0) {
+      contextLines.push(`Competition dances (use danceId for rehearsal notes):\n${payload.competitionDanceList.map((d: { id: string; registrationName: string; songTitle: string }) => `  [${d.id}] ${d.registrationName} — "${d.songTitle}"`).join("\n")}`);
     }
 
     // Wellness with IDs
@@ -201,7 +243,7 @@ RULES FOR ACTIONS:
 
     const client = new Anthropic({ apiKey });
     const msg = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
+      model: "claude-sonnet-4-5-20250929",
       max_tokens: 800,
       system: systemPrompt,
       messages: [{ role: "user", content: userContent }],

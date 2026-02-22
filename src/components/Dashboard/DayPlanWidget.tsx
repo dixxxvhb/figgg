@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, RefreshCw, ChevronDown } from 'lucide-react';
 import type { DayPlan, DayPlanItem } from '../../types';
 import { formatTimeDisplay } from '../../utils/time';
 import { haptic } from '../../utils/haptics';
@@ -43,7 +43,7 @@ export function DayPlanWidget({ plan, onToggleItem, onReplan, isReplanning }: Da
       {/* Header — expand/collapse only, no nested buttons */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-4 py-3"
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-blush-50 dark:hover:bg-blush-700/30 transition-colors"
       >
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-forest-700 dark:text-white">Day Plan</span>
@@ -52,7 +52,7 @@ export function DayPlanWidget({ plan, onToggleItem, onReplan, isReplanning }: Da
           </span>
           {isReplanning && <RefreshCw size={11} className="animate-spin text-forest-400" />}
         </div>
-        {expanded ? <ChevronUp size={14} className="text-blush-400" /> : <ChevronDown size={14} className="text-blush-400" />}
+        <ChevronDown size={14} className={`text-blush-400 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Summary */}
@@ -74,7 +74,7 @@ export function DayPlanWidget({ plan, onToggleItem, onReplan, isReplanning }: Da
               <div className="flex items-start gap-2.5 px-4 py-2.5">
                 <button
                   onClick={e => { e.preventDefault(); e.stopPropagation(); haptic('light'); onToggleItem(item.id); }}
-                  className={`w-5 h-5 mt-0.5 rounded-md border flex items-center justify-center flex-shrink-0 transition-colors ${
+                  className={`w-5 h-5 mt-0.5 rounded-md border flex items-center justify-center flex-shrink-0 transition-all duration-150 active:scale-90 ${
                     item.completed
                       ? 'bg-forest-500 border-forest-500 text-white'
                       : 'border-blush-300 dark:border-blush-600'

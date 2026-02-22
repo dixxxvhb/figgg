@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
 interface ConfirmDialogProps {
@@ -22,6 +22,26 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const confirmRef = useRef<HTMLButtonElement>(null);
+
+  // Keyboard support: Escape to cancel, Enter to confirm
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onCancel();
+      } else if (e.key === 'Enter' && !danger) {
+        e.preventDefault();
+        onConfirm();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    // Auto-focus confirm button
+    confirmRef.current?.focus();
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, onCancel, onConfirm]);
+
   if (!open) return null;
 
   return (
@@ -54,6 +74,7 @@ export function ConfirmDialog({
           </button>
           <div className="w-px bg-blush-200 dark:bg-blush-700" />
           <button
+            ref={confirmRef}
             onClick={onConfirm}
             className={`flex-1 py-3.5 text-sm font-semibold transition-colors ${
               danger

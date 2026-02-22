@@ -1,23 +1,30 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, Play, Calendar, Plus, Trash2, FileText, Image, Edit2, Save, Users, UserCheck, UserX, Clock3, ChevronDown, ChevronUp, Music, X, Camera } from 'lucide-react';
-import { useAppData } from '../hooks/useAppData';
+import { ArrowLeft, Clock, MapPin, Play, Calendar, Plus, Trash2, FileText, Image, Edit2, Save, Users, UserCheck, UserX, Clock3, ChevronDown, ChevronUp, Music, Camera, History } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { useAppData } from '../contexts/AppDataContext';
 import { formatTimeDisplay } from '../utils/time';
 import { Button } from '../components/common/Button';
 import { DropdownMenu } from '../components/common/DropdownMenu';
 import { MediaItem, ClassWeekNotes, CalendarEvent, AppData, CompetitionDance, Student, WeekNotes } from '../types';
 import { v4 as uuid } from 'uuid';
 import { processMediaFile } from '../utils/mediaCompression';
-import { autoLinkDancesToEvent, forceAutoLinkDances } from '../utils/danceLinker';
+import { forceAutoLinkDances } from '../utils/danceLinker';
+import { useConfirmDialog } from '../components/common/ConfirmDialog';
+import { findMatchingPastSessions } from '../utils/smartNotes';
+import { getCategoryStyle, getCategoryLabel } from '../constants/noteCategories';
+import { normalizeNoteCategory } from '../types';
 
 export function CalendarEventDetail() {
   const { eventId } = useParams<{ eventId: string }>();
   const { data, getCurrentWeekNotes, saveWeekNotes, updateCalendarEvent } = useAppData();
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
 
   const event = data.calendarEvents?.find(e => e.id === eventId);
 
   const [showRoster, setShowRoster] = useState(false);
   const [showLinkDances, setShowLinkDances] = useState(false);
+  const [showLastSession, setShowLastSession] = useState(false);
 
   // Auto-link dances when event is loaded (if not already linked)
   // Also tracks if we've already tried auto-linking this event in this session
@@ -42,7 +49,9 @@ export function CalendarEventDetail() {
 
   // Sync weekNotes when data changes (e.g., from cloud sync)
   useEffect(() => {
-    setWeekNotes(getCurrentWeekNotes());
+    const fresh = getCurrentWeekNotes();
+    setWeekNotes(fresh);
+    setLocalPlan(fresh.classNotes[eventId || '']?.plan || '');
   }, [data.weekNotes]);
 
   const eventNotes: ClassWeekNotes | undefined = weekNotes.classNotes[eventId || ''];
@@ -51,6 +60,7 @@ export function CalendarEventDetail() {
   const [isUploading, setIsUploading] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editNoteText, setEditNoteText] = useState('');
+  const [localPlan, setLocalPlan] = useState(eventNotes?.plan || '');
 
   const saveNotes = (updatedNotes: typeof weekNotes) => {
     setWeekNotes(updatedNotes);
@@ -99,6 +109,7 @@ export function CalendarEventDetail() {
             liveNotes: eventNotes?.liveNotes || [],
             isOrganized: eventNotes?.isOrganized || false,
             media: [...(eventNotes?.media || []), newMedia],
+            eventTitle: event?.title,
           },
         },
       };
@@ -128,9 +139,9 @@ export function CalendarEventDetail() {
     saveNotes(updatedNotes);
   };
 
-  const handleDeleteAllMedia = () => {
+  const handleDeleteAllMedia = async () => {
     if (!eventId) return;
-    if (!confirm('Delete all photos for this event?')) return;
+    if (!await confirm('Delete all photos for this event?')) return;
 
     const existingNotes = eventNotes || {
       classId: eventId,
@@ -138,6 +149,7 @@ export function CalendarEventDetail() {
       liveNotes: [],
       isOrganized: false,
       media: [],
+      eventTitle: event?.title,
     };
 
     const updatedNotes = {
@@ -147,15 +159,16 @@ export function CalendarEventDetail() {
         [eventId]: {
           ...existingNotes,
           media: [],
+          eventTitle: event?.title,
         },
       },
     };
     saveNotes(updatedNotes);
   };
 
-  const handleDeleteAllNotes = () => {
+  const handleDeleteAllNotes = async () => {
     if (!eventId) return;
-    if (!confirm('Delete all notes for this event?')) return;
+    if (!await confirm('Delete all notes for this event?')) return;
 
     const existingNotes = eventNotes || {
       classId: eventId,
@@ -163,6 +176,7 @@ export function CalendarEventDetail() {
       liveNotes: [],
       isOrganized: false,
       media: [],
+      eventTitle: event?.title,
     };
 
     const updatedNotes = {
@@ -173,15 +187,16 @@ export function CalendarEventDetail() {
           ...existingNotes,
           liveNotes: [],
           plan: '',
+          eventTitle: event?.title,
         },
       },
     };
     saveNotes(updatedNotes);
   };
 
-  const handleClearEventData = () => {
+  const handleClearEventData = async () => {
     if (!eventId) return;
-    if (!confirm('Clear all data for this event? This includes notes, plan, and media.')) return;
+    if (!await confirm('Clear all data for this event? This includes notes, plan, and media.')) return;
 
     const updatedNotes = {
       ...weekNotes,
@@ -193,11 +208,18 @@ export function CalendarEventDetail() {
           liveNotes: [],
           isOrganized: false,
           media: [],
+          eventTitle: event?.title,
         },
       },
     };
     saveNotes(updatedNotes);
   };
+
+  // Smart Notes: find matching past sessions by event title
+  const pastSessions = event?.title
+    ? findMatchingPastSessions(data.weekNotes, event.title, eventId || '')
+    : [];
+  const mostRecentSession = pastSessions[0] ?? null;
 
   if (!event) {
     return (
@@ -217,6 +239,7 @@ export function CalendarEventDetail() {
       liveNotes: [],
       isOrganized: false,
       media: [],
+      eventTitle: event?.title,
     };
 
     const updatedNotes = {
@@ -226,6 +249,7 @@ export function CalendarEventDetail() {
         [eventId]: {
           ...existingNotes,
           plan,
+          eventTitle: event?.title,
         },
       },
     };
@@ -279,6 +303,7 @@ export function CalendarEventDetail() {
 
   return (
     <div className="page-w px-4 py-6 pb-24">
+      {confirmDialog}
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <Link to="/schedule" className="p-2 hover:bg-blush-100 dark:hover:bg-blush-700 rounded-lg text-forest-700 dark:text-white">
@@ -293,12 +318,6 @@ export function CalendarEventDetail() {
         </div>
         <DropdownMenu
           items={[
-            {
-              label: 'Delete all media',
-              icon: <Image size={16} />,
-              onClick: handleDeleteAllMedia,
-              danger: true,
-            },
             {
               label: 'Delete all notes',
               icon: <FileText size={16} />,
@@ -395,88 +414,13 @@ export function CalendarEventDetail() {
         updateCalendarEvent={updateCalendarEvent}
       />
 
-      {/* Photos Section */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-medium text-blush-700 dark:text-blush-300 flex items-center gap-2">
-            <Camera size={16} />
-            Photos
-          </h2>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handlePhotoUpload}
-            className="hidden"
-            aria-label="Upload photo"
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            className="flex items-center gap-1 px-3 py-1.5 bg-forest-600 text-white rounded-lg text-sm font-medium hover:bg-forest-700 disabled:opacity-50"
-          >
-            {isUploading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Uploading...
-              </>
-            ) : (
-              <>
-                <Plus size={16} />
-                Add Photo
-              </>
-            )}
-          </button>
-        </div>
-
-        {uploadError && (
-          <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            {uploadError}
-            <button
-              onClick={() => setUploadError(null)}
-              className="ml-2 text-red-500 hover:text-red-700"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
-
-        {eventNotes?.media && eventNotes.media.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3">
-            {eventNotes.media.map(media => (
-              <div key={media.id} className="relative group">
-                <img
-                  src={media.url}
-                  alt={media.name}
-                  className="w-full aspect-[4/3] rounded-lg bg-blush-100 dark:bg-blush-700 object-cover"
-                />
-                <button
-                  onClick={() => handleDeleteMedia(media.id)}
-                  className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
-                >
-                  <Trash2 size={14} />
-                </button>
-                <div className="text-xs text-blush-500 dark:text-blush-400 mt-1 truncate">{media.name}</div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className="bg-blush-50 dark:bg-blush-800 border-2 border-dashed border-blush-200 dark:border-blush-700 rounded-xl p-8 text-center cursor-pointer hover:bg-blush-100 dark:bg-blush-700 hover:border-blush-300 dark:border-blush-600 transition-colors"
-          >
-            <Camera size={32} className="text-blush-300 dark:text-blush-600 mx-auto mb-2" />
-            <p className="text-blush-500 dark:text-blush-400 text-sm">Tap to add photos</p>
-          </div>
-        )}
-      </div>
-
       {/* Plan/Prep Notes */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-blush-700 dark:text-blush-300 mb-2">Plan / Prep Notes</label>
         <textarea
-          value={eventNotes?.plan || ''}
-          onChange={(e) => updatePlan(e.target.value)}
+          value={localPlan}
+          onChange={(e) => setLocalPlan(e.target.value)}
+          onBlur={() => { if (localPlan !== (eventNotes?.plan || '')) updatePlan(localPlan); }}
           placeholder="What do you need to prepare or remember for this event?"
           rows={4}
           className="w-full px-3 py-2 border border-blush-300 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-white dark:bg-blush-800 text-blush-900 dark:text-white placeholder-blush-400 dark:placeholder-blush-500"
@@ -548,6 +492,75 @@ export function CalendarEventDetail() {
           </div>
         </div>
       )}
+
+      {/* Last Session's Notes */}
+      {mostRecentSession && mostRecentSession.notes.liveNotes.length > 0 && (
+        <div className="mt-6">
+          <button
+            onClick={() => setShowLastSession(!showLastSession)}
+            className="w-full flex items-center justify-between p-3 bg-blush-50 dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 hover:bg-blush-100 dark:hover:bg-blush-700 transition-colors"
+          >
+            <div className="flex items-center gap-2 text-forest-600 dark:text-forest-400">
+              <History size={16} />
+              <span className="font-medium">Last Session's Notes</span>
+              <span className="text-xs text-blush-500 dark:text-blush-400">
+                Week of {format(parseISO(mostRecentSession.weekOf), 'MMM d')}
+              </span>
+            </div>
+            {showLastSession ? (
+              <ChevronUp size={18} className="text-forest-400 dark:text-blush-400" />
+            ) : (
+              <ChevronDown size={18} className="text-forest-400 dark:text-blush-400" />
+            )}
+          </button>
+
+          {showLastSession && (() => {
+            const notes = mostRecentSession.notes.liveNotes;
+            const grouped: Record<string, typeof notes> = {
+              'worked-on': notes.filter(n => normalizeNoteCategory(n.category) === 'worked-on'),
+              'needs-work': notes.filter(n => normalizeNoteCategory(n.category) === 'needs-work'),
+              'next-week': notes.filter(n => normalizeNoteCategory(n.category) === 'next-week'),
+              'ideas': notes.filter(n => normalizeNoteCategory(n.category) === 'ideas'),
+              uncategorized: notes.filter(n => !n.category),
+            };
+            const categories = [
+              { key: 'worked-on', label: getCategoryLabel('worked-on'), style: getCategoryStyle('worked-on') },
+              { key: 'needs-work', label: getCategoryLabel('needs-work'), style: getCategoryStyle('needs-work') },
+              { key: 'next-week', label: 'For This Session', style: getCategoryStyle('next-week') },
+              { key: 'ideas', label: getCategoryLabel('ideas'), style: getCategoryStyle('ideas') },
+              { key: 'uncategorized', label: 'General', style: getCategoryStyle('uncategorized') },
+            ];
+            return (
+              <div className="mt-3 space-y-3">
+                {mostRecentSession.notes.nextWeekGoal && (
+                  <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+                    <div className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Goal from Last Session</div>
+                    <p className="text-sm text-forest-700 dark:text-blush-300">{mostRecentSession.notes.nextWeekGoal}</p>
+                  </div>
+                )}
+                {categories.map(cat => {
+                  const catNotes = grouped[cat.key];
+                  if (catNotes.length === 0) return null;
+                  return (
+                    <div key={cat.key}>
+                      <div className={`inline-block text-xs px-2 py-0.5 rounded-full mb-1.5 font-medium ${cat.style}`}>
+                        {cat.label} ({catNotes.length})
+                      </div>
+                      <div className="space-y-1 pl-2 border-l-2 border-blush-200 dark:border-blush-600">
+                        {catNotes.map(note => (
+                          <div key={note.id} className="bg-white dark:bg-blush-800 rounded-lg p-2.5 text-sm">
+                            <p className="text-forest-600 dark:text-blush-200">{note.text}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+      )}
     </div>
   );
 }
@@ -612,6 +625,7 @@ function EventRoster({
       liveNotes: [],
       isOrganized: false,
       media: [],
+      eventTitle: event?.title,
     };
 
     const newPresent = (existingNotes.attendance?.present || []).filter(id => id !== studentId);

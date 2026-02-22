@@ -3,6 +3,14 @@ import { saveEvents } from './storage';
 
 const API_BASE = '/.netlify/functions';
 const TOKEN_KEY = 'dance-teaching-app-token';
+const NETWORK_TIMEOUT_MS = 10_000; // 10s — prevents "syncing" freeze on slow mobile
+
+// Create a fetch wrapper with AbortController timeout
+function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = NETWORK_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
 
 // Cache for the auth token - initialized lazily
 let tokenCache: string | null = null;
@@ -38,8 +46,8 @@ export async function initAuthToken(): Promise<void> {
         tokenCache = token;
       }
     }
-  } catch {
-    // Offline or server unreachable - cloud sync will fail gracefully
+  } catch (e) {
+    console.warn('initAuthToken: offline or server unreachable:', e);
   }
 }
 
@@ -48,7 +56,7 @@ export async function fetchCloudData(): Promise<AppData | null> {
   await initAuthToken();
 
   try {
-    const response = await fetch(`${API_BASE}/getData`, {
+    const response = await fetchWithTimeout(`${API_BASE}/getData`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${getAuthToken()}`,
@@ -68,18 +76,26 @@ export async function fetchCloudData(): Promise<AppData | null> {
 
     const data = await response.json();
     return data;
-  } catch {
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      console.warn('fetchCloudData: timed out after', NETWORK_TIMEOUT_MS, 'ms');
+    } else {
+      console.warn('fetchCloudData failed:', e);
+    }
     return null;
   }
 }
 
 export async function saveCloudData(data: AppData): Promise<boolean> {
+  // Ensure token is initialized before saving (matches fetchCloudData behavior)
+  await initAuthToken();
+
   const jsonString = JSON.stringify(data);
   const MAX_RETRIES = 2;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const response = await fetch(`${API_BASE}/saveData`, {
+      const response = await fetchWithTimeout(`${API_BASE}/saveData`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${getAuthToken()}`,
@@ -93,10 +109,14 @@ export async function saveCloudData(data: AppData): Promise<boolean> {
         return true;
       }
 
-      // Don't retry auth or size errors
+      // On auth failure, clear stale token, re-init, and retry once
       if (response.status === 401) {
         localStorage.removeItem(TOKEN_KEY);
         tokenCache = null;
+        if (attempt < MAX_RETRIES) {
+          await initAuthToken();
+          if (getAuthToken()) continue; // Retry with fresh token
+        }
         saveEvents.emit('error', 'Auth token expired. Will retry on next sync.');
         return false;
       }
@@ -117,8 +137,11 @@ export async function saveCloudData(data: AppData): Promise<boolean> {
         await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
         continue;
       }
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      saveEvents.emit('error', `Cloud sync failed: ${errorMessage}`);
+      const isTimeout = error instanceof DOMException && error.name === 'AbortError';
+      const errorMessage = isTimeout
+        ? 'Connection timed out — check your internet'
+        : error instanceof Error ? error.message : 'Unknown error';
+      saveEvents.emit('error', errorMessage);
       return false;
     }
   }
