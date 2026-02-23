@@ -112,7 +112,16 @@ export interface AIAction {
     | 'skipLaunchTask'      // skip a DWDC launch task
     | 'addLaunchNote'       // add a note to a DWDC launch task
     // Rehearsal note actions
-    | 'addRehearsalNote';   // add a rehearsal note to a competition dance
+    | 'addRehearsalNote'    // add a rehearsal note to a competition dance
+    // Disruption actions
+    | 'startDisruption'
+    | 'endDisruption'
+    // Multi-day operations
+    | 'markClassExceptionRange'
+    | 'batchRescheduleTasks'
+    | 'assignSub'
+    | 'clearWeekPlan'
+    | 'generateCatchUpPlan';
   // Common fields
   id?: string;
   ids?: string[];  // for batch operations
@@ -155,6 +164,15 @@ export interface AIAction {
   danceId?: string;
   notes?: string;
   workOn?: string[];
+  // Disruption fields
+  disruptionType?: 'sick' | 'personal' | 'travel' | 'mental_health' | 'other';
+  startDate?: string;
+  endDate?: string;
+  expectedReturn?: string;
+  subNames?: string[];
+  filter?: 'overdue' | 'due-this-week' | 'all-active';
+  newDate?: string;
+  dates?: string[];
 }
 
 export async function expandNotes(
@@ -216,6 +234,63 @@ export async function callGenerateDayPlan(
       'Authorization': `Bearer ${token}`,
     },
     body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(err.error || `HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export interface AIChatRequest {
+  mode: import('../types').AIChatMode;
+  messages?: Array<{ role: 'user' | 'assistant'; content: string }>;
+  userMessage: string;
+  context: AIContextPayload & {
+    disruption?: import('../types').DisruptionState;
+    classPrep?: {
+      classId: string;
+      className: string;
+      lastWeekNotes: string[];
+      thisWeekPlan?: string;
+      choreographyNotes?: string[];
+      studentFlags?: string[];
+      song?: string;
+    };
+    classCapture?: {
+      classId: string;
+      className: string;
+      plannedContent?: string;
+      rawDump: string;
+    };
+    allActiveReminders?: Array<{ id: string; title: string; dueDate?: string; flagged: boolean; completed: boolean }>;
+    upcomingCompetitions?: Array<{ name: string; date: string; daysAway: number }>;
+  };
+}
+
+export interface AIChatResponse {
+  response: string;
+  mood?: string;
+  adjustments?: string[];
+  actions?: AIAction[];
+  briefing?: string;
+  structuredNotes?: Array<{ text: string; category: string }>;
+}
+
+export async function callAIChat(
+  request: AIChatRequest,
+): Promise<AIChatResponse> {
+  const token = await getToken();
+
+  const response = await fetch(`${API_BASE}/aiChat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(request),
   });
 
   if (!response.ok) {
