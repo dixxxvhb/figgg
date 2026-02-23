@@ -168,8 +168,10 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
       case 'reschedulePlanItem': {
         if (!action.title || !action.time || !currentPlan) break;
         const rNeedle = action.title.toLowerCase();
-        const rIdx = currentPlan.items.findIndex(i => i.title.toLowerCase() === rNeedle)
-          || currentPlan.items.findIndex(i => i.title.toLowerCase().includes(rNeedle));
+        const exactIdx = currentPlan.items.findIndex(i => i.title.toLowerCase() === rNeedle);
+        const rIdx = exactIdx >= 0
+          ? exactIdx
+          : currentPlan.items.findIndex(i => i.title.toLowerCase().includes(rNeedle));
         if (rIdx >= 0) {
           const updated = [...currentPlan.items];
           updated[rIdx] = { ...updated[rIdx], time: action.time };

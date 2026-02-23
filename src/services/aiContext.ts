@@ -241,7 +241,9 @@ export function buildFullAIContext(
   upcomingCompetitions?: Array<{ name: string; date: string; daysAway: number }>;
   date: string;
 } {
-  const base = buildAIContext(data, 'morning', userMessage);
+  const hour = new Date().getHours();
+  const checkInType = hour < 12 ? 'morning' : 'afternoon';
+  const base = buildAIContext(data, checkInType, userMessage);
   const now = new Date();
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 

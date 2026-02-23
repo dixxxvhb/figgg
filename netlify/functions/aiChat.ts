@@ -162,8 +162,8 @@ function buildContextString(payload: any, mode: Mode): string {
     contextLines.push(`Already completed today (DO NOT regenerate these):\n${ctx.completedItems.map((i: { title: string; category: string }) => `  - [DONE] ${i.title} (${i.category})`).join("\n")}`);
   }
 
-  // Chat mode: disruption context
-  if (mode === "chat" && ctx.disruption) {
+  // Disruption context — relevant for chat, check-in, briefing, day-plan
+  if (["chat", "check-in", "briefing", "day-plan"].includes(mode) && ctx.disruption) {
     const d = ctx.disruption;
     contextLines.push(`Disruption active: ${d.type} since ${d.startDate}\n  Expected return: ${d.expectedReturn || "unknown"}\n  Classes handled: ${d.classesHandled ? "yes" : "no"}\n  Tasks deferred: ${d.tasksDeferred ? "yes" : "no"}`);
   }
