@@ -36,6 +36,11 @@ import { StreakCard } from '../components/Dashboard/StreakCard';
 import { WeeklyInsight } from '../components/Dashboard/WeeklyInsight';
 import { WeekMomentumBar } from '../components/Dashboard/WeekMomentumBar';
 import { SortableWidget } from '../components/Dashboard/SortableWidget';
+import { NudgeCards } from '../components/Dashboard/NudgeCards';
+import { PrepCard } from '../components/Dashboard/PrepCard';
+import { PostClassCapture } from '../components/Dashboard/PostClassCapture';
+import { useNudges } from '../hooks/useNudges';
+import { useClassTiming } from '../hooks/useClassTiming';
 import { CalendarEvent, DEFAULT_MED_CONFIG, DEFAULT_AI_CONFIG } from '../types';
 import type { AICheckIn, DayPlan, DayPlanItem, RecurringSchedule } from '../types';
 import { AICheckInWidget } from '../components/Dashboard/AICheckInWidget';
@@ -43,8 +48,9 @@ import { DayPlanWidget } from '../components/Dashboard/DayPlanWidget';
 import { useCheckInStatus } from '../hooks/useCheckInStatus';
 import { buildAIContext } from '../services/aiContext';
 import type { AIContextPayload } from '../services/aiContext';
-import { callAICheckIn, callGenerateDayPlan } from '../services/ai';
+import { callGenerateDayPlan, callAIChat } from '../services/ai';
 import type { AIAction } from '../services/ai';
+import { buildFullAIContext } from '../services/aiContext';
 import { executeAIActions as executeSharedAIActions } from '../services/aiActions';
 import type { ActionCallbacks } from '../services/aiActions';
 
@@ -75,6 +81,7 @@ const isActionItem = (text: string) => ACTION_KEYWORDS.test(text) || text.starts
 
 const DEFAULT_WIDGET_ORDER = [
   'morning-briefing',
+  'nudges',
   'todays-agenda',
   'reminders',
   'week-momentum',
@@ -87,6 +94,7 @@ const DEFAULT_WIDGET_ORDER = [
 
 const WIDGET_LABELS: Record<string, string> = {
   'morning-briefing': 'Quick Stats',
+  'nudges': 'Nudges',
   'todays-agenda': "Today's Schedule",
   'reminders': 'Tasks',
   'week-momentum': 'Week Momentum',
@@ -103,11 +111,18 @@ export function Dashboard() {
   const medConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
   const selfCareStatus = useSelfCareStatus(data.selfCare, medConfig);
 
+  // Nudges + class timing
+  const nudges = useNudges(data);
+  const [nudgeKey, setNudgeKey] = useState(0);
+
   // Minute-level clock — drives timers, check-in status, etc.
   const [currentMinute, setCurrentMinute] = useState(() => {
     const now = new Date();
     return now.getHours() * 60 + now.getMinutes();
   });
+
+  // Class timing for prep/capture
+  const classTiming = useClassTiming(data, currentMinute);
 
   // AI check-in
   const aiConfig = { ...DEFAULT_AI_CONFIG, ...(data.settings?.aiConfig || {}) };
@@ -231,8 +246,12 @@ export function Dashboard() {
     if (!type) return { response: '', adjustments: [] };
     const todayStr = format(new Date(), 'yyyy-MM-dd');
     try {
-      const payload = buildAIContext(dataRef.current, type, message);
-      const result = await callAICheckIn(payload);
+      const context = buildFullAIContext(dataRef.current, message);
+      const result = await callAIChat({
+        mode: 'check-in',
+        userMessage: message,
+        context,
+      });
       const checkIn: AICheckIn = {
         id: `ci-${Date.now()}`,
         date: todayStr,
@@ -678,6 +697,25 @@ export function Dashboard() {
       <div className="page-w px-4 pt-4 space-y-6">
         <EventCountdown competitions={data.competitions} />
 
+        {/* ── Prep Card — class starting within 60 min ── */}
+        {classTiming.upcomingClass && (
+          <PrepCard
+            classContext={classTiming.upcomingClass}
+            minutesUntil={classTiming.minutesUntilNext || 0}
+            data={data}
+          />
+        )}
+
+        {/* ── Post-Class Capture — class just ended ── */}
+        {classTiming.justEndedClass && (
+          <PostClassCapture
+            classContext={classTiming.justEndedClass}
+            data={data}
+            onSaveNotes={saveWeekNotes}
+            getCurrentWeekNotes={getCurrentWeekNotes}
+          />
+        )}
+
         {/* ── Hero Card — only shows during active class/event or recently ended ── */}
         {classInfo.class && classInfo.status === 'during' ? (
           <div className="bg-[var(--surface-card)] rounded-2xl overflow-hidden ring-2 ring-[var(--accent-primary)]/30 shadow-lg shadow-[var(--accent-primary)]/10 relative">
@@ -866,6 +904,9 @@ export function Dashboard() {
           <SortableContext items={widgetOrder} strategy={verticalListSortingStrategy}>
             {widgetOrder.map(id => (
               <SortableWidget key={id} id={id} isEditing={isEditingLayout} label={WIDGET_LABELS[id] || id}>
+                {id === 'nudges' && (
+                  <NudgeCards nudges={nudges} onDismissOrSnooze={() => setNudgeKey(k => k + 1)} key={`nudge-${nudgeKey}`} />
+                )}
                 {id === 'morning-briefing' && (
                   <MorningBriefing
                     todayClasses={todayClasses}

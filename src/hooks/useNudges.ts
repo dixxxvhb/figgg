@@ -180,6 +180,34 @@ export function useNudges(data: AppData): Nudge[] {
       }
     }
 
+    // Rule 7: Weekly reflection — Friday after 3pm or Sunday, no reflection for this week
+    const dayOfWeek = now.getDay(); // 0=Sun, 5=Fri
+    const isFridayAfternoon = dayOfWeek === 5 && now.getHours() >= 15;
+    const isSunday = dayOfWeek === 0;
+    if ((isFridayAfternoon || isSunday) && isActive('weekly-reflection')) {
+      // Check if a reflection exists for this week
+      const weekNotes = data.weekNotes || [];
+      const sortedWeeks = [...weekNotes].sort((a, b) => b.weekOf.localeCompare(a.weekOf));
+      const latestWithReflection = sortedWeeks.find(w => w.reflection);
+      // Consider "this week" as the last 7 days
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const hasRecentReflection = latestWithReflection &&
+        new Date(latestWithReflection.weekOf) >= sevenDaysAgo;
+
+      if (!hasRecentReflection) {
+        nudges.push({
+          id: 'weekly-reflection',
+          type: 'wellness',
+          priority: 'medium',
+          text: 'End of the week. Ready for a reflection?',
+          actionLabel: 'Reflect with AI',
+          aiPreload: "Let's do a weekly reflection",
+          dismissable: true,
+          snoozeable: true,
+        });
+      }
+    }
+
     // Sort by priority, return max 3
     const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
     return nudges
