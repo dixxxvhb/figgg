@@ -120,9 +120,14 @@ export function Dashboard() {
     if (checkInStatus.isDue && checkInStatus.type && !checkInActive) {
       setCheckInActive(true);
       setFrozenCheckInType(checkInStatus.type);
-      setFrozenGreeting(checkInStatus.greeting);
+      // Softer greeting during disruption
+      if (data.disruption?.active) {
+        setFrozenGreeting('How are you holding up?');
+      } else {
+        setFrozenGreeting(checkInStatus.greeting);
+      }
     }
-  }, [checkInStatus.isDue, checkInStatus.type, checkInActive]);
+  }, [checkInStatus.isDue, checkInStatus.type, checkInActive, data.disruption?.active]);
 
   const [isReplanning, setIsReplanning] = useState(false);
   // Ref for data so generateDayPlan doesn't re-create on every data change
@@ -568,6 +573,13 @@ export function Dashboard() {
 
   const { greeting, greetingSub } = useMemo(() => {
     const base = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+
+    // Disruption-aware: show "Day N away" as subtitle
+    if (data.disruption?.active) {
+      const dayNum = Math.ceil((new Date().getTime() - new Date(data.disruption.startDate + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24));
+      return { greeting: base, greetingSub: `Day ${dayNum} away` };
+    }
+
     const allClassesDone = todayClasses.length > 0 && !classInfo.class && !recentlyEndedClass &&
       todayClasses.every(c => timeToMinutes(c.endTime) < currentMinute);
     const isLateNight = hour >= 22;
@@ -595,7 +607,7 @@ export function Dashboard() {
     if (todayMood && moodSubs[todayMood]) return { greeting: base, greetingSub: moodSubs[todayMood] };
     if (todayClasses.length === 0 && todayCalendarEvents.length === 0) return { greeting: base, greetingSub: 'No classes today' };
     return { greeting: base, greetingSub: undefined as string | undefined };
-  }, [hour, todayClasses, todayCalendarEvents, classInfo, selfCareStatus, currentMinute, recentlyEndedClass, data.selfCare?.skippedDoseDate, todayStr2, todayMood]);
+  }, [hour, todayClasses, todayCalendarEvents, classInfo, selfCareStatus, currentMinute, recentlyEndedClass, data.selfCare?.skippedDoseDate, todayStr2, todayMood, data.disruption]);
 
   return (
     <div className="pb-24 bg-[var(--surface-primary)] min-h-screen">
@@ -869,6 +881,7 @@ export function Dashboard() {
                       done: todayPlan.items.filter(i => i.completed).length,
                       total: todayPlan.items.length,
                     } : null}
+                    isDisrupted={!!data.disruption?.active}
                   />
                 )}
                 {id === 'todays-agenda' && (
