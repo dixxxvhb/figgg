@@ -102,6 +102,23 @@ export interface WeekReflection {
   aiSummary?: string;    // AI-generated summary of the week
 }
 
+export interface SubAssignment {
+  classId: string;
+  date: string;
+  subName: string;
+}
+
+export interface DisruptionState {
+  active: boolean;
+  type: 'sick' | 'personal' | 'travel' | 'mental_health' | 'other';
+  reason?: string;
+  startDate: string;
+  expectedReturn?: string;
+  classesHandled: boolean;
+  tasksDeferred: boolean;
+  subAssignments?: SubAssignment[];
+}
+
 export interface WeekNotes {
   id: string;
   weekOf: string; // ISO date of Monday
@@ -483,6 +500,17 @@ export const DEFAULT_AI_CONFIG: AIConfig = {
   autoPlanEnabled: true,
 };
 
+export interface AIChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  actions?: import('../services/ai').AIAction[];
+  adjustments?: string[];
+  timestamp: string;
+}
+
+export type AIChatMode = 'check-in' | 'chat' | 'briefing' | 'day-plan' | 'prep' | 'capture' | 'reflection';
+
 export interface AppData {
   studios: Studio[];
   classes: Class[];
@@ -509,6 +537,7 @@ export interface AppData {
   // Ambient AI
   aiCheckIns?: AICheckIn[];         // rolling 30 days
   dayPlan?: DayPlan;                // today only
+  disruption?: DisruptionState;
 }
 
 // ===== DWDC LAUNCH PLAN =====
