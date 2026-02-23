@@ -1,11 +1,5 @@
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#e8b4b8"/>
-      <stop offset="50%" style="stop-color:#f5d0d3"/>
-      <stop offset="100%" style="stop-color:#e8b4b8"/>
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
-  <text x="256" y="290" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="105" fill="#2d5a4a" letter-spacing="-3">dixxx</text>
+  <rect width="512" height="512" fill="#0f1117"/>
+  <text x="256" y="275" text-anchor="middle" font-family="'Fraunces', 'Georgia', serif" font-weight="700" font-size="148" fill="#d4a843" letter-spacing="-4">FIG</text>
+  <circle cx="256" cy="320" r="8" fill="#d4a843"/>
 </svg>
