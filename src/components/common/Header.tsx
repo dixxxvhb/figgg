@@ -10,17 +10,17 @@ import {
   MoreHorizontal,
   WifiOff,
   Pill,
-  Rocket,
+  Sparkles,
 } from 'lucide-react';
 import { useSyncStatus } from '../../contexts/SyncContext';
 
-// 6-tab navigation: Home, Schedule, Meds, Tasks, DWDC, More
+// 6-tab navigation: Home, Schedule, Meds, Tasks, AI, More
 const navItems = [
   { path: '/', icon: Home, label: 'Home' },
   { path: '/schedule', icon: Calendar, label: 'Schedule' },
   { path: '/me', icon: Pill, label: 'Meds' },
   { path: '/tasks', icon: CheckSquare, label: 'Tasks' },
-  { path: '/launch', icon: Rocket, label: 'DWDC' },
+  { path: '/ai', icon: Sparkles, label: 'AI' },
   { path: '/settings', icon: MoreHorizontal, label: 'More' },
 ];
 
@@ -153,13 +153,14 @@ export function MobileNav() {
     }
     if (path === '/me') return location.pathname === '/me';
     if (path === '/tasks') return location.pathname === '/tasks';
-    if (path === '/launch') return location.pathname === '/launch';
+    if (path === '/ai') return location.pathname === '/ai';
     if (path === '/settings') {
       return location.pathname.startsWith('/settings') ||
              location.pathname.startsWith('/students') ||
              location.pathname.startsWith('/library') ||
              location.pathname.startsWith('/formations') ||
-             location.pathname.startsWith('/choreography');
+             location.pathname.startsWith('/choreography') ||
+             location.pathname.startsWith('/launch');
     }
     return location.pathname === path;
   };
