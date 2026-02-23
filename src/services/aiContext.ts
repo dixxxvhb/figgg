@@ -232,6 +232,50 @@ export function buildAIContext(
   };
 }
 
+export function buildFullAIContext(
+  data: AppData,
+  userMessage: string,
+): AIContextPayload & {
+  disruption?: import('../types').DisruptionState;
+  allActiveReminders?: Array<{ id: string; title: string; dueDate?: string; flagged: boolean; completed: boolean }>;
+  upcomingCompetitions?: Array<{ name: string; date: string; daysAway: number }>;
+  date: string;
+} {
+  const base = buildAIContext(data, 'morning', userMessage);
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  // All active reminders (not just top 5)
+  const reminders = (data.selfCare?.reminders || [])
+    .filter(r => !r.completed)
+    .map(r => ({
+      id: r.id,
+      title: r.title,
+      dueDate: r.dueDate,
+      flagged: r.flagged,
+      completed: r.completed,
+    }));
+
+  // Upcoming competitions with days away
+  const upcomingCompetitions = (data.competitions || [])
+    .filter(c => c.date >= todayStr)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, 3)
+    .map(c => {
+      const compDate = new Date(c.date + 'T00:00:00');
+      const daysAway = Math.ceil((compDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      return { name: c.name, date: c.date, daysAway };
+    });
+
+  return {
+    ...base,
+    date: todayStr,
+    disruption: data.disruption,
+    allActiveReminders: reminders,
+    upcomingCompetitions,
+  };
+}
+
 function formatMs(ms: number): string {
   const d = new Date(ms);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
