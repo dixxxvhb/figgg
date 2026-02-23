@@ -347,6 +347,15 @@ export function useAppData() {
     setData(prev => ({ ...prev, dayPlan: planWithTimestamp }));
   }, []);
 
+  // Disruption state — simple last-write-wins (no special cloud sync needed)
+  const updateDisruption = useCallback((disruption: AppData['disruption']) => {
+    setData(prev => {
+      const updated = { ...prev, disruption, lastModified: new Date().toISOString() };
+      saveData(updated);
+      return updated;
+    });
+  }, []);
+
   // Calendar event management (for linking dances to calendar events)
   const updateCalendarEvent = useCallback((event: CalendarEvent) => {
     setData(prev => {
@@ -388,6 +397,8 @@ export function useAppData() {
     updateChoreographies,
     // Launch plan
     updateLaunchPlan,
+    // Disruption
+    updateDisruption,
     // AI
     saveAICheckIn,
     saveDayPlan,

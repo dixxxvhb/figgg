@@ -37,7 +37,7 @@ import { WeeklyInsight } from '../components/Dashboard/WeeklyInsight';
 import { WeekMomentumBar } from '../components/Dashboard/WeekMomentumBar';
 import { SortableWidget } from '../components/Dashboard/SortableWidget';
 import { CalendarEvent, DEFAULT_MED_CONFIG, DEFAULT_AI_CONFIG } from '../types';
-import type { AICheckIn, DayPlan, DayPlanItem, Reminder, RecurringSchedule, WeekNotes, ClassWeekNotes, LiveNote, RehearsalNote, CompetitionDance } from '../types';
+import type { AICheckIn, DayPlan, DayPlanItem, Reminder, RecurringSchedule, WeekNotes, ClassWeekNotes, LiveNote, RehearsalNote, CompetitionDance, DisruptionState, DayOfWeek } from '../types';
 import { AICheckInWidget } from '../components/Dashboard/AICheckInWidget';
 import { DayPlanWidget } from '../components/Dashboard/DayPlanWidget';
 import { useCheckInStatus } from '../hooks/useCheckInStatus';
@@ -96,7 +96,7 @@ const WIDGET_LABELS: Record<string, string> = {
 };
 
 export function Dashboard() {
-  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, refreshData, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes } = useAppData();
+  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, refreshData, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes, updateDisruption } = useAppData();
   const stats = useTeachingStats(data);
   const medConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
   const selfCareStatus = useSelfCareStatus(data.selfCare, medConfig);
@@ -527,6 +527,103 @@ export function Dashboard() {
           updateCompetitionDance(updatedDance);
           break;
         }
+
+        // ── Disruption Actions ──────────────────────────────────────────────
+        case 'startDisruption': {
+          if (!action.disruptionType) break;
+          const disruption: DisruptionState = {
+            active: true,
+            type: action.disruptionType,
+            reason: action.reason,
+            startDate: todayKey,
+            expectedReturn: action.expectedReturn,
+            classesHandled: false,
+            tasksDeferred: false,
+          };
+          updateDisruption(disruption);
+          break;
+        }
+        case 'endDisruption': {
+          updateDisruption(undefined);
+          break;
+        }
+        case 'markClassExceptionRange': {
+          if (!action.startDate || !action.endDate || !action.exceptionType) break;
+          const days: string[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+          let current = new Date(action.startDate + 'T00:00:00');
+          const end = new Date(action.endDate + 'T00:00:00');
+          while (current <= end) {
+            const dayName = days[current.getDay()];
+            const weekOf = formatWeekOf(getWeekStart(current));
+            const existingWeekNotes = dataRef.current.weekNotes.find(w => w.weekOf === weekOf);
+            const weekNote: WeekNotes = existingWeekNotes
+              ? { ...existingWeekNotes, classNotes: { ...existingWeekNotes.classNotes } }
+              : { id: `week_${weekOf}`, weekOf, classNotes: {} };
+            const dayClasses = getClassesByDay(dataRef.current.classes, dayName as DayOfWeek);
+            for (const cls of dayClasses) {
+              const existing = weekNote.classNotes[cls.id] || { classId: cls.id, plan: '', liveNotes: [], isOrganized: false };
+              weekNote.classNotes[cls.id] = {
+                ...existing,
+                exception: {
+                  type: action.exceptionType,
+                  ...(action.subName ? { subName: action.subName } : {}),
+                  ...(action.reason ? { reason: action.reason as 'sick' | 'personal' | 'holiday' | 'other' } : {}),
+                },
+              };
+            }
+            saveWeekNotes(weekNote);
+            current = addDays(current, 1);
+          }
+          if (dataRef.current.disruption?.active) {
+            updateDisruption({ ...dataRef.current.disruption, classesHandled: true });
+          }
+          break;
+        }
+        case 'batchRescheduleTasks': {
+          if (!action.filter || !action.newDate) break;
+          const allReminders = [...(sc.reminders || [])];
+          const updated = allReminders.map(r => {
+            if (r.completed) return r;
+            const isOverdue = r.dueDate && r.dueDate < todayKey;
+            const isDueThisWeek = r.dueDate && r.dueDate >= todayKey && r.dueDate <= format(addDays(new Date(), 7), 'yyyy-MM-dd');
+            let shouldReschedule = false;
+            if (action.filter === 'overdue' && isOverdue) shouldReschedule = true;
+            if (action.filter === 'due-this-week' && isDueThisWeek) shouldReschedule = true;
+            if (action.filter === 'all-active') shouldReschedule = true;
+            if (shouldReschedule) {
+              return { ...r, dueDate: action.newDate, updatedAt: new Date().toISOString() };
+            }
+            return r;
+          });
+          selfCareUpdates.reminders = updated;
+          needsSelfCareUpdate = true;
+          if (dataRef.current.disruption?.active) {
+            updateDisruption({ ...dataRef.current.disruption, tasksDeferred: true });
+          }
+          break;
+        }
+        case 'assignSub': {
+          if (!action.classIds || !action.dates || !action.subName) break;
+          const currentDisruption = dataRef.current.disruption;
+          if (currentDisruption?.active) {
+            const newAssignments = action.classIds.flatMap(classId =>
+              (action.dates || []).map(date => ({ classId, date, subName: action.subName! }))
+            );
+            updateDisruption({
+              ...currentDisruption,
+              subAssignments: [...(currentDisruption.subAssignments || []), ...newAssignments],
+            });
+          }
+          break;
+        }
+        case 'clearWeekPlan': {
+          // No-op for now — week plans are per-class, clearing is destructive
+          break;
+        }
+        case 'generateCatchUpPlan': {
+          // Signal to the chat to generate a catch-up. No client action needed.
+          break;
+        }
       }
     }
 
@@ -536,7 +633,7 @@ export function Dashboard() {
     if (planUpdated && currentPlan) {
       saveDayPlan(currentPlan as DayPlan);
     }
-  }, [updateSelfCare, saveDayPlan, medConfig, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance]);
+  }, [updateSelfCare, saveDayPlan, medConfig, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance, updateDisruption]);
 
   const handleCheckInSubmit = useCallback(async (message: string) => {
     const type = frozenCheckInType;
