@@ -28,6 +28,7 @@ const Me = lazy(() => import('./pages/Me').then(m => ({ default: m.Me })));
 const TasksPage = lazy(() => import('./pages/TasksPage').then(m => ({ default: m.TasksPage })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 const LaunchPlan = lazy(() => import('./pages/LaunchPlan').then(m => ({ default: m.LaunchPlan })));
+const AIChat = lazy(() => import('./pages/AIChat').then(m => ({ default: m.AIChat })));
 
 function NotFound() {
   return (
@@ -106,6 +107,7 @@ function App() {
                         <Route path="/me" element={<Me />} />
                         <Route path="/tasks" element={<TasksPage />} />
                         <Route path="/launch" element={<LaunchPlan />} />
+                        <Route path="/ai" element={<AIChat />} />
                         <Route path="/settings" element={<Settings />} />
                         <Route path="*" element={<NotFound />} />
                       </Routes>
