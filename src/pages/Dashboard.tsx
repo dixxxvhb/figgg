@@ -882,6 +882,7 @@ export function Dashboard() {
                       total: todayPlan.items.length,
                     } : null}
                     isDisrupted={!!data.disruption?.active}
+                    data={data}
                   />
                 )}
                 {id === 'todays-agenda' && (

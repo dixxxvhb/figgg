@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   BookOpen,
@@ -10,7 +10,9 @@ import {
 import { isPast, startOfDay, parseISO } from 'date-fns';
 import { formatTimeDisplay, formatDuration, timeToMinutes } from '../../utils/time';
 import { haptic } from '../../utils/haptics';
-import type { Class, Reminder, CurrentClassInfo, CalendarEvent } from '../../types';
+import { callAIChat } from '../../services/ai';
+import { buildFullAIContext } from '../../services/aiContext';
+import type { Class, Reminder, CurrentClassInfo, CalendarEvent, AppData } from '../../types';
 import type { SelfCareStatus } from '../../hooks/useSelfCareStatus';
 
 interface NextUpInfo {
@@ -33,6 +35,7 @@ interface MorningBriefingProps {
   canLogDose?: boolean;
   dayPlanProgress?: { done: number; total: number } | null;
   isDisrupted?: boolean;
+  data: AppData;
 }
 
 export function MorningBriefing({
@@ -47,8 +50,43 @@ export function MorningBriefing({
   canLogDose,
   dayPlanProgress,
   isDisrupted,
+  data,
 }: MorningBriefingProps) {
   const [justLogged, setJustLogged] = useState(false);
+
+  // AI-generated morning briefing text (cached per day in sessionStorage)
+  const [briefingText, setBriefingText] = useState<string | null>(() => {
+    const cached = sessionStorage.getItem('figgg-briefing-text');
+    const cachedDate = sessionStorage.getItem('figgg-briefing-date');
+    const today = new Date().toISOString().slice(0, 10);
+    return cachedDate === today ? cached : null;
+  });
+
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const cachedDate = sessionStorage.getItem('figgg-briefing-date');
+    if (cachedDate === today || briefingText) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const context = buildFullAIContext(data, 'morning briefing');
+        const result = await callAIChat({
+          mode: 'briefing',
+          userMessage: 'Generate my morning briefing',
+          context,
+        });
+        if (!cancelled && result.briefing) {
+          setBriefingText(result.briefing);
+          sessionStorage.setItem('figgg-briefing-text', result.briefing);
+          sessionStorage.setItem('figgg-briefing-date', today);
+        }
+      } catch {
+        // Silent fail — static briefing is fine
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleQuickLogDose = () => {
     if (!onLogDose || !canLogDose) return;
@@ -143,6 +181,14 @@ export function MorningBriefing({
 
   return (
     <div className="bg-[var(--surface-card)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
+      {/* ── AI Briefing Text ── */}
+      {briefingText && (
+        <div className="px-4 pt-3.5 pb-1">
+          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
+            {briefingText}
+          </p>
+        </div>
+      )}
       {/* ── 3-column stat row with large serif numbers ── */}
       <div className="grid grid-cols-3 divide-x divide-[var(--border-subtle)]">
         {/* Classes */}
