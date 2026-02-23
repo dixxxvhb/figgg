@@ -53,6 +53,8 @@ import type { AIAction } from '../services/ai';
 import { buildFullAIContext } from '../services/aiContext';
 import { executeAIActions as executeSharedAIActions } from '../services/aiActions';
 import type { ActionCallbacks } from '../services/aiActions';
+import { applyMoodLayer } from '../styles/moodLayer';
+import type { MoodSignal, ActivityState } from '../styles/moodLayer';
 
 const VALID_CATEGORIES = new Set(['task', 'wellness', 'class', 'launch', 'break', 'med']);
 const VALID_PRIORITIES = new Set(['high', 'medium', 'low']);
@@ -590,6 +592,18 @@ export function Dashboard() {
     return checkIns.length > 0 ? checkIns[checkIns.length - 1].mood : undefined;
   }, [data.aiCheckIns, todayStr2]);
 
+  // ── Mood-responsive theming layer ──
+  // Drives subtle visual shifts based on AI check-in mood, time of day, and activity
+  useEffect(() => {
+    const activityState: ActivityState =
+      classInfo.status === 'during' ? 'teaching' :
+      classTiming.upcomingClass ? 'prepping' :
+      todayClasses.length > 0 && todayClasses.every(c => timeToMinutes(c.endTime) < currentMinute) ? 'done' :
+      todayClasses.length === 0 ? 'off' : 'idle';
+
+    applyMoodLayer(todayMood as MoodSignal, hour, activityState);
+  }, [todayMood, hour, classInfo.status, classTiming.upcomingClass, todayClasses, currentMinute]);
+
   const { greeting, greetingSub } = useMemo(() => {
     const base = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
@@ -629,9 +643,9 @@ export function Dashboard() {
   }, [hour, todayClasses, todayCalendarEvents, classInfo, selfCareStatus, currentMinute, recentlyEndedClass, data.selfCare?.skippedDoseDate, todayStr2, todayMood, data.disruption]);
 
   return (
-    <div className="pb-24 bg-[var(--surface-primary)] min-h-screen">
-      {/* ── Greeting — clean edge-to-edge, no colored bar ── */}
-      <div className="px-4 pt-8 pb-2">
+    <div className="pb-24 bg-[var(--mood-surface-tint)] min-h-screen">
+      {/* ── Greeting — clean edge-to-edge, ambient glow from mood layer ── */}
+      <div className="px-4 pt-8 pb-2 mood-ambient-glow overflow-hidden">
         <div className="page-w">
           <div className="flex items-start justify-between">
             <div>
@@ -642,7 +656,7 @@ export function Dashboard() {
                 {dayName}, <span className="text-[var(--accent-primary)]">{dateStr}</span>
               </h1>
               {greetingSub && (
-                <p className="text-sm text-[var(--text-tertiary)] mt-1">{greetingSub}</p>
+                <p className="text-sm font-display text-[var(--text-tertiary)] mt-1">{greetingSub}</p>
               )}
             </div>
             <button
@@ -694,7 +708,7 @@ export function Dashboard() {
         </div>
       )}
 
-      <div className="page-w px-4 pt-4 space-y-6">
+      <div className="page-w px-4 pt-4 space-y-8">
         <EventCountdown competitions={data.competitions} />
 
         {/* ── Prep Card — class starting within 60 min ── */}
@@ -902,6 +916,7 @@ export function Dashboard() {
           modifiers={[restrictToVerticalAxis]}
         >
           <SortableContext items={widgetOrder} strategy={verticalListSortingStrategy}>
+            <div className={`space-y-8 ${!isEditingLayout ? 'widget-stagger-in' : ''}`}>
             {widgetOrder.map(id => (
               <SortableWidget key={id} id={id} isEditing={isEditingLayout} label={WIDGET_LABELS[id] || id}>
                 {id === 'nudges' && (
@@ -966,6 +981,7 @@ export function Dashboard() {
                 )}
               </SortableWidget>
             ))}
+            </div>
           </SortableContext>
         </DndContext>
       </div>

@@ -11,6 +11,7 @@ import { SyncProvider } from './contexts/SyncContext';
 import { AppDataProvider } from './contexts/AppDataContext';
 import { loadData } from './services/storage';
 import { applyTheme } from './styles/applyTheme';
+import { restoreMoodLayer } from './styles/moodLayer';
 
 // Lazy-loaded routes (not needed on initial load)
 const ClassDetail = lazy(() => import('./pages/ClassDetail').then(m => ({ default: m.ClassDetail })));
@@ -33,9 +34,9 @@ const AIChat = lazy(() => import('./pages/AIChat').then(m => ({ default: m.AICha
 function NotFound() {
   return (
     <div className="page-w px-4 py-12 text-center">
-      <h1 className="text-2xl font-bold text-forest-700 dark:text-white mb-2">Page not found</h1>
-      <p className="text-blush-500 dark:text-blush-400 mb-4">This page doesn't exist.</p>
-      <a href="/" className="text-forest-600 dark:text-forest-400 font-medium hover:underline">Back to home</a>
+      <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Page not found</h1>
+      <p className="text-[var(--text-secondary)] mb-4">This page doesn't exist.</p>
+      <a href="/" className="text-[var(--accent-primary)] font-medium hover:underline">Back to home</a>
     </div>
   );
 }
@@ -70,6 +71,9 @@ function App() {
     if (settings?.themeId) {
       applyTheme(settings.themeId, document.documentElement.classList.contains('dark'));
     }
+
+    // Restore mood layer from session (persists across navigations, resets daily)
+    restoreMoodLayer();
   }, []);
 
   // Cloud sync and calendar sync are now handled entirely by SyncProvider
@@ -80,7 +84,7 @@ function App() {
       <SyncProvider>
         <BrowserRouter>
           <AppDataProvider>
-            <div className="min-h-screen bg-blush-50 dark:bg-blush-900 transition-colors">
+            <div className="min-h-screen bg-[var(--surface-primary)] transition-colors">
               <a href="#main-content" className="skip-link">
                 Skip to main content
               </a>

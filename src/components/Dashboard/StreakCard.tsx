@@ -99,7 +99,7 @@ export function StreakCard({ selfCare, learningData, notesThisWeek, totalClasses
         {/* Meds Streak */}
         <div className="p-4 text-center">
           <Flame size={18} className="mx-auto text-orange-500 mb-2" />
-          <div className="type-stat text-[var(--text-primary)] leading-none">
+          <div className={`type-stat text-[var(--text-primary)] leading-none ${currentStreak > 0 && currentStreak >= longestStreak ? 'streak-new-high' : ''}`}>
             {currentStreak}
           </div>
           <div className="type-label text-[var(--text-tertiary)] mt-1.5">

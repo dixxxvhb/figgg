@@ -33,12 +33,12 @@ export function SortableWidget({ id, isEditing, label, children }: SortableWidge
           <button
             {...attributes}
             {...listeners}
-            className="p-1.5 text-blush-400 dark:text-blush-500 touch-none rounded-lg hover:bg-blush-100 dark:hover:bg-blush-700 active:bg-blush-200 dark:active:bg-blush-600 transition-colors"
+            className="p-1.5 text-[var(--text-tertiary)] touch-none rounded-lg hover:bg-[var(--surface-inset)] active:bg-[var(--surface-card-hover)] transition-colors"
             aria-label={`Drag to reorder ${label}`}
           >
             <GripVertical size={16} />
           </button>
-          <span className="text-[11px] font-medium text-blush-400 dark:text-blush-500 uppercase tracking-wider">
+          <span className="text-[11px] font-medium text-[var(--text-tertiary)] uppercase tracking-wider">
             {label}
           </span>
         </div>

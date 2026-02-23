@@ -83,11 +83,11 @@ export function AICheckInWidget({ greeting, checkInType, onSubmit, onSkip, onDon
   };
 
   return (
-    <div className="bg-white dark:bg-blush-800 rounded-2xl border border-blush-200 dark:border-blush-700 overflow-hidden">
+    <div className="bg-[var(--surface-card)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
       {/* Prompt state */}
       {state === 'prompt' && (
         <div className="p-4">
-          <p className="text-sm text-forest-700 dark:text-blush-200 mb-3">{greeting}</p>
+          <p className="text-sm text-[var(--text-primary)] mb-3">{greeting}</p>
           <div className="flex gap-2">
             <input
               ref={inputRef}
@@ -96,17 +96,17 @@ export function AICheckInWidget({ greeting, checkInType, onSubmit, onSkip, onDon
               onChange={e => setMessage(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSubmit()}
               placeholder={checkInType === 'morning' ? 'Long day ahead...' : 'Things are going...'}
-              className="flex-1 px-3 py-2 text-sm bg-blush-50 dark:bg-blush-700 border border-blush-200 dark:border-blush-600 rounded-xl text-forest-700 dark:text-white placeholder-blush-400 focus:outline-none focus:ring-1 focus:ring-forest-500"
+              className="flex-1 px-3 py-2 text-sm bg-[var(--surface-inset)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
             />
             <button
               onClick={handleSubmit}
               disabled={!message.trim()}
-              className="w-9 h-9 flex items-center justify-center rounded-xl bg-forest-600 text-white disabled:opacity-30 active:scale-95 transition-transform"
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--accent-primary)] text-[var(--text-on-accent)] disabled:opacity-30 active:scale-95 transition-transform"
             >
               <Send size={16} />
             </button>
           </div>
-          <button onClick={handleSkip} className="mt-2 text-xs text-blush-400 dark:text-blush-500 hover:text-blush-600">
+          <button onClick={handleSkip} className="mt-2 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">
             Skip
           </button>
         </div>
@@ -116,10 +116,10 @@ export function AICheckInWidget({ greeting, checkInType, onSubmit, onSkip, onDon
       {state === 'loading' && (
         <div className="p-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Loader2 size={16} className="animate-spin text-forest-500" />
-            <span className="text-sm text-blush-400 dark:text-blush-500">Thinking...</span>
+            <Loader2 size={16} className="animate-spin text-[var(--accent-primary)]" />
+            <span className="text-sm text-[var(--text-tertiary)]">Thinking...</span>
           </div>
-          <button onClick={handleDismiss} className="text-xs text-blush-400 hover:text-blush-600">
+          <button onClick={handleDismiss} className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">
             Dismiss
           </button>
         </div>
@@ -129,19 +129,19 @@ export function AICheckInWidget({ greeting, checkInType, onSubmit, onSkip, onDon
       {state === 'response' && (
         <div className="p-4" onClick={resetAutoDismiss}>
           <div className="flex items-start justify-between gap-2">
-            <p className="text-sm text-forest-700 dark:text-blush-200 leading-relaxed">{aiResponse}</p>
-            <button onClick={handleDismiss} className="flex-shrink-0 p-1 text-blush-400 hover:text-blush-600">
+            <p className="text-sm text-[var(--text-primary)] leading-relaxed">{aiResponse}</p>
+            <button onClick={handleDismiss} className="flex-shrink-0 p-1 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">
               <X size={14} />
             </button>
           </div>
           {adjustments.length > 0 && (
             <div className="mt-2">
               {actionsApplied && (
-                <p className="text-[10px] text-forest-500 dark:text-forest-400 mb-1 font-medium">Changes applied:</p>
+                <p className="text-[10px] text-[var(--accent-primary)] mb-1 font-medium">Changes applied:</p>
               )}
               <div className="flex flex-wrap gap-1.5">
                 {adjustments.map((adj, i) => (
-                  <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-forest-50 dark:bg-forest-900/30 text-forest-600 dark:text-forest-400">
+                  <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--accent-muted)] text-[var(--accent-primary)]">
                     {adj}
                   </span>
                 ))}
@@ -156,24 +156,24 @@ export function AICheckInWidget({ greeting, checkInType, onSubmit, onSkip, onDon
         <div className="p-4">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-start gap-2">
-              <AlertCircle size={16} className="text-red-400 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-600 dark:text-red-400">Couldn't connect. Try again?</p>
+              <AlertCircle size={16} className="text-[var(--status-danger)] flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-[var(--status-danger)]">Couldn't connect. Try again?</p>
             </div>
-            <button onClick={handleDismiss} className="flex-shrink-0 p-1 text-blush-400 hover:text-blush-600">
+            <button onClick={handleDismiss} className="flex-shrink-0 p-1 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">
               <X size={14} />
             </button>
           </div>
           <div className="flex gap-2 mt-3">
             <button
               onClick={handleRetry}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-forest-600 text-white rounded-lg active:scale-95 transition-transform"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-[var(--accent-primary)] text-[var(--text-on-accent)] rounded-lg active:scale-95 transition-transform"
             >
               <RefreshCw size={12} />
               Retry
             </button>
             <button
               onClick={handleDismiss}
-              className="px-3 py-1.5 text-xs text-blush-400 dark:text-blush-500 hover:text-blush-600"
+              className="px-3 py-1.5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
             >
               Dismiss
             </button>
