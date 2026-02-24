@@ -256,12 +256,15 @@ export function WeekPlanner() {
         <div className="bg-blush-50 dark:bg-blush-800 rounded-xl p-4 mb-6">
           <div className="text-sm font-medium text-blush-500 dark:text-blush-400 mb-3">{lastWeekLabel}</div>
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {Object.entries(lastWeekNotes.classNotes).map(([classId, notes]) => {
-              const cls = data.classes.find(c => c.id === classId);
-              if (!cls || !notes.plan) return null;
+            {Object.entries(lastWeekNotes.classNotes).map(([itemId, notes]) => {
+              if (!notes.plan) return null;
+              const cls = data.classes.find(c => c.id === itemId);
+              const evt = data.calendarEvents?.find(e => e.id === itemId);
+              const label = cls?.name || evt?.title;
+              if (!label) return null;
               return (
-                <div key={classId} className="text-sm">
-                  <span className="font-medium text-forest-700 dark:text-white">{cls.name}:</span>{' '}
+                <div key={itemId} className="text-sm">
+                  <span className="font-medium text-forest-700 dark:text-white">{label}:</span>{' '}
                   <span className="text-blush-600 dark:text-blush-300">{notes.plan}</span>
                 </div>
               );
@@ -293,6 +296,7 @@ export function WeekPlanner() {
             <div key={day}>
               <h3 className="font-semibold text-forest-900 dark:text-white mb-3">{dayLabel}</h3>
               <div className="space-y-3">
+                {/* Scheduled Classes */}
                 {classes.map(cls => {
                   const studio = getStudio(cls.studioId);
                   const classNotes = currentWeekNotes.classNotes[cls.id];
@@ -412,6 +416,7 @@ export function WeekPlanner() {
                     </div>
                   );
                 })}
+
               </div>
             </div>
           );

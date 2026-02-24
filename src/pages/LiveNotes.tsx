@@ -365,10 +365,13 @@ export function LiveNotes() {
     const newAbsent = attendance.absent.filter(id => id !== studentId);
     const newLate = attendance.late.filter(id => id !== studentId);
 
-    // Add to the appropriate list
-    if (status === 'present') newPresent.push(studentId);
-    else if (status === 'absent') newAbsent.push(studentId);
-    else if (status === 'late') newLate.push(studentId);
+    // Toggle: if already in this status, leave all lists empty (unmark)
+    const currentStatus = getStudentStatus(studentId);
+    if (currentStatus !== status) {
+      if (status === 'present') newPresent.push(studentId);
+      else if (status === 'absent') newAbsent.push(studentId);
+      else if (status === 'late') newLate.push(studentId);
+    }
 
     // Clean up absence reason if no longer absent
     const newAbsenceReasons = { ...(attendance.absenceReasons || {}) };
@@ -978,12 +981,6 @@ export function LiveNotes() {
                 label: 'Clear all notes',
                 icon: <FileText size={16} />,
                 onClick: clearAllNotes,
-                danger: true,
-              },
-              {
-                label: 'Clear everything',
-                icon: <Trash2 size={16} />,
-                onClick: clearAll,
                 danger: true,
               },
             ]}

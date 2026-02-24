@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Clock, MapPin, Play, Calendar, Plus, Trash2, FileText, Image, Edit2, Save, Users, UserCheck, UserX, Clock3, ChevronDown, ChevronUp, Music, Camera, History } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -56,8 +56,6 @@ export function CalendarEventDetail() {
 
   const eventNotes: ClassWeekNotes | undefined = weekNotes.classNotes[eventId || ''];
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editNoteText, setEditNoteText] = useState('');
   const [localPlan, setLocalPlan] = useState(eventNotes?.plan || '');
@@ -67,6 +65,7 @@ export function CalendarEventDetail() {
     saveWeekNotes(updatedNotes);
   };
 
+  const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

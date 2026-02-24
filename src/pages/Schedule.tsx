@@ -349,7 +349,7 @@ export function Schedule() {
                         <div className="type-h2 text-[var(--text-primary)]">{event.title}</div>
                         <div className="flex items-center gap-1 text-xs text-[var(--status-warning)] bg-[var(--status-warning)]/10 px-2 py-0.5 rounded-full">
                           <Calendar size={12} />
-                          <span>Calendar</span>
+                          <span>Event</span>
                         </div>
                       </div>
                       {event.startTime && event.startTime !== '00:00' && (

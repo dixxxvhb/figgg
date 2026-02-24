@@ -505,12 +505,6 @@ export function EventNotes() {
                 onClick: clearAllNotes,
                 danger: true,
               },
-              {
-                label: 'Clear everything',
-                icon: <Trash2 size={16} />,
-                onClick: clearAll,
-                danger: true,
-              },
             ]}
           />
         </div>
