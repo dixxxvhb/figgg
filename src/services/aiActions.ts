@@ -259,6 +259,18 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           };
         }
         callbacks.saveWeekNotes(exWeekNotes);
+
+        // Also remove cancelled class items from Day Plan (sourceId matches classId)
+        if (action.exceptionType === 'cancelled' && currentPlan) {
+          const cancelledSet = new Set(targetIds);
+          const updatedItems = currentPlan.items.filter(
+            i => !(i.category === 'class' && i.sourceId && cancelledSet.has(i.sourceId))
+          );
+          if (updatedItems.length !== currentPlan.items.length) {
+            currentPlan = { ...currentPlan, items: updatedItems };
+            planUpdated = true;
+          }
+        }
         break;
       }
 

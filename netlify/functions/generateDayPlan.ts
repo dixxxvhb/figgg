@@ -46,6 +46,7 @@ PLANNING PHILOSOPHY:
 
 RULES:
 - Items marked [DONE] in the context are ALREADY COMPLETED. Do NOT include them in your plan — they will be merged in automatically.
+- Classes listed as cancelled should NOT be included in the plan. Skip them entirely.
 - When re-planning mid-day, focus only on what's LEFT to do. The completed items are preserved separately.
 - 5-12 NEW items max. Quality over quantity.
 - Classes/events MUST appear at their exact times — these are non-negotiable.
@@ -99,6 +100,14 @@ COMPETITION ENTRIES:
       contextLines.push(`Fixed schedule:\n${payload.schedule.map((s: { time: string; title: string; type: string }) => `  ${s.time} — ${s.title} (${s.type})`).join("\n")}`);
     } else {
       contextLines.push("No classes or events today — open schedule.");
+    }
+
+    // Cancelled classes (from AI exceptions) — don't include in plan
+    if (payload.todayClassList?.length > 0) {
+      const cancelledClasses = payload.todayClassList.filter((c: { exception?: string }) => c.exception === 'cancelled');
+      if (cancelledClasses.length > 0) {
+        contextLines.push(`Cancelled classes today (DO NOT include in plan): ${cancelledClasses.map((c: { name: string }) => c.name).join(", ")}`);
+      }
     }
 
     // Meds

@@ -3,7 +3,7 @@
  * Reads from AppData and produces a compact object for the Netlify Function.
  */
 import { getClassesByDay } from '../data/classes';
-import { timeToMinutes } from '../utils/time';
+import { timeToMinutes, formatWeekOf, getWeekStart } from '../utils/time';
 import type { AppData, DayOfWeek, AIConfig } from '../types';
 import { DEFAULT_AI_CONFIG, DEFAULT_MED_CONFIG, DEFAULT_WELLNESS_ITEMS } from '../types';
 
@@ -179,12 +179,18 @@ export function buildAIContext(
     ? (sc?.dayMode || 'normal')
     : 'normal';
 
-  // Class lookup tables for AI name → ID resolution
-  const todayClassList = todayClasses.map(c => ({
-    id: c.id,
-    name: c.name,
-    startTime: c.startTime,
-  }));
+  // Class lookup tables for AI name → ID resolution (include exception status)
+  const weekOf = formatWeekOf(getWeekStart());
+  const currentWeekNotes = (data.weekNotes || []).find(w => w.weekOf === weekOf);
+  const todayClassList = todayClasses.map(c => {
+    const exception = currentWeekNotes?.classNotes[c.id]?.exception;
+    return {
+      id: c.id,
+      name: c.name,
+      startTime: c.startTime,
+      ...(exception ? { exception: exception.type, subName: exception.subName } : {}),
+    };
+  });
   const allDays: DayOfWeek[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
   const weekClassList = allDays.flatMap(d =>
     getClassesByDay(data.classes, d).map(c => ({

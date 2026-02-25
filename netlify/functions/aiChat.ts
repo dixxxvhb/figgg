@@ -74,9 +74,14 @@ function buildContextString(payload: any, mode: Mode): string {
     }
   }
 
-  // Today's classes with IDs
+  // Today's classes with IDs (includes exception status if cancelled/subbed)
   if (ctx.todayClassList?.length > 0) {
-    contextLines.push(`Today's classes (use classId for actions):\n${ctx.todayClassList.map((c: { id: string; name: string; startTime: string }) => `  [${c.id}] ${c.startTime} — ${c.name}`).join("\n")}`);
+    contextLines.push(`Today's classes (use classId for actions):\n${ctx.todayClassList.map((c: { id: string; name: string; startTime: string; exception?: string; subName?: string }) => {
+      let line = `  [${c.id}] ${c.startTime} — ${c.name}`;
+      if (c.exception === 'cancelled') line += ' [CANCELLED]';
+      if (c.exception === 'subbed') line += ` [SUB: ${c.subName || 'unknown'}]`;
+      return line;
+    }).join("\n")}`);
   }
 
   // This week's full class list
@@ -285,6 +290,7 @@ PLANNING PHILOSOPHY:
 
 RULES:
 - Items marked [DONE] in the context are ALREADY COMPLETED. Do NOT include them in your plan — they will be merged in automatically.
+- Classes marked [CANCELLED] in today's classes should NOT be included in the plan. Skip them entirely.
 - When re-planning mid-day, focus only on what's LEFT to do. The completed items are preserved separately.
 - 5-12 NEW items max. Quality over quantity.
 - Classes/events MUST appear at their exact times — these are non-negotiable.

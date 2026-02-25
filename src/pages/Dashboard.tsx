@@ -452,6 +452,18 @@ export function Dashboard() {
   const classInfo = useCurrentClass(data.classes);
   const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [currentMinute]);
 
+  // Compute cancelled class IDs for this week (used by Day Plan + context)
+  const cancelledClassIds = useMemo(() => {
+    const weekOf = formatWeekOf(getWeekStart());
+    const weekNotes = data.weekNotes.find(w => w.weekOf === weekOf);
+    if (!weekNotes) return new Set<string>();
+    const ids = new Set<string>();
+    for (const [classId, notes] of Object.entries(weekNotes.classNotes)) {
+      if (notes.exception?.type === 'cancelled') ids.add(classId);
+    }
+    return ids;
+  }, [data.weekNotes]);
+
   const todayCalendarEvents = useMemo(() => {
     const classTimes = todayClasses.map(c => timeToMinutes(c.startTime));
     return (data.calendarEvents || [])
@@ -905,6 +917,7 @@ export function Dashboard() {
             onToggleItem={handleTogglePlanItem}
             onReplan={() => generateDayPlan()}
             isReplanning={isReplanning}
+            cancelledClassIds={cancelledClassIds}
           />
         )}
 

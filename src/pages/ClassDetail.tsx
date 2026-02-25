@@ -451,6 +451,16 @@ export function ClassDetail() {
                     {weekLabel}
                   </span>
                 )}
+                {classNotes?.exception?.type === 'cancelled' && (
+                  <span className="text-xs text-[var(--text-tertiary)] bg-[var(--surface-inset)] px-2 py-0.5 rounded-full font-medium">
+                    Cancelled
+                  </span>
+                )}
+                {classNotes?.exception?.type === 'subbed' && (
+                  <span className="text-xs text-[var(--status-success)] bg-[var(--accent-muted)] px-2 py-0.5 rounded-full font-medium">
+                    Sub{classNotes.exception.subName ? `: ${classNotes.exception.subName}` : ''}
+                  </span>
+                )}
               </div>
             </div>
           )}

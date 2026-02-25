@@ -200,28 +200,6 @@ export async function expandNotes(
   return data.expanded as string;
 }
 
-export async function callAICheckIn(
-  payload: AIContextPayload,
-): Promise<{ response: string; mood?: string; adjustments?: string[]; actions?: AIAction[] }> {
-  const token = await getToken();
-
-  const response = await fetch(`${API_BASE}/aiCheckIn`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(err.error || `HTTP ${response.status}`);
-  }
-
-  return response.json();
-}
-
 export async function callGenerateDayPlan(
   payload: AIContextPayload & { checkInMood?: string; checkInMessage?: string },
 ): Promise<{ items: unknown[]; summary: string }> {

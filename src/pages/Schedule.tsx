@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Calendar, MapPin, Clock, Trophy, Users, Car,
 import { format, addWeeks, startOfWeek, addDays, isWithinInterval, parseISO } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
 import { DayOfWeek, CalendarEvent } from '../types';
-import { formatTimeDisplay, timeToMinutes, getCurrentDayOfWeek } from '../utils/time';
+import { formatTimeDisplay, timeToMinutes, getCurrentDayOfWeek, formatWeekOf } from '../utils/time';
 import { EmptyState } from '../components/common/EmptyState';
 import { estimateTravelTime, formatTravelTime } from '../services/location';
 
@@ -36,8 +36,18 @@ export function Schedule() {
 
   const weekStart = addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), weekOffset);
   const weekLabel = format(weekStart, "'Week of' MMM d");
+  const weekOf = formatWeekOf(weekStart);
 
   const getStudio = (studioId: string) => data.studios.find(s => s.id === studioId);
+
+  // Look up weekNotes for exception status (cancelled/subbed classes)
+  const currentWeekNotes = useMemo(() => {
+    return data.weekNotes.find(w => w.weekOf === weekOf);
+  }, [data.weekNotes, weekOf]);
+
+  const getClassException = (classId: string) => {
+    return currentWeekNotes?.classNotes[classId]?.exception;
+  };
 
   const selectedDayDate = addDays(weekStart, DAYS.findIndex(d => d.key === selectedDay));
   const selectedDateStr = format(selectedDayDate, 'yyyy-MM-dd');
@@ -294,44 +304,74 @@ export function Schedule() {
               const cls = item.data;
               const studio = getStudio(cls.studioId);
               const studentCount = getStudentCount(cls.id);
-              return (
-                <Link
-                  key={cls.id}
-                  to={`/class/${cls.id}${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`}
-                  className="block bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-card-hover)] transition-all"
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className="w-1.5 h-full min-h-[60px] rounded-full"
-                      style={{ backgroundColor: studio?.color || '#9ca3af' }}
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <div className="type-h2 text-[var(--text-primary)]">{cls.name}</div>
-                        {studentCount > 0 && (
+              const exception = getClassException(cls.id);
+              const hasException = !!exception;
+
+              const classCard = (
+                <div className="flex items-start gap-3">
+                  <div
+                    className="w-1.5 h-full min-h-[60px] rounded-full"
+                    style={{ backgroundColor: hasException ? '#9ca3af' : (studio?.color || '#9ca3af') }}
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <div className={`type-h2 ${hasException ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-primary)]'}`}>{cls.name}</div>
+                      <div className="flex items-center gap-1.5">
+                        {exception?.type === 'cancelled' && (
+                          <span className="text-xs text-[var(--text-tertiary)] bg-[var(--surface-inset)] px-2 py-0.5 rounded-full">
+                            Cancelled
+                          </span>
+                        )}
+                        {exception?.type === 'subbed' && (
+                          <span className="text-xs text-[var(--status-success)] bg-[var(--accent-muted)] px-2 py-0.5 rounded-full">
+                            Sub{exception.subName ? `: ${exception.subName}` : ''}
+                          </span>
+                        )}
+                        {!hasException && studentCount > 0 && (
                           <div className="flex items-center gap-1 text-sm bg-[var(--accent-muted)] text-[var(--accent-primary)] px-2 py-0.5 rounded-full">
                             <Users size={14} />
                             <span>{studentCount}</span>
                           </div>
                         )}
                       </div>
-                      <div className="text-sm text-[--color-honey] dark:text-[--color-honey-light] mt-1">
-                        {formatTimeDisplay(cls.startTime)} - {formatTimeDisplay(cls.endTime)}
-                      </div>
-                      <div className="text-sm text-[var(--text-secondary)]">
-                        {studio?.name}
-                      </div>
-                      {cls.recitalSong && (
-                        <div className={`text-sm mt-2 font-medium ${
-                          cls.isRecitalSong
-                            ? 'text-purple-600'
-                            : 'text-[var(--text-secondary)]'
-                        }`}>
-                          {cls.isRecitalSong ? '⭐ Recital: ' : 'Combo: '}{cls.recitalSong}
-                        </div>
-                      )}
                     </div>
+                    <div className={`text-sm mt-1 ${hasException ? 'text-[var(--text-tertiary)]' : 'text-[--color-honey] dark:text-[--color-honey-light]'}`}>
+                      {formatTimeDisplay(cls.startTime)} - {formatTimeDisplay(cls.endTime)}
+                    </div>
+                    <div className={`text-sm ${hasException ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-secondary)]'}`}>
+                      {studio?.name}
+                    </div>
+                    {!hasException && cls.recitalSong && (
+                      <div className={`text-sm mt-2 font-medium ${
+                        cls.isRecitalSong
+                          ? 'text-purple-600'
+                          : 'text-[var(--text-secondary)]'
+                      }`}>
+                        {cls.isRecitalSong ? '⭐ Recital: ' : 'Combo: '}{cls.recitalSong}
+                      </div>
+                    )}
                   </div>
+                </div>
+              );
+
+              if (hasException) {
+                return (
+                  <div
+                    key={cls.id}
+                    className="block bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 opacity-60"
+                  >
+                    {classCard}
+                  </div>
+                );
+              }
+
+              return (
+                <Link
+                  key={cls.id}
+                  to={`/class/${cls.id}${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`}
+                  className="block bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-card-hover)] transition-all"
+                >
+                  {classCard}
                 </Link>
               );
             } else {
