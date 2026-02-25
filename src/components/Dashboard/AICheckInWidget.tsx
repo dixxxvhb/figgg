@@ -5,6 +5,7 @@ import { haptic } from '../../utils/haptics';
 interface AICheckInWidgetProps {
   greeting: string;
   checkInType: 'morning' | 'afternoon';
+  completedToday?: boolean; // If true, widget starts hidden (defensive guard)
   onSubmit: (message: string) => Promise<{ response: string; adjustments?: string[]; actions?: unknown[] }>;
   onSkip: () => void;
   onDone: () => void;
@@ -13,8 +14,8 @@ interface AICheckInWidgetProps {
 
 type WidgetState = 'prompt' | 'loading' | 'response' | 'error' | 'gone';
 
-export function AICheckInWidget({ greeting, checkInType, onSubmit, onSkip, onDone, autoDismissSeconds = 20 }: AICheckInWidgetProps) {
-  const [state, setState] = useState<WidgetState>('prompt');
+export function AICheckInWidget({ greeting, checkInType, completedToday, onSubmit, onSkip, onDone, autoDismissSeconds = 20 }: AICheckInWidgetProps) {
+  const [state, setState] = useState<WidgetState>(() => completedToday ? 'gone' : 'prompt');
   const [message, setMessage] = useState('');
   const [aiResponse, setAiResponse] = useState('');
   const [adjustments, setAdjustments] = useState<string[]>([]);

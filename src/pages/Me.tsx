@@ -233,7 +233,7 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
     const currentDay = getCurrentDayOfWeek();
     const studios = data.studios || [];
     const classes = (data.classes || [])
-      .filter((c: Class) => c.day === currentDay)
+      .filter((c: Class) => c.day === currentDay && c.isActive !== false)
       .map((c: Class) => ({ ...c, studio: studios.find((s: Studio) => s.id === c.studioId) }))
       .sort((a: Class, b: Class) => a.startTime.localeCompare(b.startTime));
     setTodayClasses(classes);

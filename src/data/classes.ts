@@ -167,6 +167,6 @@ export const initialClasses: Class[] = [
 
 export function getClassesByDay(classes: Class[], day: string): Class[] {
   return classes
-    .filter(c => c.day === day.toLowerCase())
+    .filter(c => c.day === day.toLowerCase() && c.isActive !== false)
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 }

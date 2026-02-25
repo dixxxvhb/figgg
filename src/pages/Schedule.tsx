@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Calendar, MapPin, Clock, Trophy, Users, Car, CalendarOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, MapPin, Clock, Trophy, Users, Car, CalendarOff, Plus, X } from 'lucide-react';
 import { format, addWeeks, startOfWeek, addDays, isWithinInterval, parseISO } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
 import { DayOfWeek, CalendarEvent } from '../types';
@@ -19,11 +19,34 @@ const DAYS: { key: DayOfWeek; label: string; short: string }[] = [
 ];
 
 export function Schedule() {
-  const { data } = useAppData();
+  const { data, addClass } = useAppData();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialWeek = parseInt(searchParams.get('week') || '0', 10);
   const [weekOffset, setWeekOffset] = useState(initialWeek);
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>(getCurrentDayOfWeek());
+  const [showAddClass, setShowAddClass] = useState(false);
+  const [newClassName, setNewClassName] = useState('');
+  const [newClassStart, setNewClassStart] = useState('09:00');
+  const [newClassEnd, setNewClassEnd] = useState('10:00');
+  const [newClassStudio, setNewClassStudio] = useState(data.studios[0]?.id || '');
+
+  const handleAddClass = () => {
+    if (!newClassName.trim()) return;
+    addClass({
+      name: newClassName.trim(),
+      day: selectedDay,
+      startTime: newClassStart,
+      endTime: newClassEnd,
+      studioId: newClassStudio,
+      musicLinks: [],
+      isActive: true,
+      lastModified: new Date().toISOString(),
+    });
+    setNewClassName('');
+    setNewClassStart('09:00');
+    setNewClassEnd('10:00');
+    setShowAddClass(false);
+  };
 
   // Update URL when week changes
   useEffect(() => {
@@ -65,7 +88,7 @@ export function Schedule() {
   const isWeekend = selectedDay === 'saturday' || selectedDay === 'sunday';
 
   const dayClasses = data.classes
-    .filter(c => c.day === selectedDay)
+    .filter(c => c.day === selectedDay && c.isActive !== false)
     .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
 
   // Count students enrolled in each class (or dancers in competition dance for rehearsals)
@@ -166,8 +189,8 @@ export function Schedule() {
         </button>
       </div>
 
-      {/* Today Button - always visible */}
-      <div className="flex justify-center mb-4">
+      {/* Today Button + Add Class */}
+      <div className="flex justify-center gap-2 mb-4">
         <button
           onClick={() => {
             setWeekOffset(0);
@@ -177,7 +200,58 @@ export function Schedule() {
         >
           Today
         </button>
+        <button
+          onClick={() => setShowAddClass(!showAddClass)}
+          className="px-4 py-2 bg-[var(--surface-card)] text-[var(--text-secondary)] rounded-full text-sm font-medium hover:bg-[var(--surface-card-hover)] transition-colors shadow-sm min-h-[44px] flex items-center gap-1.5 border border-[var(--border-subtle)]"
+        >
+          {showAddClass ? <X size={14} /> : <Plus size={14} />}
+          {showAddClass ? 'Cancel' : 'Add Class'}
+        </button>
       </div>
+
+      {/* Add Class Form */}
+      {showAddClass && (
+        <div className="mb-4 bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 space-y-3">
+          <input
+            type="text"
+            value={newClassName}
+            onChange={(e) => setNewClassName(e.target.value)}
+            placeholder="Class name"
+            className="w-full px-3 py-2 rounded-lg bg-[var(--surface-inset)] text-[var(--text-primary)] border border-[var(--border-subtle)] text-sm placeholder:text-[var(--text-tertiary)]"
+            autoFocus
+          />
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="text-xs font-medium text-[var(--text-secondary)] mb-1 block">Start</label>
+              <input type="time" value={newClassStart} onChange={(e) => setNewClassStart(e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-[var(--surface-inset)] text-[var(--text-primary)] border border-[var(--border-subtle)] text-sm" />
+            </div>
+            <div className="flex-1">
+              <label className="text-xs font-medium text-[var(--text-secondary)] mb-1 block">End</label>
+              <input type="time" value={newClassEnd} onChange={(e) => setNewClassEnd(e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-[var(--surface-inset)] text-[var(--text-primary)] border border-[var(--border-subtle)] text-sm" />
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-[var(--text-secondary)] mb-1 block">Studio</label>
+            <div className="flex gap-2 flex-wrap">
+              {data.studios.map(s => (
+                <button key={s.id} type="button" onClick={() => setNewClassStudio(s.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    newClassStudio === s.id ? 'text-white' : 'bg-[var(--surface-inset)] text-[var(--text-secondary)]'
+                  }`}
+                  style={newClassStudio === s.id ? { backgroundColor: s.color } : undefined}
+                >{s.shortName}</button>
+              ))}
+            </div>
+          </div>
+          <p className="text-xs text-[var(--text-tertiary)]">Adding to {DAYS.find(d => d.key === selectedDay)?.label}</p>
+          <button onClick={handleAddClass} disabled={!newClassName.trim()}
+            className="w-full py-2 rounded-lg bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-medium disabled:opacity-40 transition-opacity min-h-[44px]">
+            Add Class
+          </button>
+        </div>
+      )}
 
       {/* Day Tabs */}
       <div className="flex gap-1 mb-6 overflow-x-auto pb-2">

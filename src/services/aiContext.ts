@@ -55,7 +55,7 @@ export interface AIContextPayload {
   lastReflection?: string;
   // Class lookup tables (for AI to resolve fuzzy class names → IDs)
   todayClassList: Array<{ id: string; name: string; startTime: string }>;
-  weekClassList: Array<{ id: string; name: string; day: string; startTime: string }>;
+  weekClassList: Array<{ id: string; name: string; day: string; startTime: string; studioId: string }>;
   // Competition dance lookup (for rehearsal notes)
   competitionDanceList: Array<{ id: string; registrationName: string; songTitle: string }>;
   // Preferences
@@ -192,6 +192,7 @@ export function buildAIContext(
       name: c.name,
       day: d,
       startTime: c.startTime,
+      studioId: c.studioId,
     }))
   );
   const competitionDanceList = (data.competitionDances || []).map(d => ({

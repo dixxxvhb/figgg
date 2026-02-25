@@ -4,7 +4,7 @@ import {
   MapPin, Download, Upload, Check, Calendar, Sparkles, RefreshCw, AlertCircle, Cloud,
   BookOpen, Sun, Moon, Type, Users, Grid3X3, ChevronRight, ArrowLeft, Music, Star,
   ChevronDown, ChevronUp, Palette, Pill, Heart, Plus, Trash2, GripVertical, Circle,
-  Pencil, Droplets, Utensils, Footprints, Coffee, Brain, Smartphone, BedDouble, Zap, Bell, Bot,
+  Pencil, Droplets, Utensils, Footprints, Coffee, Brain, Smartphone, BedDouble, Zap, Bell, Bot, CalendarOff,
   type LucideIcon,
 } from 'lucide-react';
 import { useAppData } from '../contexts/AppDataContext';
@@ -20,6 +20,7 @@ import { applyTheme } from '../styles/applyTheme';
 export function Settings() {
   const { data, refreshData, updateStudio, updateClass } = useAppData();
   const [showRecitalSongs, setShowRecitalSongs] = useState(false);
+  const [showInactiveClasses, setShowInactiveClasses] = useState(false);
   const [showImportSuccess, setShowImportSuccess] = useState(false);
   const [editingStudio, setEditingStudio] = useState<string | null>(null);
   const [studioAddress, setStudioAddress] = useState('');
@@ -367,6 +368,57 @@ export function Settings() {
           </Card>
         )}
       </section>
+
+      {/* Inactive Classes */}
+      {data.classes.some(c => c.isActive === false) && (
+        <section className="mb-5">
+          <button
+            onClick={() => setShowInactiveClasses(!showInactiveClasses)}
+            className="w-full"
+          >
+            <Card variant="elevated" padding="sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--surface-inset)] flex items-center justify-center">
+                    <CalendarOff size={24} className="text-[var(--text-tertiary)]" />
+                  </div>
+                  <div className="text-left">
+                    <div className="type-h2">Inactive Classes</div>
+                    <div className="type-caption">
+                      {data.classes.filter(c => c.isActive === false).length} deactivated
+                    </div>
+                  </div>
+                </div>
+                {showInactiveClasses ? <ChevronUp size={16} className="text-[var(--text-tertiary)]" /> : <ChevronDown size={16} className="text-[var(--text-tertiary)]" />}
+              </div>
+            </Card>
+          </button>
+
+          {showInactiveClasses && (
+            <Card variant="standard" padding="none" className="mt-2 overflow-hidden">
+              <div className="divide-y divide-[var(--border-subtle)]">
+                {data.classes
+                  .filter(c => c.isActive === false)
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map(cls => (
+                    <div key={cls.id} className="flex items-center justify-between px-3 py-2">
+                      <div className="flex-1 min-w-0 mr-2">
+                        <div className="font-medium text-[var(--text-primary)] text-sm truncate">{cls.name}</div>
+                        <div className="type-caption truncate">{cls.day.charAt(0).toUpperCase() + cls.day.slice(1)} {cls.startTime}–{cls.endTime}</div>
+                      </div>
+                      <button
+                        onClick={() => updateClass({ ...cls, isActive: true, lastModified: new Date().toISOString() })}
+                        className="px-3 py-1.5 rounded-full text-xs font-medium bg-[var(--accent-muted)] text-[var(--accent-primary)] border border-[var(--accent-primary)] min-h-[36px]"
+                      >
+                        Reactivate
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            </Card>
+          )}
+        </section>
+      )}
 
       {/* Display */}
       <section className="mb-5">

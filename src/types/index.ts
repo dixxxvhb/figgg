@@ -31,6 +31,8 @@ export interface Class {
   musicLinks: MusicLink[];
   level?: 'beginner' | 'intermediate' | 'advanced'; // Class difficulty
   competitionDanceId?: string; // For rehearsal classes - links to CompetitionDance for roster
+  isActive?: boolean; // undefined/true = active, false = soft-deleted/deactivated
+  lastModified?: string; // ISO timestamp for tracking edits
 }
 
 export interface LiveNote {
@@ -511,6 +513,14 @@ export interface AIChatMessage {
 
 export type AIChatMode = 'check-in' | 'chat' | 'briefing' | 'day-plan' | 'prep' | 'capture' | 'reflection';
 
+export interface AIModification {
+  id: string;
+  timestamp: string;        // ISO
+  actionType: string;       // AIAction type that was executed
+  description: string;      // Human-readable: "Cancelled Tuesday classes"
+  details?: Record<string, unknown>;  // Raw action data for debugging
+}
+
 export interface AppData {
   studios: Studio[];
   classes: Class[];
@@ -538,6 +548,10 @@ export interface AppData {
   aiCheckIns?: AICheckIn[];         // rolling 30 days
   dayPlan?: DayPlan;                // today only
   disruption?: DisruptionState;
+  // AI modification audit trail
+  aiModifications?: AIModification[]; // rolling 90 days
+  // AI chat history (persisted to survive navigation)
+  chatHistory?: AIChatMessage[];
 }
 
 // ===== DWDC LAUNCH PLAN =====

@@ -108,7 +108,7 @@ const WIDGET_LABELS: Record<string, string> = {
 };
 
 export function Dashboard() {
-  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, refreshData, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes, updateDisruption } = useAppData();
+  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, refreshData, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes, updateDisruption, updateClass, addClass, saveAIModification } = useAppData();
   const stats = useTeachingStats(data);
   const medConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
   const selfCareStatus = useSelfCareStatus(data.selfCare, medConfig);
@@ -237,7 +237,10 @@ export function Dashboard() {
     updateCompetitionDance,
     updateDisruption,
     getMedConfig: () => medConfig,
-  }), [updateSelfCare, saveDayPlan, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance, updateDisruption, medConfig]);
+    updateClass,
+    addClass,
+    logModification: saveAIModification,
+  }), [updateSelfCare, saveDayPlan, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance, updateDisruption, medConfig, updateClass, addClass, saveAIModification]);
 
   const executeAIActions = useCallback((actions: AIAction[]) => {
     executeSharedAIActions(actions, actionCallbacks);
@@ -871,6 +874,7 @@ export function Dashboard() {
           <AICheckInWidget
             greeting={frozenGreeting}
             checkInType={frozenCheckInType}
+            completedToday={!checkInStatus.isDue}
             onSubmit={handleCheckInSubmit}
             onSkip={handleCheckInSkip}
             onDone={() => { setCheckInActive(false); setFrozenCheckInType(null); }}

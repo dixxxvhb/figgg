@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, Music, Edit2, Save, X, Trash2, Play, History, ChevronDown, ChevronUp, FileText, Users, UserCheck, UserX, Clock3, UserPlus, User, ChevronLeft, ChevronRight, Star, CheckCircle, BookOpen, ClipboardList } from 'lucide-react';
+import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Clock, MapPin, Music, Edit2, Save, X, Trash2, Play, History, ChevronDown, ChevronUp, FileText, Users, UserCheck, UserX, Clock3, UserPlus, User, ChevronLeft, ChevronRight, Star, CheckCircle, BookOpen, ClipboardList, CalendarOff } from 'lucide-react';
 import { timeToMinutes } from '../utils/time';
 import { useAppData } from '../contexts/AppDataContext';
 import { PlanDisplay } from '../components/common/PlanDisplay';
@@ -8,7 +8,7 @@ import { formatTimeDisplay, formatWeekOf, getWeekStart } from '../utils/time';
 import { addWeeks, addDays, format } from 'date-fns';
 import { Button } from '../components/common/Button';
 import { DropdownMenu } from '../components/common/DropdownMenu';
-import { ClassWeekNotes, Student, normalizeNoteCategory } from '../types';
+import { ClassWeekNotes, Student, normalizeNoteCategory, DayOfWeek } from '../types';
 import { v4 as uuid } from 'uuid';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
 import { EmptyState } from '../components/common/EmptyState';
@@ -20,6 +20,7 @@ function getDefaultClassNotes(classId: string): ClassWeekNotes {
 
 export function ClassDetail() {
   const { classId } = useParams<{ classId: string }>();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const weekOffset = parseInt(searchParams.get('week') || '0', 10);
   const { data, updateClass, getCurrentWeekNotes, saveWeekNotes, getWeekNotes, updateStudent } = useAppData();
@@ -35,7 +36,7 @@ export function ClassDetail() {
   const sameDayClasses = useMemo(() => {
     if (!cls) return [];
     return data.classes
-      .filter(c => c.day === cls.day)
+      .filter(c => c.day === cls.day && c.isActive !== false)
       .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
   }, [data.classes, cls]);
 
@@ -383,7 +384,7 @@ export function ClassDetail() {
 
   const handleSave = () => {
     if (editedClass) {
-      updateClass(editedClass);
+      updateClass({ ...editedClass, lastModified: new Date().toISOString() });
       setIsEditing(false);
     }
   };
@@ -434,13 +435,77 @@ export function ClassDetail() {
         </Link>
         <div className="flex-1">
           {isEditing ? (
-            <input
-              type="text"
-              value={displayClass.name}
-              onChange={(e) => setEditedClass({ ...displayClass, name: e.target.value })}
-              aria-label="Class name"
-              className="text-xl font-bold w-full border-b-2 border-[var(--accent-primary)] focus:outline-none bg-transparent text-[var(--text-primary)]"
-            />
+            <div className="space-y-3 w-full">
+              <input
+                type="text"
+                value={displayClass.name}
+                onChange={(e) => setEditedClass({ ...displayClass, name: e.target.value })}
+                aria-label="Class name"
+                className="text-xl font-bold w-full border-b-2 border-[var(--accent-primary)] focus:outline-none bg-transparent text-[var(--text-primary)]"
+              />
+              {/* Day selector */}
+              <div>
+                <label className="text-xs font-medium text-[var(--text-secondary)] mb-1 block">Day</label>
+                <div className="flex gap-1 flex-wrap">
+                  {(['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as DayOfWeek[]).map(day => (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => setEditedClass({ ...displayClass, day })}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                        displayClass.day === day
+                          ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)]'
+                          : 'bg-[var(--surface-inset)] text-[var(--text-secondary)]'
+                      }`}
+                    >
+                      {day.charAt(0).toUpperCase() + day.slice(1, 3)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Time inputs */}
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="text-xs font-medium text-[var(--text-secondary)] mb-1 block">Start</label>
+                  <input
+                    type="time"
+                    value={displayClass.startTime}
+                    onChange={(e) => setEditedClass({ ...displayClass, startTime: e.target.value })}
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-[var(--surface-inset)] text-[var(--text-primary)] border border-[var(--border-subtle)] text-sm"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs font-medium text-[var(--text-secondary)] mb-1 block">End</label>
+                  <input
+                    type="time"
+                    value={displayClass.endTime}
+                    onChange={(e) => setEditedClass({ ...displayClass, endTime: e.target.value })}
+                    className="w-full px-2.5 py-1.5 rounded-lg bg-[var(--surface-inset)] text-[var(--text-primary)] border border-[var(--border-subtle)] text-sm"
+                  />
+                </div>
+              </div>
+              {/* Studio selector */}
+              <div>
+                <label className="text-xs font-medium text-[var(--text-secondary)] mb-1 block">Studio</label>
+                <div className="flex gap-2 flex-wrap">
+                  {data.studios.map(s => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setEditedClass({ ...displayClass, studioId: s.id })}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        displayClass.studioId === s.id
+                          ? 'text-white'
+                          : 'bg-[var(--surface-inset)] text-[var(--text-secondary)]'
+                      }`}
+                      style={displayClass.studioId === s.id ? { backgroundColor: s.color } : undefined}
+                    >
+                      {s.shortName}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           ) : (
             <div>
               <h1 className="text-xl font-bold text-[var(--text-primary)]">{displayClass.name}</h1>
@@ -481,6 +546,22 @@ export function ClassDetail() {
                   label: 'Clear week data',
                   icon: <Trash2 size={16} />,
                   onClick: handleClearWeekData,
+                  danger: true,
+                },
+                {
+                  label: 'Deactivate class',
+                  icon: <CalendarOff size={16} />,
+                  onClick: async () => {
+                    if (!cls) return;
+                    const confirmed = await confirm(
+                      'This will remove it from the schedule. You can reactivate it later in Settings.',
+                      { title: 'Deactivate class?', confirmLabel: 'Deactivate', danger: true }
+                    );
+                    if (confirmed) {
+                      updateClass({ ...cls, isActive: false, lastModified: new Date().toISOString() });
+                      navigate('/schedule');
+                    }
+                  },
                   danger: true,
                 },
               ]}

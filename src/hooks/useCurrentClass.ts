@@ -33,7 +33,7 @@ export function useCurrentClass(classes: Class[]): CurrentClassInfo {
   const result = useMemo(() => {
     // Get today's classes sorted by time
     const todayClasses = classes
-      .filter(c => c.day === currentDay)
+      .filter(c => c.day === currentDay && c.isActive !== false)
       .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
 
     if (todayClasses.length === 0) {

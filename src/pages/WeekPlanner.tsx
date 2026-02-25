@@ -59,7 +59,7 @@ export function WeekPlanner() {
       sunday: [],
     };
 
-    data.classes.forEach(cls => {
+    data.classes.filter(c => c.isActive !== false).forEach(cls => {
       grouped[cls.day].push(cls);
     });
 

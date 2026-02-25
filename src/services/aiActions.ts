@@ -4,6 +4,7 @@ import { formatWeekOf, getWeekStart, getCurrentDayOfWeek } from '../utils/time';
 import type { AIAction } from './ai';
 import type {
   AppData,
+  Class,
   SelfCareData,
   LaunchPlanData,
   DisruptionState,
@@ -16,6 +17,7 @@ import type {
   LiveNote,
   RehearsalNote,
   CompetitionDance,
+  AIModification,
 } from '../types';
 
 const VALID_CATEGORIES = new Set(['task', 'wellness', 'class', 'launch', 'break', 'med']);
@@ -31,6 +33,11 @@ export interface ActionCallbacks {
   updateCompetitionDance: (dance: CompetitionDance) => void;
   updateDisruption: (disruption: DisruptionState | undefined) => void;
   getMedConfig: () => { medType: string; maxDoses: number };
+  // Class schedule editing
+  updateClass?: (updatedClass: Class) => void;
+  addClass?: (newClass: Omit<Class, 'id'>) => Class;
+  // Modification logging
+  logModification?: (mod: AIModification) => void;
 }
 
 export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks): void {
@@ -38,6 +45,18 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
 
   const data = callbacks.getData();
   const sc = data.selfCare || {};
+
+  // Helper to log AI modifications
+  const logMod = (action: AIAction, description: string) => {
+    if (callbacks.logModification) {
+      callbacks.logModification({
+        id: `aimod-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        timestamp: new Date().toISOString(),
+        actionType: action.type,
+        description,
+      });
+    }
+  };
   const medConfig = callbacks.getMedConfig();
   const todayKey = format(new Date(), 'yyyy-MM-dd');
   let selfCareUpdates: Record<string, unknown> = {};
@@ -457,6 +476,60 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
       }
       case 'generateCatchUpPlan': {
         // Signal to the chat to generate a catch-up. No client action needed.
+        break;
+      }
+
+      // ── Class Schedule Editing ────────────────────────────────────────
+      case 'editClass': {
+        if (!action.classId || !callbacks.updateClass) break;
+        const cls = data.classes.find(c => c.id === action.classId);
+        if (!cls) break;
+        const updated = { ...cls };
+        if (action.className) updated.name = action.className;
+        if (action.day) updated.day = action.day as DayOfWeek;
+        if (action.startTime) updated.startTime = action.startTime;
+        if (action.endTime) updated.endTime = action.endTime;
+        if (action.studioId) updated.studioId = action.studioId;
+        updated.lastModified = new Date().toISOString();
+        callbacks.updateClass(updated);
+        logMod(action, `Edited class "${cls.name}": ${[
+          action.className && `name → ${action.className}`,
+          action.day && `day → ${action.day}`,
+          action.startTime && `start → ${action.startTime}`,
+          action.endTime && `end → ${action.endTime}`,
+          action.studioId && `studio → ${action.studioId}`,
+        ].filter(Boolean).join(', ')}`);
+        break;
+      }
+      case 'addNewClass': {
+        if (!action.className || !action.day || !action.startTime || !action.endTime || !callbacks.addClass) break;
+        callbacks.addClass({
+          name: action.className,
+          day: action.day as DayOfWeek,
+          startTime: action.startTime,
+          endTime: action.endTime,
+          studioId: action.studioId || data.studios[0]?.id || '',
+          musicLinks: [],
+          isActive: true,
+          lastModified: new Date().toISOString(),
+        });
+        logMod(action, `Added new class "${action.className}" on ${action.day} ${action.startTime}–${action.endTime}`);
+        break;
+      }
+      case 'deactivateClass': {
+        if (!action.classId || !callbacks.updateClass) break;
+        const deactivateCls = data.classes.find(c => c.id === action.classId);
+        if (!deactivateCls) break;
+        callbacks.updateClass({ ...deactivateCls, isActive: false, lastModified: new Date().toISOString() });
+        logMod(action, `Deactivated class "${deactivateCls.name}"`);
+        break;
+      }
+      case 'reactivateClass': {
+        if (!action.classId || !callbacks.updateClass) break;
+        const reactivateCls = data.classes.find(c => c.id === action.classId);
+        if (!reactivateCls) break;
+        callbacks.updateClass({ ...reactivateCls, isActive: true, lastModified: new Date().toISOString() });
+        logMod(action, `Reactivated class "${reactivateCls.name}"`);
         break;
       }
     }

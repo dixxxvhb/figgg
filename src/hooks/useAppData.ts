@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppData, Class, WeekNotes, Project, Competition, CompetitionDance, Student, CalendarEvent, SelfCareData, LaunchPlanData } from '../types';
-import type { AICheckIn, DayPlan } from '../types';
+import type { AICheckIn, AIChatMessage, AIModification, DayPlan } from '../types';
 import type { Choreography } from '../types/choreography';
 import { loadData, saveData, saveWeekNotes as saveWeekNotesToStorage, saveSelfCareToStorage, saveLaunchPlanToStorage, saveDayPlanToStorage } from '../services/storage';
 import { runLearningEngine } from '../services/learningEngine';
@@ -370,6 +370,27 @@ export function useAppData() {
     });
   }, []);
 
+  // AI modification log — rolling 90 days
+  const saveAIModification = useCallback((modification: AIModification) => {
+    setData(prev => {
+      const existing = prev.aiModifications || [];
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 90);
+      const cutoffStr = cutoff.toISOString();
+      const pruned = [...existing, modification].filter(m => m.timestamp >= cutoffStr);
+      return { ...prev, aiModifications: pruned };
+    });
+  }, []);
+
+  // AI chat history — rolling 7 days
+  const saveChatHistory = useCallback((messages: AIChatMessage[]) => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 7);
+    const cutoffStr = cutoff.toISOString();
+    const pruned = messages.filter(m => m.timestamp >= cutoffStr);
+    setData(prev => ({ ...prev, chatHistory: pruned }));
+  }, []);
+
   return {
     data,
     updateClass,
@@ -402,5 +423,7 @@ export function useAppData() {
     // AI
     saveAICheckIn,
     saveDayPlan,
+    saveAIModification,
+    saveChatHistory,
   };
 }

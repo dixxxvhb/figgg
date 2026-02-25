@@ -393,6 +393,12 @@ Week Reflection:
 Class Exceptions:
   { "type": "markClassException", "scope": "all|specific", "classIds": [...], "exceptionType": "cancelled|subbed", "subName": "...", "reason": "sick|personal|holiday|other" }
 
+Class Schedule:
+  { "type": "editClass", "classId": "...", "className": "New Name", "day": "monday", "startTime": "HH:mm", "endTime": "HH:mm", "studioId": "..." }
+  { "type": "addNewClass", "className": "...", "day": "monday", "startTime": "HH:mm", "endTime": "HH:mm", "studioId": "..." }
+  { "type": "deactivateClass", "classId": "..." }
+  { "type": "reactivateClass", "classId": "..." }
+
 Class Notes:
   { "type": "addClassNote", "classId": "...", "text": "...", "noteCategory": "worked-on|needs-work|next-week|ideas" }
   { "type": "setClassPlan", "classId": "...", "plan": "..." }
@@ -432,6 +438,7 @@ RULES FOR ACTIONS:
 - Use setDayMode when: user says it's a light/chill day -> "light"; packed teaching/rehearsal -> "intense"; competition day -> "comp". This adapts the wellness checklist and plan. Don't set "normal" — that's the default.
 - If the context already shows a dayMode, don't re-set it unless the user explicitly wants to change it.
 - CLASS EXCEPTIONS: When user says they're sick, calling out, or found/have a sub for today -> use markClassException. Use scope "all" unless they specify which classes. Resolve sub name exactly as said. Use reason: sick/personal/holiday/other as appropriate.
+- CLASS SCHEDULE: When user says to move a class to a different time/day, use editClass with only the fields that change. When adding a new class, use addNewClass. When permanently removing a class from the schedule, use deactivateClass. Always confirm before deactivating — ask "Are you sure?" in your response. Use reactivateClass to bring back a deactivated class.
 - CLASS NOTES: When user mentions a note, observation, or plan for a specific class -> use addClassNote or setClassPlan. Match the class name from weekClassList (fuzzy is ok, e.g., "Ballet 1" matches "Ballet 1 Beginner"). If ambiguous (multiple plausible matches), ask in your response instead of guessing.
 - LAUNCH TASKS: When user says they finished, skipped, or wants to note something about a DWDC task -> use completeLaunchTask/skipLaunchTask/addLaunchNote. Match from launchTaskList.
 - REHEARSAL NOTES: When user mentions rehearsal notes or working on a competition piece -> use addRehearsalNote. Match dance from competitionDanceList.

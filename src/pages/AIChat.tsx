@@ -21,10 +21,26 @@ export function AIChat() {
     updateLaunchPlan,
     updateCompetitionDance,
     updateDisruption,
+    updateClass,
+    addClass,
+    saveAIModification,
+    saveChatHistory,
   } = useAppData();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [messages, setMessages] = useState<AIChatMessage[]>([]);
+  const [messages, setMessages] = useState<AIChatMessage[]>(() => {
+    // Restore chat history from persisted data
+    const history = data.chatHistory || [];
+    if (history.length > 0) {
+      // Only restore if the latest message is from today
+      const latest = history[history.length - 1];
+      const todayStr = new Date().toISOString().slice(0, 10);
+      if (latest.timestamp.slice(0, 10) === todayStr) {
+        return history;
+      }
+    }
+    return [];
+  });
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -39,6 +55,13 @@ export function AIChat() {
       setInput(preload);
     }
   }, [searchParams, messages.length]);
+
+  // Persist chat messages when they change
+  useEffect(() => {
+    if (messages.length > 0) {
+      saveChatHistory(messages.slice(-50)); // Keep last 50 messages
+    }
+  }, [messages, saveChatHistory]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -57,7 +80,10 @@ export function AIChat() {
     updateCompetitionDance,
     updateDisruption,
     getMedConfig: () => medConfig,
-  }), [updateSelfCare, saveDayPlan, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance, updateDisruption, medConfig]);
+    updateClass,
+    addClass,
+    logModification: saveAIModification,
+  }), [updateSelfCare, saveDayPlan, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance, updateDisruption, medConfig, updateClass, addClass, saveAIModification]);
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || isLoading) return;
@@ -114,6 +140,7 @@ export function AIChat() {
 
   const handleNewChat = () => {
     setMessages([]);
+    saveChatHistory([]); // Clear persisted history
     setInput('');
     haptic('light');
   };

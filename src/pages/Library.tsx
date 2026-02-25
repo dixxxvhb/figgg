@@ -53,7 +53,7 @@ export function Library() {
     const songs: { name: string; url?: string; source: string; sourceId: string; type: 'link' | 'recital' | 'comp' }[] = [];
 
     // From class music links
-    data.classes.forEach(cls => {
+    data.classes.filter(c => c.isActive !== false).forEach(cls => {
       cls.musicLinks.forEach(link => {
         songs.push({ name: link.name, url: link.url, source: cls.name, sourceId: cls.id, type: 'link' });
       });

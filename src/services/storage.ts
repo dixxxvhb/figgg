@@ -136,6 +136,39 @@ function migrateCompetitionDancerIds(storedDances: CompetitionDance[]): Competit
   });
 }
 
+// Migration: Merge initial classes with stored classes
+// - Initial classes (class-awh-mon-0930, etc.) serve as seed data for new installs
+// - If stored classes exist with the same ID, keep the stored version (user edits win)
+// - If initialClasses has new classes not in stored, add them
+// - User-added classes (UUID IDs) are always kept
+function migrateClasses(storedClasses: Class[]): Class[] {
+  if (!storedClasses || storedClasses.length === 0) {
+    return initialClasses.map(c => ({ ...c }));
+  }
+
+  const storedMap = new Map(storedClasses.map(c => [c.id, c]));
+  const merged: Class[] = [];
+
+  // 1. Start with initial classes — if stored has same ID, keep stored version (user edits win)
+  for (const initial of initialClasses) {
+    const stored = storedMap.get(initial.id);
+    if (stored) {
+      merged.push(stored);
+      storedMap.delete(initial.id);
+    } else {
+      // New class from code that wasn't in stored data — add it
+      merged.push({ ...initial });
+    }
+  }
+
+  // 2. Append any user-added classes that aren't in the initial set
+  for (const [, cls] of storedMap) {
+    merged.push(cls);
+  }
+
+  return merged;
+}
+
 // Migration: Merge initial students with stored students
 // - Initial students (student-1, student-2, etc.) get their base data from code but PRESERVE
 //   user edits to notes, skillNotes, nickname, parent info, etc.
@@ -276,12 +309,15 @@ export function loadData(): AppData {
           : defaults.students!
       );
 
+      // Merge classes — preserve user edits, add new classes from code
+      const classes = migrateClasses(parsed.classes || []);
+
       // Merge with defaults to ensure all fields exist
       const result: AppData = {
         ...defaults,
         ...parsed,
-        // FORCE initial classes - stored classes have old uuid IDs that don't match student classIds
-        classes: initialClasses,
+        // Merged classes: user edits preserved, new classes from code added
+        classes,
         // Use migrated competitions
         competitions: migratedCompetitions,
         // Use migrated dances with costume data and dancerIds
@@ -425,11 +461,14 @@ function migrateCloudData(cloudData: AppData): AppData {
       : defaults.students!
   );
 
+  // Merge classes — preserve cloud edits, add new classes from code
+  const classes = migrateClasses(cloudData.classes || []);
+
   return {
     ...defaults,
     ...cloudData,
-    // FORCE initial classes - stored classes have old uuid IDs that don't match student classIds
-    classes: initialClasses,
+    // Merged classes: cloud edits preserved, new classes from code added
+    classes,
     competitions: migratedCompetitions,
     competitionDances: migratedDances,
     // Merged students: initial roster + user-added students preserved

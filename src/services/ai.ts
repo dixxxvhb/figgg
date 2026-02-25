@@ -121,7 +121,12 @@ export interface AIAction {
     | 'batchRescheduleTasks'
     | 'assignSub'
     | 'clearWeekPlan'
-    | 'generateCatchUpPlan';
+    | 'generateCatchUpPlan'
+    // Class schedule editing
+    | 'editClass'           // change class day/time/name/studio
+    | 'addNewClass'         // add a new class to the schedule
+    | 'deactivateClass'     // soft-delete a class (isActive = false)
+    | 'reactivateClass';    // restore a deactivated class
   // Common fields
   id?: string;
   ids?: string[];  // for batch operations
@@ -173,6 +178,12 @@ export interface AIAction {
   filter?: 'overdue' | 'due-this-week' | 'all-active';
   newDate?: string;
   dates?: string[];
+  // Class schedule editing fields
+  className?: string;     // for editClass/addNewClass
+  day?: string;           // DayOfWeek for editClass/addNewClass
+  startTime?: string;     // HH:mm for editClass/addNewClass
+  endTime?: string;       // HH:mm for editClass/addNewClass
+  studioId?: string;      // for editClass/addNewClass
 }
 
 export async function expandNotes(
