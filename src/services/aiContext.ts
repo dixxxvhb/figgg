@@ -25,7 +25,7 @@ export interface AIContextPayload {
     currentStatus?: string;  // "Peak Window", "Building", etc.
   };
   // Schedule
-  schedule: Array<{ time: string; title: string; type: 'class' | 'event' }>;
+  schedule: Array<{ time: string; title: string; type: 'class' | 'event'; classId?: string }>;
   // Tasks
   tasks: {
     overdueCount: number;
@@ -97,7 +97,7 @@ export function buildAIContext(
   const todayEvents = (data.calendarEvents || [])
     .filter(e => e.date === todayStr && e.startTime && e.startTime !== '00:00');
   const schedule = [
-    ...todayClasses.map(c => ({ time: c.startTime, title: c.name, type: 'class' as const })),
+    ...todayClasses.map(c => ({ time: c.startTime, title: c.name, type: 'class' as const, classId: c.id })),
     ...todayEvents.map(e => ({ time: e.startTime, title: e.title, type: 'event' as const })),
   ].sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
 

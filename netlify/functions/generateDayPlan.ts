@@ -71,7 +71,7 @@ RETURN JSON:
       "time": "09:00",
       "title": "...",
       "category": "task" | "wellness" | "class" | "launch" | "break" | "med",
-      "sourceId": "..." (REQUIRED for wellness, optional for others),
+      "sourceId": "..." (REQUIRED for wellness and class items, optional for others),
       "completed": false,
       "priority": "high" | "medium" | "low",
       "aiNote": "..." (optional, personal context)
@@ -81,7 +81,7 @@ RETURN JSON:
 }
 
 CATEGORY GUIDANCE:
-- "class": teaching classes (from schedule, type=class). These are Dixon's regular teaching gigs.
+- "class": teaching classes (from schedule, type=class). These are Dixon's regular teaching gigs. MUST include sourceId matching the classId from the schedule.
 - "med": dose reminders ("Take dose 1", "Dose 2 window opens")
 - "wellness": checklist items — MUST include sourceId matching the wellness ID
 - "task": reminders/tasks from the task list
@@ -97,7 +97,7 @@ COMPETITION ENTRIES:
 
     // Schedule
     if (payload.schedule?.length > 0) {
-      contextLines.push(`Fixed schedule:\n${payload.schedule.map((s: { time: string; title: string; type: string }) => `  ${s.time} — ${s.title} (${s.type})`).join("\n")}`);
+      contextLines.push(`Fixed schedule:\n${payload.schedule.map((s: { time: string; title: string; type: string; classId?: string }) => `  ${s.time} — ${s.title} (${s.type})${s.classId ? ` [classId: "${s.classId}"]` : ""}`).join("\n")}`);
     } else {
       contextLines.push("No classes or events today — open schedule.");
     }
