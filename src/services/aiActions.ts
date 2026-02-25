@@ -75,6 +75,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           unifiedTaskDate: todayKey,
         };
         needsSelfCareUpdate = true;
+        logMod(action, `Toggled wellness "${action.id}" → ${action.done ?? true ? 'done' : 'undone'}`);
         break;
       }
       case 'addReminder': {
@@ -94,6 +95,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
         };
         selfCareUpdates.reminders = [...baseReminders, newReminder];
         needsSelfCareUpdate = true;
+        logMod(action, `Added reminder "${action.title}"${action.dueDate ? ` due ${action.dueDate}` : ''}`);
         break;
       }
       case 'completeReminder': {
@@ -104,6 +106,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           reminders[idx] = { ...reminders[idx], completed: true, completedAt: new Date().toISOString() };
           selfCareUpdates.reminders = reminders;
           needsSelfCareUpdate = true;
+          logMod(action, `Completed reminder "${action.title}"`);
         }
         break;
       }
@@ -115,6 +118,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           flagReminders[flagIdx] = { ...flagReminders[flagIdx], flagged: action.flagged ?? true, updatedAt: new Date().toISOString() };
           selfCareUpdates.reminders = flagReminders;
           needsSelfCareUpdate = true;
+          logMod(action, `Flagged reminder "${action.title}"`);
         }
         break;
       }
@@ -126,30 +130,38 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           reschedReminders[reschedIdx] = { ...reschedReminders[reschedIdx], dueDate: action.dueDate, updatedAt: new Date().toISOString() };
           selfCareUpdates.reminders = reschedReminders;
           needsSelfCareUpdate = true;
+          logMod(action, `Rescheduled reminder "${action.title}" → ${action.dueDate}`);
         }
         break;
       }
       case 'logDose': {
         const now = Date.now();
+        let doseNum = '';
         if (!sc.dose1Date || sc.dose1Date !== todayKey) {
           selfCareUpdates = { ...selfCareUpdates, dose1Time: now, dose1Date: todayKey, selfCareModified: new Date().toISOString() };
+          doseNum = '1';
         } else if (medConfig.medType === 'IR' && (!sc.dose2Date || sc.dose2Date !== todayKey)) {
           selfCareUpdates = { ...selfCareUpdates, dose2Time: now, dose2Date: todayKey, selfCareModified: new Date().toISOString() };
+          doseNum = '2';
         } else if (medConfig.medType === 'IR' && medConfig.maxDoses === 3 && (!sc.dose3Date || sc.dose3Date !== todayKey)) {
           selfCareUpdates = { ...selfCareUpdates, dose3Time: now, dose3Date: todayKey, selfCareModified: new Date().toISOString() };
+          doseNum = '3';
         }
         needsSelfCareUpdate = true;
+        if (doseNum) logMod(action, `Logged dose ${doseNum}`);
         break;
       }
       case 'skipDose': {
         selfCareUpdates = { ...selfCareUpdates, skippedDoseDate: todayKey, selfCareModified: new Date().toISOString() };
         needsSelfCareUpdate = true;
+        logMod(action, 'Skipped dose for today');
         break;
       }
       case 'updatePlanSummary': {
         if (!action.summary || !currentPlan) break;
         currentPlan = { ...currentPlan, summary: action.summary };
         planUpdated = true;
+        logMod(action, `Updated plan summary`);
         break;
       }
       case 'addPlanItem': {
@@ -166,6 +178,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
         };
         currentPlan = { ...currentPlan, items: [...currentPlan.items, newItem] };
         planUpdated = true;
+        logMod(action, `Added plan item "${action.title}"`);
         break;
       }
       case 'removePlanItem': {
@@ -182,6 +195,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           }
         }
         planUpdated = true;
+        logMod(action, `Removed plan item "${action.title}"`);
         break;
       }
       case 'reschedulePlanItem': {
@@ -196,6 +210,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           updated[rIdx] = { ...updated[rIdx], time: action.time };
           currentPlan = { ...currentPlan, items: updated };
           planUpdated = true;
+          logMod(action, `Rescheduled "${action.title}" → ${action.time}`);
         }
         break;
       }
@@ -212,17 +227,20 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           unifiedTaskDate: todayKey,
         };
         needsSelfCareUpdate = true;
+        logMod(action, `Batch toggled ${action.ids.length} wellness items`);
         break;
       }
       case 'suggestOptionalDose3': {
         selfCareUpdates = { ...selfCareUpdates, suggestedDose3Date: todayKey };
         needsSelfCareUpdate = true;
+        logMod(action, 'Suggested optional dose 3');
         break;
       }
       case 'setDayMode': {
         if (!action.dayMode) break;
         selfCareUpdates = { ...selfCareUpdates, dayMode: action.dayMode, dayModeDate: todayKey };
         needsSelfCareUpdate = true;
+        logMod(action, `Set day mode → ${action.dayMode}`);
         break;
       }
       case 'addWeekReflection': {
@@ -237,6 +255,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           aiSummary: action.aiSummary,
         };
         callbacks.saveWeekNotes(weekNote);
+        logMod(action, `Added week reflection`);
         break;
       }
       case 'reprioritizePlan': {
@@ -251,6 +270,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           }),
         };
         planUpdated = true;
+        logMod(action, `Reprioritized plan items`);
         break;
       }
 
@@ -278,6 +298,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           };
         }
         callbacks.saveWeekNotes(exWeekNotes);
+        logMod(action, `Marked ${targetIds.length} class(es) as ${action.exceptionType}`);
         break;
       }
 
@@ -299,6 +320,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           liveNotes: [...cnExisting.liveNotes, newNote],
         };
         callbacks.saveWeekNotes(cnWeekNotes);
+        logMod(action, `Added note to class ${action.classId}`);
         break;
       }
       case 'setClassPlan': {
@@ -309,6 +331,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
         };
         cpWeekNotes.classNotes[action.classId] = { ...cpExisting, plan: action.plan };
         callbacks.saveWeekNotes(cpWeekNotes);
+        logMod(action, `Set class plan for ${action.classId}`);
         break;
       }
       case 'setNextWeekGoal': {
@@ -319,6 +342,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
         };
         ngWeekNotes.classNotes[action.classId] = { ...ngExisting, nextWeekGoal: action.goal };
         callbacks.saveWeekNotes(ngWeekNotes);
+        logMod(action, `Set next-week goal for ${action.classId}`);
         break;
       }
 
@@ -341,6 +365,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           }
         }
         callbacks.updateLaunchPlan({ tasks });
+        logMod(action, `Completed launch task "${action.taskId}"`);
         break;
       }
       case 'skipLaunchTask': {
@@ -351,6 +376,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
             : t
         );
         callbacks.updateLaunchPlan({ tasks: skipTasks });
+        logMod(action, `Skipped launch task "${action.taskId}"`);
         break;
       }
       case 'addLaunchNote': {
@@ -359,6 +385,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           t.id === action.taskId ? { ...t, notes: action.note } : t
         );
         callbacks.updateLaunchPlan({ tasks: noteTasks });
+        logMod(action, `Added note to launch task "${action.taskId}"`);
         break;
       }
 
@@ -379,6 +406,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           rehearsalNotes: [newRehearsalNote, ...(dance.rehearsalNotes || [])],
         };
         callbacks.updateCompetitionDance(updatedDance);
+        logMod(action, `Added rehearsal note to "${dance.registrationName}"`);
         break;
       }
 
@@ -395,10 +423,12 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           tasksDeferred: false,
         };
         callbacks.updateDisruption(disruption);
+        logMod(action, `Started disruption: ${action.disruptionType}${action.reason ? ` (${action.reason})` : ''}`);
         break;
       }
       case 'endDisruption': {
         callbacks.updateDisruption(undefined);
+        logMod(action, 'Ended disruption');
         break;
       }
       case 'markClassExceptionRange': {
@@ -431,6 +461,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
         if (callbacks.getData().disruption?.active) {
           callbacks.updateDisruption({ ...callbacks.getData().disruption!, classesHandled: true });
         }
+        logMod(action, `Marked class exceptions ${action.startDate} to ${action.endDate} (${action.exceptionType})`);
         break;
       }
       case 'batchRescheduleTasks': {
@@ -454,6 +485,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
         if (callbacks.getData().disruption?.active) {
           callbacks.updateDisruption({ ...callbacks.getData().disruption!, tasksDeferred: true });
         }
+        logMod(action, `Batch rescheduled ${action.filter} tasks → ${action.newDate}`);
         break;
       }
       case 'assignSub': {
@@ -467,6 +499,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
             ...currentDisruption,
             subAssignments: [...(currentDisruption.subAssignments || []), ...newAssignments],
           });
+          logMod(action, `Assigned sub "${action.subName}" to ${action.classIds.length} class(es)`);
         }
         break;
       }

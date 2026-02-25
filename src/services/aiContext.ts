@@ -240,6 +240,7 @@ export function buildFullAIContext(
   disruption?: import('../types').DisruptionState;
   allActiveReminders?: Array<{ id: string; title: string; dueDate?: string; flagged: boolean; completed: boolean }>;
   upcomingCompetitions?: Array<{ name: string; date: string; daysAway: number }>;
+  recentAIActions?: Array<{ actionType: string; description: string; timestamp: string }>;
   date: string;
 } {
   const hour = new Date().getHours();
@@ -270,12 +271,24 @@ export function buildFullAIContext(
       return { name: c.name, date: c.date, daysAway };
     });
 
+  // Recent AI modifications (last 10 from today/yesterday for learning)
+  const yesterdayStr = (() => {
+    const y = new Date(now);
+    y.setDate(y.getDate() - 1);
+    return y.toISOString().slice(0, 10);
+  })();
+  const recentAIActions = (data.aiModifications || [])
+    .filter(m => m.timestamp.slice(0, 10) >= yesterdayStr)
+    .slice(-10)
+    .map(m => ({ actionType: m.actionType, description: m.description, timestamp: m.timestamp }));
+
   return {
     ...base,
     date: todayStr,
     disruption: data.disruption,
     allActiveReminders: reminders,
     upcomingCompetitions,
+    recentAIActions: recentAIActions.length > 0 ? recentAIActions : undefined,
   };
 }
 

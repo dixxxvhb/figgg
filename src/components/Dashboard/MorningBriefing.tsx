@@ -54,18 +54,22 @@ export function MorningBriefing({
 }: MorningBriefingProps) {
   const [justLogged, setJustLogged] = useState(false);
 
-  // AI-generated morning briefing text (cached per day in sessionStorage)
+  // AI-generated morning briefing text (cached per day in localStorage for durability)
   const [briefingText, setBriefingText] = useState<string | null>(() => {
-    const cached = sessionStorage.getItem('figgg-briefing-text');
-    const cachedDate = sessionStorage.getItem('figgg-briefing-date');
-    const today = new Date().toISOString().slice(0, 10);
-    return cachedDate === today ? cached : null;
+    try {
+      const cached = localStorage.getItem('figgg-briefing-text');
+      const cachedDate = localStorage.getItem('figgg-briefing-date');
+      const today = new Date().toISOString().slice(0, 10);
+      return cachedDate === today ? cached : null;
+    } catch { return null; }
   });
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
-    const cachedDate = sessionStorage.getItem('figgg-briefing-date');
-    if (cachedDate === today || briefingText) return;
+    try {
+      const cachedDate = localStorage.getItem('figgg-briefing-date');
+      if (cachedDate === today || briefingText) return;
+    } catch { /* proceed to fetch */ }
 
     let cancelled = false;
     (async () => {
@@ -78,8 +82,10 @@ export function MorningBriefing({
         });
         if (!cancelled && result.briefing) {
           setBriefingText(result.briefing);
-          sessionStorage.setItem('figgg-briefing-text', result.briefing);
-          sessionStorage.setItem('figgg-briefing-date', today);
+          try {
+            localStorage.setItem('figgg-briefing-text', result.briefing);
+            localStorage.setItem('figgg-briefing-date', today);
+          } catch { /* quota exceeded — still show in UI */ }
         }
       } catch {
         // Silent fail — static briefing is fine

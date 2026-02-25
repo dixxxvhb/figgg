@@ -712,6 +712,18 @@ export function Dashboard() {
       )}
 
       <div className="page-w px-4 pt-4 space-y-8">
+        {/* ── AI Check-In Widget — always at the top ── */}
+        {checkInActive && frozenCheckInType && (
+          <AICheckInWidget
+            greeting={frozenGreeting}
+            checkInType={frozenCheckInType}
+            completedToday={!checkInStatus.isDue}
+            onSubmit={handleCheckInSubmit}
+            onSkip={handleCheckInSkip}
+            onDone={() => { setCheckInActive(false); setFrozenCheckInType(null); }}
+          />
+        )}
+
         <EventCountdown competitions={data.competitions} />
 
         {/* ── Prep Card — class starting within 60 min ── */}
@@ -868,18 +880,6 @@ export function Dashboard() {
             </div>
           </div>
         ) : null}
-
-        {/* ── AI Check-In Widget — stays mounted until widget self-dismisses ── */}
-        {checkInActive && frozenCheckInType && (
-          <AICheckInWidget
-            greeting={frozenGreeting}
-            checkInType={frozenCheckInType}
-            completedToday={!checkInStatus.isDue}
-            onSubmit={handleCheckInSubmit}
-            onSkip={handleCheckInSkip}
-            onDone={() => { setCheckInActive(false); setFrozenCheckInType(null); }}
-          />
-        )}
 
         {/* ── Next Action Badge ── */}
         {todayPlan && (() => {

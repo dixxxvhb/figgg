@@ -162,6 +162,11 @@ function buildContextString(payload: any, mode: Mode): string {
     contextLines.push(`Already completed today (DO NOT regenerate these):\n${ctx.completedItems.map((i: { title: string; category: string }) => `  - [DONE] ${i.title} (${i.category})`).join("\n")}`);
   }
 
+  // Recent AI actions — so AI knows what it already changed (learning/continuity)
+  if (["chat", "check-in", "briefing"].includes(mode) && ctx.recentAIActions?.length > 0) {
+    contextLines.push(`Recent AI actions (what I already changed):\n${ctx.recentAIActions.map((a: { actionType: string; description: string; timestamp: string }) => `  ${a.timestamp.slice(11, 16)} ${a.description}`).join("\n")}`);
+  }
+
   // Disruption context — relevant for chat, check-in, briefing, day-plan
   if (["chat", "check-in", "briefing", "day-plan"].includes(mode) && ctx.disruption) {
     const d = ctx.disruption;

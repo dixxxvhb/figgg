@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Send, Loader2, Plus, Sparkles } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Plus, Sparkles, RefreshCw } from 'lucide-react';
 import { useAppData } from '../contexts/AppDataContext';
 import { callAIChat } from '../services/ai';
 import type { AIChatRequest } from '../services/ai';
@@ -138,6 +138,27 @@ export function AIChat() {
     }
   }, [input, isLoading, messages, actionCallbacks]);
 
+  // Auto-send when input is set from retry
+  const retryRef = useRef(false);
+  useEffect(() => {
+    if (retryRef.current && input && !isLoading) {
+      retryRef.current = false;
+      handleSend();
+    }
+  }, [input]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleRetryClick = useCallback(() => {
+    // Remove the error message and resend the last user message
+    const withoutError = messages.filter(m => !m.id?.endsWith('-err'));
+    const lastUserMsg = [...withoutError].reverse().find(m => m.role === 'user');
+    if (lastUserMsg) {
+      setMessages(withoutError.filter(m => m.id !== lastUserMsg.id)); // Remove last user msg too (will be re-added by handleSend)
+      retryRef.current = true;
+      setInput(lastUserMsg.content);
+    }
+    haptic('light');
+  }, [messages]);
+
   const handleNewChat = () => {
     setMessages([]);
     saveChatHistory([]); // Clear persisted history
@@ -204,6 +225,15 @@ export function AIChat() {
                     </span>
                   ))}
                 </div>
+              )}
+              {msg.id?.endsWith('-err') && (
+                <button
+                  onClick={handleRetryClick}
+                  className="flex items-center gap-1.5 mt-2 px-3 py-1.5 text-xs font-medium bg-[var(--accent-primary)] text-[var(--text-on-accent)] rounded-lg active:scale-95 transition-transform"
+                >
+                  <RefreshCw size={12} />
+                  Retry
+                </button>
               )}
             </div>
           </div>
