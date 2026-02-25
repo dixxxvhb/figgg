@@ -28,9 +28,10 @@ interface DayPlanWidgetProps {
   onToggleItem: (itemId: string) => void;
   onReplan: () => void;
   isReplanning: boolean;
+  cancelledClassIds?: Set<string>;
 }
 
-export function DayPlanWidget({ plan, onToggleItem, onReplan, isReplanning }: DayPlanWidgetProps) {
+export function DayPlanWidget({ plan, onToggleItem, onReplan, isReplanning, cancelledClassIds }: DayPlanWidgetProps) {
   const [expanded, setExpanded] = useState(false);
   const [justChecked, setJustChecked] = useState<string | null>(null);
 
@@ -95,12 +96,13 @@ export function DayPlanWidget({ plan, onToggleItem, onReplan, isReplanning }: Da
       {expanded && (
         <div className="divide-y divide-[var(--border-subtle)]/50">
           {plan.items.map(item => {
+            const isCancelledClass = item.category === 'class' && item.sourceId && cancelledClassIds?.has(item.sourceId);
             const linkTo = item.category === 'class' && item.sourceId
               ? `/class/${item.sourceId}/notes`
               : CATEGORY_LINK[item.category];
 
             const content = (
-              <div className={`flex items-start gap-2.5 px-4 py-2.5 transition-all duration-200 ${justChecked === item.id ? 'plan-item-completing' : ''}`}>
+              <div className={`flex items-start gap-2.5 px-4 py-2.5 transition-all duration-200 ${justChecked === item.id ? 'plan-item-completing' : ''} ${isCancelledClass ? 'opacity-50' : ''}`}>
                 <button
                   onClick={e => { e.preventDefault(); e.stopPropagation(); handleToggle(item.id); }}
                   className={`w-5 h-5 mt-0.5 rounded-md border flex items-center justify-center flex-shrink-0 transition-all duration-150 active:scale-90 ${
@@ -116,15 +118,18 @@ export function DayPlanWidget({ plan, onToggleItem, onReplan, isReplanning }: Da
                     {item.time && (
                       <span className="text-[11px] font-medium text-[var(--text-tertiary)] flex-shrink-0">{formatTimeDisplay(item.time)}</span>
                     )}
-                    <span className={`text-sm ${item.completed ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--text-primary)]'}`}>
+                    <span className={`text-sm ${item.completed || isCancelledClass ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--text-primary)]'}`}>
                       {item.title}
                     </span>
+                    {isCancelledClass && (
+                      <span className="text-[10px] text-[var(--text-tertiary)] bg-[var(--surface-inset)] px-1.5 py-0.5 rounded-full">Cancelled</span>
+                    )}
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${CATEGORY_COLORS[item.category]}`}>
                       {item.category}
                     </span>
-                    {item.aiNote && (
+                    {item.aiNote && !isCancelledClass && (
                       <span className="text-[10px] text-[var(--text-tertiary)] italic">{item.aiNote}</span>
                     )}
                   </div>
@@ -132,7 +137,7 @@ export function DayPlanWidget({ plan, onToggleItem, onReplan, isReplanning }: Da
               </div>
             );
 
-            return linkTo && !item.completed ? (
+            return linkTo && !item.completed && !isCancelledClass ? (
               <Link key={item.id} to={linkTo} className="block hover:bg-[var(--surface-card-hover)] transition-colors">
                 {content}
               </Link>

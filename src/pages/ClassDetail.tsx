@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, Music, Edit2, Save, X, Trash2, Play, History, ChevronDown, ChevronUp, FileText, Users, UserCheck, UserX, Clock3, UserPlus, User, ChevronLeft, ChevronRight, Star, CheckCircle, BookOpen, ClipboardList } from 'lucide-react';
+import { ArrowLeft, Clock, MapPin, Music, Edit2, Save, X, Trash2, Play, History, ChevronDown, ChevronUp, FileText, Users, UserCheck, UserX, Clock3, UserPlus, User, ChevronLeft, ChevronRight, Star, CheckCircle, BookOpen, ClipboardList, Ban, RotateCcw } from 'lucide-react';
 import { timeToMinutes } from '../utils/time';
 import { useAppData } from '../contexts/AppDataContext';
 import { PlanDisplay } from '../components/common/PlanDisplay';
@@ -202,6 +202,52 @@ export function ClassDetail() {
       classNotes: {
         ...weekNotes.classNotes,
         [classId]: getDefaultClassNotes(classId),
+      },
+    };
+    setWeekNotes(updatedNotes);
+    saveWeekNotes(updatedNotes);
+  };
+
+  // Class exception handlers (cancel / sub / clear)
+  const handleMarkCancelled = async () => {
+    if (!classId) return;
+    if (!(await confirm('Mark this class as cancelled for this week?'))) return;
+    const existing = classNotes || getDefaultClassNotes(classId);
+    const updatedNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [classId]: { ...existing, exception: { type: 'cancelled' as const } },
+      },
+    };
+    setWeekNotes(updatedNotes);
+    saveWeekNotes(updatedNotes);
+  };
+
+  const handleMarkSubbed = async () => {
+    if (!classId) return;
+    const subName = prompt('Sub name (optional):');
+    if (subName === null) return; // user cancelled prompt
+    const existing = classNotes || getDefaultClassNotes(classId);
+    const updatedNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [classId]: { ...existing, exception: { type: 'subbed' as const, ...(subName.trim() ? { subName: subName.trim() } : {}) } },
+      },
+    };
+    setWeekNotes(updatedNotes);
+    saveWeekNotes(updatedNotes);
+  };
+
+  const handleClearException = () => {
+    if (!classId || !classNotes?.exception) return;
+    const { exception: _, ...restNotes } = classNotes;
+    const updatedNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [classId]: restNotes,
       },
     };
     setWeekNotes(updatedNotes);
@@ -451,6 +497,16 @@ export function ClassDetail() {
                     {weekLabel}
                   </span>
                 )}
+                {classNotes?.exception?.type === 'cancelled' && (
+                  <span className="text-xs text-[var(--text-tertiary)] bg-[var(--surface-inset)] px-2 py-0.5 rounded-full font-medium">
+                    Cancelled
+                  </span>
+                )}
+                {classNotes?.exception?.type === 'subbed' && (
+                  <span className="text-xs text-[var(--status-success)] bg-[var(--accent-muted)] px-2 py-0.5 rounded-full font-medium">
+                    Sub{classNotes.exception.subName ? `: ${classNotes.exception.subName}` : ''}
+                  </span>
+                )}
               </div>
             </div>
           )}
@@ -471,6 +527,20 @@ export function ClassDetail() {
             </button>
             <DropdownMenu
               items={[
+                ...(classNotes?.exception ? [{
+                  label: 'Clear exception',
+                  icon: <RotateCcw size={16} />,
+                  onClick: handleClearException,
+                }] : [{
+                  label: 'Mark cancelled',
+                  icon: <Ban size={16} />,
+                  onClick: handleMarkCancelled,
+                },
+                {
+                  label: 'Mark sub',
+                  icon: <Users size={16} />,
+                  onClick: handleMarkSubbed,
+                }]),
                 {
                   label: 'Delete all notes',
                   icon: <FileText size={16} />,

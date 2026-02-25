@@ -38,7 +38,7 @@ function buildContextString(payload: any, mode: Mode): string {
   // Schedule
   if (ctx.schedule?.length > 0) {
     if (mode === "day-plan") {
-      contextLines.push(`Fixed schedule:\n${ctx.schedule.map((s: { time: string; title: string; type: string }) => `  ${s.time} — ${s.title} (${s.type})`).join("\n")}`);
+      contextLines.push(`Fixed schedule:\n${ctx.schedule.map((s: { time: string; title: string; type: string; classId?: string }) => `  ${s.time} — ${s.title} (${s.type})${s.classId ? ` [classId: "${s.classId}"]` : ""}`).join("\n")}`);
     } else {
       contextLines.push(`Today's schedule:\n${ctx.schedule.map((s: { time: string; title: string; type: string }) => `  ${s.time} — ${s.title} (${s.type})`).join("\n")}`);
     }
@@ -74,9 +74,14 @@ function buildContextString(payload: any, mode: Mode): string {
     }
   }
 
-  // Today's classes with IDs
+  // Today's classes with IDs (includes exception status if cancelled/subbed)
   if (ctx.todayClassList?.length > 0) {
-    contextLines.push(`Today's classes (use classId for actions):\n${ctx.todayClassList.map((c: { id: string; name: string; startTime: string }) => `  [${c.id}] ${c.startTime} — ${c.name}`).join("\n")}`);
+    contextLines.push(`Today's classes (use classId for actions):\n${ctx.todayClassList.map((c: { id: string; name: string; startTime: string; exception?: string; subName?: string }) => {
+      let line = `  [${c.id}] ${c.startTime} — ${c.name}`;
+      if (c.exception === 'cancelled') line += ' [CANCELLED]';
+      if (c.exception === 'subbed') line += ` [SUB: ${c.subName || 'unknown'}]`;
+      return line;
+    }).join("\n")}`);
   }
 
   // This week's full class list
@@ -285,6 +290,7 @@ PLANNING PHILOSOPHY:
 
 RULES:
 - Items marked [DONE] in the context are ALREADY COMPLETED. Do NOT include them in your plan — they will be merged in automatically.
+- Classes marked [CANCELLED] in today's classes should NOT be included in the plan. Skip them entirely.
 - When re-planning mid-day, focus only on what's LEFT to do. The completed items are preserved separately.
 - 5-12 NEW items max. Quality over quantity.
 - Classes/events MUST appear at their exact times — these are non-negotiable.
@@ -309,7 +315,7 @@ RETURN JSON:
       "time": "09:00",
       "title": "...",
       "category": "task" | "wellness" | "class" | "launch" | "break" | "med",
-      "sourceId": "..." (REQUIRED for wellness, optional for others),
+      "sourceId": "..." (REQUIRED for wellness and class items, optional for others),
       "completed": false,
       "priority": "high" | "medium" | "low",
       "aiNote": "..." (optional, personal context)
@@ -319,7 +325,7 @@ RETURN JSON:
 }
 
 CATEGORY GUIDANCE:
-- "class": teaching classes (from schedule, type=class). These are Dixon's regular teaching gigs.
+- "class": teaching classes (from schedule, type=class). These are Dixon's regular teaching gigs. MUST include sourceId matching the classId from the schedule.
 - "med": dose reminders ("Take dose 1", "Dose 2 window opens")
 - "wellness": checklist items — MUST include sourceId matching the wellness ID
 - "task": reminders/tasks from the task list
