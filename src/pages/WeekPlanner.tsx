@@ -301,25 +301,31 @@ export function WeekPlanner() {
                   const studio = getStudio(cls.studioId);
                   const classNotes = currentWeekNotes.classNotes[cls.id];
                   const lastWeekClassNotes = lastWeekNotes?.classNotes[cls.id];
+                  const isCancelled = !!classNotes?.exception;
 
                   return (
                     <div
                       key={cls.id}
-                      className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 overflow-hidden"
+                      className={`bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 overflow-hidden ${isCancelled ? 'opacity-50' : ''}`}
                     >
                       <div
                         className="px-4 py-3 flex items-center gap-3"
-                        style={{ borderLeft: `4px solid ${studio?.color || '#9ca3af'}` }}
+                        style={{ borderLeft: `4px solid ${isCancelled ? '#9ca3af' : (studio?.color || '#9ca3af')}` }}
                       >
                         <div className="flex-1 min-w-0">
                           <Link
                             to={`/class/${cls.id}`}
-                            className="font-medium text-forest-900 dark:text-white hover:text-forest-600 dark:hover:text-forest-400"
+                            className={`font-medium hover:text-forest-600 dark:hover:text-forest-400 ${isCancelled ? 'text-blush-400 line-through' : 'text-forest-900 dark:text-white'}`}
                           >
                             {cls.name}
                           </Link>
-                          <div className="text-sm text-blush-500 dark:text-blush-400">
+                          <div className="text-sm text-blush-500 dark:text-blush-400 flex items-center gap-2">
                             {formatTimeDisplay(cls.startTime)} · {studio?.shortName}
+                            {isCancelled && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blush-200 dark:bg-blush-700 text-blush-500 uppercase">
+                                {classNotes?.exception?.type === 'subbed' ? `Sub: ${classNotes.exception.subName || 'assigned'}` : 'Cancelled'}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>

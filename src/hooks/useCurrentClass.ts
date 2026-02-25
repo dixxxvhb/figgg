@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Class, CurrentClassInfo, DayOfWeek } from '../types';
-import { getCurrentDayOfWeek, getCurrentTimeMinutes, getClassStatus, getMinutesUntilClass, getMinutesRemaining, timeToMinutes } from '../utils/time';
+import { Class, CurrentClassInfo, DayOfWeek, WeekNotes } from '../types';
+import { getCurrentDayOfWeek, getCurrentTimeMinutes, getClassStatus, getMinutesUntilClass, getMinutesRemaining, timeToMinutes, formatWeekOf, getWeekStart } from '../utils/time';
 import { getStudioById } from '../data/studios';
 
-export function useCurrentClass(classes: Class[]): CurrentClassInfo {
+export function useCurrentClass(classes: Class[], weekNotes?: WeekNotes[]): CurrentClassInfo {
   const [currentTime, setCurrentTime] = useState(getCurrentTimeMinutes());
   const [currentDay, setCurrentDay] = useState<DayOfWeek>(getCurrentDayOfWeek());
 
@@ -31,9 +31,18 @@ export function useCurrentClass(classes: Class[]): CurrentClassInfo {
   }, []);
 
   const result = useMemo(() => {
-    // Get today's classes sorted by time
+    // Check for cancelled classes via weekNotes exceptions
+    const currentWeekOf = formatWeekOf(getWeekStart());
+    const currentWeekNotes = weekNotes?.find(w => w.weekOf === currentWeekOf);
+
+    const isClassCancelled = (classId: string) => {
+      const exception = currentWeekNotes?.classNotes[classId]?.exception;
+      return !!exception;
+    };
+
+    // Get today's non-cancelled classes sorted by time
     const todayClasses = classes
-      .filter(c => c.day === currentDay)
+      .filter(c => c.day === currentDay && !isClassCancelled(c.id))
       .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
 
     if (todayClasses.length === 0) {
@@ -95,7 +104,7 @@ export function useCurrentClass(classes: Class[]): CurrentClassInfo {
       nextClass,
       nextStudio,
     };
-  }, [classes, currentDay, currentTime]);
+  }, [classes, currentDay, currentTime, weekNotes]);
 
   return result;
 }

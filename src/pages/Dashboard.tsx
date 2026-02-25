@@ -108,7 +108,7 @@ const WIDGET_LABELS: Record<string, string> = {
 };
 
 export function Dashboard() {
-  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, refreshData, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes, updateDisruption } = useAppData();
+  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, refreshData, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes, updateDisruption, updateCalendarEvent } = useAppData();
   const stats = useTeachingStats(data);
   const medConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
   const selfCareStatus = useSelfCareStatus(data.selfCare, medConfig);
@@ -236,8 +236,9 @@ export function Dashboard() {
     updateLaunchPlan,
     updateCompetitionDance,
     updateDisruption,
+    updateCalendarEvent,
     getMedConfig: () => medConfig,
-  }), [updateSelfCare, saveDayPlan, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance, updateDisruption, medConfig]);
+  }), [updateSelfCare, saveDayPlan, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance, updateDisruption, updateCalendarEvent, medConfig]);
 
   const executeAIActions = useCallback((actions: AIAction[]) => {
     executeSharedAIActions(actions, actionCallbacks);
@@ -449,7 +450,7 @@ export function Dashboard() {
 
   const currentDay = useMemo(() => getCurrentDayOfWeek(), [currentMinute]);
   const todayClasses = useMemo(() => getClassesByDay(data.classes, currentDay), [data.classes, currentDay]);
-  const classInfo = useCurrentClass(data.classes);
+  const classInfo = useCurrentClass(data.classes, data.weekNotes);
   const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [currentMinute]);
 
   const todayCalendarEvents = useMemo(() => {

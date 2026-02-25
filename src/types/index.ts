@@ -280,6 +280,8 @@ export interface CalendarEvent {
   location?: string;
   description?: string;
   linkedDanceIds?: string[]; // Competition dance IDs linked to this event for attendance
+  cancelled?: boolean; // Manually cancelled by user or AI
+  isUserCreated?: boolean; // Distinguishes user-created events from iCal imports
 }
 
 // ===== MEDICATION CONFIGURATION =====

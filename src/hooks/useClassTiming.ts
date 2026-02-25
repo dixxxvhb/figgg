@@ -20,7 +20,14 @@ export function useClassTiming(data: AppData, currentMinute: number): {
 } {
   return useMemo(() => {
     const dayName = getCurrentDayOfWeek();
-    const todayClasses = getClassesByDay(data.classes, dayName);
+    const weekOf = formatWeekOf(getWeekStart());
+    const currentWeekNotes = data.weekNotes.find(w => w.weekOf === weekOf);
+
+    // Filter out cancelled classes
+    const todayClasses = getClassesByDay(data.classes, dayName).filter(cls => {
+      const exception = currentWeekNotes?.classNotes[cls.id]?.exception;
+      return !exception; // exclude cancelled/subbed
+    });
 
     if (todayClasses.length === 0) {
       return { upcomingClass: null, justEndedClass: null, minutesUntilNext: null };

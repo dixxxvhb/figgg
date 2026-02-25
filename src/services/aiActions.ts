@@ -31,6 +31,7 @@ export interface ActionCallbacks {
   updateCompetitionDance: (dance: CompetitionDance) => void;
   updateDisruption: (disruption: DisruptionState | undefined) => void;
   getMedConfig: () => { medType: string; maxDoses: number };
+  updateCalendarEvent?: (event: import('../types').CalendarEvent) => void;
 }
 
 export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks): void {
@@ -457,6 +458,74 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
       }
       case 'generateCatchUpPlan': {
         // Signal to the chat to generate a catch-up. No client action needed.
+        break;
+      }
+
+      // ── Calendar Event Exceptions ─────────────────────────────────────
+      case 'cancelCalendarEvent': {
+        if (!action.eventId || !callbacks.updateCalendarEvent) break;
+        const event = (callbacks.getData().calendarEvents || []).find(e => e.id === action.eventId);
+        if (event) {
+          callbacks.updateCalendarEvent({ ...event, cancelled: true });
+        }
+        break;
+      }
+      case 'uncancelCalendarEvent': {
+        if (!action.eventId || !callbacks.updateCalendarEvent) break;
+        const ucEvent = (callbacks.getData().calendarEvents || []).find(e => e.id === action.eventId);
+        if (ucEvent) {
+          callbacks.updateCalendarEvent({ ...ucEvent, cancelled: false });
+        }
+        break;
+      }
+      case 'cancelCalendarEventRange': {
+        if (!action.startDate || !action.endDate || !callbacks.updateCalendarEvent) break;
+        const events = callbacks.getData().calendarEvents || [];
+        for (const event of events) {
+          if (event.date >= action.startDate && event.date <= action.endDate && !event.cancelled) {
+            callbacks.updateCalendarEvent({ ...event, cancelled: true });
+          }
+        }
+        break;
+      }
+
+      // ── Uncancel Class Exceptions ─────────────────────────────────────
+      case 'uncancelClassException': {
+        if (!action.classIds || action.classIds.length === 0) break;
+        const ucWeekNotes = callbacks.getCurrentWeekNotes();
+        for (const classId of action.classIds) {
+          const existing = ucWeekNotes.classNotes[classId];
+          if (existing?.exception) {
+            ucWeekNotes.classNotes[classId] = { ...existing, exception: undefined };
+          }
+        }
+        callbacks.saveWeekNotes(ucWeekNotes);
+        break;
+      }
+      case 'uncancelClassExceptionRange': {
+        if (!action.startDate || !action.endDate) break;
+        const ucDays: string[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        let ucCurrent = new Date(action.startDate + 'T00:00:00');
+        const ucEnd = new Date(action.endDate + 'T00:00:00');
+        while (ucCurrent <= ucEnd) {
+          const ucDayName = ucDays[ucCurrent.getDay()];
+          const ucWeekOf = formatWeekOf(getWeekStart(ucCurrent));
+          const existingWN = callbacks.getData().weekNotes.find(w => w.weekOf === ucWeekOf);
+          if (existingWN) {
+            const weekNote: WeekNotes = { ...existingWN, classNotes: { ...existingWN.classNotes } };
+            const dayClasses = getClassesByDay(callbacks.getData().classes, ucDayName as DayOfWeek);
+            let changed = false;
+            for (const cls of dayClasses) {
+              const cn = weekNote.classNotes[cls.id];
+              if (cn?.exception) {
+                weekNote.classNotes[cls.id] = { ...cn, exception: undefined };
+                changed = true;
+              }
+            }
+            if (changed) callbacks.saveWeekNotes(weekNote);
+          }
+          ucCurrent = addDays(ucCurrent, 1);
+        }
         break;
       }
     }

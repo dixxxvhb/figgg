@@ -111,6 +111,7 @@ export function TodaysAgenda({
     calendarEvents
       .filter(e => e.date === today && e.startTime && e.startTime !== '00:00')
       .forEach(e => {
+        if (e.cancelled) return; // Skip cancelled events from agenda
         const eventStartMinutes = timeToMinutes(e.startTime);
         const minutesFromNow = eventStartMinutes - currentMinute;
         const energy = skippedToday ? 'none' as const : statusToEnergy(medStatus.projectedStatus(minutesFromNow));

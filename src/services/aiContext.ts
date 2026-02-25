@@ -3,7 +3,7 @@
  * Reads from AppData and produces a compact object for the Netlify Function.
  */
 import { getClassesByDay } from '../data/classes';
-import { timeToMinutes } from '../utils/time';
+import { timeToMinutes, formatWeekOf, getWeekStart } from '../utils/time';
 import type { AppData, DayOfWeek, AIConfig } from '../types';
 import { DEFAULT_AI_CONFIG, DEFAULT_MED_CONFIG, DEFAULT_WELLNESS_ITEMS } from '../types';
 
@@ -92,10 +92,15 @@ export function buildAIContext(
   if (dose2Taken && sc?.dose2Time) medStatus.dose2Time = formatMs(sc.dose2Time);
   if (dose3Taken && sc?.dose3Time) medStatus.dose3Time = formatMs(sc.dose3Time);
 
-  // Schedule
-  const todayClasses = getClassesByDay(data.classes, dayName);
+  // Schedule — exclude cancelled classes and events
+  const currentWeekOf = formatWeekOf(getWeekStart());
+  const currentWeekNotes = data.weekNotes.find(w => w.weekOf === currentWeekOf);
+  const todayClasses = getClassesByDay(data.classes, dayName).filter(c => {
+    const exception = currentWeekNotes?.classNotes[c.id]?.exception;
+    return !exception; // exclude cancelled/subbed classes
+  });
   const todayEvents = (data.calendarEvents || [])
-    .filter(e => e.date === todayStr && e.startTime && e.startTime !== '00:00');
+    .filter(e => e.date === todayStr && e.startTime && e.startTime !== '00:00' && !e.cancelled);
   const schedule = [
     ...todayClasses.map(c => ({ time: c.startTime, title: c.name, type: 'class' as const })),
     ...todayEvents.map(e => ({ time: e.startTime, title: e.title, type: 'event' as const })),
@@ -179,7 +184,7 @@ export function buildAIContext(
     ? (sc?.dayMode || 'normal')
     : 'normal';
 
-  // Class lookup tables for AI name → ID resolution
+  // Class lookup tables for AI name → ID resolution (todayClasses already filtered above)
   const todayClassList = todayClasses.map(c => ({
     id: c.id,
     name: c.name,

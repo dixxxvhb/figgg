@@ -842,7 +842,22 @@ export function updateCalendarEvents(events: CalendarEvent[]): void {
     }
   }
 
-  // Replace all events - this removes events no longer in any calendar feed
+  // Keep user-created events that wouldn't come from calendar feeds
+  const userCreatedEvents = existingEvents.filter(e => e.isUserCreated);
+  for (const ue of userCreatedEvents) {
+    if (!seen.has(ue.id)) {
+      seen.set(ue.id, ue);
+    }
+  }
+
+  // Also preserve cancelled status on iCal events
+  for (const [id, event] of seen.entries()) {
+    const existing = existingMap.get(id);
+    if (existing?.cancelled) {
+      seen.set(id, { ...event, cancelled: existing.cancelled });
+    }
+  }
+
   data.calendarEvents = Array.from(seen.values());
   saveData(data);
 }

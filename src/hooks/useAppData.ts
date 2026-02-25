@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { AppData, Class, WeekNotes, Project, Competition, CompetitionDance, Student, CalendarEvent, SelfCareData, LaunchPlanData } from '../types';
+import { AppData, AppSettings, Class, WeekNotes, Project, Competition, CompetitionDance, Student, CalendarEvent, SelfCareData, LaunchPlanData } from '../types';
 import type { AICheckIn, DayPlan } from '../types';
 import type { Choreography } from '../types/choreography';
 import { loadData, saveData, saveWeekNotes as saveWeekNotesToStorage, saveSelfCareToStorage, saveLaunchPlanToStorage, saveDayPlanToStorage } from '../services/storage';
@@ -370,6 +370,30 @@ export function useAppData() {
     });
   }, []);
 
+  const addCalendarEvent = useCallback((event: Omit<CalendarEvent, 'id'>) => {
+    const eventWithId: CalendarEvent = { ...event, id: `user-${uuid()}`, isUserCreated: true };
+    setData(prev => ({
+      ...prev,
+      calendarEvents: [...(prev.calendarEvents || []), eventWithId],
+    }));
+    return eventWithId;
+  }, []);
+
+  const deleteCalendarEvent = useCallback((eventId: string) => {
+    setData(prev => ({
+      ...prev,
+      calendarEvents: (prev.calendarEvents || []).filter(e => e.id !== eventId),
+    }));
+  }, []);
+
+  // Settings management
+  const updateSettings = useCallback((updates: Partial<AppSettings>) => {
+    setData(prev => ({
+      ...prev,
+      settings: { ...prev.settings, ...updates },
+    }));
+  }, []);
+
   return {
     data,
     updateClass,
@@ -392,6 +416,10 @@ export function useAppData() {
     deleteStudent,
     // Calendar events
     updateCalendarEvent,
+    addCalendarEvent,
+    deleteCalendarEvent,
+    // Settings
+    updateSettings,
     // Self-care & choreography
     updateSelfCare,
     updateChoreographies,

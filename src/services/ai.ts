@@ -121,7 +121,14 @@ export interface AIAction {
     | 'batchRescheduleTasks'
     | 'assignSub'
     | 'clearWeekPlan'
-    | 'generateCatchUpPlan';
+    | 'generateCatchUpPlan'
+    // Calendar event exception actions
+    | 'cancelCalendarEvent'       // cancel a specific calendar event by ID
+    | 'uncancelCalendarEvent'     // restore a cancelled calendar event
+    | 'cancelCalendarEventRange'  // cancel calendar events in a date range
+    // Uncancel class exceptions
+    | 'uncancelClassException'    // restore a cancelled class for a specific date
+    | 'uncancelClassExceptionRange'; // restore cancelled classes for a date range
   // Common fields
   id?: string;
   ids?: string[];  // for batch operations
@@ -173,6 +180,9 @@ export interface AIAction {
   filter?: 'overdue' | 'due-this-week' | 'all-active';
   newDate?: string;
   dates?: string[];
+  // Calendar event fields
+  eventId?: string;
+  eventIds?: string[];
 }
 
 export async function expandNotes(
