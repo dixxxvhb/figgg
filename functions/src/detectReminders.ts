@@ -1,9 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { defineSecret } from "firebase-functions/params";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireAuth } from "./utils/auth";
-
-const anthropicKey = defineSecret("ANTHROPIC_API_KEY");
 
 interface LiveNote {
   id: string;
@@ -13,7 +10,7 @@ interface LiveNote {
 }
 
 export const detectReminders = onCall(
-  { secrets: [anthropicKey], timeoutSeconds: 60, memory: "256MiB" },
+  { timeoutSeconds: 60, memory: "256MiB" },
   async (request) => {
     requireAuth(request);
 
@@ -26,7 +23,7 @@ export const detectReminders = onCall(
       return { reminders: [] };
     }
 
-    const apiKey = anthropicKey.value();
+    const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       throw new HttpsError("internal", "API key not configured");
     }

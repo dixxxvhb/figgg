@@ -1,9 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { defineSecret } from "firebase-functions/params";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireAuth } from "./utils/auth";
-
-const anthropicKey = defineSecret("ANTHROPIC_API_KEY");
 
 interface LiveNote {
   id: string;
@@ -24,7 +21,7 @@ function normalizeCategory(cat?: string): string | undefined {
 }
 
 export const expandNotes = onCall(
-  { secrets: [anthropicKey], timeoutSeconds: 60, memory: "256MiB" },
+  { timeoutSeconds: 60, memory: "256MiB" },
   async (request) => {
     requireAuth(request);
 
@@ -38,7 +35,7 @@ export const expandNotes = onCall(
       throw new HttpsError("invalid-argument", "Missing className or notes");
     }
 
-    const apiKey = anthropicKey.value();
+    const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       throw new HttpsError("internal", "API key not configured");
     }
