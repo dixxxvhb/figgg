@@ -4,12 +4,13 @@ import {
   MapPin, Download, Upload, Check, Calendar, Sparkles, RefreshCw, AlertCircle, Cloud,
   BookOpen, Sun, Moon, Type, Users, Grid3X3, ChevronRight, ArrowLeft, Music, Star,
   ChevronDown, ChevronUp, Palette, Pill, Heart, Plus, Trash2, GripVertical, Circle,
-  Pencil, Droplets, Utensils, Footprints, Coffee, Brain, Smartphone, BedDouble, Zap, Bell, Bot,
+  Pencil, Droplets, Utensils, Footprints, Coffee, Brain, Smartphone, BedDouble, Zap, Bell, Bot, LogIn, LogOut,
   type LucideIcon,
 } from 'lucide-react';
 import { useAppData } from '../contexts/AppDataContext';
 import { exportData, importData, updateCalendarEvents, updateSettings, syncFromCloud, pushToCloud, loadData } from '../services/storage';
 import { useAuth } from '../contexts/AuthContext';
+import { firebaseConfigured } from '../services/firebase';
 import { migrateDataToFirestore } from '../services/firestore';
 import { DEFAULT_MED_CONFIG, DEFAULT_WELLNESS_ITEMS, DEFAULT_AI_CONFIG } from '../types';
 import type { MedConfig, WellnessItemConfig, AIConfig } from '../types';
@@ -43,7 +44,11 @@ export function Settings() {
   const [cloudStatus, setCloudStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [migrating, setMigrating] = useState(false);
   const [migrateStatus, setMigrateStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const { user } = useAuth();
+  const { user, signIn, signOut } = useAuth();
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [authSubmitting, setAuthSubmitting] = useState(false);
   const [fontSize, setFontSize] = useState(data.settings?.fontSize || 'normal');
   const [darkMode, setDarkMode] = useState(data.settings?.darkMode || false);
   const [themeId, setThemeId] = useState(data.settings?.themeId || 'forest');
@@ -701,6 +706,72 @@ export function Settings() {
           </div>
         </Card>
       </section>
+
+      {/* Firebase Account */}
+      {firebaseConfigured && (
+        <section className="mb-5">
+          <h2 className="type-h3 mb-1.5 px-1">Account</h2>
+          <Card variant="standard" padding="none" className="overflow-hidden">
+            {user ? (
+              <div className="px-3 py-2.5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <LogIn size={14} className="text-[var(--status-success)]" />
+                  <span className="text-sm text-[var(--text-primary)]">{user.email}</span>
+                </div>
+                <button
+                  onClick={() => signOut()}
+                  className="text-xs font-medium text-[var(--status-danger)] flex items-center gap-1 px-2.5 py-1 rounded-[var(--radius-sm)] bg-[var(--surface-highlight)] hover:opacity-80 transition-opacity"
+                >
+                  <LogOut size={12} />
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setAuthError('');
+                  setAuthSubmitting(true);
+                  try {
+                    await signIn(authEmail, authPassword);
+                    setAuthEmail('');
+                    setAuthPassword('');
+                  } catch {
+                    setAuthError('Invalid email or password');
+                  } finally {
+                    setAuthSubmitting(false);
+                  }
+                }}
+                className="px-3 py-3 space-y-2"
+              >
+                <p className="text-xs text-[var(--text-secondary)]">Sign in to sync data across devices</p>
+                <input
+                  type="email"
+                  value={authEmail}
+                  onChange={(e) => setAuthEmail(e.target.value)}
+                  placeholder="Email"
+                  autoComplete="email"
+                  required
+                  className="w-full px-2.5 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-sm)] bg-[var(--surface-inset)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
+                />
+                <input
+                  type="password"
+                  value={authPassword}
+                  onChange={(e) => setAuthPassword(e.target.value)}
+                  placeholder="Password"
+                  autoComplete="current-password"
+                  required
+                  className="w-full px-2.5 py-2 text-sm border border-[var(--border-subtle)] rounded-[var(--radius-sm)] bg-[var(--surface-inset)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
+                />
+                {authError && <p className="text-xs text-[var(--status-danger)]">{authError}</p>}
+                <Button type="submit" size="sm" disabled={authSubmitting} className="w-full">
+                  {authSubmitting ? 'Signing in...' : 'Sign In'}
+                </Button>
+              </form>
+            )}
+          </Card>
+        </section>
+      )}
 
       {/* Sync */}
       <section className="mb-5">
