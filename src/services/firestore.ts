@@ -34,16 +34,21 @@ import { migrateMediaItems, migrateMusicTrack, migrateStudentPhoto, isBase64Data
 // ============================================================
 // Helper: get user's root reference
 // ============================================================
+function requireDb() {
+  if (!db) throw new Error('Firestore not configured');
+  return db;
+}
+
 function userRef(userId: string) {
-  return doc(db, 'users', userId);
+  return doc(requireDb(), 'users', userId);
 }
 
 function userCollection(userId: string, collectionName: string) {
-  return collection(db, 'users', userId, collectionName);
+  return collection(requireDb(), 'users', userId, collectionName);
 }
 
 function userDoc(userId: string, collectionName: string, docId: string) {
-  return doc(db, 'users', userId, collectionName, docId);
+  return doc(requireDb(), 'users', userId, collectionName, docId);
 }
 
 // ============================================================
@@ -432,14 +437,14 @@ export async function migrateDataToFirestore(data: AppData, userId: string): Pro
   // Firestore batches are limited to 500 writes per batch
   // We'll use multiple batches if needed
   const batches: Array<ReturnType<typeof writeBatch>> = [];
-  let currentBatch = writeBatch(db);
+  let currentBatch = writeBatch(requireDb());
   let opCount = 0;
 
   function addOp(fn: (batch: ReturnType<typeof writeBatch>) => void) {
     if (opCount >= 450) {
       // Leave headroom below 500 limit
       batches.push(currentBatch);
-      currentBatch = writeBatch(db);
+      currentBatch = writeBatch(requireDb());
       opCount = 0;
     }
     fn(currentBatch);

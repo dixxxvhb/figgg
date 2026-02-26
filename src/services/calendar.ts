@@ -1,5 +1,5 @@
 import { httpsCallable } from 'firebase/functions';
-import { functions } from './firebase';
+import { requireFunctions } from './firebase';
 import { CalendarEvent } from '../types';
 
 // Generate a stable ID based on event content so IDs persist across syncs
@@ -24,7 +24,7 @@ const PAST_EVENT_WINDOW_DAYS = 7;
 // Parse ICS (iCalendar) format — uses Firebase callable calendarProxy
 export async function fetchCalendarEvents(icsUrl: string): Promise<CalendarEvent[]> {
   try {
-    const fn = httpsCallable<{ url: string }, { icsText: string }>(functions, 'calendarProxy');
+    const fn = httpsCallable<{ url: string }, { icsText: string }>(requireFunctions(), 'calendarProxy');
     const result = await fn({ url: icsUrl });
     return parseICS(result.data.icsText);
   } catch (error) {

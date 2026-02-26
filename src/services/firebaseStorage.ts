@@ -1,5 +1,5 @@
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { storage } from './firebase';
+import { requireStorage } from './firebase';
 import { v4 as uuid } from 'uuid';
 import type { MediaItem } from '../types';
 
@@ -13,7 +13,7 @@ export async function uploadMedia(
   file: Blob | string,
   path: string
 ): Promise<string> {
-  const storageRef = ref(storage, `users/${userId}/${path}`);
+  const storageRef = ref(requireStorage(), `users/${userId}/${path}`);
 
   let blob: Blob;
   if (typeof file === 'string') {
@@ -31,7 +31,7 @@ export async function uploadMedia(
  * Delete a media file from Firebase Storage.
  */
 export async function deleteMedia(userId: string, path: string): Promise<void> {
-  const storageRef = ref(storage, `users/${userId}/${path}`);
+  const storageRef = ref(requireStorage(), `users/${userId}/${path}`);
   try {
     await deleteObject(storageRef);
   } catch (err: any) {
@@ -46,7 +46,7 @@ export async function deleteMedia(userId: string, path: string): Promise<void> {
  * Get the download URL for a media file.
  */
 export async function getMediaUrl(userId: string, path: string): Promise<string> {
-  const storageRef = ref(storage, `users/${userId}/${path}`);
+  const storageRef = ref(requireStorage(), `users/${userId}/${path}`);
   return getDownloadURL(storageRef);
 }
 
