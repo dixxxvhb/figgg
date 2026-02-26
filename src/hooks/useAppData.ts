@@ -33,7 +33,7 @@ import {
 
 // Helper: get current user ID or null
 function getUserId(): string | null {
-  return auth.currentUser?.uid ?? null;
+  return auth?.currentUser?.uid ?? null;
 }
 
 export function useAppData() {
@@ -62,7 +62,7 @@ export function useAppData() {
 
   // Load data from Firestore on mount (overlays localStorage data)
   useEffect(() => {
-    const user = auth.currentUser;
+    const user = auth?.currentUser;
     if (!user) return;
 
     loadAllData(user.uid).then(firestoreData => {
@@ -86,7 +86,7 @@ export function useAppData() {
 
   // Set up Firestore real-time listeners for critical data
   useEffect(() => {
-    const user = auth.currentUser;
+    const user = auth?.currentUser;
     if (!user) return;
 
     const unsubSelfCare = onSelfCareSnapshot(user.uid, (selfCare) => {
@@ -360,7 +360,7 @@ export function useAppData() {
 
   const refreshData = useCallback(() => {
     // Try Firestore first, fall back to localStorage
-    const user = auth.currentUser;
+    const user = auth?.currentUser;
     if (user) {
       loadAllData(user.uid).then(firestoreData => {
         if (firestoreData.classes.length > 0 || firestoreData.studios.length > 0) {

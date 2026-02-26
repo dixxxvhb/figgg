@@ -1,5 +1,5 @@
 import { httpsCallable } from 'firebase/functions';
-import { functions } from './firebase';
+import { requireFunctions } from './firebase';
 import type { LiveNote } from '../types';
 import type { AIContextPayload } from './aiContext';
 
@@ -26,7 +26,7 @@ interface GeneratePlanOptions {
 }
 
 export async function generatePlan(options: GeneratePlanOptions): Promise<string> {
-  const fn = httpsCallable<GeneratePlanOptions, { plan: string }>(functions, 'generatePlan');
+  const fn = httpsCallable<GeneratePlanOptions, { plan: string }>(requireFunctions(), 'generatePlan');
   const result = await fn(options);
   return result.data.plan;
 }
@@ -36,7 +36,7 @@ export async function detectReminders(
   notes: LiveNote[],
 ): Promise<Array<{ noteId: string; title: string }>> {
   try {
-    const fn = httpsCallable<{ className: string; notes: LiveNote[] }, { reminders: Array<{ noteId: string; title: string }> }>(functions, 'detectReminders');
+    const fn = httpsCallable<{ className: string; notes: LiveNote[] }, { reminders: Array<{ noteId: string; title: string }> }>(requireFunctions(), 'detectReminders');
     const result = await fn({ className, notes });
     return result.data.reminders || [];
   } catch {
@@ -122,7 +122,7 @@ export async function expandNotes(
   date: string,
   notes: LiveNote[],
 ): Promise<string> {
-  const fn = httpsCallable<{ className: string; date: string; notes: LiveNote[] }, { expanded: string }>(functions, 'expandNotes');
+  const fn = httpsCallable<{ className: string; date: string; notes: LiveNote[] }, { expanded: string }>(requireFunctions(), 'expandNotes');
   const result = await fn({ className, date, notes });
   return result.data.expanded;
 }
@@ -130,7 +130,7 @@ export async function expandNotes(
 export async function callGenerateDayPlan(
   payload: AIContextPayload & { checkInMood?: string; checkInMessage?: string },
 ): Promise<{ items: unknown[]; summary: string }> {
-  const fn = httpsCallable(functions, 'aiChat');
+  const fn = httpsCallable(requireFunctions(), 'aiChat');
   const result = await fn({ ...payload, mode: 'day-plan' });
   return result.data as { items: unknown[]; summary: string };
 }
@@ -172,7 +172,7 @@ export interface AIChatResponse {
 export async function callAIChat(
   request: AIChatRequest,
 ): Promise<AIChatResponse> {
-  const fn = httpsCallable(functions, 'aiChat');
+  const fn = httpsCallable(requireFunctions(), 'aiChat');
   const result = await fn(request);
   return result.data as AIChatResponse;
 }
