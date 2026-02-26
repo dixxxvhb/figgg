@@ -7,7 +7,34 @@ import { runLearningEngine } from '../services/learningEngine';
 import { getWeekStart, formatWeekOf } from '../utils/time';
 import { v4 as uuid } from 'uuid';
 import { auth } from '../services/firebase';
-import { loadAllData, onSelfCareSnapshot, onDayPlanSnapshot, onLaunchPlanSnapshot } from '../services/firestore';
+import {
+  loadAllData,
+  onSelfCareSnapshot,
+  onDayPlanSnapshot,
+  onLaunchPlanSnapshot,
+  saveClass as firestoreSaveClass,
+  deleteClassDoc,
+  saveStudent as firestoreSaveStudent,
+  deleteStudentDoc,
+  saveWeekNotesDoc,
+  saveCompetition as firestoreSaveCompetition,
+  deleteCompetitionDoc,
+  saveCompetitionDance as firestoreSaveCompetitionDance,
+  deleteCompetitionDanceDoc,
+  saveStudio as firestoreSaveStudio,
+  saveCalendarEvent as firestoreSaveCalendarEvent,
+  saveAICheckInDoc,
+  saveChoreography as firestoreSaveChoreography,
+  updateSelfCareDoc,
+  updateDayPlanDoc,
+  updateLaunchPlanDoc,
+  updateProfile,
+} from '../services/firestore';
+
+// Helper: get current user ID or null
+function getUserId(): string | null {
+  return auth.currentUser?.uid ?? null;
+}
 
 export function useAppData() {
   const [data, setData] = useState<AppData>(() => loadData());
@@ -23,8 +50,6 @@ export function useAppData() {
   const launchPlanOnlyRef = useRef(false);
   // Same pattern for day plan updates
   const dayPlanOnlyRef = useRef(false);
-  // Track if Firestore data has been loaded (to avoid overwriting with stale localStorage)
-  const firestoreLoadedRef = useRef(false);
   // Track if snapshot update is happening (to avoid triggering saveData)
   const snapshotUpdateRef = useRef(false);
 
@@ -43,7 +68,6 @@ export function useAppData() {
     loadAllData(user.uid).then(firestoreData => {
       // Only use Firestore data if it has content (migration has been run)
       if (firestoreData.classes.length > 0 || firestoreData.studios.length > 0) {
-        firestoreLoadedRef.current = true;
         setData(firestoreData);
         // Also update localStorage cache for offline use
         try {
@@ -69,7 +93,6 @@ export function useAppData() {
       if (selfCare) {
         snapshotUpdateRef.current = true;
         setData(prev => ({ ...prev, selfCare }));
-        // Defer reset so the useEffect[data] sees the flag
         Promise.resolve().then(() => { snapshotUpdateRef.current = false; });
       }
     });
@@ -148,6 +171,9 @@ export function useAppData() {
         c.id === updatedClass.id ? updatedClass : c
       ),
     }));
+    // Firestore write (fire-and-forget)
+    const uid = getUserId();
+    if (uid) firestoreSaveClass(uid, updatedClass).catch(console.warn);
   }, []);
 
   const addClass = useCallback((newClass: Omit<Class, 'id'>) => {
@@ -156,20 +182,33 @@ export function useAppData() {
       ...prev,
       classes: [...prev.classes, classWithId],
     }));
+    const uid = getUserId();
+    if (uid) firestoreSaveClass(uid, classWithId).catch(console.warn);
     return classWithId;
   }, []);
 
   const deleteClass = useCallback((classId: string) => {
-    setData(prev => ({
-      ...prev,
-      classes: prev.classes.filter(c => c.id !== classId),
-      // Cascade: remove class from all enrolled students' classIds
-      students: (prev.students || []).map(s =>
-        s.classIds?.includes(classId)
-          ? { ...s, classIds: s.classIds.filter(id => id !== classId) }
-          : s
-      ),
-    }));
+    setData(prev => {
+      // Also update students in Firestore (cascade)
+      const uid = getUserId();
+      if (uid) {
+        const affectedStudents = (prev.students || []).filter(s => s.classIds?.includes(classId));
+        for (const s of affectedStudents) {
+          firestoreSaveStudent(uid, { ...s, classIds: s.classIds.filter(id => id !== classId) }).catch(console.warn);
+        }
+      }
+      return {
+        ...prev,
+        classes: prev.classes.filter(c => c.id !== classId),
+        students: (prev.students || []).map(s =>
+          s.classIds?.includes(classId)
+            ? { ...s, classIds: s.classIds.filter(id => id !== classId) }
+            : s
+        ),
+      };
+    });
+    const uid = getUserId();
+    if (uid) deleteClassDoc(uid, classId).catch(console.warn);
   }, []);
 
   const getWeekNotes = useCallback((weekOf: string): WeekNotes | undefined => {
@@ -204,6 +243,10 @@ export function useAppData() {
       }
       return { ...prev, weekNotes: [...prev.weekNotes, weekNotes] };
     });
+
+    // Firestore write
+    const uid = getUserId();
+    if (uid) saveWeekNotesDoc(uid, weekNotes).catch(console.warn);
   }, []);
 
   const updateCompetition = useCallback((competition: Competition) => {
@@ -216,19 +259,34 @@ export function useAppData() {
       }
       return { ...prev, competitions: [...prev.competitions, competition] };
     });
+    const uid = getUserId();
+    if (uid) firestoreSaveCompetition(uid, competition).catch(console.warn);
   }, []);
 
   const deleteCompetition = useCallback((competitionId: string) => {
-    setData(prev => ({
-      ...prev,
-      competitions: prev.competitions.filter(c => c.id !== competitionId),
-      // Cascade: remove orphaned competition dances
-      competitionDances: (prev.competitionDances || []).filter(d => {
-        // Keep dances that belong to OTHER competitions
-        const otherComps = prev.competitions.filter(c => c.id !== competitionId);
-        return otherComps.some(c => c.dances?.includes(d.id));
-      }),
-    }));
+    setData(prev => {
+      // Cascade: delete orphaned dances from Firestore
+      const uid = getUserId();
+      if (uid) {
+        const orphanedDances = (prev.competitionDances || []).filter(d => {
+          const otherComps = prev.competitions.filter(c => c.id !== competitionId);
+          return !otherComps.some(c => c.dances?.includes(d.id));
+        });
+        for (const d of orphanedDances) {
+          deleteCompetitionDanceDoc(uid, d.id).catch(console.warn);
+        }
+      }
+      return {
+        ...prev,
+        competitions: prev.competitions.filter(c => c.id !== competitionId),
+        competitionDances: (prev.competitionDances || []).filter(d => {
+          const otherComps = prev.competitions.filter(c => c.id !== competitionId);
+          return otherComps.some(c => c.dances?.includes(d.id));
+        }),
+      };
+    });
+    const uid = getUserId();
+    if (uid) deleteCompetitionDoc(uid, competitionId).catch(console.warn);
   }, []);
 
   const updateCompetitionDance = useCallback((dance: CompetitionDance) => {
@@ -242,33 +300,62 @@ export function useAppData() {
       }
       return { ...prev, competitionDances: [...dances, dance] };
     });
+    const uid = getUserId();
+    if (uid) firestoreSaveCompetitionDance(uid, dance).catch(console.warn);
   }, []);
 
   const deleteCompetitionDance = useCallback((danceId: string) => {
-    setData(prev => ({
-      ...prev,
-      competitionDances: (prev.competitionDances || []).filter(d => d.id !== danceId),
-      // Cascade: remove dance from competitions and unlink rehearsal classes
-      competitions: prev.competitions.map(c =>
-        c.dances?.includes(danceId)
-          ? { ...c, dances: c.dances.filter(id => id !== danceId) }
-          : c
-      ),
-      classes: prev.classes.map(c =>
-        c.competitionDanceId === danceId
-          ? { ...c, competitionDanceId: undefined }
-          : c
-      ),
-    }));
+    setData(prev => {
+      // Cascade: update competitions and classes in Firestore
+      const uid = getUserId();
+      if (uid) {
+        // Update competitions that reference this dance
+        for (const c of prev.competitions) {
+          if (c.dances?.includes(danceId)) {
+            firestoreSaveCompetition(uid, { ...c, dances: c.dances.filter(id => id !== danceId) }).catch(console.warn);
+          }
+        }
+        // Update classes that link to this dance
+        for (const c of prev.classes) {
+          if (c.competitionDanceId === danceId) {
+            firestoreSaveClass(uid, { ...c, competitionDanceId: undefined }).catch(console.warn);
+          }
+        }
+      }
+      return {
+        ...prev,
+        competitionDances: (prev.competitionDances || []).filter(d => d.id !== danceId),
+        competitions: prev.competitions.map(c =>
+          c.dances?.includes(danceId)
+            ? { ...c, dances: c.dances.filter(id => id !== danceId) }
+            : c
+        ),
+        classes: prev.classes.map(c =>
+          c.competitionDanceId === danceId
+            ? { ...c, competitionDanceId: undefined }
+            : c
+        ),
+      };
+    });
+    const uid = getUserId();
+    if (uid) deleteCompetitionDanceDoc(uid, danceId).catch(console.warn);
   }, []);
 
   const updateStudio = useCallback((studioId: string, updates: Partial<{ address: string; coordinates: { lat: number; lng: number } }>) => {
-    setData(prev => ({
-      ...prev,
-      studios: prev.studios.map(s =>
-        s.id === studioId ? { ...s, ...updates } : s
-      ),
-    }));
+    setData(prev => {
+      const studio = prev.studios.find(s => s.id === studioId);
+      if (studio) {
+        const updated = { ...studio, ...updates };
+        const uid = getUserId();
+        if (uid) firestoreSaveStudio(uid, updated).catch(console.warn);
+      }
+      return {
+        ...prev,
+        studios: prev.studios.map(s =>
+          s.id === studioId ? { ...s, ...updates } : s
+        ),
+      };
+    });
   }, []);
 
   const refreshData = useCallback(() => {
@@ -292,8 +379,6 @@ export function useAppData() {
   // Listen for cloud sync events and local saves from other hook instances
   useEffect(() => {
     const handleCloudSync = () => {
-      // Always reload after cloud sync — syncFromCloud properly merges
-      // local + cloud data, so the merged result is safe to display
       setData(loadData());
     };
 
@@ -303,7 +388,6 @@ export function useAppData() {
       }
     };
 
-    // Calendar sync saves directly to storage — always reload on completion
     const handleCalendarSync = () => {
       setData(loadData());
     };
@@ -331,6 +415,8 @@ export function useAppData() {
       ...prev,
       students: [...(prev.students || []), newStudent],
     }));
+    const uid = getUserId();
+    if (uid) firestoreSaveStudent(uid, newStudent).catch(console.warn);
     return newStudent;
   }, []);
 
@@ -345,53 +431,79 @@ export function useAppData() {
       }
       return { ...prev, students: [...students, student] };
     });
+    const uid = getUserId();
+    if (uid) firestoreSaveStudent(uid, student).catch(console.warn);
   }, []);
 
   const deleteStudent = useCallback((studentId: string) => {
-    setData(prev => ({
-      ...prev,
-      students: (prev.students || []).filter(s => s.id !== studentId),
-      // Cascade: remove student from competition dance rosters
-      competitionDances: (prev.competitionDances || []).map(d =>
-        d.dancerIds?.includes(studentId)
-          ? { ...d, dancerIds: d.dancerIds.filter(id => id !== studentId) }
-          : d
-      ),
-    }));
+    setData(prev => {
+      // Cascade: update competition dances in Firestore
+      const uid = getUserId();
+      if (uid) {
+        for (const d of (prev.competitionDances || [])) {
+          if (d.dancerIds?.includes(studentId)) {
+            firestoreSaveCompetitionDance(uid, { ...d, dancerIds: d.dancerIds.filter(id => id !== studentId) }).catch(console.warn);
+          }
+        }
+      }
+      return {
+        ...prev,
+        students: (prev.students || []).filter(s => s.id !== studentId),
+        competitionDances: (prev.competitionDances || []).map(d =>
+          d.dancerIds?.includes(studentId)
+            ? { ...d, dancerIds: d.dancerIds.filter(id => id !== studentId) }
+            : d
+        ),
+      };
+    });
+    const uid = getUserId();
+    if (uid) deleteStudentDoc(uid, studentId).catch(console.warn);
   }, []);
 
-  // Note: attendance is stored in weekNotes.classNotes[classId].attendance (not the legacy data.attendance array)
-
   // Self-care (meds + reminders) — uses immediate cloud save, not debounced
-  // Medication data is critical and must sync before user locks phone
   const updateSelfCare = useCallback((updates: Partial<SelfCareData>) => {
     // Save to storage with immediate cloud sync (like saveWeekNotes)
-    // saveSelfCareToStorage does a proper partial merge: { ...cloud, ...updates }
     saveSelfCareToStorage(updates);
 
-    // Mark next setData as selfCare-only so the useEffect skips saveData
-    // (saveSelfCareToStorage already handles the cloud push with correct merge)
     selfCareOnlyRef.current = true;
-    // Update React state so UI reflects changes immediately
     setData(prev => ({
       ...prev,
       selfCare: { ...prev.selfCare, ...updates },
     }));
+
+    // Firestore write
+    const uid = getUserId();
+    if (uid) {
+      const now = new Date().toISOString();
+      updateSelfCareDoc(uid, { ...updates, selfCareModified: now }).catch(console.warn);
+    }
   }, []);
 
   // Launch plan — uses immediate cloud save (same pattern as selfCare)
   const updateLaunchPlan = useCallback((updates: Partial<LaunchPlanData>) => {
     saveLaunchPlanToStorage(updates);
     launchPlanOnlyRef.current = true;
+    const now = new Date().toISOString();
     setData(prev => ({
       ...prev,
-      launchPlan: { ...(prev.launchPlan || { tasks: [], decisions: [], contacts: [], planStartDate: '2026-02-12', planEndDate: '2026-06-30', lastModified: '', version: 1 }), ...updates, lastModified: new Date().toISOString() },
+      launchPlan: { ...(prev.launchPlan || { tasks: [], decisions: [], contacts: [], planStartDate: '2026-02-12', planEndDate: '2026-06-30', lastModified: '', version: 1 }), ...updates, lastModified: now },
     }));
+
+    // Firestore write
+    const uid = getUserId();
+    if (uid) updateLaunchPlanDoc(uid, { ...updates, lastModified: now }).catch(console.warn);
   }, []);
 
   // Choreographies
   const updateChoreographies = useCallback((choreographies: Choreography[]) => {
     setData(prev => ({ ...prev, choreographies }));
+    // Firestore write — save each choreography
+    const uid = getUserId();
+    if (uid) {
+      for (const choreo of choreographies) {
+        firestoreSaveChoreography(uid, choreo).catch(console.warn);
+      }
+    }
   }, []);
 
   // AI check-ins — append and prune entries older than 30 days
@@ -404,6 +516,8 @@ export function useAppData() {
       const updated = [...existing, checkIn].filter(c => c.date >= cutoffStr);
       return { ...prev, aiCheckIns: updated };
     });
+    const uid = getUserId();
+    if (uid) saveAICheckInDoc(uid, checkIn).catch(console.warn);
   }, []);
 
   // Day plan — immediate cloud sync (same pattern as selfCare/launchPlan)
@@ -413,6 +527,10 @@ export function useAppData() {
     saveDayPlanToStorage(planWithTimestamp);
     dayPlanOnlyRef.current = true;
     setData(prev => ({ ...prev, dayPlan: planWithTimestamp }));
+
+    // Firestore write
+    const uid = getUserId();
+    if (uid) updateDayPlanDoc(uid, planWithTimestamp).catch(console.warn);
   }, []);
 
   // Calendar event management (for linking dances to calendar events)
@@ -427,6 +545,8 @@ export function useAppData() {
       }
       return { ...prev, calendarEvents: [...events, event] };
     });
+    const uid = getUserId();
+    if (uid) firestoreSaveCalendarEvent(uid, event).catch(console.warn);
   }, []);
 
   return {
