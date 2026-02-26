@@ -6,6 +6,8 @@ import { loadData, saveData, saveWeekNotes as saveWeekNotesToStorage, saveSelfCa
 import { runLearningEngine } from '../services/learningEngine';
 import { getWeekStart, formatWeekOf } from '../utils/time';
 import { v4 as uuid } from 'uuid';
+import { auth } from '../services/firebase';
+import { loadAllData, onSelfCareSnapshot, onDayPlanSnapshot, onLaunchPlanSnapshot } from '../services/firestore';
 
 export function useAppData() {
   const [data, setData] = useState<AppData>(() => loadData());
@@ -21,12 +23,78 @@ export function useAppData() {
   const launchPlanOnlyRef = useRef(false);
   // Same pattern for day plan updates
   const dayPlanOnlyRef = useRef(false);
+  // Track if Firestore data has been loaded (to avoid overwriting with stale localStorage)
+  const firestoreLoadedRef = useRef(false);
+  // Track if snapshot update is happening (to avoid triggering saveData)
+  const snapshotUpdateRef = useRef(false);
 
   // Run learning engine on app open (generates yesterday's snapshot if missing)
   useEffect(() => {
     const updated = runLearningEngine();
     if (updated) setData(loadData());
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Load data from Firestore on mount (overlays localStorage data)
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    loadAllData(user.uid).then(firestoreData => {
+      // Only use Firestore data if it has content (migration has been run)
+      if (firestoreData.classes.length > 0 || firestoreData.studios.length > 0) {
+        firestoreLoadedRef.current = true;
+        setData(firestoreData);
+        // Also update localStorage cache for offline use
+        try {
+          localStorage.setItem('dance-teaching-app-data', JSON.stringify({
+            ...firestoreData,
+            lastModified: new Date().toISOString(),
+          }));
+        } catch {
+          // localStorage write failed — not critical
+        }
+      }
+    }).catch(err => {
+      console.warn('Firestore load failed, using localStorage:', err);
+    });
+  }, []);
+
+  // Set up Firestore real-time listeners for critical data
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const unsubSelfCare = onSelfCareSnapshot(user.uid, (selfCare) => {
+      if (selfCare) {
+        snapshotUpdateRef.current = true;
+        setData(prev => ({ ...prev, selfCare }));
+        // Defer reset so the useEffect[data] sees the flag
+        Promise.resolve().then(() => { snapshotUpdateRef.current = false; });
+      }
+    });
+
+    const unsubDayPlan = onDayPlanSnapshot(user.uid, (dayPlan) => {
+      if (dayPlan) {
+        snapshotUpdateRef.current = true;
+        setData(prev => ({ ...prev, dayPlan }));
+        Promise.resolve().then(() => { snapshotUpdateRef.current = false; });
+      }
+    });
+
+    const unsubLaunchPlan = onLaunchPlanSnapshot(user.uid, (launchPlan) => {
+      if (launchPlan) {
+        snapshotUpdateRef.current = true;
+        setData(prev => ({ ...prev, launchPlan }));
+        Promise.resolve().then(() => { snapshotUpdateRef.current = false; });
+      }
+    });
+
+    return () => {
+      unsubSelfCare();
+      unsubDayPlan();
+      unsubLaunchPlan();
+    };
   }, []);
 
   // Save whenever data changes (skip initial mount to avoid double-save)
@@ -39,6 +107,11 @@ export function useAppData() {
     // Clear any pending save
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Skip save if this update came from a Firestore snapshot listener
+    if (snapshotUpdateRef.current) {
+      return;
     }
 
     // If this change was from updateSelfCare, saveSelfCareToStorage already
@@ -199,7 +272,21 @@ export function useAppData() {
   }, []);
 
   const refreshData = useCallback(() => {
-    setData(loadData());
+    // Try Firestore first, fall back to localStorage
+    const user = auth.currentUser;
+    if (user) {
+      loadAllData(user.uid).then(firestoreData => {
+        if (firestoreData.classes.length > 0 || firestoreData.studios.length > 0) {
+          setData(firestoreData);
+        } else {
+          setData(loadData());
+        }
+      }).catch(() => {
+        setData(loadData());
+      });
+    } else {
+      setData(loadData());
+    }
   }, []);
 
   // Listen for cloud sync events and local saves from other hook instances
