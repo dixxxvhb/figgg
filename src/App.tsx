@@ -9,6 +9,7 @@ import { SaveStatus } from './components/common/SaveStatus';
 import { PageSkeleton } from './components/common/PageSkeleton';
 import { SyncProvider } from './contexts/SyncContext';
 import { AppDataProvider } from './contexts/AppDataContext';
+import { AuthProvider } from './contexts/AuthContext';
 import { loadData } from './services/storage';
 import { applyTheme } from './styles/applyTheme';
 import { restoreMoodLayer } from './styles/moodLayer';
@@ -80,9 +81,10 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <SyncProvider>
-        <BrowserRouter>
-          <AppDataProvider>
+      <AuthProvider>
+        <SyncProvider>
+          <BrowserRouter>
+            <AppDataProvider>
             <div className="min-h-screen bg-[var(--surface-primary)] transition-colors">
               <a href="#main-content" className="skip-link">
                 Skip to main content
@@ -120,9 +122,10 @@ function App() {
               <MobileNav />
               <SaveStatus />
             </div>
-          </AppDataProvider>
-        </BrowserRouter>
-      </SyncProvider>
+            </AppDataProvider>
+          </BrowserRouter>
+        </SyncProvider>
+      </AuthProvider>
     </ErrorBoundary>
   );
 }
