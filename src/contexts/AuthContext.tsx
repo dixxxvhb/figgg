@@ -128,14 +128,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user) {
-    return (
-      <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
-        <LoginScreen />
-      </AuthContext.Provider>
-    );
-  }
-
+  // Always render children — app works in localStorage mode when not signed in.
+  // Firebase Auth login can be added from Settings when ready.
   return (
     <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
       {children}

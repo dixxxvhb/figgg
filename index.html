@@ -17,8 +17,25 @@
     <link rel="manifest" href="/manifest.json" />
     <title>dixxx</title>
   </head>
-  <body>
+  <body style="margin:0;background:#0f1117">
     <div id="root"></div>
+    <div id="boot-error" style="display:none;min-height:100vh;justify-content:center;align-items:center;font-family:system-ui;background:#0f1117;color:#fff;text-align:center;padding:2rem">
+      <div>
+        <h1 style="font-size:2rem;margin:0 0 .5rem">figgg</h1>
+        <p style="color:#888;margin:0 0 1rem" id="boot-error-msg">Something went wrong loading the app.</p>
+        <button onclick="location.reload()" style="padding:.75rem 1.5rem;background:#6c63ff;color:#fff;border:none;border-radius:.75rem;font-size:1rem;cursor:pointer">Reload</button>
+      </div>
+    </div>
+    <script>
+      window.addEventListener('error', function(e) {
+        var el = document.getElementById('boot-error');
+        var msg = document.getElementById('boot-error-msg');
+        if (el && !document.getElementById('root').children.length) {
+          el.style.display = 'flex';
+          if (msg && e.message) msg.textContent = e.message;
+        }
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
