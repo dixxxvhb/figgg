@@ -124,10 +124,9 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
   const [searchParams] = useSearchParams();
   const [showConfetti, setShowConfetti] = useState(false);
   const [activeTab, setActiveTab] = useState<'meds' | 'reminders'>(() => {
-    // URL query param takes priority (e.g. /me?tab=tasks from dashboard widget)
+    // URL query param takes priority (e.g. /me?tab=reminders from dashboard)
     const urlTab = searchParams.get('tab');
-    if (urlTab === 'tasks') return 'reminders';
-    // If initialTab prop is set (e.g. from /tasks route), use it
+    if (urlTab === 'tasks' || urlTab === 'reminders') return 'reminders';
     if (initialTab) return initialTab;
     const target = sessionStorage.getItem('meTabTarget');
     if (target === 'tasks') {

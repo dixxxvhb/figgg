@@ -2,7 +2,6 @@ import { AppData, Class, WeekNotes, Competition, CalendarEvent, AppSettings, Com
 import { studios } from '../data/studios';
 import { initialClasses } from '../data/classes';
 import { terminology } from '../data/terminology';
-import { initialProjects } from '../data/projects';
 import { initialCompetitions } from '../data/competitions';
 import { initialCompetitionDances } from '../data/competitionDances';
 import { students as initialStudents } from '../data/students';
@@ -40,9 +39,7 @@ function getDefaultData(): AppData {
     studios,
     classes: initialClasses,
     weekNotes: [],
-    exercises: [],
     terminology,
-    projects: initialProjects,
     competitions: initialCompetitions,
     competitionDances: initialCompetitionDances,
     calendarEvents: [],

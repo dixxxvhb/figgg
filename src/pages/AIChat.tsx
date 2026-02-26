@@ -20,7 +20,6 @@ export function AIChat() {
     getCurrentWeekNotes,
     updateLaunchPlan,
     updateCompetitionDance,
-    updateDisruption,
   } = useAppData();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -55,9 +54,8 @@ export function AIChat() {
     getCurrentWeekNotes,
     updateLaunchPlan,
     updateCompetitionDance,
-    updateDisruption,
     getMedConfig: () => medConfig,
-  }), [updateSelfCare, saveDayPlan, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance, updateDisruption, medConfig]);
+  }), [updateSelfCare, saveDayPlan, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance, medConfig]);
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || isLoading) return;

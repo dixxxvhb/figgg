@@ -26,7 +26,6 @@ const FormationBuilder = lazy(() => import('./pages/FormationBuilder').then(m =>
 const Students = lazy(() => import('./pages/Students').then(m => ({ default: m.Students })));
 const Library = lazy(() => import('./pages/Library').then(m => ({ default: m.Library })));
 const Me = lazy(() => import('./pages/Me').then(m => ({ default: m.Me })));
-const TasksPage = lazy(() => import('./pages/TasksPage').then(m => ({ default: m.TasksPage })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 const LaunchPlan = lazy(() => import('./pages/LaunchPlan').then(m => ({ default: m.LaunchPlan })));
 const AIChat = lazy(() => import('./pages/AIChat').then(m => ({ default: m.AIChat })));
@@ -109,7 +108,6 @@ function App() {
                         <Route path="/students" element={<Students />} />
                         <Route path="/library" element={<Library />} />
                         <Route path="/me" element={<Me />} />
-                        <Route path="/tasks" element={<TasksPage />} />
                         <Route path="/launch" element={<LaunchPlan />} />
                         <Route path="/ai" element={<AIChat />} />
                         <Route path="/settings" element={<Settings />} />

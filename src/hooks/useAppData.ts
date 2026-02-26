@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { AppData, Class, WeekNotes, Project, Competition, CompetitionDance, Student, CalendarEvent, SelfCareData, LaunchPlanData } from '../types';
+import { AppData, Class, WeekNotes, Competition, CompetitionDance, Student, CalendarEvent, SelfCareData, LaunchPlanData } from '../types';
 import type { AICheckIn, DayPlan } from '../types';
 import type { Choreography } from '../types/choreography';
 import { loadData, saveData, saveWeekNotes as saveWeekNotesToStorage, saveSelfCareToStorage, saveLaunchPlanToStorage, saveDayPlanToStorage } from '../services/storage';
@@ -131,25 +131,6 @@ export function useAppData() {
       }
       return { ...prev, weekNotes: [...prev.weekNotes, weekNotes] };
     });
-  }, []);
-
-  const updateProject = useCallback((project: Project) => {
-    setData(prev => {
-      const index = prev.projects.findIndex(p => p.id === project.id);
-      if (index !== -1) {
-        const updated = [...prev.projects];
-        updated[index] = project;
-        return { ...prev, projects: updated };
-      }
-      return { ...prev, projects: [...prev.projects, project] };
-    });
-  }, []);
-
-  const deleteProject = useCallback((projectId: string) => {
-    setData(prev => ({
-      ...prev,
-      projects: prev.projects.filter(p => p.id !== projectId),
-    }));
   }, []);
 
   const updateCompetition = useCallback((competition: Competition) => {
@@ -347,15 +328,6 @@ export function useAppData() {
     setData(prev => ({ ...prev, dayPlan: planWithTimestamp }));
   }, []);
 
-  // Disruption state — simple last-write-wins (no special cloud sync needed)
-  const updateDisruption = useCallback((disruption: AppData['disruption']) => {
-    setData(prev => {
-      const updated = { ...prev, disruption, lastModified: new Date().toISOString() };
-      saveData(updated);
-      return updated;
-    });
-  }, []);
-
   // Calendar event management (for linking dances to calendar events)
   const updateCalendarEvent = useCallback((event: CalendarEvent) => {
     setData(prev => {
@@ -378,8 +350,6 @@ export function useAppData() {
     getWeekNotes,
     getCurrentWeekNotes,
     saveWeekNotes,
-    updateProject,
-    deleteProject,
     updateCompetition,
     deleteCompetition,
     updateCompetitionDance,
@@ -397,8 +367,6 @@ export function useAppData() {
     updateChoreographies,
     // Launch plan
     updateLaunchPlan,
-    // Disruption
-    updateDisruption,
     // AI
     saveAICheckIn,
     saveDayPlan,

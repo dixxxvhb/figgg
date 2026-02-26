@@ -99,9 +99,12 @@ function getStaggerDelay(index: number, total: number, type: TransitionStyle, da
 
 export function FormationBuilder() {
   const { danceId } = useParams<{ danceId?: string }>();
-  const { data, updateCompetitionDance } = useAppData();
+  const { data, updateCompetitionDance, updateChoreographies } = useAppData();
 
+  // Look up in both competition dances and choreographies
   const dance = danceId ? data.competitionDances?.find(d => d.id === danceId) : null;
+  const choreography = !dance && danceId ? data.choreographies?.find(c => c.id === danceId) : null;
+  const source = dance ? 'dance' as const : choreography ? 'choreography' as const : null;
 
   // Check if first time user
   const [showOnboarding, setShowOnboarding] = useState(() => {
@@ -109,9 +112,10 @@ export function FormationBuilder() {
   });
   const [onboardingStep, setOnboardingStep] = useState(0);
 
-  // Initialize with dancers from the dance or default names
+  // Initialize with dancers from the dance/choreography or default names
   const createInitialDancers = (): DancerPosition[] => {
-    return (dance?.dancers || ['Dancer 1', 'Dancer 2', 'Dancer 3', 'Dancer 4']).map((name, i) => ({
+    const names = dance?.dancers || choreography?.dancers || ['Dancer 1', 'Dancer 2', 'Dancer 3', 'Dancer 4'];
+    return names.map((name, i) => ({
       id: uuid(),
       name: typeof name === 'string' ? name : `Dancer ${i + 1}`,
       x: 20 + (i % 4) * 20,
@@ -122,33 +126,38 @@ export function FormationBuilder() {
 
   // Initialize formations from saved data or create default
   const getInitialFormations = (): Formation[] => {
-    if (dance?.formations && dance.formations.length > 0) {
-      return dance.formations;
+    const savedFormations = dance?.formations || choreography?.formations;
+    if (savedFormations && savedFormations.length > 0) {
+      return savedFormations;
     }
     return [{ id: uuid(), name: 'Opening', count: '1-8', dancers: createInitialDancers() }];
   };
 
   const [formations, setFormations] = useState<Formation[]>(getInitialFormations);
 
-  // Sync formations when dance data changes from cloud
+  // Sync formations when data changes from cloud
   useEffect(() => {
-    if (dance?.formations && dance.formations.length > 0) {
-      setFormations(dance.formations);
+    const savedFormations = dance?.formations || choreography?.formations;
+    if (savedFormations && savedFormations.length > 0) {
+      setFormations(savedFormations);
     }
-  }, [dance?.formations]);
+  }, [dance?.formations, choreography?.formations]);
 
   // Auto-save formations when they change
   useEffect(() => {
-    if (dance && danceId) {
-      const timeoutId = setTimeout(() => {
-        updateCompetitionDance({
-          ...dance,
-          formations: formations,
-        });
-      }, 500); // Debounce by 500ms
-      return () => clearTimeout(timeoutId);
-    }
-  }, [formations, dance, danceId]);
+    if (!danceId) return;
+    const timeoutId = setTimeout(() => {
+      if (source === 'dance' && dance) {
+        updateCompetitionDance({ ...dance, formations });
+      } else if (source === 'choreography' && choreography) {
+        const updatedChoreographies = (data.choreographies || []).map(c =>
+          c.id === choreography.id ? { ...c, formations, updatedAt: new Date().toISOString() } : c
+        );
+        updateChoreographies(updatedChoreographies);
+      }
+    }, 500); // Debounce by 500ms
+    return () => clearTimeout(timeoutId);
+  }, [formations, source, danceId]);
 
   const [currentFormationIndex, setCurrentFormationIndex] = useState(0);
   const [selectedDancer, setSelectedDancer] = useState<string | null>(null);
@@ -639,6 +648,10 @@ export function FormationBuilder() {
               <Link to={`/dance/${dance.id}`} className="p-1 hover:bg-white/10 rounded-lg">
                 <ArrowLeft size={20} />
               </Link>
+            ) : choreography ? (
+              <Link to={`/choreography/${choreography.id}`} className="p-1 hover:bg-white/10 rounded-lg">
+                <ArrowLeft size={20} />
+              </Link>
             ) : (
               <Link to="/" className="p-1 hover:bg-white/10 rounded-lg">
                 <ArrowLeft size={20} />
@@ -647,10 +660,11 @@ export function FormationBuilder() {
             <div>
               <h1 className="font-semibold">Formation Builder</h1>
               {dance && <p className="text-sm text-white/70">{dance.registrationName}</p>}
+              {choreography && <p className="text-sm text-white/70">{choreography.name}</p>}
             </div>
           </div>
           <div className="flex items-center gap-1">
-            {!dance && (
+            {!dance && !choreography && (
               <Link
                 to="/choreography"
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium mr-1"

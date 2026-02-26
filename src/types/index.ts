@@ -102,37 +102,11 @@ export interface WeekReflection {
   aiSummary?: string;    // AI-generated summary of the week
 }
 
-export interface SubAssignment {
-  classId: string;
-  date: string;
-  subName: string;
-}
-
-export interface DisruptionState {
-  active: boolean;
-  type: 'sick' | 'personal' | 'travel' | 'mental_health' | 'other';
-  reason?: string;
-  startDate: string;
-  expectedReturn?: string;
-  classesHandled: boolean;
-  tasksDeferred: boolean;
-  subAssignments?: SubAssignment[];
-}
-
 export interface WeekNotes {
   id: string;
   weekOf: string; // ISO date of Monday
   classNotes: Record<string, ClassWeekNotes>;
   reflection?: WeekReflection;
-}
-
-export interface Exercise {
-  id: string;
-  name: string;
-  category: 'warmup' | 'technique' | 'across' | 'combo' | 'stretch';
-  description: string;
-  level?: 'beginner' | 'intermediate' | 'advanced';
-  tags: string[];
 }
 
 export type TermCategory =
@@ -163,16 +137,6 @@ export interface TerminologyEntry {
   // Legacy fields for backwards compatibility
   incorrect?: string;
   correct?: string;
-}
-
-export interface Project {
-  id: string;
-  name: string;
-  type: 'solo' | 'duet' | 'small-group' | 'large-group';
-  dancers: string[];
-  song?: string;
-  status: 'not-started' | 'in-progress' | 'finished';
-  notes: string;
 }
 
 export interface Competition {
@@ -255,10 +219,10 @@ export interface RehearsalNote {
 
 export interface DancerPosition {
   id: string;
-  name: string;
+  name?: string;
   x: number; // percentage 0-100
   y: number; // percentage 0-100
-  color: string;
+  color?: string;
 }
 
 export type TransitionStyle = 'direct' | 'staggered' | 'wave-lr' | 'wave-rl' | 'cascade';
@@ -266,9 +230,10 @@ export type TransitionStyle = 'direct' | 'staggered' | 'wave-lr' | 'wave-rl' | '
 export interface Formation {
   id: string;
   name: string;
-  count: string; // e.g., "1-8", "9-16"
+  count?: string; // e.g., "1-8", "9-16"
   dancers: DancerPosition[];
   transitionStyle?: TransitionStyle; // How dancers transition TO this formation
+  transitionCounts?: number; // How many counts to transition
 }
 
 export interface CalendarEvent {
@@ -382,44 +347,6 @@ export interface SkillNote {
   text: string;
 }
 
-// ===== ATTENDANCE TRACKING =====
-
-export interface AttendanceRecord {
-  id: string;
-  classId: string;
-  date: string; // ISO date
-  weekOf: string; // ISO date of Monday (links to WeekNotes)
-  present: string[]; // Student IDs who were present
-  absent: string[]; // Student IDs who were absent
-  late: string[]; // Student IDs who arrived late
-  notes?: string; // Any notes about the class that day
-}
-
-// ===== COMPETITION ENHANCEMENTS =====
-
-export interface CostumeItem {
-  id: string;
-  name: string; // "Black leotard", "Hair bow", etc.
-  quantity?: number;
-  notes?: string;
-}
-
-// Competition schedule entry for tracking performance order
-export interface CompetitionScheduleEntry {
-  id: string;
-  competitionId: string;
-  danceId: string;
-  entryNumber: number;
-  performanceDate: string; // ISO date
-  scheduledTime: string; // "10:30 AM"
-  callTime: string; // Calculated (usually 2 hours before)
-  category: DanceCategory;
-  level: DanceLevel;
-  style: DanceStyle;
-  ageGroup: string; // "5-6", "7-8", "9-11", "12-14", "15-16", "17-19"
-  dancers: string[];
-}
-
 // ===== LEARNING ENGINE =====
 
 export interface DailySnapshot {
@@ -515,17 +442,13 @@ export interface AppData {
   studios: Studio[];
   classes: Class[];
   weekNotes: WeekNotes[];
-  exercises: Exercise[];
   terminology: TerminologyEntry[];
-  projects: Project[];
   competitions: Competition[];
   competitionDances: CompetitionDance[];
   calendarEvents: CalendarEvent[];
   settings: AppSettings;
   lastModified?: string; // ISO timestamp for sync conflict resolution
-  // New features based on teacher feedback
   students?: Student[];
-  attendance?: AttendanceRecord[];
   // Personal self-care tracking
   selfCare?: SelfCareData;
   // Choreography system (replaces competitions)
@@ -537,7 +460,6 @@ export interface AppData {
   // Ambient AI
   aiCheckIns?: AICheckIn[];         // rolling 30 days
   dayPlan?: DayPlan;                // today only
-  disruption?: DisruptionState;
 }
 
 // ===== DWDC LAUNCH PLAN =====
@@ -592,13 +514,6 @@ export interface LaunchPlanData {
   planEndDate: string;
   lastModified: string;
   version: number;
-}
-
-export interface UserLocation {
-  lat: number;
-  lng: number;
-  accuracy: number;
-  timestamp: number;
 }
 
 // ===== ADHD TIMELINE TRACKING =====
