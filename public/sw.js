@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dance-notes-v5';
+const CACHE_NAME = 'dance-notes-v6';
 
 // App shell files to precache (NOT index.html — navigation is network-first)
 const PRECACHE_URLS = [
