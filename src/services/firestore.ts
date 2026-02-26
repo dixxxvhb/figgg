@@ -29,6 +29,7 @@ import type {
   AppSettings,
 } from '../types';
 import type { Choreography } from '../types/choreography';
+import { migrateMediaItems, migrateMusicTrack, migrateStudentPhoto, isBase64DataUrl } from './firebaseStorage';
 
 // ============================================================
 // Helper: get user's root reference
@@ -86,7 +87,13 @@ export async function getStudents(userId: string): Promise<Student[]> {
 }
 
 export async function saveStudent(userId: string, student: Student): Promise<void> {
-  await setDoc(userDoc(userId, 'students', student.id), student);
+  let processedStudent = student;
+  // Migrate base64 photo to Firebase Storage
+  if (student.photo && isBase64DataUrl(student.photo)) {
+    const url = await migrateStudentPhoto(userId, student.photo, student.id);
+    processedStudent = { ...student, photo: url };
+  }
+  await setDoc(userDoc(userId, 'students', processedStudent.id), processedStudent);
 }
 
 export async function deleteStudentDoc(userId: string, studentId: string): Promise<void> {
@@ -104,7 +111,28 @@ export async function getWeekNotesList(userId: string): Promise<WeekNotes[]> {
 export async function saveWeekNotesDoc(userId: string, weekNotes: WeekNotes): Promise<void> {
   // Use weekOf as the document ID for natural lookup
   const docId = weekNotes.weekOf;
-  await setDoc(userDoc(userId, 'weekNotes', docId), weekNotes);
+
+  // Migrate base64 media in classNotes to Firebase Storage
+  let processedNotes = weekNotes;
+  const classNotesEntries = Object.entries(weekNotes.classNotes || {});
+  const hasBase64Media = classNotesEntries.some(
+    ([, cn]) => cn.media?.some(m => isBase64DataUrl(m.url))
+  );
+
+  if (hasBase64Media) {
+    const migratedClassNotes: typeof weekNotes.classNotes = {};
+    for (const [classId, cn] of classNotesEntries) {
+      if (cn.media?.some(m => isBase64DataUrl(m.url))) {
+        const migratedMedia = await migrateMediaItems(userId, cn.media, `weekNotes/${docId}/${classId}`);
+        migratedClassNotes[classId] = { ...cn, media: migratedMedia };
+      } else {
+        migratedClassNotes[classId] = cn;
+      }
+    }
+    processedNotes = { ...weekNotes, classNotes: migratedClassNotes };
+  }
+
+  await setDoc(userDoc(userId, 'weekNotes', docId), processedNotes);
 }
 
 // ============================================================
@@ -144,7 +172,35 @@ export async function getCompetitionDances(userId: string): Promise<CompetitionD
 }
 
 export async function saveCompetitionDance(userId: string, dance: CompetitionDance): Promise<void> {
-  await setDoc(userDoc(userId, 'competitionDances', dance.id), dance);
+  let processedDance = dance;
+
+  // Migrate base64 media to Firebase Storage
+  if (dance.media?.some(m => isBase64DataUrl(m.url))) {
+    const migratedMedia = await migrateMediaItems(userId, dance.media, `dances/${dance.id}`);
+    processedDance = { ...processedDance, media: migratedMedia };
+  }
+
+  // Migrate rehearsal note media
+  if (dance.rehearsalNotes?.some(rn => rn.media?.some(m => isBase64DataUrl(m.url)))) {
+    const migratedNotes = await Promise.all(
+      dance.rehearsalNotes.map(async (rn) => {
+        if (rn.media?.some(m => isBase64DataUrl(m.url))) {
+          const migratedMedia = await migrateMediaItems(userId, rn.media, `dances/${dance.id}/rehearsals/${rn.id}`);
+          return { ...rn, media: migratedMedia };
+        }
+        return rn;
+      })
+    );
+    processedDance = { ...processedDance, rehearsalNotes: migratedNotes };
+  }
+
+  // Migrate music track
+  if (dance.musicTrack?.url && isBase64DataUrl(dance.musicTrack.url)) {
+    const url = await migrateMusicTrack(userId, dance.musicTrack.url, dance.id, dance.musicTrack.name);
+    processedDance = { ...processedDance, musicTrack: { ...dance.musicTrack, url } };
+  }
+
+  await setDoc(userDoc(userId, 'competitionDances', processedDance.id), processedDance);
 }
 
 export async function deleteCompetitionDanceDoc(userId: string, danceId: string): Promise<void> {

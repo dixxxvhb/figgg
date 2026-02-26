@@ -1,5 +1,7 @@
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { storage } from './firebase';
+import { v4 as uuid } from 'uuid';
+import type { MediaItem } from '../types';
 
 /**
  * Upload a media file to Firebase Storage.
@@ -53,6 +55,78 @@ export async function getMediaUrl(userId: string, path: string): Promise<string>
  */
 export function isBase64DataUrl(url: string): boolean {
   return url.startsWith('data:');
+}
+
+/**
+ * Process a MediaItem array: upload any base64 items to Firebase Storage,
+ * replace their URLs with download URLs. Already-uploaded items are passed through.
+ * Returns a new array with all URLs pointing to Firebase Storage.
+ */
+export async function migrateMediaItems(
+  userId: string,
+  items: MediaItem[],
+  pathPrefix: string
+): Promise<MediaItem[]> {
+  return Promise.all(
+    items.map(async (item) => {
+      if (!isBase64DataUrl(item.url)) {
+        return item; // Already a Firebase Storage URL
+      }
+      try {
+        const ext = item.url.startsWith('data:image/png') ? 'png' : 'jpg';
+        const storagePath = `media/${pathPrefix}/${item.id || uuid()}.${ext}`;
+        const downloadUrl = await uploadMedia(userId, item.url, storagePath);
+        return { ...item, url: downloadUrl };
+      } catch (err) {
+        console.warn('Failed to migrate media item:', item.id, err);
+        return item; // Keep base64 as fallback
+      }
+    })
+  );
+}
+
+/**
+ * Upload a music track (base64 audio) to Firebase Storage.
+ * Returns the download URL, or the original URL if already uploaded.
+ */
+export async function migrateMusicTrack(
+  userId: string,
+  url: string,
+  danceId: string,
+  filename: string
+): Promise<string> {
+  if (!isBase64DataUrl(url)) {
+    return url; // Already a Firebase Storage URL
+  }
+  try {
+    const storagePath = `music/${danceId}/${filename}`;
+    return await uploadMedia(userId, url, storagePath);
+  } catch (err) {
+    console.warn('Failed to migrate music track:', danceId, err);
+    return url; // Keep base64 as fallback
+  }
+}
+
+/**
+ * Upload a student photo (base64) to Firebase Storage.
+ * Returns the download URL, or the original URL if already uploaded.
+ */
+export async function migrateStudentPhoto(
+  userId: string,
+  photo: string,
+  studentId: string
+): Promise<string> {
+  if (!isBase64DataUrl(photo)) {
+    return photo; // Already a Firebase Storage URL
+  }
+  try {
+    const ext = photo.startsWith('data:image/png') ? 'png' : 'jpg';
+    const storagePath = `media/students/${studentId}.${ext}`;
+    return await uploadMedia(userId, photo, storagePath);
+  } catch (err) {
+    console.warn('Failed to migrate student photo:', studentId, err);
+    return photo; // Keep base64 as fallback
+  }
 }
 
 /**
