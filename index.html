@@ -27,14 +27,23 @@
       </div>
     </div>
     <script>
-      window.addEventListener('error', function(e) {
+      function showBootError(text) {
         var el = document.getElementById('boot-error');
         var msg = document.getElementById('boot-error-msg');
         if (el && !document.getElementById('root').children.length) {
           el.style.display = 'flex';
-          if (msg && e.message) msg.textContent = e.message;
+          if (msg && text) msg.textContent = text;
         }
+      }
+      window.addEventListener('error', function(e) { showBootError(e.message); });
+      window.addEventListener('unhandledrejection', function(e) {
+        showBootError(e.reason?.message || e.reason || 'Unhandled promise rejection');
       });
+      setTimeout(function() {
+        if (!document.getElementById('root').children.length) {
+          showBootError('App failed to load within 10 seconds. Try clearing site data or opening in an incognito window.');
+        }
+      }, 10000);
     </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
