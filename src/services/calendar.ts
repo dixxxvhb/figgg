@@ -1,3 +1,5 @@
+import { httpsCallable } from 'firebase/functions';
+import { functions } from './firebase';
 import { CalendarEvent } from '../types';
 
 // Generate a stable ID based on event content so IDs persist across syncs
@@ -19,25 +21,12 @@ const RECURRENCE_WINDOW_DAYS = 90;
 // How far back to keep events (7 days)
 const PAST_EVENT_WINDOW_DAYS = 7;
 
-// Parse ICS (iCalendar) format
+// Parse ICS (iCalendar) format — uses Firebase callable calendarProxy
 export async function fetchCalendarEvents(icsUrl: string): Promise<CalendarEvent[]> {
   try {
-    // Use our own Netlify Function as a CORS proxy instead of third-party services
-    const token = localStorage.getItem('dance-teaching-app-token') || '';
-    const proxyUrl = `/.netlify/functions/calendarProxy?url=${encodeURIComponent(icsUrl)}`;
-
-    const response = await fetch(proxyUrl, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Calendar proxy returned ${response.status}`);
-    }
-
-    const icsText = await response.text();
-    return parseICS(icsText);
+    const fn = httpsCallable<{ url: string }, { icsText: string }>(functions, 'calendarProxy');
+    const result = await fn({ url: icsUrl });
+    return parseICS(result.data.icsText);
   } catch (error) {
     console.error('Failed to fetch calendar:', error);
     return [];

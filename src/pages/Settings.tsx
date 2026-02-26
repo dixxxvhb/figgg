@@ -8,7 +8,9 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useAppData } from '../contexts/AppDataContext';
-import { exportData, importData, updateCalendarEvents, updateSettings, syncFromCloud, pushToCloud } from '../services/storage';
+import { exportData, importData, updateCalendarEvents, updateSettings, syncFromCloud, pushToCloud, loadData } from '../services/storage';
+import { useAuth } from '../contexts/AuthContext';
+import { migrateDataToFirestore } from '../services/firestore';
 import { DEFAULT_MED_CONFIG, DEFAULT_WELLNESS_ITEMS, DEFAULT_AI_CONFIG } from '../types';
 import type { MedConfig, WellnessItemConfig, AIConfig } from '../types';
 import { fetchCalendarEvents } from '../services/calendar';
@@ -39,6 +41,9 @@ export function Settings() {
   const [syncSuccess, setSyncSuccess] = useState(false);
   const [cloudSyncing, setCloudSyncing] = useState(false);
   const [cloudStatus, setCloudStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [migrating, setMigrating] = useState(false);
+  const [migrateStatus, setMigrateStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const { user } = useAuth();
   const [fontSize, setFontSize] = useState(data.settings?.fontSize || 'normal');
   const [darkMode, setDarkMode] = useState(data.settings?.darkMode || false);
   const [themeId, setThemeId] = useState(data.settings?.themeId || 'forest');
@@ -848,6 +853,52 @@ export function Settings() {
           </div>
         </Card>
       </section>
+
+      {/* Firebase Migration */}
+      {user && (
+        <section className="mt-4">
+          <h2 className="type-h3 mb-1.5 px-1">Firebase Migration</h2>
+          <Card variant="standard" padding="sm">
+            <p className="text-xs text-[var(--text-secondary)] mb-2">
+              Migrate all data from localStorage/Netlify to Firebase Firestore. This is a one-time operation.
+            </p>
+            <button
+              onClick={async () => {
+                if (migrating) return;
+                setMigrating(true);
+                setMigrateStatus('idle');
+                try {
+                  const allData = loadData();
+                  await migrateDataToFirestore(allData, user.uid);
+                  setMigrateStatus('success');
+                } catch (err) {
+                  console.error('Migration failed:', err);
+                  setMigrateStatus('error');
+                } finally {
+                  setMigrating(false);
+                }
+              }}
+              disabled={migrating}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--accent-primary)] text-white rounded-[var(--radius-sm)] text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+            >
+              {migrating ? (
+                <><RefreshCw size={14} className="animate-spin" /> Migrating...</>
+              ) : migrateStatus === 'success' ? (
+                <><Check size={14} /> Migration Complete</>
+              ) : migrateStatus === 'error' ? (
+                <><AlertCircle size={14} /> Migration Failed — Retry</>
+              ) : (
+                <><Cloud size={14} /> Migrate to Firebase</>
+              )}
+            </button>
+            {migrateStatus === 'success' && (
+              <p className="text-xs text-[var(--status-success)] mt-1.5 text-center">
+                All data migrated to Firestore. Check Firebase Console to verify.
+              </p>
+            )}
+          </Card>
+        </section>
+      )}
 
       {/* App Version */}
       <div className="mt-4 text-center mb-8">
