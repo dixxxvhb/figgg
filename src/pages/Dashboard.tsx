@@ -33,7 +33,6 @@ import { ScratchpadWidget } from '../components/Dashboard/ScratchpadWidget';
 import { LaunchPlanWidget } from '../components/Dashboard/LaunchPlanWidget';
 import { EventCountdown } from '../components/Dashboard/EventCountdown';
 import { StreakCard } from '../components/Dashboard/StreakCard';
-import { WeeklyInsight } from '../components/Dashboard/WeeklyInsight';
 import { WeekMomentumBar } from '../components/Dashboard/WeekMomentumBar';
 import { SortableWidget } from '../components/Dashboard/SortableWidget';
 import { NudgeCards } from '../components/Dashboard/NudgeCards';
@@ -89,7 +88,6 @@ const DEFAULT_WIDGET_ORDER = [
   'week-momentum',
   'week-stats',
   'streak',
-  'weekly-insight',
   'launch-plan',
   'scratchpad',
 ] as const;
@@ -100,15 +98,14 @@ const WIDGET_LABELS: Record<string, string> = {
   'todays-agenda': "Today's Schedule",
   'reminders': 'Tasks',
   'week-momentum': 'Week Momentum',
-  'week-stats': 'Week Stats',
+  'week-stats': 'This Week',
   'streak': 'Streak',
-  'weekly-insight': 'Weekly Insight',
   'launch-plan': 'Launch Plan',
   'scratchpad': 'Scratchpad',
 };
 
 export function Dashboard() {
-  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, refreshData, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes, updateDisruption } = useAppData();
+  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, refreshData, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes } = useAppData();
   const stats = useTeachingStats(data);
   const medConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
   const selfCareStatus = useSelfCareStatus(data.selfCare, medConfig);
@@ -137,14 +134,9 @@ export function Dashboard() {
     if (checkInStatus.isDue && checkInStatus.type && !checkInActive) {
       setCheckInActive(true);
       setFrozenCheckInType(checkInStatus.type);
-      // Softer greeting during disruption
-      if (data.disruption?.active) {
-        setFrozenGreeting('How are you holding up?');
-      } else {
-        setFrozenGreeting(checkInStatus.greeting);
-      }
+      setFrozenGreeting(checkInStatus.greeting);
     }
-  }, [checkInStatus.isDue, checkInStatus.type, checkInActive, data.disruption?.active]);
+  }, [checkInStatus.isDue, checkInStatus.type, checkInActive]);
 
   const [isReplanning, setIsReplanning] = useState(false);
   // Ref for data so generateDayPlan doesn't re-create on every data change
@@ -235,9 +227,8 @@ export function Dashboard() {
     getCurrentWeekNotes,
     updateLaunchPlan,
     updateCompetitionDance,
-    updateDisruption,
     getMedConfig: () => medConfig,
-  }), [updateSelfCare, saveDayPlan, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance, updateDisruption, medConfig]);
+  }), [updateSelfCare, saveDayPlan, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance, medConfig]);
 
   const executeAIActions = useCallback((actions: AIAction[]) => {
     executeSharedAIActions(actions, actionCallbacks);
@@ -619,12 +610,6 @@ export function Dashboard() {
   const { greeting, greetingSub } = useMemo(() => {
     const base = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-    // Disruption-aware: show "Day N away" as subtitle
-    if (data.disruption?.active) {
-      const dayNum = Math.ceil((new Date().getTime() - new Date(data.disruption.startDate + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24));
-      return { greeting: base, greetingSub: `Day ${dayNum} away` };
-    }
-
     const allClassesDone = todayClasses.length > 0 && !classInfo.class && !recentlyEndedClass &&
       todayClasses.every(c => timeToMinutes(c.endTime) < currentMinute);
     const isLateNight = hour >= 22;
@@ -652,7 +637,7 @@ export function Dashboard() {
     if (todayMood && moodSubs[todayMood]) return { greeting: base, greetingSub: moodSubs[todayMood] };
     if (todayClasses.length === 0 && todayCalendarEvents.length === 0) return { greeting: base, greetingSub: 'No classes today' };
     return { greeting: base, greetingSub: undefined as string | undefined };
-  }, [hour, todayClasses, todayCalendarEvents, classInfo, selfCareStatus, currentMinute, recentlyEndedClass, data.selfCare?.skippedDoseDate, todayStr2, todayMood, data.disruption]);
+  }, [hour, todayClasses, todayCalendarEvents, classInfo, selfCareStatus, currentMinute, recentlyEndedClass, data.selfCare?.skippedDoseDate, todayStr2, todayMood]);
 
   return (
     <div className="pb-24 bg-[var(--mood-surface-tint)] min-h-screen">
@@ -950,7 +935,6 @@ export function Dashboard() {
                       done: todayPlan.items.filter(i => i.completed).length,
                       total: todayPlan.items.length,
                     } : null}
-                    isDisrupted={!!data.disruption?.active}
                     data={data}
                   />
                 )}
@@ -978,13 +962,10 @@ export function Dashboard() {
                   <WeekMomentumBar stats={stats} />
                 )}
                 {id === 'week-stats' && (
-                  <WeekStats stats={stats} />
+                  <WeekStats stats={stats} classes={data.classes} competitions={data.competitions} weekNotes={data.weekNotes} />
                 )}
                 {id === 'streak' && (
                   <StreakCard selfCare={data.selfCare} learningData={data.learningData} notesThisWeek={stats.classesThisWeek.completed} totalClassesThisWeek={stats.classesThisWeek.total} />
-                )}
-                {id === 'weekly-insight' && (
-                  <WeeklyInsight stats={stats} classes={data.classes} competitions={data.competitions} weekNotes={data.weekNotes} />
                 )}
                 {id === 'launch-plan' && (
                   <LaunchPlanWidget launchPlan={data.launchPlan} />

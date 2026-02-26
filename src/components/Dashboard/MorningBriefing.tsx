@@ -34,7 +34,6 @@ interface MorningBriefingProps {
   onLogDose?: () => void;
   canLogDose?: boolean;
   dayPlanProgress?: { done: number; total: number } | null;
-  isDisrupted?: boolean;
   data: AppData;
 }
 
@@ -49,7 +48,6 @@ export function MorningBriefing({
   onLogDose,
   canLogDose,
   dayPlanProgress,
-  isDisrupted,
   data,
 }: MorningBriefingProps) {
   const [justLogged, setJustLogged] = useState(false);
@@ -155,14 +153,14 @@ export function MorningBriefing({
     if (overdueCount > 0) {
       items.push({
         text: `${overdueCount} overdue`,
-        color: isDisrupted ? 'text-[var(--text-tertiary)]' : 'text-red-600 dark:text-red-400',
-        bg: isDisrupted ? 'bg-[var(--surface-inset)]' : 'bg-red-50 dark:bg-red-900/20',
-        to: '/tasks',
+        color: 'text-red-600 dark:text-red-400',
+        bg: 'bg-red-50 dark:bg-red-900/20',
+        to: '/me?tab=reminders',
       });
     }
     const todayDueCount = reminders.filter(r => !r.completed && r.dueDate === todayStr).length;
     if (todayDueCount > 0) {
-      items.push({ text: `${todayDueCount} due today`, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20', to: '/tasks' });
+      items.push({ text: `${todayDueCount} due today`, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20', to: '/me?tab=reminders' });
     }
     if (selfCareStatus.dose2Window) {
       const w = selfCareStatus.dose2Window;
@@ -177,7 +175,7 @@ export function MorningBriefing({
       else if (w.approaching) items.push({ text: 'D3 window soon', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/20', to: '/me' });
     }
     return items;
-  }, [reminders, todayStr, selfCareStatus.dose2Window, selfCareStatus.dose3Window, isDisrupted]);
+  }, [reminders, todayStr, selfCareStatus.dose2Window, selfCareStatus.dose3Window]);
 
   return (
     <div className="bg-[var(--surface-card)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden">

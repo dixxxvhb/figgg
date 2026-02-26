@@ -6,7 +6,6 @@ import type {
   AppData,
   SelfCareData,
   LaunchPlanData,
-  DisruptionState,
   DayOfWeek,
   DayPlan,
   DayPlanItem,
@@ -29,7 +28,6 @@ export interface ActionCallbacks {
   getCurrentWeekNotes: () => WeekNotes;
   updateLaunchPlan: (updates: Partial<LaunchPlanData>) => void;
   updateCompetitionDance: (dance: CompetitionDance) => void;
-  updateDisruption: (disruption: DisruptionState | undefined) => void;
   getMedConfig: () => { medType: string; maxDoses: number };
 }
 
@@ -375,25 +373,6 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
         break;
       }
 
-      // ── Disruption Actions ──────────────────────────────────────────────
-      case 'startDisruption': {
-        if (!action.disruptionType) break;
-        const disruption: DisruptionState = {
-          active: true,
-          type: action.disruptionType,
-          reason: action.reason,
-          startDate: todayKey,
-          expectedReturn: action.expectedReturn,
-          classesHandled: false,
-          tasksDeferred: false,
-        };
-        callbacks.updateDisruption(disruption);
-        break;
-      }
-      case 'endDisruption': {
-        callbacks.updateDisruption(undefined);
-        break;
-      }
       case 'markClassExceptionRange': {
         if (!action.startDate || !action.endDate || !action.exceptionType) break;
         const days: string[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -421,9 +400,6 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           callbacks.saveWeekNotes(weekNote);
           current = addDays(current, 1);
         }
-        if (callbacks.getData().disruption?.active) {
-          callbacks.updateDisruption({ ...callbacks.getData().disruption!, classesHandled: true });
-        }
         break;
       }
       case 'batchRescheduleTasks': {
@@ -444,23 +420,6 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
         });
         selfCareUpdates.reminders = updated;
         needsSelfCareUpdate = true;
-        if (callbacks.getData().disruption?.active) {
-          callbacks.updateDisruption({ ...callbacks.getData().disruption!, tasksDeferred: true });
-        }
-        break;
-      }
-      case 'assignSub': {
-        if (!action.classIds || !action.dates || !action.subName) break;
-        const currentDisruption = callbacks.getData().disruption;
-        if (currentDisruption?.active) {
-          const newAssignments = action.classIds.flatMap(classId =>
-            (action.dates || []).map(date => ({ classId, date, subName: action.subName! }))
-          );
-          callbacks.updateDisruption({
-            ...currentDisruption,
-            subAssignments: [...(currentDisruption.subAssignments || []), ...newAssignments],
-          });
-        }
         break;
       }
       case 'clearWeekPlan': {

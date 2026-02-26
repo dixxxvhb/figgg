@@ -113,9 +113,6 @@ export interface AIAction {
     | 'addLaunchNote'       // add a note to a DWDC launch task
     // Rehearsal note actions
     | 'addRehearsalNote'    // add a rehearsal note to a competition dance
-    // Disruption actions
-    | 'startDisruption'
-    | 'endDisruption'
     // Multi-day operations
     | 'markClassExceptionRange'
     | 'batchRescheduleTasks'
@@ -164,8 +161,7 @@ export interface AIAction {
   danceId?: string;
   notes?: string;
   workOn?: string[];
-  // Disruption fields
-  disruptionType?: 'sick' | 'personal' | 'travel' | 'mental_health' | 'other';
+  // Multi-day fields
   startDate?: string;
   endDate?: string;
   expectedReturn?: string;
@@ -227,7 +223,6 @@ export interface AIChatRequest {
   messages?: Array<{ role: 'user' | 'assistant'; content: string }>;
   userMessage: string;
   context: AIContextPayload & {
-    disruption?: import('../types').DisruptionState;
     classPrep?: {
       classId: string;
       className: string;

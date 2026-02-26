@@ -3,7 +3,7 @@ import type { AppData } from '../types';
 
 export interface Nudge {
   id: string;
-  type: 'overdue' | 'meds' | 'competition' | 'disruption' | 'launch' | 'wellness' | 'sub';
+  type: 'overdue' | 'meds' | 'competition' | 'launch' | 'wellness' | 'sub';
   priority: 'high' | 'medium' | 'low';
   text: string;
   actionLabel?: string;
@@ -74,21 +74,19 @@ export function useNudges(data: AppData): Nudge[] {
       });
     }
 
-    // Rule 2: No meds logged in 2+ days (skip if in disruption)
-    if (!data.disruption?.active) {
-      const lastDoseDate = sc?.dose1Date;
-      if (lastDoseDate) {
-        const daysSince = Math.ceil((now.getTime() - new Date(lastDoseDate + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24));
-        if (daysSince >= 2 && isActive('meds-gap')) {
-          nudges.push({
-            id: 'meds-gap',
-            type: 'meds',
-            priority: 'high',
-            text: `No meds logged in ${daysSince} days.`,
-            dismissable: true,
-            snoozeable: true,
-          });
-        }
+    // Rule 2: No meds logged in 2+ days
+    const lastDoseDate = sc?.dose1Date;
+    if (lastDoseDate) {
+      const daysSince = Math.ceil((now.getTime() - new Date(lastDoseDate + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24));
+      if (daysSince >= 2 && isActive('meds-gap')) {
+        nudges.push({
+          id: 'meds-gap',
+          type: 'meds',
+          priority: 'high',
+          text: `No meds logged in ${daysSince} days.`,
+          dismissable: true,
+          snoozeable: true,
+        });
       }
     }
 
@@ -118,24 +116,7 @@ export function useNudges(data: AppData): Nudge[] {
       }
     }
 
-    // Rule 4: Disruption active > 5 days
-    if (data.disruption?.active && data.disruption.startDate) {
-      const dayNum = Math.ceil((now.getTime() - new Date(data.disruption.startDate + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24));
-      if (dayNum > 5 && isActive('disruption-long')) {
-        nudges.push({
-          id: 'disruption-long',
-          type: 'disruption',
-          priority: 'medium',
-          text: `Day ${dayNum} away. Ready to start planning your return?`,
-          actionLabel: 'Plan return',
-          aiPreload: "I'm ready to start coming back. Help me plan my return.",
-          dismissable: true,
-          snoozeable: true,
-        });
-      }
-    }
-
-    // Rule 5: No launch tasks completed in 7+ days
+    // Rule 4: No launch tasks completed in 7+ days
     const launchTasks = data.launchPlan?.tasks || [];
     const activeLaunch = launchTasks.filter(t => !t.completed && !t.skipped);
     if (activeLaunch.length > 0) {

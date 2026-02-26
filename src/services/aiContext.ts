@@ -242,7 +242,6 @@ export function buildFullAIContext(
   data: AppData,
   userMessage: string,
 ): AIContextPayload & {
-  disruption?: import('../types').DisruptionState;
   allActiveReminders?: Array<{ id: string; title: string; dueDate?: string; flagged: boolean; completed: boolean }>;
   upcomingCompetitions?: Array<{ name: string; date: string; daysAway: number }>;
   date: string;
@@ -278,7 +277,6 @@ export function buildFullAIContext(
   return {
     ...base,
     date: todayStr,
-    disruption: data.disruption,
     allActiveReminders: reminders,
     upcomingCompetitions,
   };

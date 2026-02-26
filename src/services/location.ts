@@ -1,34 +1,6 @@
-import { UserLocation, Studio } from '../types';
+import { Studio } from '../types';
 
-export function getCurrentLocation(): Promise<UserLocation> {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error('Geolocation is not supported'));
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-          timestamp: position.timestamp,
-        });
-      },
-      (error) => {
-        reject(error);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000, // Cache for 1 minute
-      }
-    );
-  });
-}
-
-export function calculateDistance(
+function calculateDistance(
   lat1: number,
   lng1: number,
   lat2: number,
@@ -50,49 +22,6 @@ export function calculateDistance(
 
 function toRad(deg: number): number {
   return deg * (Math.PI / 180);
-}
-
-export function isNearStudio(
-  userLocation: UserLocation,
-  studio: Studio,
-  thresholdMeters: number = 200
-): boolean {
-  if (!studio.coordinates.lat || !studio.coordinates.lng) {
-    return false;
-  }
-
-  const distance = calculateDistance(
-    userLocation.lat,
-    userLocation.lng,
-    studio.coordinates.lat,
-    studio.coordinates.lng
-  );
-
-  return distance <= thresholdMeters;
-}
-
-export function findNearestStudio(
-  userLocation: UserLocation,
-  studios: Studio[]
-): { studio: Studio; distance: number } | null {
-  let nearest: { studio: Studio; distance: number } | null = null;
-
-  for (const studio of studios) {
-    if (!studio.coordinates.lat || !studio.coordinates.lng) continue;
-
-    const distance = calculateDistance(
-      userLocation.lat,
-      userLocation.lng,
-      studio.coordinates.lat,
-      studio.coordinates.lng
-    );
-
-    if (!nearest || distance < nearest.distance) {
-      nearest = { studio, distance };
-    }
-  }
-
-  return nearest;
 }
 
 // Estimate driving time between two studios
