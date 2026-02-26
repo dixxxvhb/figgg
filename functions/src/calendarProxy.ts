@@ -1,5 +1,5 @@
-import { onRequest } from "firebase-functions/v2/https";
-import * as admin from "firebase-admin";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { requireAuth } from "./utils/auth";
 
 // Blocked hostname patterns to prevent SSRF
 const BLOCKED_HOSTS = [
@@ -10,29 +10,14 @@ const BLOCKED_HOSTS = [
   "169.254.", "[::1]", "metadata.google", "metadata.aws",
 ];
 
-export const calendarProxy = onRequest(
-  { timeoutSeconds: 30, memory: "256MiB", cors: true },
-  async (req, res) => {
-    // Verify Firebase Auth token from Authorization header
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith("Bearer ")) {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
-    }
+export const calendarProxy = onCall(
+  { timeoutSeconds: 30, memory: "256MiB" },
+  async (request) => {
+    requireAuth(request);
 
-    const idToken = authHeader.replace("Bearer ", "");
-    try {
-      await admin.auth().verifyIdToken(idToken);
-    } catch {
-      res.status(401).json({ error: "Invalid token" });
-      return;
-    }
-
-    // Get the calendar URL from query params
-    const calendarUrl = req.query.url as string;
+    const { url: calendarUrl } = request.data as { url: string };
     if (!calendarUrl) {
-      res.status(400).json({ error: "Missing url parameter" });
-      return;
+      throw new HttpsError("invalid-argument", "Missing url parameter");
     }
 
     try {
@@ -44,21 +29,18 @@ export const calendarProxy = onRequest(
       try {
         parsedUrl = new URL(normalizedUrl);
       } catch {
-        res.status(400).json({ error: "Invalid URL" });
-        return;
+        throw new HttpsError("invalid-argument", "Invalid URL");
       }
 
       // Only allow HTTPS
       if (parsedUrl.protocol !== "https:") {
-        res.status(400).json({ error: "Only HTTPS URLs are allowed" });
-        return;
+        throw new HttpsError("invalid-argument", "Only HTTPS URLs are allowed");
       }
 
       // Block private/internal network addresses
       const hostname = parsedUrl.hostname.toLowerCase();
       if (BLOCKED_HOSTS.some(p => hostname.startsWith(p) || hostname === p)) {
-        res.status(403).json({ error: "URL not allowed" });
-        return;
+        throw new HttpsError("permission-denied", "URL not allowed");
       }
 
       const response = await fetch(normalizedUrl, {
@@ -72,13 +54,11 @@ export const calendarProxy = onRequest(
       }
 
       const icsText = await response.text();
-
-      res.set("Content-Type", "text/calendar");
-      res.set("Cache-Control", "private, no-cache");
-      res.status(200).send(icsText);
+      return { icsText };
     } catch (error) {
+      if (error instanceof HttpsError) throw error;
       console.error("Calendar proxy error:", error);
-      res.status(502).json({ error: "Failed to fetch calendar" });
+      throw new HttpsError("unavailable", "Failed to fetch calendar");
     }
   }
 );

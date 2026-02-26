@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { loadData, updateCalendarEvents } from '../services/storage';
 import { fetchCalendarEvents } from '../services/calendar';
-import { initAuthToken } from '../services/cloudStorage';
 
 type SyncStatus = 'idle' | 'syncing' | 'success' | 'error' | 'offline';
 
@@ -25,9 +24,6 @@ const DEFAULT_CALENDAR_URLS = [
 
 // Sync all calendar URLs (defaults + any saved in settings) in parallel
 async function syncAllCalendars() {
-  // initAuthToken still needed for the calendar proxy Netlify function
-  // (will be replaced by Firebase Cloud Function in Phase 8)
-  await initAuthToken();
   const data = loadData();
   const urls = new Set<string>(DEFAULT_CALENDAR_URLS);
 

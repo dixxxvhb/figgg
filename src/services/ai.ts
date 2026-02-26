@@ -1,16 +1,7 @@
-import { getAuthToken, initAuthToken } from './cloudStorage';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from './firebase';
 import type { LiveNote } from '../types';
-import type { AIContextPayload, } from './aiContext';
-
-const API_BASE = '/.netlify/functions';
-
-interface GeneratePlanResponse {
-  success: boolean;
-  plan: string;
-  generatedAt: string;
-  classId: string;
-  className: string;
-}
+import type { AIContextPayload } from './aiContext';
 
 interface GeneratePlanClassInfo {
   id: string;
@@ -34,134 +25,89 @@ interface GeneratePlanOptions {
   expandedSummary?: string;
 }
 
-async function getToken(): Promise<string> {
-  await initAuthToken();
-  return getAuthToken();
-}
-
 export async function generatePlan(options: GeneratePlanOptions): Promise<string> {
-  const token = await getToken();
-
-  const response = await fetch(`${API_BASE}/generatePlan`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify(options),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(err.error || `HTTP ${response.status}`);
-  }
-
-  const data: GeneratePlanResponse = await response.json();
-  return data.plan;
+  const fn = httpsCallable<GeneratePlanOptions, { plan: string }>(functions, 'generatePlan');
+  const result = await fn(options);
+  return result.data.plan;
 }
 
 export async function detectReminders(
   className: string,
   notes: LiveNote[],
 ): Promise<Array<{ noteId: string; title: string }>> {
-  const token = await getToken();
-
-  const response = await fetch(`${API_BASE}/detectReminders`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify({ className, notes }),
-  });
-
-  if (!response.ok) {
+  try {
+    const fn = httpsCallable<{ className: string; notes: LiveNote[] }, { reminders: Array<{ noteId: string; title: string }> }>(functions, 'detectReminders');
+    const result = await fn({ className, notes });
+    return result.data.reminders || [];
+  } catch {
     return []; // Silently fail — reminders are a bonus
   }
-
-  const data = await response.json();
-  return data.reminders || [];
 }
 
 export interface AIAction {
   type:
-    | 'toggleWellness'      // mark wellness item done/undone
-    | 'addReminder'         // create a new task
-    | 'completeReminder'    // mark existing task done by title match
-    | 'flagReminder'        // flag/unflag a task by title match
-    | 'rescheduleReminder'  // change due date of a task
-    | 'logDose'             // log next available dose
-    | 'skipDose'            // skip remaining doses today
-    | 'updatePlanSummary'   // change day plan summary text
-    | 'reprioritizePlan'    // reorder day plan items by priority
-    | 'addPlanItem'         // inject a new item into today's plan
-    | 'removePlanItem'      // remove a plan item by id or title
-    | 'suggestOptionalDose3' // suggest a 3rd dose for a long/heavy day
-    | 'reschedulePlanItem'  // change a plan item's time
-    | 'batchToggleWellness' // check off multiple wellness items at once
-    | 'setDayMode'          // set day mode (light/normal/intense/comp) — adapts wellness + plan
-    | 'addWeekReflection'   // store a weekly reflection in weekNotes
-    // Class exception actions
-    | 'markClassException'  // mark today's classes as cancelled or covered by a sub
-    // Class note actions
-    | 'addClassNote'        // add a live note to a specific class this week
-    | 'setClassPlan'        // set the weekly plan text for a class
-    | 'setNextWeekGoal'     // set the next-week goal for a class
-    // Launch plan actions
-    | 'completeLaunchTask'  // mark a DWDC launch task as done
-    | 'skipLaunchTask'      // skip a DWDC launch task
-    | 'addLaunchNote'       // add a note to a DWDC launch task
-    // Rehearsal note actions
-    | 'addRehearsalNote'    // add a rehearsal note to a competition dance
-    // Multi-day operations
+    | 'toggleWellness'
+    | 'addReminder'
+    | 'completeReminder'
+    | 'flagReminder'
+    | 'rescheduleReminder'
+    | 'logDose'
+    | 'skipDose'
+    | 'updatePlanSummary'
+    | 'reprioritizePlan'
+    | 'addPlanItem'
+    | 'removePlanItem'
+    | 'suggestOptionalDose3'
+    | 'reschedulePlanItem'
+    | 'batchToggleWellness'
+    | 'setDayMode'
+    | 'addWeekReflection'
+    | 'markClassException'
+    | 'addClassNote'
+    | 'setClassPlan'
+    | 'setNextWeekGoal'
+    | 'completeLaunchTask'
+    | 'skipLaunchTask'
+    | 'addLaunchNote'
+    | 'addRehearsalNote'
     | 'markClassExceptionRange'
     | 'batchRescheduleTasks'
     | 'assignSub'
     | 'clearWeekPlan'
     | 'generateCatchUpPlan';
-  // Common fields
   id?: string;
-  ids?: string[];  // for batch operations
-  dayMode?: 'light' | 'normal' | 'intense' | 'comp';  // for setDayMode
+  ids?: string[];
+  dayMode?: 'light' | 'normal' | 'intense' | 'comp';
   done?: boolean;
   title?: string;
   dueDate?: string;
   flagged?: boolean;
-  // Plan item fields
   category?: string;
   priority?: string;
   time?: string;
   aiNote?: string;
   sourceId?: string;
-  // Summary field
   summary?: string;
-  // Reprioritize: ordered list of plan item IDs
   order?: string[];
-  // Week reflection fields
   wentWell?: string;
   challenges?: string;
   nextWeekFocus?: string;
   aiSummary?: string;
-  // Class exception fields
   scope?: 'all' | 'specific';
   classIds?: string[];
   exceptionType?: 'cancelled' | 'subbed';
   subName?: string;
   reason?: string;
-  // Class note fields
   classId?: string;
   text?: string;
   noteCategory?: string;
   plan?: string;
   goal?: string;
-  // Launch task fields
   taskId?: string;
   note?: string;
-  // Rehearsal note fields
   danceId?: string;
   notes?: string;
   workOn?: string[];
-  // Multi-day fields
   startDate?: string;
   endDate?: string;
   expectedReturn?: string;
@@ -176,46 +122,17 @@ export async function expandNotes(
   date: string,
   notes: LiveNote[],
 ): Promise<string> {
-  const token = await getToken();
-
-  const response = await fetch(`${API_BASE}/expandNotes`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify({ className, date, notes }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(err.error || `HTTP ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.expanded as string;
+  const fn = httpsCallable<{ className: string; date: string; notes: LiveNote[] }, { expanded: string }>(functions, 'expandNotes');
+  const result = await fn({ className, date, notes });
+  return result.data.expanded;
 }
 
 export async function callGenerateDayPlan(
   payload: AIContextPayload & { checkInMood?: string; checkInMessage?: string },
 ): Promise<{ items: unknown[]; summary: string }> {
-  const token = await getToken();
-
-  const response = await fetch(`${API_BASE}/generateDayPlan`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(err.error || `HTTP ${response.status}`);
-  }
-
-  return response.json();
+  const fn = httpsCallable(functions, 'aiChat');
+  const result = await fn({ ...payload, mode: 'day-plan' });
+  return result.data as { items: unknown[]; summary: string };
 }
 
 export interface AIChatRequest {
@@ -255,21 +172,7 @@ export interface AIChatResponse {
 export async function callAIChat(
   request: AIChatRequest,
 ): Promise<AIChatResponse> {
-  const token = await getToken();
-
-  const response = await fetch(`${API_BASE}/aiChat`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    body: JSON.stringify(request),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(err.error || `HTTP ${response.status}`);
-  }
-
-  return response.json();
+  const fn = httpsCallable(functions, 'aiChat');
+  const result = await fn(request);
+  return result.data as AIChatResponse;
 }
