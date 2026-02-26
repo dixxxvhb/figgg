@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { syncFromCloud, loadData, updateCalendarEvents } from '../services/storage';
+import { loadData, updateCalendarEvents } from '../services/storage';
 import { fetchCalendarEvents } from '../services/calendar';
 import { initAuthToken } from '../services/cloudStorage';
 
@@ -25,6 +25,8 @@ const DEFAULT_CALENDAR_URLS = [
 
 // Sync all calendar URLs (defaults + any saved in settings) in parallel
 async function syncAllCalendars() {
+  // initAuthToken still needed for the calendar proxy Netlify function
+  // (will be replaced by Firebase Cloud Function in Phase 8)
   await initAuthToken();
   const data = loadData();
   const urls = new Set<string>(DEFAULT_CALENDAR_URLS);
@@ -34,7 +36,6 @@ async function syncAllCalendars() {
     data.settings.calendarUrls.forEach((u: string) => urls.add(u));
   }
 
-  // Fetch all calendars in parallel instead of sequentially
   const results = await Promise.allSettled(
     Array.from(urls).map(url => fetchCalendarEvents(url))
   );
@@ -45,18 +46,13 @@ async function syncAllCalendars() {
 
   if (allEvents.length > 0) {
     updateCalendarEvents(allEvents);
-    // Notify UI to reload data — the local-data-saved event from saveData
-    // may be blocked by isSavingRef if cloud sync is also saving simultaneously
     window.dispatchEvent(new CustomEvent('calendar-sync-complete'));
   } else if (failedCount === results.length && results.length > 0) {
-    // All calendar URLs failed — notify UI
     console.warn(`Calendar sync: all ${failedCount} URL(s) failed`);
     window.dispatchEvent(new CustomEvent('calendar-sync-failed'));
   }
 }
 
-// Data sync interval: 5 minutes
-const DATA_SYNC_INTERVAL = 5 * 60 * 1000;
 // Calendar sync interval: 15 minutes
 const CALENDAR_SYNC_INTERVAL = 15 * 60 * 1000;
 
@@ -65,12 +61,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const statusRef = useRef<SyncStatus>(status);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dataSyncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const calendarSyncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const isSyncingRef = useRef(false);
-  const lastSyncTimeRef = useRef(0); // Prevents double-sync from interval + visibilitychange
 
-  // Keep ref in sync with state
   useEffect(() => {
     statusRef.current = status;
   }, [status]);
@@ -82,51 +74,23 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const markSynced = useCallback(() => {
     setLastSynced(new Date());
     setStatusState('success');
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => setStatusState('idle'), 2000);
   }, []);
 
-  // Unified sync: cloud data (always force — skip grace period)
+  // Firestore onSnapshot handles real-time data sync — no more Netlify Blob polling.
+  // triggerSync is kept for backward compatibility (UI components may call it).
   const triggerSync = useCallback(async () => {
-    if (isSyncingRef.current || !navigator.onLine) return;
-
-    // Skip if a sync completed within the last 30 seconds (prevents double-fire)
-    const now = Date.now();
-    if (now - lastSyncTimeRef.current < 30_000) return;
-
-    isSyncingRef.current = true;
-    setStatusState('syncing');
-
-    try {
-      const result = await syncFromCloud(true);
-      if (result) {
-        lastSyncTimeRef.current = Date.now();
-        setLastSynced(new Date());
-        setStatusState('success');
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-        }
-        timeoutRef.current = setTimeout(() => setStatusState('idle'), 2000);
-        window.dispatchEvent(new CustomEvent('cloud-sync-complete'));
-      } else {
-        setStatusState('idle');
-      }
-    } catch (error) {
-      console.error('Auto-sync failed:', error);
-      setStatusState('error');
-      timeoutRef.current = setTimeout(() => setStatusState('idle'), 3000);
-    } finally {
-      isSyncingRef.current = false;
-    }
+    setLastSynced(new Date());
+    setStatusState('success');
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => setStatusState('idle'), 2000);
   }, []);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      if (dataSyncIntervalRef.current) clearInterval(dataSyncIntervalRef.current);
       if (calendarSyncIntervalRef.current) clearInterval(calendarSyncIntervalRef.current);
     };
   }, []);
@@ -136,7 +100,6 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     const handleOnline = () => {
       if (statusRef.current === 'offline') {
         setStatusState('idle');
-        triggerSync();
       }
     };
     const handleOffline = () => setStatusState('offline');
@@ -150,21 +113,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [triggerSync]);
-
-  // Data sync: on mount + every 5 minutes
-  // Uses merge-aware sync (never blind overwrite)
-  useEffect(() => {
-    triggerSync();
-
-    dataSyncIntervalRef.current = setInterval(() => {
-      triggerSync();
-    }, DATA_SYNC_INTERVAL);
-
-    return () => {
-      if (dataSyncIntervalRef.current) clearInterval(dataSyncIntervalRef.current);
-    };
-  }, [triggerSync]);
+  }, []);
 
   // Calendar sync: on mount + every 15 minutes
   useEffect(() => {
@@ -179,20 +128,17 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Sync when app becomes visible — merge local + cloud data
-  // syncFromCloud(force=true) bypasses grace period, merges both directions,
-  // and pushes the merged result back to cloud
+  // Sync calendars when app becomes visible
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        triggerSync();
         syncAllCalendars();
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [triggerSync]);
+  }, []);
 
   return (
     <SyncContext.Provider value={{ status, lastSynced, setStatus, markSynced, triggerSync, syncCalendars: syncAllCalendars }}>

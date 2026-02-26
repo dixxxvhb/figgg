@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dance-notes-v4';
+const CACHE_NAME = 'dance-notes-v5';
 
 // App shell files to precache (NOT index.html — navigation is network-first)
 const PRECACHE_URLS = [
@@ -44,8 +44,8 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
 
-  // Network-only for API calls (Netlify functions)
-  // NEVER cache API responses — localStorage is the offline fallback
+  // Network-only for API calls (Netlify functions — legacy, will be removed)
+  // Firestore SDK handles its own caching via IndexedDB — don't interfere
   if (url.pathname.startsWith('/.netlify/functions/')) {
     event.respondWith(
       fetch(event.request)
@@ -56,6 +56,13 @@ self.addEventListener('fetch', (event) => {
           });
         })
     );
+    return;
+  }
+
+  // Skip Firebase/Firestore SDK requests — they handle their own caching
+  if (url.hostname.includes('firestore.googleapis.com') ||
+      url.hostname.includes('firebase') ||
+      url.hostname.includes('googleapis.com')) {
     return;
   }
 
