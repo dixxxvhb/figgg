@@ -1,6 +1,6 @@
 /**
- * ALL system prompts ported EXACTLY from netlify/functions/aiChat.ts.
- * These are sacred — do not modify content.
+ * All AI system prompts for Firebase Cloud Functions.
+ * These are sacred — do not modify content without good reason.
  */
 
 export type Mode = "check-in" | "chat" | "briefing" | "day-plan" | "prep" | "capture" | "reflection";

@@ -1,15 +1,25 @@
 # Figgg — Architecture Guide
 
 ## Overview
-Dance teaching assistant PWA for Dixon. Tracks classes, students, competitions, choreography, self-care (ADHD/meds), reminders, and DWDC launch plan. Single-user app with cross-device sync via Firebase.
+Dance teaching assistant PWA for Dixon. Tracks classes, students, competitions, choreography, self-care (ADHD/meds), reminders, AI check-ins, day planning, and DWDC launch plan. Single-user app with cross-device sync via Firebase.
 
 ## Stack
-React 19, TypeScript, Vite, Tailwind CSS, React Router v7, Firebase (Auth, Firestore, Storage, Cloud Functions). **NO Zustand** — uses React Context + hooks.
+React 19, TypeScript, Vite, Tailwind CSS, React Router v7, Firebase (Auth, Firestore, Storage, Cloud Functions, Hosting). **NO Zustand** — uses React Context + hooks. AI via Anthropic Claude (claude-sonnet-4-5-20250929) running in Firebase Cloud Functions.
+
+## Quick Start
+```bash
+npm install                          # Main app dependencies
+cd functions && npm install && cd .. # Cloud Functions dependencies
+cp .env.example .env.local           # Then fill in Firebase values
+npm run dev                          # Local dev server
+npm run build                        # Verify: tsc + vite build
+cd functions && npm run build        # Verify Cloud Functions compile
+```
 
 ## Entry Point & Routing
-- `src/main.tsx` → `src/App.tsx`
+- `src/main.tsx` > `src/App.tsx`
 - Provider hierarchy: `AuthProvider` > `SyncProvider` > `BrowserRouter` > `AppDataProvider`
-- 18 routes, most lazy-loaded via `React.lazy()`
+- 19 routes, most lazy-loaded via `React.lazy()`
 - Layout: Header (top) + MobileNav (bottom 5-tab bar) + QuickAddButton (FAB)
 
 ### Routes
@@ -25,15 +35,18 @@ React 19, TypeScript, Vite, Tailwind CSS, React Router v7, Firebase (Auth, Fires
 | `/choreography` | Choreography | Yes |
 | `/choreography/:id` | ChoreographyDetail | Yes |
 | `/dance/:danceId` | DanceDetail | Yes |
-| `/formations(/danceId)` | FormationBuilder | Yes |
+| `/formations` | FormationBuilder | Yes |
+| `/formations/:danceId` | FormationBuilder | Yes |
 | `/students` | Students | Yes |
 | `/library` | Library | Yes |
 | `/me` | Me (self-care/meds) | Yes |
 | `/launch` | LaunchPlan | Yes |
+| `/ai` | AIChat | Yes |
 | `/settings` | Settings | Yes |
+| `*` | NotFound | No |
 
 ## State Management
-- **AuthContext** (`contexts/AuthContext.tsx`) — Firebase Auth (email/password), `useAuth()` hook
+- **AuthContext** (`contexts/AuthContext.tsx`) — Firebase Auth (email/password), `useAuth()` hook, LoginScreen
 - **AppDataContext** (`contexts/AppDataContext.tsx`) — thin wrapper providing useAppData to tree
 - **useAppData()** (`hooks/useAppData.ts`) — THE central hook. All data CRUD.
   - Returns: `{ data, updateClass, addClass, deleteClass, getWeekNotes, saveWeekNotes, updateSelfCare, updateLaunchPlan, addStudent, updateStudent, ... }`
@@ -46,13 +59,21 @@ React 19, TypeScript, Vite, Tailwind CSS, React Router v7, Firebase (Auth, Fires
 
 ## Data Flow
 ```
-User action → useAppData().updateX() → setData() + firestoreSaveX(uid, doc)
-  → useEffect saves to localStorage (offline cache)
-  → Firestore write goes to /users/{userId}/{collection}/{docId}
-  → Real-time listeners (onSnapshot) keep other tabs/devices in sync
+User action > useAppData().updateX() > setData() + firestoreSaveX(uid, doc)
+  > useEffect saves to localStorage (offline cache)
+  > Firestore write goes to /users/{userId}/{collection}/{docId}
+  > Real-time listeners (onSnapshot) keep other tabs/devices in sync
 ```
 
 ## Firebase Architecture
+
+### Firebase Project
+- Project ID: `figgg-c2c8f`
+- Hosting: Firebase Hosting (SPA mode, all routes rewrite to `/index.html`)
+- Auth: Email/password
+- Database: Firestore
+- Files: Firebase Storage
+- Serverless: Firebase Cloud Functions (Node 20)
 
 ### Firestore Structure
 ```
@@ -76,38 +97,84 @@ User action → useAppData().updateX() → setData() + firestoreSaveX(uid, doc)
 ```
 
 ### Firebase Cloud Functions (`functions/src/`)
-All AI features run through Firebase Cloud Functions using Anthropic Claude:
-- `aiChat.ts` — Multi-mode AI: check-in, chat, briefing, day-plan, prep, capture, reflection
-- `expandNotes.ts` — Expand shorthand class notes into structured summaries
-- `generatePlan.ts` — Generate teaching prep notes from class notes
-- `detectReminders.ts` — Extract actionable reminders from notes
-- `organizeNotes.ts` — Reorganize notes by category with emoji headers
-- `calendarProxy.ts` — Proxy iCal URLs (CORS workaround)
+All AI features run through Firebase Cloud Functions using Anthropic Claude (claude-sonnet-4-5-20250929):
 
-All functions require Firebase Auth. AI functions use `ANTHROPIC_API_KEY` env var.
+| Function | Type | Purpose |
+|----------|------|---------|
+| `aiChat.ts` | Callable | Multi-mode AI: check-in, chat, briefing, day-plan, prep, capture, reflection |
+| `expandNotes.ts` | Callable | Expand shorthand class notes into structured summaries |
+| `generatePlan.ts` | Callable | Generate teaching prep notes from class notes + context |
+| `detectReminders.ts` | Callable | Extract actionable reminders from notes |
+| `organizeNotes.ts` | Callable | Reorganize notes by emoji-labeled categories |
+| `calendarProxy.ts` | Callable | Proxy iCal URL fetching (CORS workaround, SSRF-protected) |
+
+All functions require Firebase Auth. AI functions use `ANTHROPIC_API_KEY` secret.
 
 ### Security Rules
 - `firestore.rules` — User-scoped: `/users/{userId}/{document=**}` requires `auth.uid == userId`
 - `storage.rules` — User-scoped: `/users/{userId}/{allPaths=**}` requires `auth.uid == userId`
 
+### Deployment (CI/CD)
+GitHub Actions workflow: `.github/workflows/deploy-functions.yml`
+Three jobs on push to `main`:
+1. **deploy-hosting** — builds frontend + deploys to Firebase Hosting
+2. **deploy-functions** — builds + deploys Cloud Functions (only if `functions/` changed)
+3. **deploy-rules** — deploys Firestore rules, Storage rules, and indexes
+
+All jobs use `w9jds/firebase-action@master` with `FIREBASE_SERVICE_ACCOUNT` secret.
+
 ## Key Files
+
+### Services (`src/services/`)
 | File | Purpose |
 |------|---------|
-| `services/firebase.ts` | Firebase SDK init (auth, db, storage, functions) |
-| `services/firestore.ts` | All Firestore CRUD, real-time listeners, migration |
-| `services/firebaseStorage.ts` | Media upload/download, base64→Storage migration |
-| `services/ai.ts` | Client-side wrappers calling Firebase Cloud Functions |
-| `services/aiContext.ts` | Builds context payloads for AI functions |
-| `services/calendar.ts` | iCal fetch + parse via Firebase calendarProxy |
-| `services/storage.ts` | localStorage CRUD (offline cache) |
-| `services/cloudStorage.ts` | Legacy stubs (no-ops, kept for compatibility) |
-| `hooks/useAppData.ts` | Central state hook — all CRUD methods |
-| `hooks/useCurrentClass.ts` | Which class is happening now/next |
-| `hooks/useSelfCareStatus.ts` | ADHD medication timing status |
-| `types/index.ts` | All types including AppData root shape |
-| `types/choreography.ts` | Choreography domain types |
+| `firebase.ts` | Firebase SDK init (auth, db, storage, functions); graceful degradation if env vars missing |
+| `firestore.ts` | All Firestore CRUD, real-time listeners, data migration |
+| `firebaseStorage.ts` | Media upload/download to Firebase Storage, base64 migration |
+| `ai.ts` | Client-side wrappers calling Firebase Cloud Functions |
+| `aiContext.ts` | Builds lean AI context payloads (~800-1000 tokens) for Cloud Functions |
+| `aiActions.ts` | Executes AI-suggested actions (toggleWellness, addReminder, setDayMode, etc.) |
+| `calendar.ts` | iCal parsing via Firebase calendarProxy; recurring events (90-day window) |
+| `storage.ts` | localStorage CRUD (offline cache) |
+| `cloudStorage.ts` | Legacy no-op stubs (kept for compatibility) |
+| `learningEngine.ts` | Daily snapshots + weekly summaries; tracks meds, wellness, class metrics |
+| `location.ts` | Haversine distance between studios; travel time estimates |
+
+### Hooks (`src/hooks/`)
+| File | Purpose |
+|------|---------|
+| `useAppData.ts` | Central state hook — all CRUD methods, Firestore sync |
+| `useCurrentClass.ts` | Which class is happening now/next (updates every 30s) |
+| `useSelfCareStatus.ts` | ADHD medication timing: IR/XR dose windows, peak/tapering/expired |
+| `useCheckInStatus.ts` | Whether morning/afternoon AI check-in is due |
+| `useClassTiming.ts` | Upcoming class (within 60 min) and just-ended class (within 30 min) |
+| `useNudges.ts` | Priority nudges (overdue, meds, competition, launch, wellness) with dismiss/snooze |
+| `useTeachingStats.ts` | Weekly stats: completed classes, notes, students, attendance rate |
+
+### Types (`src/types/`)
+| File | Purpose |
+|------|---------|
+| `index.ts` | All types: Studio, Class, LiveNote, MediaItem, WeekNotes, Student, Competition, CalendarEvent, SelfCareData, DayPlan, LaunchPlanData, AICheckIn, AIConfig, MedConfig, LearningData, AppData shape, AppSettings |
+| `choreography.ts` | Choreography domain: Section, Progression, Formation, PracticeNote |
+
+### Components (`src/components/`)
+**Common** (`common/`): Header, Button, Card, ConfirmDialog, DropdownMenu, EmptyState, ErrorBoundary, PageSkeleton, PlanDisplay, PullToRefresh, SaveStatus, QuickAddButton
+
+**Dashboard** (`Dashboard/`): TodaysAgenda, MorningBriefing, AICheckInWidget, DayPlanWidget, NudgeCards, PrepCard, PostClassCapture, RemindersWidget, ScratchpadWidget, WeekStats, WeekMomentumBar, StreakCard, LaunchPlanWidget, EventCountdown, SortableWidget
+
+**Other**: `events/PreviousSessionsPanel.tsx`, `MoodTrends.tsx`
+
+### Config & Other
+| File | Purpose |
+|------|---------|
 | `styles/themes.ts` | Color themes (forest, ocean, plum, sunset, midnight, rose) |
 | `functions/src/utils/prompts.ts` | All AI system prompts and context builders |
+| `firebase.json` | Hosting (SPA rewrite, cache headers), functions, rules config |
+| `firestore.rules` | Firestore security rules |
+| `storage.rules` | Storage security rules |
+| `firestore.indexes.json` | Custom Firestore indexes |
+| `vite.config.ts` | Vite build config with React + Tailwind plugins |
+| `tailwind.config.js` | Tailwind config; dark mode via class; fonts: Inter, Fraunces |
 
 ## AppData Shape (root keys)
 `studios, classes, weekNotes, exercises, terminology, projects, competitions, competitionDances, calendarEvents, settings, students, attendance, selfCare, choreographies, launchPlan, aiCheckIns, lastModified`
@@ -118,11 +185,12 @@ All functions require Firebase Auth. AI functions use `ANTHROPIC_API_KEY` env va
 ```
 VITE_FIREBASE_API_KEY=
 VITE_FIREBASE_AUTH_DOMAIN=
-VITE_FIREBASE_PROJECT_ID=
+VITE_FIREBASE_PROJECT_ID=figgg-c2c8f
 VITE_FIREBASE_STORAGE_BUCKET=
 VITE_FIREBASE_MESSAGING_SENDER_ID=
 VITE_FIREBASE_APP_ID=
 VITE_FIREBASE_MEASUREMENT_ID=
+VITE_CALENDAR_URLS=              # comma-separated iCal URLs with auth tokens
 ```
 
 ### Cloud Functions
@@ -130,26 +198,34 @@ VITE_FIREBASE_MEASUREMENT_ID=
 ANTHROPIC_API_KEY=   # Set via: firebase functions:secrets:set ANTHROPIC_API_KEY
 ```
 
+### GitHub Actions (Repository Secrets)
+```
+FIREBASE_SERVICE_ACCOUNT    # JSON key from Firebase Console > Service Accounts
+VITE_FIREBASE_*             # All 7 client env vars above
+```
+
+## NPM Scripts
+| Command | What it does |
+|---------|-------------|
+| `npm run dev` | Vite dev server |
+| `npm run build` | `tsc -b && vite build` — **use this to verify changes** |
+| `npm run lint` | ESLint |
+| `npm run preview` | Preview production build locally |
+
 ## PWA Service Worker (`public/sw.js`)
-- Cache name: `dance-notes-v3`
-- Navigation: **network-first** (ensures fresh Vite bundle hashes)
-- API calls: **network-only** (never cached, localStorage is offline fallback)
-- Static assets: stale-while-revalidate (content-hashed filenames)
+- Cache name: `dance-notes-v6`
+- Navigation: **network-first** (fresh Vite bundle hashes after deploys)
+- Firebase/Firestore requests: **pass-through** (SDK handles its own IndexedDB cache)
+- Static assets: **stale-while-revalidate** (content-hashed filenames)
 
 ## Static Seed Data (`src/data/`)
 `classes.ts, studios.ts, students.ts, competitions.ts, competitionDances.ts, terminology.ts, projects.ts, progressions.ts, launchPlan.ts`
 
-## Common Components (`src/components/common/`)
-Header, Button, Card, ConfirmDialog, BottomSheet, DropdownMenu, ErrorBoundary, LoadingSpinner, PullToRefresh, QuickAddButton, SaveStatus
-
-## Dashboard Sub-components (`src/components/Dashboard/`)
-TodaysAgenda, MorningBriefing, RemindersWidget, WeekStats, WeeklyInsight, StreakCard, LaunchPlanWidget, EventCountdown
-
 ## Gotchas
-- Firebase project ID: `figgg-c2c8f`
-- Run `npm install` before build if fresh clone (tsc not found without it)
-- Cloud Functions: `cd functions && npm install && npm run build` separately
+- No test suite — verify with `npm run build` (TypeScript + Vite)
+- Cloud Functions: `cd functions && npm install && npm run build` — separate Node project
 - selfCare sync: do NOT use per-field merge — whole-object last-write-wins only
-- App works in local-only mode if Firebase env vars are missing (graceful degradation)
-- No tests — rely on `npm run build` for verification
-- Data migration: Settings page has "Migrate Data" button to move localStorage → Firestore
+- App works offline/local-only if Firebase env vars are missing (graceful degradation)
+- Settings page has "Migrate Data" button to move localStorage data to Firestore
+- Cloud Functions require Node 20 (specified in `functions/package.json`)
+- The `dwdc.netlify.app` URLs in `src/data/launchPlan.ts` are for a separate DWDC website, not this app

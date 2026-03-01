@@ -44,21 +44,6 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
 
-  // Network-only for API calls (Netlify functions — legacy, will be removed)
-  // Firestore SDK handles its own caching via IndexedDB — don't interfere
-  if (url.pathname.startsWith('/.netlify/functions/')) {
-    event.respondWith(
-      fetch(event.request)
-        .catch(() => {
-          return new Response(JSON.stringify({ error: 'Offline' }), {
-            status: 503,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        })
-    );
-    return;
-  }
-
   // Skip Firebase/Firestore SDK requests — they handle their own caching
   if (url.hostname.includes('firestore.googleapis.com') ||
       url.hostname.includes('firebase') ||
