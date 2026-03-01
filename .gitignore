@@ -27,8 +27,5 @@ dist-ssr
 .env
 .env.local
 
-# Local Netlify folder
-.netlify
-
-# Deno lock file (Netlify functions runtime)
-deno.lock
+# Firebase
+.firebase
