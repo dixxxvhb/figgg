@@ -15,12 +15,11 @@ interface SyncContextType {
 
 const SyncContext = createContext<SyncContextType | null>(null);
 
-// Default calendar URLs - always synced
-const DEFAULT_CALENDAR_URLS = [
-  'https://api.band.us/ical?token=aAAxADU0MWQxZTdiZjdhYWQwMDBiMWY3ZTNjNWFhYmY3YzViNTE5YTRjYmU',
-  'https://p157-caldav.icloud.com/published/2/MTk1MzE5NDQxMTk1MzE5NHQAH6rjzS_gyID08NDG-fjEKQfC3E7w4dd7G44gheLnuiNy7AexoNdl9WLiOmXdxEKxVknTHHKwIrJgJMYJfkY',
-  'webcal://p157-caldav.icloud.com/published/2/MTk1MzE5NDQxMTk1MzE5NHQAH6rjzS_gyID08NDG-fhT8lUzOWzIPh08c6kuiNKGwZzEu5nxAQZsjW1lZmK4qwjjsB3WCmkRGIUo3RFl1HM',
-];
+// Default calendar URLs loaded from environment variables (comma-separated)
+const DEFAULT_CALENDAR_URLS: string[] = (import.meta.env.VITE_CALENDAR_URLS || '')
+  .split(',')
+  .map((u: string) => u.trim())
+  .filter(Boolean);
 
 // Sync all calendar URLs (defaults + any saved in settings) in parallel
 async function syncAllCalendars() {
