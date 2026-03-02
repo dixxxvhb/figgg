@@ -467,15 +467,24 @@ export interface AppData {
 // ===== DWDC LAUNCH PLAN =====
 
 export type LaunchCategory = 'BIZ' | 'CONTENT' | 'ADULT' | 'PRO' | 'DECIDE' | 'PREP';
+export type LaunchEffort = 'quick' | 'medium' | 'deep';
 
 export interface LaunchTask {
   id: string;
   title: string;
   instructions: string;
   category: LaunchCategory;
-  scheduledDate: string;
-  weekNumber: number;
-  weekLabel: string;
+  // Backlog fields (new)
+  effort: LaunchEffort;            // quick (<15m), medium (15-60m), deep (1h+)
+  priority: number;                // 1=highest, lower = more important. AI-adjustable, user-overridable
+  targetMilestone?: string;        // milestone task ID this contributes toward
+  blockedBy?: string[];            // task IDs that must complete first
+  suggestedAfter?: string;         // date — "don't surface before this date"
+  // Legacy scheduling (kept for backward compat with existing Firestore data)
+  scheduledDate?: string;
+  weekNumber?: number;
+  weekLabel?: string;
+  // Status
   completed: boolean;
   completedAt?: string;
   notes?: string;

@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Rocket, Star, ChevronRight, Check, CircleDot } from 'lucide-react';
-import { format, parseISO, differenceInDays, startOfDay } from 'date-fns';
+import { Rocket, Star, ChevronRight, CircleDot, Zap } from 'lucide-react';
+import { differenceInDays, startOfDay, parseISO } from 'date-fns';
+import { toDateStr } from '../../utils/time';
 import type { LaunchPlanData, LaunchCategory } from '../../types';
 
 const categoryDotColors: Record<LaunchCategory, string> = {
@@ -18,37 +19,59 @@ interface LaunchPlanWidgetProps {
 }
 
 export function LaunchPlanWidget({ launchPlan }: LaunchPlanWidgetProps) {
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
-
-  const { todayTasks, nextMilestone, progress, currentWeekLabel, pendingDecisions } = useMemo(() => {
-    if (!launchPlan) return { todayTasks: [], nextMilestone: null, progress: { done: 0, total: 0 }, currentWeekLabel: 'Launch Plan', pendingDecisions: 0 };
+  const { nextTasks, nextMilestone, progress, pendingDecisions, quickWinCount } = useMemo(() => {
+    if (!launchPlan) return { nextTasks: [], nextMilestone: null, progress: { done: 0, total: 0, pct: 0 }, pendingDecisions: 0, quickWinCount: 0 };
     const tasks = launchPlan.tasks;
-    const today = tasks.filter(t => t.scheduledDate === todayStr);
+    const todayStr = toDateStr();
+
+    // Smart next tasks: ready (not blocked, not too early), sorted by priority
+    const ready = tasks
+      .filter(t => !t.completed && !t.skipped)
+      .filter(t => {
+        if (t.blockedBy && t.blockedBy.length > 0) {
+          const isBlocked = t.blockedBy.some(depId => {
+            const dep = tasks.find(d => d.id === depId);
+            return dep && !dep.completed && !dep.skipped;
+          });
+          if (isBlocked) return false;
+        }
+        if (t.suggestedAfter && t.suggestedAfter > todayStr) return false;
+        return true;
+      })
+      .sort((a, b) => a.priority - b.priority)
+      .slice(0, 4);
+
+    // Quick wins count
+    const quickWins = tasks.filter(t =>
+      !t.completed && !t.skipped && t.effort === 'quick' &&
+      (!t.blockedBy || !t.blockedBy.some(depId => {
+        const dep = tasks.find(d => d.id === depId);
+        return dep && !dep.completed && !dep.skipped;
+      })) &&
+      (!t.suggestedAfter || t.suggestedAfter <= todayStr)
+    ).length;
 
     // Next milestone
     const futureMilestones = tasks
-      .filter(t => t.milestone && !t.completed && !t.skipped && t.scheduledDate >= todayStr)
-      .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
+      .filter(t => t.milestone && !t.completed && !t.skipped)
+      .sort((a, b) => (a.suggestedAfter || a.scheduledDate || '').localeCompare(b.suggestedAfter || b.scheduledDate || ''));
     const nextM = futureMilestones[0]
-      ? { label: futureMilestones[0].milestoneLabel || futureMilestones[0].title, daysAway: differenceInDays(parseISO(futureMilestones[0].scheduledDate), startOfDay(new Date())) }
+      ? {
+          label: futureMilestones[0].milestoneLabel || futureMilestones[0].title,
+          daysAway: differenceInDays(
+            parseISO(futureMilestones[0].suggestedAfter || futureMilestones[0].scheduledDate || todayStr),
+            startOfDay(new Date())
+          ),
+        }
       : null;
 
-    // Progress
     const done = tasks.filter(t => t.completed || t.skipped).length;
     const total = tasks.length;
-
-    // Current week label
-    const todayTask = tasks.find(t => t.scheduledDate === todayStr);
-    let weekLabel = todayTask?.weekLabel;
-    if (!weekLabel) {
-      const futureTask = tasks.filter(t => t.scheduledDate >= todayStr).sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate))[0];
-      weekLabel = futureTask?.weekLabel || 'Launch Plan';
-    }
-
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
     const pending = launchPlan.decisions.filter(d => d.status === 'pending').length;
 
-    return { todayTasks: today, nextMilestone: nextM, progress: { done, total }, currentWeekLabel: weekLabel, pendingDecisions: pending };
-  }, [launchPlan, todayStr]);
+    return { nextTasks: ready, nextMilestone: nextM, progress: { done, total, pct }, pendingDecisions: pending, quickWinCount: quickWins };
+  }, [launchPlan]);
 
   if (!launchPlan) return null;
 
@@ -64,38 +87,38 @@ export function LaunchPlanWidget({ launchPlan }: LaunchPlanWidgetProps) {
           DWDC Launch
         </h3>
         <div className="flex items-center gap-2">
-          <span className="type-stat text-[var(--text-secondary)]">{progress.done}/{progress.total}</span>
+          <span className="type-stat text-[var(--accent-primary)]">{progress.pct}%</span>
           <ChevronRight size={16} className="text-[var(--text-tertiary)]" />
         </div>
       </div>
 
       <div className="p-4 space-y-3">
-        {/* Week label */}
-        <p className="type-label text-[var(--text-secondary)]">
-          {currentWeekLabel}
-        </p>
+        {/* Progress bar */}
+        <div className="w-full h-1.5 bg-[var(--surface-inset)] rounded-full overflow-hidden">
+          <div className="h-full bg-[var(--accent-primary)] rounded-full transition-all" style={{ width: `${progress.pct}%` }} />
+        </div>
 
-        {/* Today's tasks */}
-        {todayTasks.length > 0 ? (
-          todayTasks.slice(0, 4).map(task => {
-            const isDone = task.completed || task.skipped;
-            return (
-              <div key={task.id} className="flex items-center gap-2">
-                <div className={`w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center border-2 ${isDone ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)]' : 'border-[var(--border-strong)]'}`}>
-                  {isDone && <Check size={10} className="text-[var(--text-on-accent)]" />}
-                </div>
-                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: categoryDotColors[task.category] }} />
-                <span className={`text-sm text-[var(--text-primary)] line-clamp-1 ${isDone ? 'line-through opacity-50' : ''}`}>
-                  {task.title}
-                </span>
-              </div>
-            );
-          })
-        ) : (
-          <p className="text-sm text-[var(--text-tertiary)]">No tasks today</p>
+        {/* Quick wins hint */}
+        {quickWinCount > 0 && (
+          <p className="text-xs text-[var(--status-success)] font-medium flex items-center gap-1">
+            <Zap size={10} />
+            {quickWinCount} quick win{quickWinCount !== 1 ? 's' : ''} available
+          </p>
         )}
-        {todayTasks.length > 4 && (
-          <p className="type-caption text-[var(--text-tertiary)]">+{todayTasks.length - 4} more</p>
+
+        {/* Next priority tasks */}
+        {nextTasks.length > 0 ? (
+          <>
+            <p className="type-label text-[var(--text-tertiary)]">Up next</p>
+            {nextTasks.map(task => (
+              <div key={task.id} className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: categoryDotColors[task.category] }} />
+                <span className="text-sm text-[var(--text-primary)] line-clamp-1">{task.title}</span>
+              </div>
+            ))}
+          </>
+        ) : (
+          <p className="text-sm text-[var(--text-tertiary)]">All caught up — check milestones</p>
         )}
 
         {/* Milestone + decisions */}
@@ -103,7 +126,7 @@ export function LaunchPlanWidget({ launchPlan }: LaunchPlanWidgetProps) {
           {nextMilestone ? (
             <span className="text-xs text-[var(--status-warning)] font-medium flex items-center gap-1">
               <Star size={10} className="fill-current" />
-              {nextMilestone.label} — {nextMilestone.daysAway === 0 ? 'TODAY' : `${nextMilestone.daysAway}d`}
+              {nextMilestone.label} — {nextMilestone.daysAway === 0 ? 'TODAY' : nextMilestone.daysAway < 0 ? `${Math.abs(nextMilestone.daysAway)}d ago` : `${nextMilestone.daysAway}d`}
             </span>
           ) : (
             <span className="type-caption text-[var(--text-tertiary)]">All milestones complete</span>
