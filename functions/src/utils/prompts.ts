@@ -51,15 +51,44 @@ export function buildContextString(payload: any, mode: Mode): string {
   if (ctx.tasks) {
     const t = ctx.tasks;
     if (mode === "day-plan") {
-      if (t.topTitles?.length > 0) {
+      // Rich task details for intelligent day plan scheduling
+      if (t.taskDetails?.length > 0) {
+        const taskLines = t.taskDetails.map((task: { id: string; title: string; dueDate?: string; dueTime?: string; priority: string; flagged: boolean; listName?: string; recurring: boolean }) => {
+          const parts = [`  [${task.id}] "${task.title}"`];
+          if (task.dueDate) parts.push(`due: ${task.dueDate}`);
+          if (task.dueTime) parts.push(`at: ${task.dueTime}`);
+          if (task.priority !== "none") parts.push(`priority: ${task.priority}`);
+          if (task.flagged) parts.push("FLAGGED");
+          if (task.recurring) parts.push("recurring");
+          if (task.listName && task.listName !== "Reminders") parts.push(`list: ${task.listName}`);
+          return parts.join(" | ");
+        });
+        contextLines.push(`Tasks (${t.overdueCount} overdue, ${t.todayDueCount} due today, ${t.tomorrowDueCount || 0} due tomorrow):\n${taskLines.join("\n")}`);
+      } else if (t.topTitles?.length > 0) {
         contextLines.push(`Tasks (${t.overdueCount} overdue, ${t.todayDueCount} due today):\n${t.topTitles.map((title: string) => `  - "${title}"`).join("\n")}`);
       }
     } else {
-      const parts: string[] = [];
-      if (t.overdueCount > 0) parts.push(`${t.overdueCount} overdue`);
-      if (t.todayDueCount > 0) parts.push(`${t.todayDueCount} due today`);
-      if (parts.length > 0 || t.topTitles?.length > 0) {
-        contextLines.push(`Tasks: ${parts.join(", ")}${t.topTitles?.length > 0 ? `\n  Active: ${t.topTitles.map((title: string) => `"${title}"`).join(", ")}` : ""}`);
+      // For check-in/chat: include task details for smarter responses
+      if (t.taskDetails?.length > 0) {
+        const parts: string[] = [];
+        if (t.overdueCount > 0) parts.push(`${t.overdueCount} overdue`);
+        if (t.todayDueCount > 0) parts.push(`${t.todayDueCount} due today`);
+        if (t.tomorrowDueCount > 0) parts.push(`${t.tomorrowDueCount} due tomorrow`);
+        const summaryLine = parts.length > 0 ? `Tasks: ${parts.join(", ")}` : "Tasks:";
+        const detailLines = t.taskDetails.slice(0, 8).map((task: { title: string; dueDate?: string; priority: string; flagged: boolean }) => {
+          const flags: string[] = [];
+          if (task.flagged) flags.push("!");
+          if (task.priority === "high") flags.push("HIGH");
+          return `  - "${task.title}"${task.dueDate ? ` (${task.dueDate})` : ""}${flags.length ? ` [${flags.join(",")}]` : ""}`;
+        });
+        contextLines.push(`${summaryLine}\n${detailLines.join("\n")}`);
+      } else {
+        const parts: string[] = [];
+        if (t.overdueCount > 0) parts.push(`${t.overdueCount} overdue`);
+        if (t.todayDueCount > 0) parts.push(`${t.todayDueCount} due today`);
+        if (parts.length > 0 || t.topTitles?.length > 0) {
+          contextLines.push(`Tasks: ${parts.join(", ")}${t.topTitles?.length > 0 ? `\n  Active: ${t.topTitles.map((title: string) => `"${title}"`).join(", ")}` : ""}`);
+        }
       }
     }
   }
@@ -284,12 +313,23 @@ PERSONALITY:
 INTELLIGENCE:
 - If it's morning and meds aren't taken yet, gently weave in a reminder (don't lecture).
 - If he says he did something (drank water, took a walk, finished a task), mark it done via actions.
-- If he mentions needing to do something, create a reminder via actions.
+- If he mentions needing to do something, create a reminder via actions. Be SMART about dates:
+  - "tomorrow" → set dueDate to tomorrow's date
+  - "this week" or "before Friday" → set dueDate to Friday
+  - "next Monday" → set dueDate accordingly
+  - "send email to CAA" → create task with title "Send email to CAA", infer a reasonable due date
+  - Always set dueDate when there's any time reference. This ensures it appears in the day plan.
+- If he mentions multiple things to do, create MULTIPLE reminders — one per distinct task.
 - If his schedule is packed, suggest dropping low-priority items or adding breaks.
 - If wellness progress is low in the afternoon, suggest specific remaining items.
 - If he says "skip it" or "not today" about meds, execute the skip.
 - If he talks about DWDC launch stuff, connect it to his launch backlog — suggest quick wins if he's low energy, or deep tasks if he's focused.
 - Read between the lines: "exhausted" + afternoon check-in + 0 wellness items = suggest scaling back the day.
+- TASK INTELLIGENCE: You can see full task details with due dates and priorities. Use this to:
+  - Remind him about overdue or flagged tasks naturally in conversation
+  - Suggest tackling high-priority tasks during peak med hours
+  - Offer to reschedule overdue tasks to realistic dates instead of letting them pile up
+  - When he completes a task, mark it done and mention what's next
 - WEEKLY PATTERNS: If weekly patterns are available, use them to give personalized advice. Examples: if dose 1 is averaging late, suggest setting an earlier alarm. If wellness is low on certain days, suggest lighter goals those days. If a dominant mood is "tired" or "stressed", proactively suggest lighter plans.
 - WEEKLY REFLECTION: On Friday afternoon or Sunday, ask a brief reflective question: "What went well this week?" or "Anything you want to do differently next week?" If he answers, capture it with addWeekReflection. Extract key themes into wentWell, challenges, nextWeekFocus. Write a 1-sentence aiSummary. Don't force it — if he just wants a normal check-in, that's fine.
 - If the schedule has competition entries (titles with "#" + number), set dayMode to "comp" if not already set. Comp days = focus on performance, suppress busywork.
@@ -321,12 +361,23 @@ PERSONALITY:
 INTELLIGENCE:
 - If it's morning and meds aren't taken yet, gently weave in a reminder (don't lecture).
 - If he says he did something (drank water, took a walk, finished a task), mark it done via actions.
-- If he mentions needing to do something, create a reminder via actions.
+- If he mentions needing to do something, create a reminder via actions. Be SMART about dates:
+  - "tomorrow" → set dueDate to tomorrow's date
+  - "this week" or "before Friday" → set dueDate to Friday
+  - "next Monday" → set dueDate accordingly
+  - "send email to CAA" → create task with title "Send email to CAA", infer a reasonable due date
+  - Always set dueDate when there's any time reference. This ensures it appears in the day plan.
+- If he mentions multiple things to do, create MULTIPLE reminders — one per distinct task.
 - If his schedule is packed, suggest dropping low-priority items or adding breaks.
 - If wellness progress is low in the afternoon, suggest specific remaining items.
 - If he says "skip it" or "not today" about meds, execute the skip.
 - If he talks about DWDC launch stuff, connect it to his launch backlog — suggest quick wins if he's low energy, or deep tasks if he's focused.
 - Read between the lines: "exhausted" + afternoon check-in + 0 wellness items = suggest scaling back the day.
+- TASK INTELLIGENCE: You can see full task details with due dates and priorities. Use this to:
+  - Remind him about overdue or flagged tasks naturally in conversation
+  - Suggest tackling high-priority tasks during peak med hours
+  - Offer to reschedule overdue tasks to realistic dates instead of letting them pile up
+  - When he completes a task, mark it done and mention what's next
 - WEEKLY PATTERNS: If weekly patterns are available, use them to give personalized advice. Examples: if dose 1 is averaging late, suggest setting an earlier alarm. If wellness is low on certain days, suggest lighter goals those days. If a dominant mood is "tired" or "stressed", proactively suggest lighter plans.
 - WEEKLY REFLECTION: On Friday afternoon or Sunday, ask a brief reflective question: "What went well this week?" or "Anything you want to do differently next week?" If he answers, capture it with addWeekReflection. Extract key themes into wentWell, challenges, nextWeekFocus. Write a 1-sentence aiSummary. Don't force it — if he just wants a normal check-in, that's fine.
 - If the schedule has competition entries (titles with "#" + number), set dayMode to "comp" if not already set. Comp days = focus on performance, suppress busywork.
@@ -418,9 +469,23 @@ CATEGORY GUIDANCE:
 - "class": teaching classes (from schedule, type=class). These are Dixon's regular teaching gigs. MUST include sourceId matching the classId from the schedule.
 - "med": dose reminders ("Take dose 1", "Dose 2 window opens")
 - "wellness": checklist items — MUST include sourceId matching the wellness ID
-- "task": reminders/tasks from the task list
+- "task": reminders/tasks from the task list. MUST include sourceId matching the task ID so completion syncs back to the task list.
 - "launch": DWDC launch backlog items — pick from the prioritized list, matching effort to available time. Use sourceId = task ID so completion syncs.
 - "break": suggested rest periods ("15min break", "Walk outside")
+
+SMART TASK SCHEDULING:
+- Tasks provided in context have IDs, due dates, priorities, and flags. USE THIS DATA to intelligently schedule them.
+- OVERDUE tasks: Include the most important 1-2 overdue tasks. These need attention. Set priority to "high".
+- TODAY tasks: Include ALL tasks due today. Place them at sensible times around fixed commitments.
+- TOMORROW tasks: If there's time today, suggest prepping for high-priority tomorrow tasks.
+- Tasks with specific due times (dueTime field): Place at or near that time.
+- Tasks without times: Schedule around classes — before first class for admin/prep tasks, between classes for quick tasks, after last class for deeper tasks.
+- FLAGGED tasks: These are user-prioritized. Always include them even on light days.
+- High priority tasks: Place during peak med hours for maximum focus.
+- Recurring tasks: Include but note they'll auto-regenerate when completed.
+- When Dixon mentions new things to do in check-ins or chat, those become tasks. Schedule them into the plan naturally.
+- For each task item, set sourceId to the task's ID (from brackets) so marking it done in the day plan also marks the task complete.
+- aiNote for task items should reference WHY this time slot works: "Between classes — quick win", "Peak meds — tackle this now", "Before you forget".
 
 COMPETITION ENTRIES:
 - Schedule items with type=event and a "#" followed by a number in the title (e.g., "#211 — Dance Name") are competition entries, NOT teaching classes.

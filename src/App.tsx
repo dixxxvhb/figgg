@@ -115,6 +115,7 @@ function App() {
                         <Route path="/formations/:danceId" element={<FormationBuilder />} />
                         <Route path="/students" element={<Students />} />
                         <Route path="/library" element={<Library />} />
+                        <Route path="/tasks" element={<Me initialTab="reminders" />} />
                         <Route path="/me" element={<Me />} />
                         <Route path="/launch" element={<LaunchPlan />} />
                         <Route path="/ai" element={<AIChat />} />

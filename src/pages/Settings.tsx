@@ -45,6 +45,9 @@ export function Settings() {
   const [cloudStatus, setCloudStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [migrating, setMigrating] = useState(false);
   const [migrateStatus, setMigrateStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [recoveryJson, setRecoveryJson] = useState('');
+  const [recoveryStatus, setRecoveryStatus] = useState<'idle' | 'success' | 'error' | 'invalid'>('idle');
+  const [recoveryStats, setRecoveryStats] = useState<{ weekNotes: number; classes: number } | null>(null);
   const { user, signIn, signOut } = useAuth();
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -1012,6 +1015,90 @@ export function Settings() {
           </Card>
         </section>
       )}
+
+      {/* Recover Old Data */}
+      <section className="mt-4">
+        <h2 className="type-h3 mb-1.5 px-1">Recover Old Notes</h2>
+        <Card variant="standard" padding="sm">
+          <p className="text-xs text-[var(--text-secondary)] mb-2">
+            If you had class notes on the old Netlify version, you can recover them. Open the old site in the same browser,
+            go to DevTools (F12) &gt; Application &gt; Local Storage &gt; find the <code className="bg-[var(--surface-inset)] px-1 rounded">dance-teaching-app-data</code> key, copy the value, and paste it below.
+          </p>
+          <textarea
+            value={recoveryJson}
+            onChange={e => { setRecoveryJson(e.target.value); setRecoveryStatus('idle'); }}
+            placeholder="Paste old localStorage JSON here..."
+            rows={3}
+            className="w-full px-3 py-2 text-xs bg-[var(--surface-inset)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)] resize-none font-mono"
+          />
+          <button
+            onClick={() => {
+              try {
+                const parsed = JSON.parse(recoveryJson);
+                if (!parsed.weekNotes || !Array.isArray(parsed.weekNotes)) {
+                  setRecoveryStatus('invalid');
+                  return;
+                }
+                // Merge recovered weekNotes with existing ones (don't overwrite)
+                const existing = data.weekNotes || [];
+                const existingWeeks = new Set(existing.map(w => w.weekOf));
+                const newNotes = parsed.weekNotes.filter((w: { weekOf: string }) => !existingWeeks.has(w.weekOf));
+                if (newNotes.length === 0 && parsed.weekNotes.length > 0) {
+                  // All weeks already exist — merge individual class notes within weeks
+                  let mergedCount = 0;
+                  const merged = existing.map(ew => {
+                    const recoveredWeek = parsed.weekNotes.find((rw: { weekOf: string }) => rw.weekOf === ew.weekOf);
+                    if (!recoveredWeek) return ew;
+                    const mergedClassNotes = { ...ew.classNotes };
+                    for (const [classId, notes] of Object.entries(recoveredWeek.classNotes || {})) {
+                      if (!mergedClassNotes[classId]) {
+                        mergedClassNotes[classId] = notes as typeof ew.classNotes[string];
+                        mergedCount++;
+                      }
+                    }
+                    return { ...ew, classNotes: mergedClassNotes };
+                  });
+                  if (mergedCount > 0) {
+                    importData(JSON.stringify({ ...data, weekNotes: merged }));
+                    refreshData();
+                    setRecoveryStats({ weekNotes: mergedCount, classes: parsed.classes?.length || 0 });
+                    setRecoveryStatus('success');
+                  } else {
+                    setRecoveryStats({ weekNotes: 0, classes: 0 });
+                    setRecoveryStatus('success');
+                  }
+                } else {
+                  // Add new weeks
+                  const allNotes = [...existing, ...newNotes];
+                  importData(JSON.stringify({ ...data, weekNotes: allNotes }));
+                  refreshData();
+                  setRecoveryStats({ weekNotes: newNotes.length, classes: parsed.classes?.length || 0 });
+                  setRecoveryStatus('success');
+                }
+                setRecoveryJson('');
+              } catch {
+                setRecoveryStatus('invalid');
+              }
+            }}
+            disabled={!recoveryJson.trim()}
+            className="mt-2 w-full flex items-center justify-center gap-2 px-4 py-2 bg-[var(--surface-inset)] text-[var(--text-primary)] rounded-[var(--radius-sm)] text-xs font-medium hover:bg-[var(--surface-card-hover)] disabled:opacity-30 transition-opacity"
+          >
+            <Upload size={12} /> Recover Notes
+          </button>
+          {recoveryStatus === 'success' && recoveryStats && (
+            <p className="text-xs text-[var(--status-success)] mt-1.5 text-center">
+              {recoveryStats.weekNotes > 0
+                ? `Recovered ${recoveryStats.weekNotes} week(s) of notes! Run "Migrate to Firebase" to sync to cloud.`
+                : 'All notes already present — nothing new to recover.'}
+            </p>
+          )}
+          {recoveryStatus === 'invalid' && (
+            <p className="text-xs text-[var(--status-danger)] mt-1.5 text-center">
+              Invalid JSON format. Make sure you copied the full value from localStorage.
+            </p>
+          )}
+        </Card>
+      </section>
 
       {/* App Version */}
       <div className="mt-4 text-center mb-8">

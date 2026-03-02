@@ -30,7 +30,20 @@ export interface AIContextPayload {
   tasks: {
     overdueCount: number;
     todayDueCount: number;
+    tomorrowDueCount: number;
     topTitles: string[];     // max 5
+    // Detailed task list for smarter AI scheduling
+    taskDetails: Array<{
+      id: string;
+      title: string;
+      dueDate?: string;
+      dueTime?: string;
+      priority: string;
+      flagged: boolean;
+      listName?: string;
+      hasSubtasks: boolean;
+      recurring: boolean;
+    }>;
   };
   // Launch
   launchTasks: string[];      // max 5 titles (legacy, kept for compat)
@@ -125,23 +138,45 @@ export function buildAIContext(
 
   // Tasks (reminders)
   const reminders = sc?.reminders || [];
-  const overdueCount = reminders.filter(r =>
-    !r.completed && r.dueDate && r.dueDate < todayStr
+  const reminderLists = sc?.reminderLists || [];
+  const incompleteReminders = reminders.filter(r => !r.completed);
+  const overdueCount = incompleteReminders.filter(r =>
+    r.dueDate && r.dueDate < todayStr
   ).length;
-  const todayDueCount = reminders.filter(r =>
-    !r.completed && r.dueDate === todayStr
+  const todayDueCount = incompleteReminders.filter(r =>
+    r.dueDate === todayStr
   ).length;
-  const topTitles = reminders
-    .filter(r => !r.completed)
+  const tomorrowStr = toDateStr(new Date(now.getTime() + 86400000));
+  const tomorrowDueCount = incompleteReminders.filter(r =>
+    r.dueDate === tomorrowStr
+  ).length;
+  const sortedTasks = incompleteReminders
     .sort((a, b) => {
       if (a.flagged && !b.flagged) return -1;
       if (!a.flagged && b.flagged) return 1;
-      if (a.dueDate && !b.dueDate) return -1;
-      if (!a.dueDate && b.dueDate) return 1;
+      // Overdue first, then today, then tomorrow, then by due date
+      const aUrgency = a.dueDate ? (a.dueDate < todayStr ? 0 : a.dueDate === todayStr ? 1 : a.dueDate === tomorrowStr ? 2 : 3) : 4;
+      const bUrgency = b.dueDate ? (b.dueDate < todayStr ? 0 : b.dueDate === todayStr ? 1 : b.dueDate === tomorrowStr ? 2 : 3) : 4;
+      if (aUrgency !== bUrgency) return aUrgency - bUrgency;
+      if (a.priority !== b.priority) {
+        const pOrder = { high: 0, medium: 1, low: 2, none: 3 };
+        return (pOrder[a.priority] || 3) - (pOrder[b.priority] || 3);
+      }
       return 0;
-    })
-    .slice(0, 5)
-    .map(r => r.title);
+    });
+  const topTitles = sortedTasks.slice(0, 5).map(r => r.title);
+  // Detailed task info for AI scheduling (max 15 tasks for token budget)
+  const taskDetails = sortedTasks.slice(0, 15).map(r => ({
+    id: r.id,
+    title: r.title,
+    dueDate: r.dueDate,
+    dueTime: r.dueTime,
+    priority: r.priority,
+    flagged: r.flagged,
+    listName: reminderLists.find(l => l.id === r.listId)?.name,
+    hasSubtasks: (r.subtasks?.length ?? 0) > 0,
+    recurring: !!r.recurring,
+  }));
 
   // Launch tasks — prioritized backlog, ready tasks first
   const allLaunchTasks = data.launchPlan?.tasks || [];
@@ -308,7 +343,7 @@ export function buildAIContext(
     userMessage,
     medStatus,
     schedule,
-    tasks: { overdueCount, todayDueCount, topTitles },
+    tasks: { overdueCount, todayDueCount, tomorrowDueCount, topTitles, taskDetails },
     launchTasks,
     launchTaskList,
     todayClassList,
