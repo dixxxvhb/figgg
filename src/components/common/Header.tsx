@@ -173,7 +173,6 @@ export function MobileNav() {
             <Link
               key={path}
               to={path}
-              onClick={() => {}}
               className={`flex flex-col items-center justify-center gap-0.5 min-w-[44px] min-h-[48px] px-1 py-1 transition-all duration-150 active:scale-95 ${
                 active
                   ? 'text-[var(--accent-primary)]'

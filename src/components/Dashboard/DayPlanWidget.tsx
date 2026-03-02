@@ -16,7 +16,7 @@ const CATEGORY_COLORS: Record<DayPlanItem['category'], string> = {
 
 const CATEGORY_LINK: Record<DayPlanItem['category'], string | null> = {
   wellness: '/me',
-  task: '/me',
+  task: '/tasks',
   class: null, // needs sourceId
   launch: '/launch',
   break: null,
