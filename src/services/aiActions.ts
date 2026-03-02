@@ -29,6 +29,10 @@ export interface ActionCallbacks {
   updateLaunchPlan: (updates: Partial<LaunchPlanData>) => void;
   updateCompetitionDance: (dance: CompetitionDance) => void;
   getMedConfig: () => { medType: string; maxDoses: number };
+  // Extended callbacks for full app access
+  updateClass?: (cls: import('../types').Class) => void;
+  updateSettings?: (updates: Partial<import('../types').AppSettings>) => void;
+  updateStudent?: (student: import('../types').Student) => void;
 }
 
 export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks): void {
@@ -428,6 +432,86 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
       }
       case 'generateCatchUpPlan': {
         // Signal to the chat to generate a catch-up. No client action needed.
+        break;
+      }
+
+      // ── Class Management ──────────────────────────────────────────────
+      case 'updateClass': {
+        if (!action.classId || !action.updates || !callbacks.updateClass) break;
+        const allClasses = callbacks.getData().classes;
+        const targetClass = allClasses.find(c => c.id === action.classId);
+        if (!targetClass) break;
+        // Only allow safe field updates (schedule, name, level, notes)
+        const safeUpdates: Record<string, unknown> = {};
+        const allowedFields = ['name', 'startTime', 'endTime', 'day', 'level', 'recitalSong', 'choreographyNotes', 'studioId'];
+        for (const key of allowedFields) {
+          if (key in action.updates) {
+            safeUpdates[key] = action.updates[key];
+          }
+        }
+        if (Object.keys(safeUpdates).length > 0) {
+          callbacks.updateClass({ ...targetClass, ...safeUpdates } as import('../types').Class);
+        }
+        break;
+      }
+
+      // ── Delete Reminder ───────────────────────────────────────────────
+      case 'deleteReminder': {
+        if (!action.title) break;
+        const delReminders = (selfCareUpdates.reminders as Reminder[]) || [...(sc.reminders || [])];
+        const delIdx = delReminders.findIndex((r: Reminder) => r.title.toLowerCase() === action.title!.toLowerCase());
+        if (delIdx >= 0) {
+          delReminders.splice(delIdx, 1);
+          selfCareUpdates.reminders = delReminders;
+          needsSelfCareUpdate = true;
+        }
+        break;
+      }
+
+      // ── Settings ──────────────────────────────────────────────────────
+      case 'updateSettings': {
+        if (!action.settingKey || !callbacks.updateSettings) break;
+        const allowedSettings = ['darkMode', 'fontSize', 'themeId'];
+        const allowedAISettings = ['tone', 'morningCheckInEnabled', 'afternoonCheckInEnabled', 'autoPlanEnabled'];
+        if (allowedSettings.includes(action.settingKey)) {
+          callbacks.updateSettings({ [action.settingKey]: action.settingValue });
+        } else if (allowedAISettings.includes(action.settingKey)) {
+          // AI config nested update
+          const currentAIConfig = callbacks.getData().settings?.aiConfig || { morningCheckInEnabled: true, afternoonCheckInEnabled: true, afternoonCheckInTime: '13:00', tone: 'direct' as const, autoPlanEnabled: true };
+          callbacks.updateSettings({ aiConfig: { ...currentAIConfig, [action.settingKey]: action.settingValue } });
+        }
+        break;
+      }
+
+      // ── Student Skill Notes ───────────────────────────────────────────
+      case 'addSkillNote': {
+        if (!action.studentId || !action.text || !callbacks.updateStudent) break;
+        const students = callbacks.getData().students || [];
+        const student = students.find(s => s.id === action.studentId);
+        if (!student) break;
+        const newSkillNote = {
+          id: `ai-skill-${Date.now()}`,
+          date: todayKey,
+          category: (action.skillCategory || 'achievement') as 'strength' | 'improvement' | 'concern' | 'achievement' | 'parent-note',
+          text: action.text,
+        };
+        callbacks.updateStudent({
+          ...student,
+          skillNotes: [...student.skillNotes, newSkillNote],
+        });
+        break;
+      }
+
+      // ── Update Student Notes ──────────────────────────────────────────
+      case 'updateStudentNote': {
+        if (!action.studentId || !action.text || !callbacks.updateStudent) break;
+        const allStudents = callbacks.getData().students || [];
+        const targetStudent = allStudents.find(s => s.id === action.studentId);
+        if (!targetStudent) break;
+        callbacks.updateStudent({
+          ...targetStudent,
+          notes: action.text,
+        });
         break;
       }
     }

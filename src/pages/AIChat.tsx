@@ -10,6 +10,8 @@ import { buildFullAIContext } from '../services/aiContext';
 import { executeAIActions } from '../services/aiActions';
 import type { ActionCallbacks } from '../services/aiActions';
 import { haptic } from '../utils/haptics';
+import { updateSettings as updateStorageSettings } from '../services/storage';
+import { applyTheme } from '../styles/applyTheme';
 
 const CHAT_STORAGE_KEY = 'figgg-ai-chat-messages';
 
@@ -22,6 +24,8 @@ export function AIChat() {
     getCurrentWeekNotes,
     updateLaunchPlan,
     updateCompetitionDance,
+    updateClass,
+    updateStudent,
   } = useAppData();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -62,6 +66,27 @@ export function AIChat() {
 
   // Build action callbacks
   const medConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
+  // Settings update handler — applies theme/darkMode changes immediately
+  const handleUpdateSettings = useCallback((updates: Partial<import('../types').AppSettings>) => {
+    updateStorageSettings(updates);
+    // Apply visual changes immediately
+    if (updates.darkMode !== undefined) {
+      if (updates.darkMode) document.documentElement.classList.add('dark');
+      else document.documentElement.classList.remove('dark');
+    }
+    if (updates.themeId) {
+      applyTheme(updates.themeId, document.documentElement.classList.contains('dark'));
+    }
+    if (updates.fontSize) {
+      const root = document.documentElement;
+      switch (updates.fontSize) {
+        case 'large': root.style.fontSize = '18px'; break;
+        case 'extra-large': root.style.fontSize = '20px'; break;
+        default: root.style.fontSize = '16px';
+      }
+    }
+  }, []);
+
   const actionCallbacks: ActionCallbacks = useMemo(() => ({
     getData: () => dataRef.current,
     updateSelfCare,
@@ -71,7 +96,10 @@ export function AIChat() {
     updateLaunchPlan,
     updateCompetitionDance,
     getMedConfig: () => medConfig,
-  }), [updateSelfCare, saveDayPlan, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance, medConfig]);
+    updateClass,
+    updateSettings: handleUpdateSettings,
+    updateStudent,
+  }), [updateSelfCare, saveDayPlan, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance, medConfig, updateClass, handleUpdateSettings, updateStudent]);
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || isLoading) return;

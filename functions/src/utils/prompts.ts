@@ -159,6 +159,50 @@ export function buildContextString(payload: any, mode: Mode): string {
     contextLines.push(`Next competition: ${nc.name} in ${nc.daysAway} days (${nc.dancesReady}/${nc.dancesTotal} dances have rehearsal notes)`);
   }
 
+  // Full class details (chat mode — for schedule/class modifications)
+  if (ctx.classDetails?.length > 0 && mode === "chat") {
+    contextLines.push(`All classes (full details — use classId for updateClass):\n${ctx.classDetails.map((c: { id: string; name: string; day: string; startTime: string; endTime: string; studioId: string; level?: string }) => `  [${c.id}] ${c.name} — ${c.day} ${c.startTime}-${c.endTime}${c.level ? ` (${c.level})` : ""} @${c.studioId}`).join("\n")}`);
+  }
+
+  // Studios
+  if (ctx.studioList?.length > 0 && mode === "chat") {
+    contextLines.push(`Studios:\n${ctx.studioList.map((s: { id: string; name: string; shortName: string; address: string }) => `  [${s.id}] ${s.name} (${s.shortName}) — ${s.address}`).join("\n")}`);
+  }
+
+  // Students (chat mode)
+  if (ctx.studentList?.length > 0 && mode === "chat") {
+    contextLines.push(`Students (use studentId for skill notes):\n${ctx.studentList.map((s: { id: string; name: string; nickname?: string; classIds: string[] }) => `  [${s.id}] ${s.name}${s.nickname ? ` "${s.nickname}"` : ""} — ${s.classIds.length} classes`).join("\n")}`);
+  }
+
+  // Competition details (chat mode)
+  if (ctx.competitionDetails?.length > 0 && mode === "chat") {
+    contextLines.push(`Competitions:\n${ctx.competitionDetails.map((c: { id: string; name: string; date: string; location: string }) => `  [${c.id}] ${c.name} — ${c.date} @ ${c.location}`).join("\n")}`);
+  }
+
+  // Competition dance details (chat mode)
+  if (ctx.competitionDanceDetails?.length > 0 && mode === "chat") {
+    contextLines.push(`Competition dances (full):\n${ctx.competitionDanceDetails.map((d: { id: string; registrationName: string; songTitle: string; style: string; category: string; dancers: string[]; recentRehearsals?: Array<{ date: string; notes: string }> }) => {
+      let line = `  [${d.id}] ${d.registrationName} — "${d.songTitle}" (${d.style} ${d.category}, ${d.dancers.length} dancers)`;
+      if (d.recentRehearsals?.length) line += `\n    Last rehearsal ${d.recentRehearsals[0].date}: ${d.recentRehearsals[0].notes.slice(0, 80)}`;
+      return line;
+    }).join("\n")}`);
+  }
+
+  // Settings snapshot (chat mode)
+  if (ctx.settingsSnapshot && mode === "chat") {
+    const ss = ctx.settingsSnapshot;
+    contextLines.push(`Current settings: theme=${ss.themeId || "default"}, dark=${ss.darkMode || false}, font=${ss.fontSize || "normal"}, AI tone=${ss.aiConfig?.tone || "direct"}, auto-plan=${ss.aiConfig?.autoPlanEnabled ?? true}`);
+  }
+
+  // Recent week notes (chat mode)
+  if (ctx.recentWeekNotes?.length > 0 && mode === "chat") {
+    contextLines.push(`Recent week notes:\n${ctx.recentWeekNotes.map((w: { weekOf: string; classNotes: Record<string, { plan: string; noteCount: number; hasException?: boolean; exceptionType?: string }> }) => {
+      const classCount = Object.keys(w.classNotes).length;
+      const noteTotal = Object.values(w.classNotes).reduce((sum, cn) => sum + cn.noteCount, 0);
+      return `  Week of ${w.weekOf}: ${classCount} classes, ${noteTotal} notes`;
+    }).join("\n")}`);
+  }
+
   // Last week reflection
   if (ctx.lastReflection) {
     contextLines.push(`Last week's reflection: ${ctx.lastReflection}`);
@@ -265,6 +309,11 @@ INTELLIGENCE:
 - WEEKLY REFLECTION: On Friday afternoon or Sunday, ask a brief reflective question: "What went well this week?" or "Anything you want to do differently next week?" If he answers, capture it with addWeekReflection. Extract key themes into wentWell, challenges, nextWeekFocus. Write a 1-sentence aiSummary. Don't force it — if he just wants a normal check-in, that's fine.
 - If the schedule has competition entries (titles with "#" + number), set dayMode to "comp" if not already set. Comp days = focus on performance, suppress busywork.
 - If schedule is heavy (4+ hours of classes), consider setting dayMode to "intense" for extra fuel items.
+
+FULL APP ACCESS:
+- You can see and modify everything in the app: classes, students, settings, competitions, wellness, tasks, schedule, and more.
+- If Dixon asks you to change a class time, update settings, add a student note, or anything else — do it via actions.
+- You have access to full class details, student roster, competition dances, settings, and recent week notes.
 
 DISRUPTION AUTONOMY:
 - For disruptions, proactively suggest cancelling classes, deferring tasks, and assigning subs. Don't wait to be asked — if Dixon says he's sick, lead with practical steps.
@@ -423,7 +472,28 @@ Launch Plan:
   { "type": "addLaunchNote", "taskId": "...", "note": "..." }
 
 Rehearsal Notes:
-  { "type": "addRehearsalNote", "danceId": "...", "notes": "...", "workOn": ["item1", "item2"] }`;
+  { "type": "addRehearsalNote", "danceId": "...", "notes": "...", "workOn": ["item1", "item2"] }
+
+Class Management:
+  { "type": "updateClass", "classId": "...", "updates": { "startTime": "10:00", "endTime": "10:55" } }
+  Updatable fields: name, startTime, endTime, day, level, recitalSong, choreographyNotes, studioId
+
+Reminders:
+  { "type": "deleteReminder", "title": "exact title match" }
+
+Settings:
+  { "type": "updateSettings", "settingKey": "darkMode", "settingValue": true }
+  { "type": "updateSettings", "settingKey": "themeId", "settingValue": "ocean" }
+  { "type": "updateSettings", "settingKey": "fontSize", "settingValue": "large" }
+  { "type": "updateSettings", "settingKey": "tone", "settingValue": "supportive" }
+  { "type": "updateSettings", "settingKey": "autoPlanEnabled", "settingValue": false }
+  Available themes: stone, ocean, plum, midnight, clay, dusk
+  Available font sizes: normal, large, extra-large
+  Available tones: supportive, direct, minimal
+
+Students:
+  { "type": "addSkillNote", "studentId": "...", "text": "...", "skillCategory": "strength|improvement|concern|achievement|parent-note" }
+  { "type": "updateStudentNote", "studentId": "...", "text": "new general notes for student" }`;
 
   if (includeDisruption) {
     actions += `
@@ -454,7 +524,11 @@ RULES FOR ACTIONS:
 - CLASS NOTES: When user mentions a note, observation, or plan for a specific class -> use addClassNote or setClassPlan. Match the class name from weekClassList (fuzzy is ok, e.g., "Ballet 1" matches "Ballet 1 Beginner"). If ambiguous (multiple plausible matches), ask in your response instead of guessing.
 - LAUNCH TASKS: When user says they finished, skipped, or wants to note something about a DWDC task -> use completeLaunchTask/skipLaunchTask/addLaunchNote. Match from launchTaskList.
 - REHEARSAL NOTES: When user mentions rehearsal notes or working on a competition piece -> use addRehearsalNote. Match dance from competitionDanceList.
-- FUZZY RESOLUTION: You must always include the actual ID (from the lookup lists) in actions, not the name. If you can't confidently match a name to an ID, ask for clarification instead.`;
+- FUZZY RESOLUTION: You must always include the actual ID (from the lookup lists) in actions, not the name. If you can't confidently match a name to an ID, ask for clarification instead.
+- CLASS MODIFICATIONS: When user asks to change a class time, name, studio, or level → use updateClass with the classId and only the changed fields. Match from classDetails list. Don't change fields the user didn't mention.
+- SETTINGS: When user asks to change theme, dark mode, font size, AI tone, or auto-plan → use updateSettings. Apply changes immediately. E.g., "make it dark" → { "type": "updateSettings", "settingKey": "darkMode", "settingValue": true }
+- STUDENT NOTES: When user mentions something about a specific student → use addSkillNote with the studentId from studentList. Use appropriate category (strength for positive, improvement for growth areas, concern for worrying behavior, achievement for milestones).
+- DELETE REMINDER: When user says to delete/remove a reminder → use deleteReminder with exact title match.`;
 
   return actions;
 }
