@@ -4,7 +4,7 @@ import type { AICheckIn, DayPlan } from '../types';
 import type { Choreography } from '../types/choreography';
 import { loadData, saveData, saveWeekNotes as saveWeekNotesToStorage, saveSelfCareToStorage, saveLaunchPlanToStorage, saveDayPlanToStorage } from '../services/storage';
 import { runLearningEngine } from '../services/learningEngine';
-import { getWeekStart, formatWeekOf } from '../utils/time';
+import { getWeekStart, formatWeekOf, toDateStr } from '../utils/time';
 import { v4 as uuid } from 'uuid';
 import { auth } from '../services/firebase';
 import {
@@ -52,8 +52,8 @@ export function useAppData() {
   const launchPlanOnlyRef = useRef(false);
   // Same pattern for day plan updates
   const dayPlanOnlyRef = useRef(false);
-  // Track if snapshot update is happening (to avoid triggering saveData)
-  const snapshotUpdateRef = useRef(false);
+  // Track active snapshot updates (counter avoids timing issues vs boolean + setTimeout)
+  const snapshotUpdateRef = useRef(0);
 
   // Run learning engine on app open (generates yesterday's snapshot if missing)
   useEffect(() => {
@@ -69,7 +69,13 @@ export function useAppData() {
 
     loadAllData(user.uid).then(firestoreData => {
       // Only use Firestore data if it has content (migration has been run)
-      if (firestoreData.classes.length > 0 || firestoreData.studios.length > 0) {
+      const hasFirestoreData = firestoreData.classes.length > 0
+        || firestoreData.studios.length > 0
+        || firestoreData.selfCare
+        || firestoreData.launchPlan
+        || firestoreData.dayPlan
+        || (firestoreData.students && firestoreData.students.length > 0);
+      if (hasFirestoreData) {
         setData(firestoreData);
         // Also update localStorage cache for offline use
         try {
@@ -93,27 +99,22 @@ export function useAppData() {
 
     const unsubSelfCare = onSelfCareSnapshot(user.uid, (selfCare) => {
       if (selfCare) {
-        snapshotUpdateRef.current = true;
+        snapshotUpdateRef.current++;
         setData(prev => ({ ...prev, selfCare }));
-        // Reset after a short delay to ensure the save effect sees the flag
-        // Using setTimeout instead of Promise.resolve for more reliable timing
-        setTimeout(() => { snapshotUpdateRef.current = false; }, 50);
       }
     });
 
     const unsubDayPlan = onDayPlanSnapshot(user.uid, (dayPlan) => {
       if (dayPlan) {
-        snapshotUpdateRef.current = true;
+        snapshotUpdateRef.current++;
         setData(prev => ({ ...prev, dayPlan }));
-        setTimeout(() => { snapshotUpdateRef.current = false; }, 50);
       }
     });
 
     const unsubLaunchPlan = onLaunchPlanSnapshot(user.uid, (launchPlan) => {
       if (launchPlan) {
-        snapshotUpdateRef.current = true;
+        snapshotUpdateRef.current++;
         setData(prev => ({ ...prev, launchPlan }));
-        setTimeout(() => { snapshotUpdateRef.current = false; }, 50);
       }
     });
 
@@ -137,7 +138,8 @@ export function useAppData() {
     }
 
     // Skip save if this update came from a Firestore snapshot listener
-    if (snapshotUpdateRef.current) {
+    if (snapshotUpdateRef.current > 0) {
+      snapshotUpdateRef.current--;
       return;
     }
 
@@ -525,7 +527,7 @@ export function useAppData() {
       const existing = prev.aiCheckIns || [];
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - 30);
-      const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
+      const cutoffStr = toDateStr(cutoff);
       const updated = [...existing, checkIn].filter(c => c.date >= cutoffStr);
       return { ...prev, aiCheckIns: updated };
     });

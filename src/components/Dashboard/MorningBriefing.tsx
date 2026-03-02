@@ -8,7 +8,7 @@ import {
   Check,
 } from 'lucide-react';
 import { isPast, startOfDay, parseISO } from 'date-fns';
-import { formatTimeDisplay, formatDuration, timeToMinutes } from '../../utils/time';
+import { formatTimeDisplay, formatDuration, timeToMinutes, toDateStr } from '../../utils/time';
 import { haptic } from '../../utils/haptics';
 import { callAIChat } from '../../services/ai';
 import { buildFullAIContext } from '../../services/aiContext';
@@ -93,10 +93,7 @@ export function MorningBriefing({
     setJustLogged(true);
     setTimeout(() => setJustLogged(false), 2000);
   };
-  const todayStr = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  }, []);
+  const todayStr = useMemo(() => toDateStr(), []);
 
   const totalItems = todayClasses.length + todayCalendarEvents.length;
 

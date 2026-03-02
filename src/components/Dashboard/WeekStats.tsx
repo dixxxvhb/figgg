@@ -102,7 +102,9 @@ function useWeeklyInsight(stats: TeachingStats, classes: Class[], competitions?:
     }
 
     if (insights.length === 0) return null;
-    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+    // Pick a stable insight per day — use Date fields instead of Date.now() to keep render pure
+    const now = new Date();
+    const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000);
     return insights[dayOfYear % insights.length];
   }, [stats, classes, competitions, weekNotes]);
 }

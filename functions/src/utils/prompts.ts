@@ -64,9 +64,9 @@ export function buildContextString(payload: any, mode: Mode): string {
     }
   }
 
-  // Launch tasks
+  // Launch tasks (prioritized backlog — these are the top ready tasks sorted by priority)
   if (ctx.launchTaskList?.length > 0) {
-    contextLines.push(`DWDC launch tasks (use taskId for actions):\n${ctx.launchTaskList.map((t: { id: string; title: string; category: string; milestone: boolean }) => `  [${t.id}] ${t.milestone ? "\u2605 " : ""}${t.title} (${t.category})`).join("\n")}`);
+    contextLines.push(`DWDC launch backlog — top ready tasks by priority (use taskId for actions):\n${ctx.launchTaskList.map((t: { id: string; title: string; category: string; milestone: boolean; effort?: string }) => `  [${t.id}] ${t.milestone ? "\u2605 " : ""}${t.title} (${t.category}${t.effort ? `, ${t.effort}` : ""})`).join("\n")}`);
   } else if (ctx.launchTasks?.length > 0) {
     if (mode === "day-plan") {
       contextLines.push(`DWDC launch priorities:\n${ctx.launchTasks.map((t: string) => `  - ${t}`).join("\n")}`);
@@ -268,7 +268,7 @@ INTELLIGENCE:
 - If his schedule is packed, suggest dropping low-priority items or adding breaks.
 - If wellness progress is low in the afternoon, suggest specific remaining items.
 - If he says "skip it" or "not today" about meds, execute the skip.
-- If he talks about DWDC launch stuff, connect it to his launch tasks.
+- If he talks about DWDC launch stuff, connect it to his launch backlog — suggest quick wins if he's low energy, or deep tasks if he's focused.
 - Read between the lines: "exhausted" + afternoon check-in + 0 wellness items = suggest scaling back the day.
 - WEEKLY REFLECTION: On Friday afternoon or Sunday, ask a brief reflective question: "What went well this week?" or "Anything you want to do differently next week?" If he answers, capture it with addWeekReflection. Extract key themes into wentWell, challenges, nextWeekFocus. Write a 1-sentence aiSummary. Don't force it — if he just wants a normal check-in, that's fine.
 - If the schedule has competition entries (titles with "#" + number), set dayMode to "comp" if not already set. Comp days = focus on performance, suppress busywork.
@@ -304,7 +304,7 @@ INTELLIGENCE:
 - If his schedule is packed, suggest dropping low-priority items or adding breaks.
 - If wellness progress is low in the afternoon, suggest specific remaining items.
 - If he says "skip it" or "not today" about meds, execute the skip.
-- If he talks about DWDC launch stuff, connect it to his launch tasks.
+- If he talks about DWDC launch stuff, connect it to his launch backlog — suggest quick wins if he's low energy, or deep tasks if he's focused.
 - Read between the lines: "exhausted" + afternoon check-in + 0 wellness items = suggest scaling back the day.
 - WEEKLY REFLECTION: On Friday afternoon or Sunday, ask a brief reflective question: "What went well this week?" or "Anything you want to do differently next week?" If he answers, capture it with addWeekReflection. Extract key themes into wentWell, challenges, nextWeekFocus. Write a 1-sentence aiSummary. Don't force it — if he just wants a normal check-in, that's fine.
 - If the schedule has competition entries (titles with "#" + number), set dayMode to "comp" if not already set. Comp days = focus on performance, suppress busywork.
@@ -344,7 +344,7 @@ PLANNING PHILOSOPHY:
 - Place low-focus tasks (email, errands) during ramp-up or taper periods.
 - Weave wellness items into natural gaps — don't cluster them all at once.
 - Include 1-2 short breaks if the day has 3+ hours of commitments.
-- Launch tasks get dedicated time blocks, not just "whenever."
+- Launch tasks are a prioritized backlog with effort tags (quick/medium/deep). Pick 1-3 that fit today's energy and available time. Quick tasks (<15m) fit anywhere. Deep tasks (1h+) need a dedicated block during peak focus hours.
 - If dayMode is set, adapt the plan accordingly:
   - "light": 5-7 items max, include calming wellness, skip intensive tasks
   - "intense": front-load admin before classes, include extra nutrition breaks
@@ -391,7 +391,7 @@ CATEGORY GUIDANCE:
 - "med": dose reminders ("Take dose 1", "Dose 2 window opens")
 - "wellness": checklist items — MUST include sourceId matching the wellness ID
 - "task": reminders/tasks from the task list
-- "launch": DWDC launch plan items
+- "launch": DWDC launch backlog items — pick from the prioritized list, matching effort to available time. Use sourceId = task ID so completion syncs.
 - "break": suggested rest periods ("15min break", "Walk outside")
 
 COMPETITION ENTRIES:

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Flame } from 'lucide-react';
+import { toDateStr } from '../../utils/time';
 import type { SelfCareData, LearningData } from '../../types';
 
 interface StreakCardProps {
@@ -43,10 +44,10 @@ function computeMedStreak(selfCare?: SelfCareData, learningData?: LearningData):
 
   // Compute current streak (consecutive days from today backwards)
   const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const todayStr = toDateStr(today);
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+  const yesterdayStr = toDateStr(yesterday);
 
   // Start from today or yesterday
   let current = 0;
@@ -54,7 +55,7 @@ function computeMedStreak(selfCare?: SelfCareData, learningData?: LearningData):
 
   if (checkDate) {
     while (true) {
-      const key = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, '0')}-${String(checkDate.getDate()).padStart(2, '0')}`;
+      const key = toDateStr(checkDate);
       if (medDates.has(key)) {
         current++;
         checkDate.setDate(checkDate.getDate() - 1);
@@ -64,21 +65,21 @@ function computeMedStreak(selfCare?: SelfCareData, learningData?: LearningData):
     }
   }
 
-  // Compute longest streak from all dates
-  let longest = 0;
+  // Compute longest streak from all dates (sorted descending)
+  let longest = 1;
   let run = 1;
   for (let i = 1; i < sorted.length; i++) {
-    const prev = new Date(sorted[i - 1]);
-    const curr = new Date(sorted[i]);
+    const prev = new Date(sorted[i - 1] + 'T00:00:00');
+    const curr = new Date(sorted[i] + 'T00:00:00');
     const diffDays = Math.round((prev.getTime() - curr.getTime()) / 86400000);
     if (diffDays === 1) {
       run++;
-    } else {
       longest = Math.max(longest, run);
+    } else {
       run = 1;
     }
   }
-  longest = Math.max(longest, run, current);
+  longest = Math.max(longest, current);
 
   return { current, longest };
 }

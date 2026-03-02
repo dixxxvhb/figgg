@@ -329,12 +329,20 @@ function saveDataLocalOnly(data: AppData): AppData {
   const jsonString = JSON.stringify(dataWithTimestamp);
 
   // Check if data is too large for localStorage (typically 5-10MB limit)
-  if (jsonString.length > 4 * 1024 * 1024) {
-    const sizeInMB = (jsonString.length / (1024 * 1024)).toFixed(2);
+  const sizeBytes = jsonString.length;
+  if (sizeBytes > 4 * 1024 * 1024) {
+    const sizeInMB = (sizeBytes / (1024 * 1024)).toFixed(2);
     saveEvents.emit('warning', `Data size is ${sizeInMB}MB — approaching storage limit. Consider removing some photos.`);
   }
 
-  localStorage.setItem(STORAGE_KEY, jsonString);
+  try {
+    localStorage.setItem(STORAGE_KEY, jsonString);
+  } catch (e) {
+    // QuotaExceededError — emit error so the UI can warn the user
+    saveEvents.emit('error', 'Storage full! Try removing some photos or old data.');
+    console.error('localStorage quota exceeded:', e);
+    // Still return the data so Firestore write can proceed
+  }
   return dataWithTimestamp;
 }
 

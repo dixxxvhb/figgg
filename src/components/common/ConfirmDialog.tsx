@@ -40,7 +40,7 @@ export function ConfirmDialog({
     // Auto-focus confirm button
     confirmRef.current?.focus();
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [open, onCancel, onConfirm]);
+  }, [open, onCancel, onConfirm, danger]);
 
   if (!open) return null;
 
@@ -98,23 +98,23 @@ export function useConfirmDialog() {
     title?: string;
     confirmLabel?: string;
     danger?: boolean;
-    resolve: ((value: boolean) => void) | null;
   }>({
     open: false,
     message: '',
-    resolve: null,
   });
+
+  const resolveRef = React.useRef<((value: boolean) => void) | null>(null);
 
   const confirm = React.useCallback(
     (message: string, options?: { title?: string; confirmLabel?: string; danger?: boolean }) => {
       return new Promise<boolean>((resolve) => {
+        resolveRef.current = resolve;
         setState({
           open: true,
           message,
           title: options?.title,
           confirmLabel: options?.confirmLabel,
           danger: options?.danger ?? true,
-          resolve,
         });
       });
     },
@@ -122,14 +122,16 @@ export function useConfirmDialog() {
   );
 
   const handleConfirm = React.useCallback(() => {
-    state.resolve?.(true);
-    setState((s) => ({ ...s, open: false, resolve: null }));
-  }, [state.resolve]);
+    resolveRef.current?.(true);
+    resolveRef.current = null;
+    setState((s) => ({ ...s, open: false }));
+  }, []);
 
   const handleCancel = React.useCallback(() => {
-    state.resolve?.(false);
-    setState((s) => ({ ...s, open: false, resolve: null }));
-  }, [state.resolve]);
+    resolveRef.current?.(false);
+    resolveRef.current = null;
+    setState((s) => ({ ...s, open: false }));
+  }, []);
 
   const dialog = (
     <ConfirmDialog

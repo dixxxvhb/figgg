@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { toDateStr } from '../utils/time';
 import type { AppData } from '../types';
 
 export interface Nudge {
@@ -41,7 +42,7 @@ export function snoozeNudge(nudgeId: string): void {
 export function useNudges(data: AppData): Nudge[] {
   return useMemo(() => {
     const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const todayStr = toDateStr(now);
     const nudgeState = loadNudgeState();
     const nudges: Nudge[] = [];
 

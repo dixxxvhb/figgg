@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { TrendingUp, ChevronDown, ChevronUp } from 'lucide-react';
+import { toDateStr } from '../utils/time';
 import type { AICheckIn, DailySnapshot } from '../types';
 
 interface MoodTrendsProps {
@@ -42,7 +43,7 @@ export function MoodTrends({ checkIns, snapshots }: MoodTrendsProps) {
     for (let i = 13; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
-      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const dateStr = toDateStr(d);
 
       // Find mood from check-ins (prefer latest of the day)
       const dayCheckIns = checkIns

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, X, Loader2, RefreshCw, AlertCircle } from 'lucide-react';
 import { haptic } from '../../utils/haptics';
 
@@ -25,25 +25,25 @@ export function AICheckInWidget({ greeting, checkInType, onSubmit, onSkip, onDon
 
   // Don't auto-focus on mobile — keyboard pops up uninvited when just glancing at the app
 
+  const dismiss = useCallback(() => {
+    clearTimeout(autoDismissRef.current);
+    setState('gone');
+    onDone();
+  }, [onDone]);
+
   // Auto-dismiss after configured seconds — only for success responses, not errors
   useEffect(() => {
     if (state === 'response') {
-      autoDismissRef.current = setTimeout(() => dismiss(), dismissMs);
+      autoDismissRef.current = setTimeout(dismiss, dismissMs);
       return () => clearTimeout(autoDismissRef.current);
     }
-  }, [state, dismissMs]);
+  }, [state, dismissMs, dismiss]);
 
   const resetAutoDismiss = () => {
     if (state === 'response') {
       clearTimeout(autoDismissRef.current);
-      autoDismissRef.current = setTimeout(() => dismiss(), dismissMs);
+      autoDismissRef.current = setTimeout(dismiss, dismissMs);
     }
-  };
-
-  const dismiss = () => {
-    clearTimeout(autoDismissRef.current);
-    setState('gone');
-    onDone();
   };
 
   if (state === 'gone') return null;

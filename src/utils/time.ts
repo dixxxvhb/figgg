@@ -1,6 +1,16 @@
 import { format, startOfWeek } from 'date-fns';
 import { Class, DayOfWeek } from '../types';
 
+/** Format a Date as 'YYYY-MM-DD' without timezone drift. Replaces manual padStart patterns. */
+export function toDateStr(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Format a Date as 'HH:MM' (24-hour). Replaces manual padStart patterns. */
+export function toTimeStr(d: Date = new Date()): string {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 const DAYS_MAP: Record<DayOfWeek, number> = {
   sunday: 0,
   monday: 1,

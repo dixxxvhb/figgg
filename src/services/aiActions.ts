@@ -497,7 +497,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
         };
         callbacks.updateStudent({
           ...student,
-          skillNotes: [...student.skillNotes, newSkillNote],
+          skillNotes: [...(student.skillNotes || []), newSkillNote],
         });
         break;
       }

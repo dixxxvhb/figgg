@@ -1,5 +1,6 @@
 import { httpsCallable } from 'firebase/functions';
 import { requireFunctions } from './firebase';
+import { toDateStr, toTimeStr } from '../utils/time';
 import { CalendarEvent } from '../types';
 
 // Generate a stable ID based on event content so IDs persist across syncs
@@ -143,7 +144,7 @@ function parseICS(icsText: string): CalendarEvent[] {
 }
 
 function formatDateStr(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return toDateStr(d);
 }
 
 // Expand a recurring event (RRULE) into individual occurrences within the window
@@ -359,16 +360,11 @@ function parseDTValue(key: string, value: string): { date: string; time: string 
     if (isUTC) {
       // Convert UTC to local time
       const utcDate = new Date(Date.UTC(year, month, day, hour, minute));
-      return {
-        date: `${utcDate.getFullYear()}-${String(utcDate.getMonth() + 1).padStart(2, '0')}-${String(utcDate.getDate()).padStart(2, '0')}`,
-        time: `${String(utcDate.getHours()).padStart(2, '0')}:${String(utcDate.getMinutes()).padStart(2, '0')}`,
-      };
+      return { date: toDateStr(utcDate), time: toTimeStr(utcDate) };
     }
 
-    return {
-      date: `${String(year)}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
-      time: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`,
-    };
+    const localDate = new Date(year, month, day, hour, minute);
+    return { date: toDateStr(localDate), time: toTimeStr(localDate) };
   }
 }
 

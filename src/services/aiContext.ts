@@ -3,7 +3,7 @@
  * Reads from AppData and produces a compact object for the Netlify Function.
  */
 import { getClassesByDay } from '../data/classes';
-import { timeToMinutes, formatWeekOf, getWeekStart } from '../utils/time';
+import { timeToMinutes, formatWeekOf, getWeekStart, toDateStr, toTimeStr } from '../utils/time';
 import type { AppData, DayOfWeek, AIConfig } from '../types';
 import { DEFAULT_AI_CONFIG, DEFAULT_MED_CONFIG, DEFAULT_WELLNESS_ITEMS } from '../types';
 
@@ -34,7 +34,7 @@ export interface AIContextPayload {
   };
   // Launch
   launchTasks: string[];      // max 5 titles (legacy, kept for compat)
-  launchTaskList: Array<{ id: string; title: string; category: string; milestone: boolean }>;  // with IDs for actions
+  launchTaskList: Array<{ id: string; title: string; category: string; milestone: boolean; effort?: string }>;  // with IDs for actions
   // Wellness
   wellnessProgress: { done: number; total: number };
   wellnessItems?: Array<{ id: string; label: string; done: boolean }>;  // for day plan sourceId matching
@@ -82,7 +82,7 @@ export function buildAIContext(
   userMessage: string,
 ): AIContextPayload {
   const now = new Date();
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const todayStr = toDateStr(now);
   const days: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const dayName = days[now.getDay()];
   const config = data.settings?.aiConfig || DEFAULT_AI_CONFIG;
@@ -135,15 +135,24 @@ export function buildAIContext(
     .slice(0, 5)
     .map(r => r.title);
 
-  // Launch tasks
-  const activeLaunchTasks = (data.launchPlan?.tasks || [])
+  // Launch tasks — prioritized backlog, ready tasks first
+  const allLaunchTasks = data.launchPlan?.tasks || [];
+  const activeLaunchTasks = allLaunchTasks
     .filter(t => !t.completed && !t.skipped)
-    .sort((a, b) => {
-      // Milestones first, then by scheduled date (earlier = more urgent)
-      if (a.milestone && !b.milestone) return -1;
-      if (!a.milestone && b.milestone) return 1;
-      return (a.scheduledDate || '').localeCompare(b.scheduledDate || '');
+    .filter(t => {
+      // Filter out blocked tasks
+      if (t.blockedBy && t.blockedBy.length > 0) {
+        const isBlocked = t.blockedBy.some(depId => {
+          const dep = allLaunchTasks.find(d => d.id === depId);
+          return dep && !dep.completed && !dep.skipped;
+        });
+        if (isBlocked) return false;
+      }
+      // Filter out too-early tasks
+      if (t.suggestedAfter && t.suggestedAfter > todayStr) return false;
+      return true;
     })
+    .sort((a, b) => a.priority - b.priority)
     .slice(0, 5);
   const launchTasks = activeLaunchTasks.map(t => t.title);
   const launchTaskList = activeLaunchTasks.map(t => ({
@@ -151,6 +160,7 @@ export function buildAIContext(
     title: t.title,
     category: t.category,
     milestone: !!t.milestone,
+    effort: t.effort,
   }));
 
   // Wellness progress — if today's states haven't been initialized yet, report configured item count
@@ -167,7 +177,7 @@ export function buildAIContext(
   // Previous check-in
   const todayCheckIns = (data.aiCheckIns || []).filter(c => c.date === todayStr);
   const previousCheckIn = todayCheckIns.length > 0
-    ? todayCheckIns[todayCheckIns.length - 1].aiResponse.slice(0, 100)
+    ? (todayCheckIns[todayCheckIns.length - 1].aiResponse || '').slice(0, 100)
     : undefined;
 
   // Build wellness items with done state for day plan sourceId matching
@@ -253,7 +263,7 @@ export function buildAIContext(
   }
 
   return {
-    time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+    time: toTimeStr(now),
     dayOfWeek: dayName,
     checkInType,
     userMessage,
@@ -299,7 +309,7 @@ export function buildFullAIContext(
   const checkInType = hour < 12 ? 'morning' : 'afternoon';
   const base = buildAIContext(data, checkInType, userMessage);
   const now = new Date();
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const todayStr = toDateStr(now);
 
   // All active reminders (not just top 5)
   const reminders = (data.selfCare?.reminders || [])
@@ -443,6 +453,5 @@ export function buildFullAIContext(
 }
 
 function formatMs(ms: number): string {
-  const d = new Date(ms);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return toTimeStr(new Date(ms));
 }
