@@ -74,7 +74,7 @@ jobs:
       - name: Deploy Rules
         uses: w9jds/firebase-action@master
         with:
-          args: deploy --only firestore:rules,storage:rules,firestore:indexes
+          args: deploy --only firestore,storage
         env:
           GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           PROJECT_ID: figgg-c2c8f
