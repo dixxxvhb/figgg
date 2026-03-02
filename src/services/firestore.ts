@@ -27,6 +27,9 @@ import type {
   AICheckIn,
   DayPlan,
   AppSettings,
+  TherapistData,
+  MeditationData,
+  GriefData,
 } from '../types';
 import type { Choreography } from '../types/choreography';
 import { migrateMediaItems, migrateMusicTrack, migrateStudentPhoto, isBase64DataUrl } from './firebaseStorage';
@@ -343,8 +346,89 @@ export async function updateProfile(userId: string, updates: { settings?: AppSet
 }
 
 // ============================================================
+// SINGLE DOCUMENT: THERAPIST DATA
+// ============================================================
+export async function getTherapist(userId: string): Promise<TherapistData | undefined> {
+  const snap = await getDoc(userDoc(userId, 'singletons', 'therapist'));
+  return snap.exists() ? (snap.data() as TherapistData) : undefined;
+}
+
+export async function updateTherapistDoc(userId: string, updates: Partial<TherapistData>): Promise<void> {
+  const ref = userDoc(userId, 'singletons', 'therapist');
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    await updateDoc(ref, updates as Record<string, unknown>);
+  } else {
+    await setDoc(ref, updates);
+  }
+}
+
+// ============================================================
+// SINGLE DOCUMENT: MEDITATION DATA
+// ============================================================
+export async function getMeditation(userId: string): Promise<MeditationData | undefined> {
+  const snap = await getDoc(userDoc(userId, 'singletons', 'meditation'));
+  return snap.exists() ? (snap.data() as MeditationData) : undefined;
+}
+
+export async function updateMeditationDoc(userId: string, updates: Partial<MeditationData>): Promise<void> {
+  const ref = userDoc(userId, 'singletons', 'meditation');
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    await updateDoc(ref, updates as Record<string, unknown>);
+  } else {
+    await setDoc(ref, updates);
+  }
+}
+
+// ============================================================
+// SINGLE DOCUMENT: GRIEF DATA
+// ============================================================
+export async function getGrief(userId: string): Promise<GriefData | undefined> {
+  const snap = await getDoc(userDoc(userId, 'singletons', 'grief'));
+  return snap.exists() ? (snap.data() as GriefData) : undefined;
+}
+
+export async function updateGriefDoc(userId: string, updates: Partial<GriefData>): Promise<void> {
+  const ref = userDoc(userId, 'singletons', 'grief');
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    await updateDoc(ref, updates as Record<string, unknown>);
+  } else {
+    await setDoc(ref, updates);
+  }
+}
+
+// ============================================================
 // REAL-TIME LISTENERS
 // ============================================================
+export function onTherapistSnapshot(
+  userId: string,
+  callback: (data: TherapistData | undefined) => void
+): Unsubscribe {
+  return onSnapshot(userDoc(userId, 'singletons', 'therapist'), (snap) => {
+    callback(snap.exists() ? (snap.data() as TherapistData) : undefined);
+  });
+}
+
+export function onMeditationSnapshot(
+  userId: string,
+  callback: (data: MeditationData | undefined) => void
+): Unsubscribe {
+  return onSnapshot(userDoc(userId, 'singletons', 'meditation'), (snap) => {
+    callback(snap.exists() ? (snap.data() as MeditationData) : undefined);
+  });
+}
+
+export function onGriefSnapshot(
+  userId: string,
+  callback: (data: GriefData | undefined) => void
+): Unsubscribe {
+  return onSnapshot(userDoc(userId, 'singletons', 'grief'), (snap) => {
+    callback(snap.exists() ? (snap.data() as GriefData) : undefined);
+  });
+}
+
 export function onSelfCareSnapshot(
   userId: string,
   callback: (data: SelfCareData | undefined) => void
@@ -392,6 +476,9 @@ export async function loadAllData(userId: string): Promise<AppData> {
     launchPlan,
     learningData,
     profile,
+    therapist,
+    meditation,
+    grief,
   ] = await Promise.all([
     getStudios(userId),
     getClasses(userId),
@@ -408,6 +495,9 @@ export async function loadAllData(userId: string): Promise<AppData> {
     getLaunchPlan(userId),
     getLearningData(userId),
     getProfile(userId),
+    getTherapist(userId),
+    getMeditation(userId),
+    getGrief(userId),
   ]);
 
   return {
@@ -427,6 +517,9 @@ export async function loadAllData(userId: string): Promise<AppData> {
     learningData,
     aiCheckIns,
     dayPlan,
+    therapist,
+    meditation,
+    grief,
   };
 }
 
@@ -525,6 +618,21 @@ export async function migrateDataToFirestore(data: AppData, userId: string): Pro
   // Learning Data (singleton)
   if (data.learningData) {
     addOp(b => b.set(userDoc(userId, 'singletons', 'learningData'), data.learningData!));
+  }
+
+  // Therapist Data (singleton)
+  if (data.therapist) {
+    addOp(b => b.set(userDoc(userId, 'singletons', 'therapist'), data.therapist!));
+  }
+
+  // Meditation Data (singleton)
+  if (data.meditation) {
+    addOp(b => b.set(userDoc(userId, 'singletons', 'meditation'), data.meditation!));
+  }
+
+  // Grief Data (singleton)
+  if (data.grief) {
+    addOp(b => b.set(userDoc(userId, 'singletons', 'grief'), data.grief!));
   }
 
   // Commit all batches

@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppData, Class, WeekNotes, Competition, CompetitionDance, Student, CalendarEvent, SelfCareData, LaunchPlanData } from '../types';
-import type { AICheckIn, DayPlan } from '../types';
+import type { AICheckIn, DayPlan, TherapistData, MeditationData, GriefData } from '../types';
 import type { Choreography } from '../types/choreography';
-import { loadData, saveData, saveWeekNotes as saveWeekNotesToStorage, saveSelfCareToStorage, saveLaunchPlanToStorage, saveDayPlanToStorage } from '../services/storage';
+import { loadData, saveData, saveWeekNotes as saveWeekNotesToStorage, saveSelfCareToStorage, saveLaunchPlanToStorage, saveDayPlanToStorage, saveTherapistToStorage, saveMeditationToStorage, saveGriefToStorage } from '../services/storage';
 import { runLearningEngine } from '../services/learningEngine';
 import { getWeekStart, formatWeekOf, toDateStr } from '../utils/time';
 import { v4 as uuid } from 'uuid';
@@ -31,6 +31,12 @@ import {
   updateDayPlanDoc,
   updateLaunchPlanDoc,
   updateProfile,
+  updateTherapistDoc,
+  updateMeditationDoc,
+  updateGriefDoc,
+  onTherapistSnapshot,
+  onMeditationSnapshot,
+  onGriefSnapshot,
 } from '../services/firestore';
 
 // Helper: get current user ID or null
@@ -52,6 +58,10 @@ export function useAppData() {
   const launchPlanOnlyRef = useRef(false);
   // Same pattern for day plan updates
   const dayPlanOnlyRef = useRef(false);
+  // Same pattern for wellness singletons
+  const therapistOnlyRef = useRef(false);
+  const meditationOnlyRef = useRef(false);
+  const griefOnlyRef = useRef(false);
   // Track active snapshot updates (counter avoids timing issues vs boolean + setTimeout)
   const snapshotUpdateRef = useRef(0);
 
@@ -118,10 +128,34 @@ export function useAppData() {
       }
     });
 
+    const unsubTherapist = onTherapistSnapshot(user.uid, (therapist) => {
+      if (therapist) {
+        snapshotUpdateRef.current++;
+        setData(prev => ({ ...prev, therapist }));
+      }
+    });
+
+    const unsubMeditation = onMeditationSnapshot(user.uid, (meditation) => {
+      if (meditation) {
+        snapshotUpdateRef.current++;
+        setData(prev => ({ ...prev, meditation }));
+      }
+    });
+
+    const unsubGrief = onGriefSnapshot(user.uid, (grief) => {
+      if (grief) {
+        snapshotUpdateRef.current++;
+        setData(prev => ({ ...prev, grief }));
+      }
+    });
+
     return () => {
       unsubSelfCare();
       unsubDayPlan();
       unsubLaunchPlan();
+      unsubTherapist();
+      unsubMeditation();
+      unsubGrief();
     };
   }, []);
 
@@ -160,6 +194,20 @@ export function useAppData() {
     // Same for day plan — saveDayPlanToStorage already handles cloud push
     if (dayPlanOnlyRef.current) {
       dayPlanOnlyRef.current = false;
+      return;
+    }
+
+    // Same for wellness singletons
+    if (therapistOnlyRef.current) {
+      therapistOnlyRef.current = false;
+      return;
+    }
+    if (meditationOnlyRef.current) {
+      meditationOnlyRef.current = false;
+      return;
+    }
+    if (griefOnlyRef.current) {
+      griefOnlyRef.current = false;
       return;
     }
 
@@ -548,6 +596,45 @@ export function useAppData() {
     if (uid) updateDayPlanDoc(uid, planWithTimestamp).catch(console.warn);
   }, []);
 
+  // Therapist data — immediate cloud sync
+  const updateTherapist = useCallback((updates: Partial<TherapistData>) => {
+    saveTherapistToStorage(updates);
+    therapistOnlyRef.current = true;
+    const now = new Date().toISOString();
+    setData(prev => ({
+      ...prev,
+      therapist: { ...(prev.therapist || { prepNotes: [], sessions: [], lastModified: '' }), ...updates, lastModified: now },
+    }));
+    const uid = getUserId();
+    if (uid) updateTherapistDoc(uid, { ...updates, lastModified: now }).catch(console.warn);
+  }, []);
+
+  // Meditation data — immediate cloud sync
+  const updateMeditation = useCallback((updates: Partial<MeditationData>) => {
+    saveMeditationToStorage(updates);
+    meditationOnlyRef.current = true;
+    const now = new Date().toISOString();
+    setData(prev => ({
+      ...prev,
+      meditation: { ...(prev.meditation || { sessions: [], preferences: { defaultRounds: { box: 4, fourSevenEight: 4, slow: 6 } }, lastModified: '' }), ...updates, lastModified: now },
+    }));
+    const uid = getUserId();
+    if (uid) updateMeditationDoc(uid, { ...updates, lastModified: now }).catch(console.warn);
+  }, []);
+
+  // Grief data — immediate cloud sync
+  const updateGrief = useCallback((updates: Partial<GriefData>) => {
+    saveGriefToStorage(updates);
+    griefOnlyRef.current = true;
+    const now = new Date().toISOString();
+    setData(prev => ({
+      ...prev,
+      grief: { ...(prev.grief || { letters: [], emotionalCheckins: [], lastPermissionSlipIndex: -1, lastModified: '' }), ...updates, lastModified: now },
+    }));
+    const uid = getUserId();
+    if (uid) updateGriefDoc(uid, { ...updates, lastModified: now }).catch(console.warn);
+  }, []);
+
   // Calendar event management (for linking dances to calendar events)
   const updateCalendarEvent = useCallback((event: CalendarEvent) => {
     setData(prev => {
@@ -625,5 +712,9 @@ export function useAppData() {
     // AI
     saveAICheckIn,
     saveDayPlan,
+    // Wellness tab singletons
+    updateTherapist,
+    updateMeditation,
+    updateGrief,
   };
 }

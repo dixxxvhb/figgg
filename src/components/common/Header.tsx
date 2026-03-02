@@ -8,17 +8,16 @@ import {
   Check,
   MoreHorizontal,
   WifiOff,
-  Pill,
+  Heart,
   Sparkles,
 } from 'lucide-react';
 import { useSyncStatus } from '../../contexts/SyncContext';
 
-// 5-tab navigation: Home, Schedule, Meds, AI, More
-// Students moved to More — accessed via class detail or AI chat
+// 5-tab navigation: Home, Schedule, Wellness, AI, More
 const navItems = [
   { path: '/', icon: Home, label: 'Home' },
   { path: '/schedule', icon: Calendar, label: 'Schedule' },
-  { path: '/me', icon: Pill, label: 'Meds' },
+  { path: '/me', icon: Heart, label: 'Wellness' },
   { path: '/ai', icon: Sparkles, label: 'AI' },
   { path: '/settings', icon: MoreHorizontal, label: 'More' },
 ];

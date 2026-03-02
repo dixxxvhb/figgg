@@ -51,6 +51,14 @@ export interface AIContextPayload {
   streak?: number;
   // Day mode
   dayMode?: 'light' | 'normal' | 'intense' | 'comp';
+  // Wellness mode (smart checklist)
+  wellnessMode?: 'okay' | 'rough' | 'survival';
+  // Therapy proximity
+  therapySessionSoon?: { daysUntil: number; hasPrep: boolean };
+  // Meditation minutes today
+  meditationMinutesToday?: number;
+  // Grief emotional check-in (NO letter content)
+  griefCheckIn?: { emotions: string[]; date: string };
   // Last week reflection (for AI to reference patterns)
   lastReflection?: string;
   // Class lookup tables (for AI to resolve fuzzy class names → IDs)
@@ -203,6 +211,37 @@ export function buildAIContext(
     ? (sc?.dayMode || 'normal')
     : 'normal';
 
+  // Wellness mode (smart checklist)
+  const wellnessMode = sc?.wellnessModeDate === todayStr
+    ? sc?.wellnessMode
+    : undefined;
+
+  // Therapy session proximity
+  let therapySessionSoon: AIContextPayload['therapySessionSoon'] = undefined;
+  if (data.therapist?.nextSession?.date) {
+    const sessionDate = new Date(data.therapist.nextSession.date + 'T00:00:00');
+    const daysUntil = Math.ceil((sessionDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysUntil >= 0 && daysUntil <= 7) {
+      const hasPrep = (data.therapist.prepNotes || []).filter(n => !n.discussed).length > 0;
+      therapySessionSoon = { daysUntil, hasPrep };
+    }
+  }
+
+  // Meditation minutes today
+  const todayMeditationSessions = (data.meditation?.sessions || [])
+    .filter(s => s.date === todayStr);
+  const meditationMinutesToday = todayMeditationSessions.length > 0
+    ? Math.round(todayMeditationSessions.reduce((sum, s) => sum + s.durationSeconds, 0) / 60)
+    : undefined;
+
+  // Grief emotional check-in (NO letter content per spec)
+  const todayGriefCheckin = (data.grief?.emotionalCheckins || [])
+    .filter(c => c.date === todayStr)
+    .slice(-1)[0];
+  const griefCheckIn = todayGriefCheckin
+    ? { emotions: todayGriefCheckin.emotions, date: todayGriefCheckin.date }
+    : undefined;
+
   // Class lookup tables for AI name → ID resolution (include exception status)
   const weekOf = formatWeekOf(getWeekStart());
   const currentWeekNotes = (data.weekNotes || []).find(w => w.weekOf === weekOf);
@@ -282,6 +321,10 @@ export function buildAIContext(
     patterns,
     previousCheckIn,
     dayMode: dayMode !== 'normal' ? dayMode : undefined,
+    wellnessMode,
+    therapySessionSoon,
+    meditationMinutesToday,
+    griefCheckIn,
     lastReflection: lastReflectionStr,
     teachingLoad,
     nextCompetition,

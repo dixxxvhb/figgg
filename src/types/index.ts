@@ -462,6 +462,10 @@ export interface AppData {
   // Ambient AI
   aiCheckIns?: AICheckIn[];         // rolling 30 days
   dayPlan?: DayPlan;                // today only
+  // Wellness tab — new data domains
+  therapist?: TherapistData;
+  meditation?: MeditationData;
+  grief?: GriefData;
 }
 
 // ===== DWDC LAUNCH PLAN =====
@@ -589,6 +593,10 @@ export interface SelfCareData {
   suggestedDose3Date?: string;                   // YYYY-MM-DD when AI suggested optional 3rd dose
   dayMode?: 'light' | 'normal' | 'intense' | 'comp';  // current day mode
   dayModeDate?: string;                          // YYYY-MM-DD, auto-resets daily
+  // Wellness mode for Smart Daily Checklist
+  wellnessMode?: 'okay' | 'rough' | 'survival'; // daily wellness mode
+  wellnessModeDate?: string;                     // YYYY-MM-DD, auto-resets daily
+  wellnessModeSuggested?: boolean;               // true if AI auto-suggested the mode
   // Quick scratchpad — ephemeral notes on Dashboard
   scratchpad?: string;
   // Timestamp for cross-device conflict resolution (ISO string)
@@ -646,4 +654,95 @@ export interface CurrentClassInfo {
   timeRemaining?: number;  // minutes
   nextClass?: Class;
   nextStudio?: Studio;
+}
+
+// ===== THERAPIST SESSION TRACKER =====
+
+export interface TherapistPrepNote {
+  id: string;
+  text: string;
+  createdAt: string;    // ISO timestamp
+  discussed: boolean;   // mark after session
+}
+
+export interface TherapistActionItem {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
+export interface TherapistSession {
+  id: string;
+  date: string;         // YYYY-MM-DD
+  summary: string;
+  takeaways: string;
+  actionItems: TherapistActionItem[];
+  moodAfter: 'better' | 'same' | 'heavier';
+  createdAt: string;    // ISO timestamp
+}
+
+export interface TherapistData {
+  nextSession?: {
+    date: string;       // YYYY-MM-DD
+    time: string;       // HH:mm
+    notes: string;
+  };
+  prepNotes: TherapistPrepNote[];
+  sessions: TherapistSession[];
+  lastModified: string; // ISO timestamp
+}
+
+// ===== MEDITATION & BREATHING =====
+
+export type BreathingExerciseType = 'box_breathing' | '478_breathing' | 'slow_breathing';
+export type MeditationExerciseType = BreathingExerciseType | 'body_scan' | 'grounding';
+
+export interface MeditationSession {
+  id: string;
+  date: string;                   // YYYY-MM-DD
+  type: MeditationExerciseType;
+  durationSeconds: number;
+  completedAt: string;            // ISO timestamp
+}
+
+export interface MeditationData {
+  sessions: MeditationSession[];
+  preferences: {
+    defaultRounds: {
+      box: number;           // default 4
+      fourSevenEight: number; // default 4
+      slow: number;          // default 6
+    };
+  };
+  lastModified: string;
+}
+
+// ===== GRIEF TOOLKIT =====
+
+export type GriefEmotion =
+  | 'numb' | 'angry' | 'sad' | 'anxious' | 'guilty'
+  | 'peaceful' | 'grateful' | 'all_of_it' | 'dont_know';
+
+export interface GriefLetter {
+  id: string;
+  date: string;           // YYYY-MM-DD
+  content: string;
+  prompt: string | null;  // which prompt was used, if any
+  createdAt: string;      // ISO timestamp
+  updatedAt: string;      // ISO timestamp
+}
+
+export interface GriefEmotionalCheckin {
+  id: string;
+  date: string;           // YYYY-MM-DD
+  emotions: GriefEmotion[];
+  context: string | null;  // optional one-liner
+  createdAt: string;       // ISO timestamp
+}
+
+export interface GriefData {
+  letters: GriefLetter[];
+  emotionalCheckins: GriefEmotionalCheckin[];
+  lastPermissionSlipIndex: number;
+  lastModified: string;
 }
