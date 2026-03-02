@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   MapPin, Download, Upload, Check, Calendar, Sparkles, RefreshCw, AlertCircle, Cloud,
@@ -19,6 +19,7 @@ import { Button } from '../components/common/Button';
 import { Card } from '../components/common/Card';
 import { themes } from '../styles/themes';
 import { applyTheme } from '../styles/applyTheme';
+import { appIcons, renderIconToDataUrl, applyAppIcon } from '../styles/appIcons';
 
 export function Settings() {
   const { data, refreshData, updateStudio, updateClass } = useAppData();
@@ -52,6 +53,7 @@ export function Settings() {
   const [fontSize, setFontSize] = useState(data.settings?.fontSize || 'normal');
   const [darkMode, setDarkMode] = useState(data.settings?.darkMode || false);
   const [themeId, setThemeId] = useState(data.settings?.themeId || 'forest');
+  const [appIconId, setAppIconId] = useState(data.settings?.appIconId || 'ink-gold');
   const [medConfig, setMedConfig] = useState<MedConfig>(() => ({
     ...DEFAULT_MED_CONFIG,
     ...(data.settings?.medConfig || {}),
@@ -170,6 +172,13 @@ export function Settings() {
     setTimeout(() => {
       document.documentElement.classList.remove('theme-transitioning');
     }, 400);
+  };
+
+  const handleAppIconChange = (id: string) => {
+    setAppIconId(id);
+    applyAppIcon(id);
+    updateSettings({ ...data.settings, appIconId: id });
+    refreshData();
   };
 
   const handleCloudSync = async () => {
@@ -408,6 +417,39 @@ export function Settings() {
                   </div>
                   <span className="type-label text-center max-w-[48px] truncate">
                     {theme.name.split(' ')[0]}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* App Icon */}
+          <div className="border-t border-[var(--border-subtle)] pt-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Grid3X3 size={14} className="text-[var(--accent-primary)] flex-shrink-0" />
+              <span className="type-label">App Icon</span>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-1">
+              {appIcons.map(icon => (
+                <button
+                  key={icon.id}
+                  onClick={() => handleAppIconChange(icon.id)}
+                  className={`flex-shrink-0 flex flex-col items-center gap-1.5 transition-all ${appIconId === icon.id ? 'scale-110' : 'opacity-60 hover:opacity-100'}`}
+                >
+                  <div className="relative">
+                    <AppIconPreview
+                      iconId={icon.id}
+                      size={48}
+                      selected={appIconId === icon.id}
+                    />
+                    {appIconId === icon.id && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Check size={14} className="text-white drop-shadow-md" />
+                      </div>
+                    )}
+                  </div>
+                  <span className="type-label text-center max-w-[48px] truncate">
+                    {icon.name}
                   </span>
                 </button>
               ))}
@@ -1116,5 +1158,34 @@ function WellnessItemEditor({
         <button onClick={onCancel} className="px-3 py-1 bg-[var(--surface-inset)] text-[var(--text-primary)] rounded-[var(--radius-sm)] text-xs font-medium">Cancel</button>
       </div>
     </div>
+  );
+}
+
+// Renders a small canvas preview of an app icon
+function AppIconPreview({ iconId, size, selected }: { iconId: string; size: number; selected: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const icon = appIcons.find(i => i.id === iconId) || appIcons[0];
+    // Use 2x for retina
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    ctx.scale(dpr, dpr);
+    icon.render(ctx, size);
+  }, [iconId, size]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={size}
+      height={size}
+      style={{ width: size, height: size }}
+      className={`rounded-xl border-2 transition-all ${selected ? 'ring-2 ring-[var(--accent-primary)] border-[var(--accent-primary)] shadow-md' : 'border-[var(--border-subtle)]'}`}
+    />
   );
 }

@@ -53,12 +53,13 @@ export function Schedule() {
   const selectedDateStr = format(selectedDayDate, 'yyyy-MM-dd');
 
   // Get calendar events for the selected day (from synced calendar), sorted by start time
+  const hiddenEventIds = useMemo(() => new Set(data.settings?.hiddenCalendarEventIds || []), [data.settings?.hiddenCalendarEventIds]);
   const calendarEventsForDay = useMemo(() => {
     if (!data.calendarEvents) return [];
     return data.calendarEvents
-      .filter(e => e.date === selectedDateStr)
+      .filter(e => e.date === selectedDateStr && !hiddenEventIds.has(e.id))
       .sort((a, b) => timeToMinutes(a.startTime || '00:00') - timeToMinutes(b.startTime || '00:00'));
-  }, [data.calendarEvents, selectedDateStr]);
+  }, [data.calendarEvents, selectedDateStr, hiddenEventIds]);
 
   // Get competitions happening on the selected day
   const competitionsForDay = useMemo(() => {
@@ -196,7 +197,7 @@ export function Schedule() {
           const hasClasses = data.classes.some(c => c.day === key);
           const dayDate = addDays(weekStart, DAYS.findIndex(d => d.key === key));
           const dayDateStr = format(dayDate, 'yyyy-MM-dd');
-          const hasCalendarEvents = data.calendarEvents?.some(e => e.date === dayDateStr);
+          const hasCalendarEvents = data.calendarEvents?.some(e => e.date === dayDateStr && !hiddenEventIds.has(e.id));
           const hasCompetitions = data.competitions?.some(comp => {
             const startDate = parseISO(comp.date);
             const endDate = comp.endDate ? parseISO(comp.endDate) : startDate;

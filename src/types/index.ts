@@ -321,6 +321,8 @@ export interface AppSettings {
   medConfig?: MedConfig;
   wellnessItems?: WellnessItemConfig[];
   aiConfig?: AIConfig;
+  hiddenCalendarEventIds?: string[]; // Event IDs hidden by user (persists across syncs)
+  appIconId?: string; // Selected app icon variant (default: 'ink-gold')
 }
 
 // ===== STUDENT MANAGEMENT =====

@@ -23,6 +23,7 @@ import {
   deleteCompetitionDanceDoc,
   saveStudio as firestoreSaveStudio,
   saveCalendarEvent as firestoreSaveCalendarEvent,
+  deleteCalendarEventDoc,
   saveAICheckInDoc,
   saveChoreography as firestoreSaveChoreography,
   deleteChoreographyDoc,
@@ -561,6 +562,36 @@ export function useAppData() {
     if (uid) firestoreSaveCalendarEvent(uid, event).catch(console.warn);
   }, []);
 
+  const deleteCalendarEvent = useCallback((eventId: string) => {
+    setData(prev => ({
+      ...prev,
+      calendarEvents: (prev.calendarEvents || []).filter(e => e.id !== eventId),
+    }));
+    const uid = getUserId();
+    if (uid) deleteCalendarEventDoc(uid, eventId).catch(console.warn);
+  }, []);
+
+  // Hide a calendar event (persists across syncs — event won't reappear)
+  const hideCalendarEvent = useCallback((eventId: string) => {
+    setData(prev => {
+      const hidden = prev.settings?.hiddenCalendarEventIds || [];
+      if (hidden.includes(eventId)) return prev;
+      return {
+        ...prev,
+        calendarEvents: (prev.calendarEvents || []).filter(e => e.id !== eventId),
+        settings: {
+          ...prev.settings,
+          hiddenCalendarEventIds: [...hidden, eventId],
+        },
+      };
+    });
+    const uid = getUserId();
+    if (uid) {
+      deleteCalendarEventDoc(uid, eventId).catch(console.warn);
+      // Settings will be persisted by the saveData effect
+    }
+  }, []);
+
   return {
     data,
     updateClass,
@@ -581,6 +612,8 @@ export function useAppData() {
     deleteStudent,
     // Calendar events
     updateCalendarEvent,
+    deleteCalendarEvent,
+    hideCalendarEvent,
     // Self-care & choreography
     updateSelfCare,
     updateChoreographies,

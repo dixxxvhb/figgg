@@ -74,6 +74,7 @@ export function WeekPlanner() {
   }, [data.classes]);
 
   // Group calendar events by day of the viewing week
+  const hiddenEventIds = useMemo(() => new Set(data.settings?.hiddenCalendarEventIds || []), [data.settings?.hiddenCalendarEventIds]);
   const eventsByDay = useMemo(() => {
     const grouped: Record<DayOfWeek, CalendarEvent[]> = {
       monday: [], tuesday: [], wednesday: [], thursday: [],
@@ -81,7 +82,7 @@ export function WeekPlanner() {
     };
 
     (data.calendarEvents || []).forEach(event => {
-      if (!event.date) return;
+      if (!event.date || hiddenEventIds.has(event.id)) return;
       for (let i = 0; i < 7; i++) {
         const dayDate = addDays(viewingWeekStart, i);
         if (format(dayDate, 'yyyy-MM-dd') === event.date) {
@@ -96,7 +97,7 @@ export function WeekPlanner() {
     });
 
     return grouped;
-  }, [data.calendarEvents, viewingWeekStart]);
+  }, [data.calendarEvents, viewingWeekStart, hiddenEventIds]);
 
   const saveNotes = (updatedNotes: WeekNotes) => {
     setCurrentWeekNotes(updatedNotes);
