@@ -9,12 +9,9 @@ import type { Choreography as ChoreographyType, ChoreographyListItem } from '../
 import { createEmptyChoreography } from '../types/choreography';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
 import { EmptyState } from '../components/common/EmptyState';
+import { generateId } from '../utils/id';
 
 type TabType = 'active' | 'all' | 'archive';
-
-function generateId(): string {
-  return `choreo-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
 
 function formatDuration(seconds?: number): string {
   if (!seconds) return '';
@@ -69,7 +66,7 @@ export function Choreography() {
   // Create new choreography
   const handleCreate = () => {
     if (!newName.trim() || !newSong.trim()) return;
-    const id = generateId();
+    const id = generateId('choreo');
     const newChoreo = createEmptyChoreography(id, newName.trim(), newSong.trim());
     newChoreo.isActive = true; // Start as active
     persist([...choreographies, newChoreo]);

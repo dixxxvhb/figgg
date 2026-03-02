@@ -39,6 +39,44 @@ function isTodayTimestamp(timestamp: number | null | undefined): boolean {
     saved.getDate() === today.getDate();
 }
 
+function DoseCard({ num, time, info, skipped, onTake, onSkip, onUndoSkip, onEdit, onUndo }: {
+  num: number; time: number | null; info: ReturnType<typeof getDoseInfo> | null;
+  skipped: boolean; onTake: () => void; onSkip: () => void; onUndoSkip: () => void;
+  onEdit: () => void; onUndo: () => void;
+}) {
+  return (
+    <div className="bg-[var(--surface-card)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] p-3">
+      {skipped && !time ? (
+        <div className="text-center">
+          <SkipForward size={18} className="mx-auto text-[var(--text-tertiary)] mb-1" />
+          <div className="text-xs font-semibold text-[var(--text-tertiary)] mb-2">Dose {num} Skipped</div>
+          <div className="flex gap-1">
+            <button onClick={onUndoSkip} className="flex-1 px-2 py-1.5 text-xs text-[var(--text-secondary)] rounded-[var(--radius-sm)] hover:bg-[var(--surface-inset)]">Undo</button>
+            <button onClick={onTake} className="flex-1 px-2 py-1.5 text-xs bg-[var(--accent-primary)] text-[var(--text-on-accent)] font-medium rounded-[var(--radius-sm)]">Take</button>
+          </div>
+        </div>
+      ) : time ? (
+        <div className="text-center opacity-80">
+          <Pill size={18} className="mx-auto text-[var(--status-success)] mb-1" />
+          <div className="text-xs font-bold text-[var(--text-primary)]">Dose {num}</div>
+          <div className="type-caption text-[var(--text-secondary)] mb-2">{formatTime12(new Date(time))} &bull; {info?.status}</div>
+          <div className="flex gap-1">
+            <button onClick={onEdit} className="flex-1 px-2 py-1.5 text-xs border border-[var(--border-subtle)] text-[var(--text-secondary)] rounded-[var(--radius-sm)]">Edit</button>
+            <button onClick={onUndo} className="flex-1 px-2 py-1.5 text-xs text-[var(--status-danger)] rounded-[var(--radius-sm)]">Clear</button>
+          </div>
+        </div>
+      ) : (
+        <div className="text-center">
+          <Pill size={18} className="mx-auto text-[var(--text-tertiary)] mb-1" />
+          <div className="text-xs font-bold text-[var(--text-primary)]">Dose {num}</div>
+          <div className="type-caption text-[var(--text-tertiary)] mb-2">Not taken</div>
+          <button onClick={onTake} className="w-full px-3 py-2 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-[var(--text-on-accent)] text-xs font-semibold rounded-[var(--radius-sm)] min-h-[36px]">Take Now</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface MedsTrackerProps {
   selfCare: SelfCareData | undefined;
   medConfig: MedConfig;
@@ -204,42 +242,6 @@ export function MedsTracker({ selfCare, medConfig, classes, studios, onUpdateSel
     }
     return entries;
   }, [dose1Time, dose2Time, dose3Time, skippedToday, skippedDose1, skippedDose2, skippedDose3, config.maxDoses]);
-
-  const DoseCard = ({ num, time, info, skipped, onTake, onSkip, onUndoSkip, onEdit, onUndo }: {
-    num: number; time: number | null; info: ReturnType<typeof getDoseInfo> | null;
-    skipped: boolean; onTake: () => void; onSkip: () => void; onUndoSkip: () => void;
-    onEdit: () => void; onUndo: () => void;
-  }) => (
-    <div className="bg-[var(--surface-card)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] p-3">
-      {skipped && !time ? (
-        <div className="text-center">
-          <SkipForward size={18} className="mx-auto text-[var(--text-tertiary)] mb-1" />
-          <div className="text-xs font-semibold text-[var(--text-tertiary)] mb-2">Dose {num} Skipped</div>
-          <div className="flex gap-1">
-            <button onClick={onUndoSkip} className="flex-1 px-2 py-1.5 text-xs text-[var(--text-secondary)] rounded-[var(--radius-sm)] hover:bg-[var(--surface-inset)]">Undo</button>
-            <button onClick={onTake} className="flex-1 px-2 py-1.5 text-xs bg-[var(--accent-primary)] text-[var(--text-on-accent)] font-medium rounded-[var(--radius-sm)]">Take</button>
-          </div>
-        </div>
-      ) : time ? (
-        <div className="text-center opacity-80">
-          <Pill size={18} className="mx-auto text-[var(--status-success)] mb-1" />
-          <div className="text-xs font-bold text-[var(--text-primary)]">Dose {num}</div>
-          <div className="type-caption text-[var(--text-secondary)] mb-2">{formatTime12(new Date(time))} &bull; {info?.status}</div>
-          <div className="flex gap-1">
-            <button onClick={onEdit} className="flex-1 px-2 py-1.5 text-xs border border-[var(--border-subtle)] text-[var(--text-secondary)] rounded-[var(--radius-sm)]">Edit</button>
-            <button onClick={onUndo} className="flex-1 px-2 py-1.5 text-xs text-[var(--status-danger)] rounded-[var(--radius-sm)]">Clear</button>
-          </div>
-        </div>
-      ) : (
-        <div className="text-center">
-          <Pill size={18} className="mx-auto text-[var(--text-tertiary)] mb-1" />
-          <div className="text-xs font-bold text-[var(--text-primary)]">Dose {num}</div>
-          <div className="type-caption text-[var(--text-tertiary)] mb-2">Not taken</div>
-          <button onClick={onTake} className="w-full px-3 py-2 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-[var(--text-on-accent)] text-xs font-semibold rounded-[var(--radius-sm)] min-h-[36px]">Take Now</button>
-        </div>
-      )}
-    </div>
-  );
 
   return (
     <div className="px-4 py-3 space-y-3">

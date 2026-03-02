@@ -4,6 +4,7 @@ import {
   Pencil, X, ArrowLeft,
 } from 'lucide-react';
 import { haptic } from '../../utils/haptics';
+import { generateId } from '../../utils/id';
 import type {
   GriefData,
   GriefLetter,
@@ -96,10 +97,6 @@ const PERMISSION_SLIPS = [
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
 
 function todayStr(): string {
   return new Date().toISOString().split('T')[0];

@@ -9,10 +9,7 @@ import { useAppData } from '../contexts/AppDataContext';
 import type { Choreography, ChoreographySection } from '../types/choreography';
 import { createEmptySection } from '../types/choreography';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
-
-function generateId(): string {
-  return `section-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
+import { generateId } from '../utils/id';
 
 function formatDuration(seconds?: number): string {
   if (!seconds) return '--:--';
@@ -68,7 +65,7 @@ export function ChoreographyDetail() {
 
   // Add new section
   const addSection = () => {
-    const newSection = createEmptySection(generateId(), choreography.sections.length);
+    const newSection = createEmptySection(generateId('section'), choreography.sections.length);
     const updated = {
       ...choreography,
       sections: [...choreography.sections, newSection],

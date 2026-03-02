@@ -50,7 +50,13 @@ export function ConfirmDialog({
       <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
 
       {/* Dialog */}
-      <div className="relative bg-[var(--surface-card)] rounded-2xl shadow-xl w-full max-w-xs overflow-hidden">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? 'confirm-dialog-title' : undefined}
+        aria-describedby="confirm-dialog-message"
+        className="relative bg-[var(--surface-card)] rounded-2xl shadow-xl w-full max-w-xs overflow-hidden"
+      >
         <div className="p-5 text-center">
           {danger && (
             <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ backgroundColor: 'color-mix(in srgb, var(--status-danger) 15%, transparent)' }}>
@@ -58,11 +64,11 @@ export function ConfirmDialog({
             </div>
           )}
           {title && (
-            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">
+            <h3 id="confirm-dialog-title" className="text-lg font-semibold text-[var(--text-primary)] mb-1">
               {title}
             </h3>
           )}
-          <p className="text-sm text-[var(--text-secondary)]">{message}</p>
+          <p id="confirm-dialog-message" className="text-sm text-[var(--text-secondary)]">{message}</p>
         </div>
 
         <div className="flex border-t border-[var(--border-subtle)]">

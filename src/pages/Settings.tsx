@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   MapPin, Download, Upload, Check, Calendar, Sparkles, RefreshCw, AlertCircle, Cloud,
   BookOpen, Sun, Moon, Type, Users, Grid3X3, ChevronRight, ArrowLeft, Music, Star,
-  ChevronDown, ChevronUp, Palette, Pill, Heart, Plus, Trash2, GripVertical, Circle,
+  ChevronDown, ChevronUp, Palette, Pill, Heart, Plus, Trash2, Circle,
   Pencil, Droplets, Utensils, Footprints, Coffee, Brain, Smartphone, BedDouble, Zap, Bell, Bot, LogIn, LogOut,
   type LucideIcon,
 } from 'lucide-react';
@@ -19,7 +19,7 @@ import { Button } from '../components/common/Button';
 import { Card } from '../components/common/Card';
 import { themes } from '../styles/themes';
 import { applyTheme } from '../styles/applyTheme';
-import { appIcons, renderIconToDataUrl, applyAppIcon } from '../styles/appIcons';
+import { appIcons, applyAppIcon } from '../styles/appIcons';
 
 export function Settings() {
   const { data, refreshData, updateStudio, updateClass } = useAppData();

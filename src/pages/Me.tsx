@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAppData } from '../contexts/AppDataContext';
 import { haptic } from '../utils/haptics';
+import { generateId } from '../utils/id';
 import {
   format, isToday as isDateToday, isTomorrow, isPast, parseISO, startOfDay,
   addDays, isAfter,
@@ -42,10 +43,6 @@ function isTodayTimestamp(timestamp: number | null | undefined): boolean {
   return saved.getFullYear() === today.getFullYear() &&
     saved.getMonth() === today.getMonth() &&
     saved.getDate() === today.getDate();
-}
-
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
 const LIST_COLORS = [

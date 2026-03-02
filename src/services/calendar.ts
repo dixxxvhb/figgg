@@ -178,7 +178,6 @@ function expandRRule(raw: RawEvent, windowStart: string, windowEnd: string): Par
 
   const count = rrule.count || 1000; // Safety limit
   const windowEndDate = parseDate(windowEnd);
-  const windowStartDate = parseDate(windowStart);
   let occurrences = 0;
 
   if (rrule.freq === 'DAILY') {

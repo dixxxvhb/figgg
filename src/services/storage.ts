@@ -5,38 +5,7 @@ import { terminology } from '../data/terminology';
 import { initialCompetitions } from '../data/competitions';
 import { initialCompetitionDances } from '../data/competitionDances';
 import { students as initialStudents } from '../data/students';
-import { debouncedCloudSave, fetchCloudData, flushPendingSave, immediateCloudSave } from './cloudStorage';
-
-// Set up page unload handler to flush pending saves
-// NOTE: Only on beforeunload (tab close / navigate away).
-// We do NOT flush on visibilitychange=hidden because:
-// 1. flushPendingSave does a blind push (no merge) via keepalive fetch
-// 2. When the app becomes visible again, SyncContext fires syncFromCloud(true)
-//    which properly merges local + cloud and pushes the merged result
-// 3. The blind push could race with and overwrite the merge
-// For tab close, there's no "visible" handler coming, so flush is correct.
-if (typeof window !== 'undefined') {
-  window.addEventListener('beforeunload', () => {
-    flushPendingSave();
-  });
-}
-
 const STORAGE_KEY = 'dance-teaching-app-data';
-
-// Global cloud operation mutex — serializes all fetch+merge+push sequences
-// to prevent concurrent cloud operations from overwriting each other's merges
-let cloudOpQueue: Promise<void> = Promise.resolve();
-function withCloudMutex<T>(fn: () => Promise<T>): Promise<T> {
-  let resolve: (v: T) => void;
-  let reject: (e: unknown) => void;
-  const result = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
-  // Always recover the queue on failure so subsequent operations aren't blocked
-  cloudOpQueue = cloudOpQueue.then(
-    () => fn().then(resolve!, reject!).catch(reject!),
-    () => fn().then(resolve!, reject!).catch(reject!)
-  ).catch(() => { /* queue recovery — prevent unhandled rejection from locking queue */ });
-  return result;
-}
 
 function getDefaultData(): AppData {
   return {
@@ -186,7 +155,7 @@ function migrateClassRosters(storedStudents: typeof initialStudents): typeof ini
   ]);
 
   return storedStudents.map(student => {
-    let classIds = [...student.classIds];
+    const classIds = [...student.classIds];
     let changed = false;
 
     if (jazzTenPlusIds.has(student.id) && !classIds.includes('class-caa-tue-1750')) {
@@ -207,16 +176,6 @@ function migrateClassRosters(storedStudents: typeof initialStudents): typeof ini
 // Simple TTL cache for loadData to avoid redundant JSON parsing
 let loadDataCache: { data: AppData; timestamp: number } | null = null;
 const LOAD_CACHE_TTL = 500; // ms
-
-// Track recent local saves to prevent cloud sync from overwriting
-// This prevents the race condition where cloud sync returns stale data
-// before the local save has been pushed to cloud
-let lastLocalSaveTime = 0;
-const LOCAL_SAVE_GRACE_PERIOD = 15000; // 15 seconds - covers AI expansion time
-
-export function wasRecentlySavedLocally(): boolean {
-  return Date.now() - lastLocalSaveTime < LOCAL_SAVE_GRACE_PERIOD;
-}
 
 // Proactive localStorage quota check — runs once on startup
 let quotaWarningEmitted = false;
@@ -313,12 +272,10 @@ export const saveEvents = {
   }
 };
 
-// Save to localStorage only (no cloud sync) - used when immediateCloudSave will be called separately
+// Save to localStorage (Firestore handles cloud persistence via useAppData)
 function saveDataLocalOnly(data: AppData): AppData {
   // Invalidate load cache on save
   loadDataCache = null;
-  // Track local save time to prevent cloud sync race condition
-  lastLocalSaveTime = Date.now();
 
   // Add timestamp for conflict resolution
   const dataWithTimestamp = {
@@ -348,27 +305,10 @@ function saveDataLocalOnly(data: AppData): AppData {
 
 export function saveData(data: AppData): void {
   try {
-    const dataWithTimestamp = saveDataLocalOnly(data);
+    saveDataLocalOnly(data);
     saveEvents.emit('saving');
     // Notify other useAppData instances to re-sync from localStorage
     window.dispatchEvent(new CustomEvent('local-data-saved'));
-
-    // Fetch cloud first, merge, then push — serialized via mutex to prevent races
-    withCloudMutex(async () => {
-      try {
-        const cloudData = await fetchCloudData();
-        if (cloudData) {
-          const freshLocal = loadData();
-          const merged = mergeLocalAndCloud(freshLocal, cloudData, new Date().toISOString());
-          saveDataLocalOnly(merged);
-          await immediateCloudSave(merged);
-        } else {
-          debouncedCloudSave(dataWithTimestamp);
-        }
-      } catch {
-        debouncedCloudSave(dataWithTimestamp);
-      }
-    });
   } catch (error) {
     console.error('Failed to save data:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -382,208 +322,14 @@ export function saveData(data: AppData): void {
   }
 }
 
-// Apply migrations to cloud data
-function migrateCloudData(cloudData: AppData): AppData {
-  const defaults = getDefaultData();
-
-  // Migrate competition IDs
-  const migratedCompetitions = cloudData.competitions?.length > 0
-    ? migrateCompetitionIds(cloudData.competitions)
-    : defaults.competitions;
-
-  // Migrate competition dances to add costume data, dancerIds, and fix names
-  let migratedDances = cloudData.competitionDances?.length > 0
-    ? migrateCompetitionDanceCostumes(cloudData.competitionDances)
-    : defaults.competitionDances;
-  migratedDances = migrateCompetitionDancerIds(migratedDances);
-  migratedDances = migrateCompetitionDanceNames(migratedDances);
-
-  // Merge students - migrate to add new students and update classIds
-  const students = migrateClassRosters(
-    (cloudData.students?.length ?? 0) > 0
-      ? migrateStudents(cloudData.students!)
-      : defaults.students!
-  );
-
-  return {
-    ...defaults,
-    ...cloudData,
-    // FORCE initial classes - stored classes have old uuid IDs that don't match student classIds
-    classes: initialClasses,
-    competitions: migratedCompetitions,
-    competitionDances: migratedDances,
-    // Merged students: initial roster + user-added students preserved
-    students,
-  };
-}
-
-// Shared merge helper — merges local + cloud AppData using consistent rules:
-// - selfCare, launchPlan, dayPlan: last-write-wins via timestamps
-// - weekNotes: union-merge by weekOf, then by classId, then by liveNote ID
-// - aiCheckIns: union-merge by id
-// This consolidates the 5 previously separate merge implementations.
-function mergeLocalAndCloud(local: AppData, cloud: AppData, now: string): AppData {
-  // selfCare: last-write-wins
-  const localSC = local.selfCare || {};
-  const cloudSC = cloud.selfCare || {};
-  const localSCMod = localSC.selfCareModified ? new Date(localSC.selfCareModified).getTime() : 0;
-  const cloudSCMod = cloudSC.selfCareModified ? new Date(cloudSC.selfCareModified).getTime() : 0;
-  const mergedSelfCare = cloudSCMod > localSCMod ? cloudSC : localSC;
-
-  // weekNotes: union-merge
-  const mergedWeekNotes = mergeWeekNotes(local.weekNotes || [], cloud.weekNotes || []);
-
-  // launchPlan: last-write-wins
-  const localLP = local.launchPlan;
-  const cloudLP = cloud.launchPlan;
-  const localLPMod = localLP?.lastModified ? new Date(localLP.lastModified).getTime() : 0;
-  const cloudLPMod = cloudLP?.lastModified ? new Date(cloudLP.lastModified).getTime() : 0;
-  const mergedLP = cloudLPMod > localLPMod ? cloudLP : localLP;
-
-  // dayPlan: last-write-wins
-  const localDP = local.dayPlan;
-  const cloudDP = cloud.dayPlan;
-  const localDPMod = localDP?.lastModified ? new Date(localDP.lastModified).getTime() : 0;
-  const cloudDPMod = cloudDP?.lastModified ? new Date(cloudDP.lastModified).getTime() : 0;
-  const mergedDP = cloudDPMod > localDPMod ? cloudDP : localDP;
-
-  // aiCheckIns: union-merge by id
-  const localCheckIns = local.aiCheckIns || [];
-  const cloudCheckIns = cloud.aiCheckIns || [];
-  const checkInMap = new Map<string, typeof localCheckIns[0]>();
-  cloudCheckIns.forEach(c => checkInMap.set(c.id, c));
-  localCheckIns.forEach(c => checkInMap.set(c.id, c));
-  const mergedCheckIns = Array.from(checkInMap.values());
-
-  return {
-    ...cloud,
-    ...local,
-    selfCare: mergedSelfCare,
-    weekNotes: mergedWeekNotes,
-    launchPlan: mergedLP,
-    dayPlan: mergedDP,
-    aiCheckIns: mergedCheckIns,
-    lastModified: now,
-  };
-}
-
-// Merge weekNotes from two sources - NEVER lose notes
-function mergeWeekNotes(local: WeekNotes[], cloud: WeekNotes[]): WeekNotes[] {
-  const merged = new Map<string, WeekNotes>();
-
-  // Start with cloud data
-  for (const wn of cloud) {
-    merged.set(wn.weekOf, wn);
-  }
-
-  // Merge in local data
-  for (const localWN of local) {
-    const existing = merged.get(localWN.weekOf);
-    if (!existing) {
-      // Local has notes for a week cloud doesn't - keep them
-      merged.set(localWN.weekOf, localWN);
-    } else {
-      // Both have notes for this week - merge class notes
-      const mergedClassNotes = { ...existing.classNotes };
-
-      for (const [classId, localClassNotes] of Object.entries(localWN.classNotes)) {
-        const existingClassNotes = mergedClassNotes[classId];
-        if (!existingClassNotes) {
-          // Local has notes for a class cloud doesn't
-          mergedClassNotes[classId] = localClassNotes;
-        } else {
-          // Both have notes - keep the one with more content, or merge liveNotes
-          const localPlan = localClassNotes.plan || '';
-          const cloudPlan = existingClassNotes.plan || '';
-          const localLiveNotes = localClassNotes.liveNotes || [];
-          const cloudLiveNotes = existingClassNotes.liveNotes || [];
-
-          // Merge liveNotes by ID, keeping the most recent version of each note
-          const liveNotesMap = new Map<string, typeof localLiveNotes[0]>();
-          for (const note of cloudLiveNotes) {
-            liveNotesMap.set(note.id, note);
-          }
-          for (const note of localLiveNotes) {
-            const existing = liveNotesMap.get(note.id);
-            // Keep whichever note is newer based on timestamp
-            if (!existing || new Date(note.timestamp) >= new Date(existing.timestamp)) {
-              liveNotesMap.set(note.id, note);
-            }
-          }
-
-          mergedClassNotes[classId] = {
-            ...existingClassNotes,
-            ...localClassNotes,
-            // Keep longer plan (more content = more work done)
-            plan: localPlan.length >= cloudPlan.length ? localPlan : cloudPlan,
-            // Merged live notes
-            liveNotes: Array.from(liveNotesMap.values()),
-            // Keep organized notes if either has them
-            organizedNotes: localClassNotes.organizedNotes || existingClassNotes.organizedNotes,
-            isOrganized: localClassNotes.isOrganized || existingClassNotes.isOrganized,
-            // Merge media — local first so newer edits win dedup
-            media: [...(localClassNotes.media || []), ...(existingClassNotes.media || [])].filter(
-              (m, i, arr) => arr.findIndex(x => x.id === m.id) === i
-            ),
-            // Merge attendance
-            attendance: localClassNotes.attendance || existingClassNotes.attendance,
-            // Preserve class-level fields from whichever has content
-            weekIdea: localClassNotes.weekIdea || existingClassNotes.weekIdea,
-            nextWeekGoal: localClassNotes.nextWeekGoal || existingClassNotes.nextWeekGoal,
-            carryForwardDismissed: localClassNotes.carryForwardDismissed || existingClassNotes.carryForwardDismissed,
-          };
-        }
-      }
-
-      merged.set(localWN.weekOf, {
-        ...existing,
-        ...localWN,
-        classNotes: mergedClassNotes,
-      });
-    }
-  }
-
-  return Array.from(merged.values());
-}
-
-// Sync data from cloud - call this on app load
-// Simple last-write-wins: whoever saved last wins the entire selfCare object
-// force=true skips the grace period (used by pushToCloud and visibility change)
+// Legacy stub — Firestore onSnapshot handles all cloud sync now.
+// Kept for backward compatibility with Settings.tsx and SyncContext.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function syncFromCloud(force: boolean = false): Promise<AppData | null> {
-  try {
-    // If there was a recent local save, skip cloud sync to avoid race condition
-    // The local data will be pushed to cloud by the pending save
-    if (!force && wasRecentlySavedLocally()) {
-      return null;
-    }
-
-    const cloudData = await fetchCloudData();
-    if (!cloudData) return null;
-
-    // Apply migrations to cloud data
-    const migratedCloudData = migrateCloudData(cloudData);
-
-    const localData = loadData();
-
-    // Use the shared merge helper for consistent merge logic everywhere
-    const mergedData = mergeLocalAndCloud(localData, migratedCloudData, new Date().toISOString());
-
-    // Save merged data locally (uses quota guard)
-    saveDataLocalOnly(mergedData);
-
-    // Push merged data to cloud immediately so all devices converge
-    immediateCloudSave(mergedData);
-
-    return mergedData;
-  } catch (error) {
-    console.error('Failed to sync from cloud:', error);
-    return null;
-  }
+  return null;
 }
 
-// Save selfCare data with immediate cloud sync (no debounce)
-// Medications are critical — must reach cloud before user locks phone
-// Fetches cloud state first so we don't overwrite the other device's changes
+// Save selfCare data to localStorage (Firestore sync handled by useAppData)
 export function saveSelfCareToStorage(updates: Partial<import('../types').SelfCareData>): void {
   const data = loadData();
   const now = new Date().toISOString();
@@ -591,31 +337,11 @@ export function saveSelfCareToStorage(updates: Partial<import('../types').SelfCa
     ...data,
     selfCare: { ...data.selfCare, ...updates, selfCareModified: now },
   };
-  const dataWithTimestamp = saveDataLocalOnly(updatedData);
+  saveDataLocalOnly(updatedData);
   saveEvents.emit('saving');
-
-  // Fetch cloud state, merge, then push — serialized via mutex
-  withCloudMutex(async () => {
-    try {
-      const cloudData = await fetchCloudData();
-      if (cloudData) {
-        const freshLocal = loadData();
-        // Apply the selfCare update on top of the merge
-        const merged = mergeLocalAndCloud(freshLocal, cloudData, now);
-        merged.selfCare = { ...(merged.selfCare || {}), ...updates, selfCareModified: now };
-        saveDataLocalOnly(merged);
-        await immediateCloudSave(merged);
-      } else {
-        await immediateCloudSave(dataWithTimestamp);
-      }
-    } catch {
-      await immediateCloudSave(dataWithTimestamp);
-    }
-  });
 }
 
-// Save launch plan data with immediate cloud sync (same pattern as selfCare)
-// Launch plan edits (completing tasks, adding notes) should persist ASAP
+// Save launch plan data to localStorage (Firestore sync handled by useAppData)
 export function saveLaunchPlanToStorage(updates: Partial<LaunchPlanData>): void {
   const data = loadData();
   const now = new Date().toISOString();
@@ -625,157 +351,57 @@ export function saveLaunchPlanToStorage(updates: Partial<LaunchPlanData>): void 
     ...data,
     launchPlan: updatedPlan,
   };
-  console.log('[LaunchPlan] Saving locally:', updates.decisions ? `${(updates.decisions as any[]).filter(d => d.status === 'decided').length} decided` : 'task/contact update');
-  const dataWithTimestamp = saveDataLocalOnly(updatedData);
+  saveDataLocalOnly(updatedData);
   saveEvents.emit('saving');
-
-  withCloudMutex(async () => {
-    try {
-      const cloudData = await fetchCloudData();
-      if (cloudData) {
-        const freshLocal = loadData();
-        const merged = mergeLocalAndCloud(freshLocal, cloudData, now);
-        // Apply the launch plan update on top of the merge
-        const basePlan = cloudData.launchPlan || currentPlan;
-        merged.launchPlan = { ...currentPlan, ...basePlan, ...updates, lastModified: now };
-        saveDataLocalOnly(merged);
-        await immediateCloudSave(merged);
-      } else {
-        await immediateCloudSave(dataWithTimestamp);
-      }
-    } catch (err) {
-      console.warn('[LaunchPlan] Cloud fetch failed, pushing local:', err);
-      await immediateCloudSave(dataWithTimestamp);
-    }
-  });
 }
 
-// Save day plan with immediate cloud sync (same pattern as selfCare/launchPlan)
-// Day plans need cross-device sync so both phone and laptop show the same plan
+// Save day plan to localStorage (Firestore sync handled by useAppData)
 export function saveDayPlanToStorage(plan: import('../types').DayPlan): void {
   const data = loadData();
-  const now = plan.lastModified || new Date().toISOString();
   const updatedData = {
     ...data,
     dayPlan: plan,
   };
-  const dataWithTimestamp = saveDataLocalOnly(updatedData);
+  saveDataLocalOnly(updatedData);
   saveEvents.emit('saving');
-
-  withCloudMutex(async () => {
-    try {
-      const cloudData = await fetchCloudData();
-      if (cloudData) {
-        const freshLocal = loadData();
-        const merged = mergeLocalAndCloud(freshLocal, cloudData, now);
-        // Day plan: we just mutated it, so our version is authoritative
-        merged.dayPlan = plan;
-        saveDataLocalOnly(merged);
-        await immediateCloudSave(merged);
-      } else {
-        await immediateCloudSave(dataWithTimestamp);
-      }
-    } catch {
-      await immediateCloudSave(dataWithTimestamp);
-    }
-  });
 }
 
-// Save therapist data with immediate cloud sync (same pattern as selfCare)
+// Save therapist data to localStorage (Firestore sync handled by useAppData)
 export function saveTherapistToStorage(updates: Partial<import('../types').TherapistData>): void {
   const data = loadData();
   const now = new Date().toISOString();
   const current = data.therapist || { prepNotes: [], sessions: [], lastModified: now };
   const updated = { ...current, ...updates, lastModified: now };
   const updatedData = { ...data, therapist: updated };
-  const dataWithTimestamp = saveDataLocalOnly(updatedData);
+  saveDataLocalOnly(updatedData);
   saveEvents.emit('saving');
-
-  withCloudMutex(async () => {
-    try {
-      const cloudData = await fetchCloudData();
-      if (cloudData) {
-        const freshLocal = loadData();
-        const merged = mergeLocalAndCloud(freshLocal, cloudData, now);
-        merged.therapist = { ...current, ...updates, lastModified: now };
-        saveDataLocalOnly(merged);
-        await immediateCloudSave(merged);
-      } else {
-        await immediateCloudSave(dataWithTimestamp);
-      }
-    } catch {
-      await immediateCloudSave(dataWithTimestamp);
-    }
-  });
 }
 
-// Save meditation data with immediate cloud sync
+// Save meditation data to localStorage (Firestore sync handled by useAppData)
 export function saveMeditationToStorage(updates: Partial<import('../types').MeditationData>): void {
   const data = loadData();
   const now = new Date().toISOString();
   const current = data.meditation || { sessions: [], preferences: { defaultRounds: { box: 4, fourSevenEight: 4, slow: 6 } }, lastModified: now };
   const updated = { ...current, ...updates, lastModified: now };
   const updatedData = { ...data, meditation: updated };
-  const dataWithTimestamp = saveDataLocalOnly(updatedData);
+  saveDataLocalOnly(updatedData);
   saveEvents.emit('saving');
-
-  withCloudMutex(async () => {
-    try {
-      const cloudData = await fetchCloudData();
-      if (cloudData) {
-        const freshLocal = loadData();
-        const merged = mergeLocalAndCloud(freshLocal, cloudData, now);
-        merged.meditation = { ...current, ...updates, lastModified: now };
-        saveDataLocalOnly(merged);
-        await immediateCloudSave(merged);
-      } else {
-        await immediateCloudSave(dataWithTimestamp);
-      }
-    } catch {
-      await immediateCloudSave(dataWithTimestamp);
-    }
-  });
 }
 
-// Save grief data with immediate cloud sync
+// Save grief data to localStorage (Firestore sync handled by useAppData)
 export function saveGriefToStorage(updates: Partial<import('../types').GriefData>): void {
   const data = loadData();
   const now = new Date().toISOString();
   const current = data.grief || { letters: [], emotionalCheckins: [], lastPermissionSlipIndex: -1, lastModified: now };
   const updated = { ...current, ...updates, lastModified: now };
   const updatedData = { ...data, grief: updated };
-  const dataWithTimestamp = saveDataLocalOnly(updatedData);
+  saveDataLocalOnly(updatedData);
   saveEvents.emit('saving');
-
-  withCloudMutex(async () => {
-    try {
-      const cloudData = await fetchCloudData();
-      if (cloudData) {
-        const freshLocal = loadData();
-        const merged = mergeLocalAndCloud(freshLocal, cloudData, now);
-        merged.grief = { ...current, ...updates, lastModified: now };
-        saveDataLocalOnly(merged);
-        await immediateCloudSave(merged);
-      } else {
-        await immediateCloudSave(dataWithTimestamp);
-      }
-    } catch {
-      await immediateCloudSave(dataWithTimestamp);
-    }
-  });
 }
 
-// Force sync: pull cloud, merge with local, push merged result back
-// This replaces the old blind push that clobbered other devices' data
+// Legacy stub — Firestore handles all cloud persistence now.
 export async function pushToCloud(): Promise<boolean> {
-  try {
-    // Just trigger a full syncFromCloud which already merges + pushes
-    const result = await syncFromCloud(true); // force = skip grace period
-    return result !== null;
-  } catch (e) {
-    console.error('pushToCloud failed:', e);
-    return false;
-  }
+  return true;
 }
 
 export function updateClass(updatedClass: Class): void {
@@ -800,27 +426,8 @@ export function saveWeekNotes(weekNotes: WeekNotes): void {
   } else {
     data.weekNotes.push(weekNotes);
   }
-  // Save locally first (instant)
-  const dataWithTimestamp = saveDataLocalOnly(data);
+  saveDataLocalOnly(data);
   saveEvents.emit('saving');
-
-  // Fetch cloud first, merge, then push — so we don't clobber other device's data
-  // Serialized via mutex to prevent race conditions
-  withCloudMutex(async () => {
-    try {
-      const cloudData = await fetchCloudData();
-      if (cloudData) {
-        const freshLocal = loadData();
-        const merged = mergeLocalAndCloud(freshLocal, cloudData, new Date().toISOString());
-        saveDataLocalOnly(merged);
-        await immediateCloudSave(merged);
-      } else {
-        await immediateCloudSave(dataWithTimestamp);
-      }
-    } catch {
-      await immediateCloudSave(dataWithTimestamp);
-    }
-  });
 }
 
 export function updateCalendarEvents(events: CalendarEvent[]): void {

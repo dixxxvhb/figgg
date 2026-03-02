@@ -371,7 +371,7 @@ export function Dashboard() {
       if (nextDate) {
         updated = [...updated, {
           ...target,
-          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
           completed: false,
           completedAt: undefined,
           dueDate: nextDate,
@@ -750,7 +750,7 @@ export function Dashboard() {
               <h2 className="type-h1 text-[var(--text-primary)] leading-tight line-clamp-2 mb-3">{classInfo.class.name}</h2>
 
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[var(--text-secondary)] mb-4">
-                <span className="flex items-center gap-1 text-[--color-honey] dark:text-[--color-honey-light] font-medium">
+                <span className="flex items-center gap-1 text-[var(--color-honey)] dark:text-[var(--color-honey-light)] font-medium">
                   <Clock size={14} />{formatTimeDisplay(classInfo.class.startTime)} - {formatTimeDisplay(classInfo.class.endTime)}
                 </span>
                 {currentStudio && <span className="flex items-center gap-1"><MapPin size={14} />{currentStudio.shortName}</span>}
@@ -817,7 +817,7 @@ export function Dashboard() {
                   <div className="flex items-center gap-2 mt-3 px-3 py-2 bg-[var(--surface-inset)] rounded-xl">
                     <span className="type-caption text-[var(--text-tertiary)]">Then</span>
                     <span className="text-sm font-medium text-[var(--text-primary)] truncate">{upNextName}</span>
-                    <span className="text-sm font-semibold text-[--color-honey] dark:text-[--color-honey-light] ml-auto flex-shrink-0">{formatTimeDisplay(upNextTime!)}</span>
+                    <span className="text-sm font-semibold text-[var(--color-honey)] dark:text-[var(--color-honey-light)] ml-auto flex-shrink-0">{formatTimeDisplay(upNextTime!)}</span>
                   </div>
                 );
               })()}
@@ -840,7 +840,7 @@ export function Dashboard() {
                   </div>
                   <h2 className="type-h1 text-[var(--text-primary)] leading-tight line-clamp-2 mb-3">{currentCalendarEvent.title}</h2>
                   <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--text-secondary)] mb-4">
-                    <span className="flex items-center gap-1 text-[--color-honey] dark:text-[--color-honey-light] font-medium"><Clock size={14} />{formatTimeDisplay(currentCalendarEvent.startTime)}{currentCalendarEvent.endTime && currentCalendarEvent.endTime !== '00:00' && <> - {formatTimeDisplay(currentCalendarEvent.endTime)}</>}</span>
+                    <span className="flex items-center gap-1 text-[var(--color-honey)] dark:text-[var(--color-honey-light)] font-medium"><Clock size={14} />{formatTimeDisplay(currentCalendarEvent.startTime)}{currentCalendarEvent.endTime && currentCalendarEvent.endTime !== '00:00' && <> - {formatTimeDisplay(currentCalendarEvent.endTime)}</>}</span>
                     {locationLine && <span className="flex items-center gap-1"><MapPin size={14} />{locationLine}</span>}
                   </div>
                   <Link to={`/event/${currentCalendarEvent.id}/notes`} className="flex items-center justify-center gap-2 w-full bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white py-3.5 rounded-xl font-semibold transition-colors"><Play size={18} />Continue Notes</Link>

@@ -8,7 +8,6 @@ import { DropdownMenu } from '../components/common/DropdownMenu';
 import { LiveNote, ClassWeekNotes, Reminder, ReminderList, TermCategory, normalizeNoteCategory } from '../types';
 import { formatTimeDisplay, getCurrentTimeMinutes, getMinutesRemaining, formatWeekOf, getWeekStart } from '../utils/time';
 import { saveWeekNotes as saveWeekNotesToStorage, getWeekNotes as getWeekNotesFromStorage } from '../services/storage';
-import { flushPendingSave } from '../services/cloudStorage';
 import { v4 as uuid } from 'uuid';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
 import { EmptyState } from '../components/common/EmptyState';
@@ -572,7 +571,6 @@ export function LiveNotes() {
     setWeekNotes(updatedWeekNotes);
     // Use direct storage save (not hook) to prevent cloud merge from restoring deleted note
     saveWeekNotesToStorage(updatedWeekNotes);
-    flushPendingSave();
   };
 
   const endClass = async () => {
@@ -701,8 +699,7 @@ export function LiveNotes() {
         };
 
         saveWeekNotesToStorage(updatedNextWeek);
-        flushPendingSave();
-      }).catch(() => {
+          }).catch(() => {
         // AI plan failed — fall back to a simple carry-forward of flagged notes
         const nextWeek = notesToProcess.filter(n => normalizeNoteCategory(n.category) === 'next-week');
         const needsWork = notesToProcess.filter(n => normalizeNoteCategory(n.category) === 'needs-work');
@@ -745,8 +742,7 @@ export function LiveNotes() {
         };
 
         saveWeekNotesToStorage(updatedNextWeek);
-        flushPendingSave();
-      });
+          });
 
       // AI-powered reminder detection — fire and forget (don't block navigation)
       // Skip notes that already had reminders created via real-time detection
@@ -800,7 +796,6 @@ export function LiveNotes() {
     }
 
     // Force immediate cloud save before navigation
-    flushPendingSave();
 
     setAlreadySaved(true);
     navigate('/schedule');
@@ -824,7 +819,6 @@ export function LiveNotes() {
 
     setWeekNotes(updatedWeekNotes);
     saveWeekNotesToStorage(updatedWeekNotes);
-    flushPendingSave();
   };
 
   const clearAll = async () => {
@@ -845,7 +839,6 @@ export function LiveNotes() {
 
     setWeekNotes(updatedWeekNotes);
     saveWeekNotesToStorage(updatedWeekNotes);
-    flushPendingSave();
   };
 
   // AI: Expand raw notes into an organized class summary

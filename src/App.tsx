@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { Header, MobileNav } from './components/common/Header';
 import { PullToRefresh } from './components/common/PullToRefresh';
 import { Dashboard } from './pages/Dashboard';
@@ -37,7 +37,7 @@ function NotFound() {
     <div className="page-w px-4 py-12 text-center">
       <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Page not found</h1>
       <p className="text-[var(--text-secondary)] mb-4">This page doesn't exist.</p>
-      <a href="/" className="text-[var(--accent-primary)] font-medium hover:underline">Back to home</a>
+      <Link to="/" className="text-[var(--accent-primary)] font-medium hover:underline">Back to home</Link>
     </div>
   );
 }

@@ -11,7 +11,6 @@ import { findMatchingPastSessions, getCarryForwardText, PastSession } from '../u
 import { PreviousSessionsPanel } from '../components/events/PreviousSessionsPanel';
 import { generatePlan as aiGeneratePlan, detectReminders as aiDetectReminders } from '../services/ai';
 import { saveWeekNotes as saveWeekNotesToStorage, getWeekNotes as getWeekNotesFromStorage } from '../services/storage';
-import { flushPendingSave } from '../services/cloudStorage';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
 import { EmptyState } from '../components/common/EmptyState';
 
@@ -275,25 +274,7 @@ export function EventNotes() {
     saveWeekNotes(updatedWeekNotes);
   };
 
-  const clearAll = async () => {
-    if (!await confirm('Clear all notes?')) return;
 
-    const updatedEventNotes: ClassWeekNotes = {
-      ...eventNotes,
-      liveNotes: [],
-    };
-
-    const updatedWeekNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [eventId || '']: updatedEventNotes,
-      },
-    };
-
-    setWeekNotes(updatedWeekNotes);
-    saveWeekNotes(updatedWeekNotes);
-  };
 
   const endEvent = async () => {
     if (isEndingEvent) return;
@@ -374,7 +355,6 @@ export function EventNotes() {
             },
           },
         });
-        flushPendingSave();
       }).catch(() => {
         // AI failed — fall back to carry-forward of flagged notes
         const nextWeek = notesToProcess.filter(n => normalizeNoteCategory(n.category) === 'next-week');
@@ -417,7 +397,6 @@ export function EventNotes() {
             },
           },
         });
-        flushPendingSave();
       });
 
       // Final reminder scan for un-scanned notes
@@ -469,7 +448,6 @@ export function EventNotes() {
       }
     }
 
-    flushPendingSave();
     setAlreadySaved(true);
     navigate(`/event/${eventId}`);
   };

@@ -73,7 +73,7 @@ export function PostClassCapture({ classContext, data, onSaveNotes, getCurrentWe
       classId: cls.id, plan: '', liveNotes: [], isOrganized: false,
     };
     const newNote: LiveNote = {
-      id: `capture-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      id: `capture-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       timestamp: new Date().toISOString(),
       text,
     };

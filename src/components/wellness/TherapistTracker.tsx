@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { format, parseISO, differenceInDays, startOfDay } from 'date-fns';
 import { haptic } from '../../utils/haptics';
+import { generateId } from '../../utils/id';
 import type {
   TherapistData,
   TherapistPrepNote,
@@ -24,10 +25,6 @@ import type {
 interface TherapistTrackerProps {
   data: TherapistData;
   onUpdate: (updates: Partial<TherapistData>) => void;
-}
-
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
 // ─── Next Session ───────────────────────────────────────────────

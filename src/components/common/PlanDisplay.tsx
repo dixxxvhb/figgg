@@ -29,7 +29,7 @@ export function PlanDisplay({ text, className = '' }: { text: string; className?
         const isHeader = /^[A-Z][A-Z\s\-—:()""']{2,}$/.test(trimmed);
         if (isHeader) {
           return (
-            <p key={i} className="font-bold text-forest-700 dark:text-forest-400 text-xs uppercase tracking-wide pt-2 first:pt-0">
+            <p key={i} className="font-bold text-[var(--accent-primary)] text-xs uppercase tracking-wide pt-2 first:pt-0">
               {trimmed}
             </p>
           );
@@ -39,8 +39,8 @@ export function PlanDisplay({ text, className = '' }: { text: string; className?
         const bulletMatch = trimmed.match(/^[-•]\s*(.*)/);
         if (bulletMatch) {
           return (
-            <p key={i} className="text-forest-600 dark:text-blush-300 pl-3 relative">
-              <span className="absolute left-0 text-blush-400 dark:text-blush-500">-</span>
+            <p key={i} className="text-[var(--text-primary)] pl-3 relative">
+              <span className="absolute left-0 text-[var(--text-tertiary)]">-</span>
               {bulletMatch[1]}
             </p>
           );
@@ -48,7 +48,7 @@ export function PlanDisplay({ text, className = '' }: { text: string; className?
 
         // Regular text line
         return (
-          <p key={i} className="text-forest-600 dark:text-blush-300">
+          <p key={i} className="text-[var(--text-primary)]">
             {trimmed}
           </p>
         );

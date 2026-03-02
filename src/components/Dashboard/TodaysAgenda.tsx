@@ -291,7 +291,7 @@ export function TodaysAgenda({
                   <div className={`text-lg font-display leading-none tabular-nums ${
                     isPast ? 'text-[var(--text-tertiary)]' :
                     isCurrent ? 'text-amber-600 dark:text-amber-400' :
-                    'text-[--color-honey] dark:text-[--color-honey-light]'
+                    'text-[var(--color-honey)] dark:text-[var(--color-honey-light)]'
                   }`}>
                     {formatTimeDisplay(item.startTime)}
                   </div>
@@ -340,7 +340,7 @@ export function TodaysAgenda({
                 <div className={`text-lg font-display leading-none tabular-nums ${
                   hasException || isPast ? 'text-[var(--text-tertiary)]' :
                   isCurrent || isActive ? 'text-[var(--accent-primary)]' :
-                  'text-[--color-honey] dark:text-[--color-honey-light]'
+                  'text-[var(--color-honey)] dark:text-[var(--color-honey-light)]'
                 }`}>
                   {formatTimeDisplay(item.startTime)}
                 </div>
@@ -391,7 +391,7 @@ export function TodaysAgenda({
                       </span>
                     )}
                     {item.hasPlan === true && (isCurrent || isNext || isActive || item.id === nextClassId) && (
-                      <span className="flex items-center gap-1 text-[--color-sage] dark:text-[--color-sage-light]">
+                      <span className="flex items-center gap-1 text-[var(--color-sage)] dark:text-[var(--color-sage-light)]">
                         <FileText size={11} />
                         Ready
                       </span>
@@ -491,7 +491,7 @@ export function TodaysAgenda({
             className="flex items-center gap-4 py-2 hover:bg-[var(--surface-card-hover)] -mx-1 px-1 rounded-xl transition-colors"
           >
             <div className="flex-shrink-0 w-14 text-right">
-              <div className="text-lg font-display text-[--color-honey] dark:text-[--color-honey-light] leading-none">
+              <div className="text-lg font-display text-[var(--color-honey)] dark:text-[var(--color-honey-light)] leading-none">
                 {formatTimeDisplay(tomorrowPreview.first.time)}
               </div>
             </div>

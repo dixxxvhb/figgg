@@ -91,12 +91,9 @@ export function Schedule() {
     return (data.students || []).filter(s => s.classIds?.includes(classId)).length;
   };
 
-  // Show all classes for the day (including weekend rehearsals)
-  const displayClasses = dayClasses;
-
   // Merge classes and calendar events into a single time-sorted list
   type ScheduleItem =
-    | { type: 'class'; data: typeof displayClasses[number]; time: number }
+    | { type: 'class'; data: typeof dayClasses[number]; time: number }
     | { type: 'event'; data: CalendarEvent; time: number }
     | { type: 'travel'; fromStudio: string; toStudio: string; travelMinutes: number; time: number };
 
@@ -105,10 +102,10 @@ export function Schedule() {
 
     // Build a set of hardcoded class start times to deduplicate calendar events
     const classTimeSet = new Set(
-      displayClasses.map(cls => timeToMinutes(cls.startTime))
+      dayClasses.map(cls => timeToMinutes(cls.startTime))
     );
 
-    displayClasses.forEach(cls => {
+    dayClasses.forEach(cls => {
       items.push({ type: 'class', data: cls, time: timeToMinutes(cls.startTime) });
     });
 
@@ -154,7 +151,7 @@ export function Schedule() {
     }
 
     return withTravel;
-  }, [displayClasses, calendarEventsForDay, data.studios]);
+  }, [dayClasses, calendarEventsForDay, data.studios]);
 
   return (
     <div className="page-w px-4 py-6 pb-24">
@@ -267,7 +264,7 @@ export function Schedule() {
       )}
 
       {/* Weekend message when no calendar connected, no competitions, and no classes */}
-      {isWeekend && calendarEventsForDay.length === 0 && competitionsForDay.length === 0 && displayClasses.length === 0 && !data.settings?.calendarUrl && (
+      {isWeekend && calendarEventsForDay.length === 0 && competitionsForDay.length === 0 && dayClasses.length === 0 && !data.settings?.calendarUrl && (
         <div className="bg-[var(--surface-card)] rounded-xl p-6 mb-4 text-center border border-[var(--border-subtle)]">
           <div className="w-12 h-12 bg-[var(--surface-inset)] rounded-full flex items-center justify-center mx-auto mb-3">
             <Calendar className="text-[var(--accent-primary)]" size={24} />
@@ -336,7 +333,7 @@ export function Schedule() {
                         )}
                       </div>
                     </div>
-                    <div className={`text-sm mt-1 ${hasException ? 'text-[var(--text-tertiary)]' : 'text-[--color-honey] dark:text-[--color-honey-light]'}`}>
+                    <div className={`text-sm mt-1 ${hasException ? 'text-[var(--text-tertiary)]' : 'text-[var(--color-honey)] dark:text-[var(--color-honey-light)]'}`}>
                       {formatTimeDisplay(cls.startTime)} - {formatTimeDisplay(cls.endTime)}
                     </div>
                     <div className={`text-sm ${hasException ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-secondary)]'}`}>
@@ -394,7 +391,7 @@ export function Schedule() {
                         </div>
                       </div>
                       {event.startTime && event.startTime !== '00:00' && (
-                        <div className="flex items-center gap-1 text-sm text-[--color-honey] dark:text-[--color-honey-light] mt-1">
+                        <div className="flex items-center gap-1 text-sm text-[var(--color-honey)] dark:text-[var(--color-honey-light)] mt-1">
                           <Clock size={14} />
                           {formatTimeDisplay(event.startTime)}
                           {event.endTime && event.endTime !== '00:00' && (

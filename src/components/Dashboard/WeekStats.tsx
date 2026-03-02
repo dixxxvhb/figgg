@@ -136,7 +136,7 @@ export function WeekStats({ stats, classes, competitions, weekNotes }: WeekStats
 
         {/* Notes */}
         <div className="p-3 text-center">
-          <div className="type-stat text-[--color-honey-dark] dark:text-[--color-honey-light] leading-none">
+          <div className="type-stat text-[var(--color-honey-dark)] dark:text-[var(--color-honey-light)] leading-none">
             {stats.notesThisWeek}
           </div>
           <div className="type-label text-[var(--text-tertiary)] mt-1.5">
