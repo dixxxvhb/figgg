@@ -4,7 +4,7 @@
  */
 import { getClassesByDay } from '../data/classes';
 import { timeToMinutes, formatWeekOf, getWeekStart, toDateStr, toTimeStr } from '../utils/time';
-import type { AppData, DayOfWeek, AIConfig } from '../types';
+import type { AppData, DayOfWeek } from '../types';
 import { DEFAULT_AI_CONFIG, DEFAULT_MED_CONFIG, DEFAULT_WELLNESS_ITEMS } from '../types';
 
 export interface AIContextPayload {

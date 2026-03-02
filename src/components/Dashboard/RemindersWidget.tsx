@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, Circle, ChevronRight, Flag, Clock } from 'lucide-react';
+import { Circle, ChevronRight, Flag, Clock } from 'lucide-react';
 import { format, parseISO, isPast, startOfDay } from 'date-fns';
 import type { Reminder } from '../../types';
 

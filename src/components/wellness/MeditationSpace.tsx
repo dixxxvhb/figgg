@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Wind, Play, Pause, Square, Eye, Hand, Snowflake, Timer, Plus, Minus } from 'lucide-react';
 import { haptic } from '../../utils/haptics';
+import { generateId } from '../../utils/id';
 import type { MeditationData, MeditationExerciseType, BreathingExerciseType } from '../../types';
 
 interface MeditationSpaceProps {
@@ -92,10 +93,6 @@ const GROUNDING_EXERCISES: GroundingExercise[] = [
       'Splash cold water on your face. Hold ice cubes. Take a cold sip of water. These reset your nervous system.',
   },
 ];
-
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
 
 function getToday(): string {
   return new Date().toISOString().split('T')[0];

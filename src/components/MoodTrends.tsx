@@ -8,18 +8,18 @@ interface MoodTrendsProps {
   snapshots: DailySnapshot[];
 }
 
-const MOOD_MAP: Record<string, { emoji: string; value: number; color: string }> = {
-  great:    { emoji: '', value: 5, color: '#22c55e' },
-  good:     { emoji: '', value: 4, color: '#84cc16' },
-  okay:     { emoji: '', value: 3, color: '#eab308' },
-  low:      { emoji: '', value: 2, color: '#f97316' },
-  rough:    { emoji: '', value: 1, color: '#ef4444' },
-  stressed: { emoji: '', value: 2, color: '#f97316' },
-  tired:    { emoji: '', value: 2, color: '#f97316' },
-  anxious:  { emoji: '', value: 2, color: '#f97316' },
-  energized:{ emoji: '', value: 4, color: '#84cc16' },
-  calm:     { emoji: '', value: 4, color: '#84cc16' },
-  focused:  { emoji: '', value: 4, color: '#84cc16' },
+const MOOD_MAP: Record<string, { value: number; color: string }> = {
+  great:    { value: 5, color: '#22c55e' },
+  good:     { value: 4, color: '#84cc16' },
+  okay:     { value: 3, color: '#eab308' },
+  low:      { value: 2, color: '#f97316' },
+  rough:    { value: 1, color: '#ef4444' },
+  stressed: { value: 2, color: '#f97316' },
+  tired:    { value: 2, color: '#f97316' },
+  anxious:  { value: 2, color: '#f97316' },
+  energized:{ value: 4, color: '#84cc16' },
+  calm:     { value: 4, color: '#84cc16' },
+  focused:  { value: 4, color: '#84cc16' },
 };
 
 function moodToValue(mood: string | undefined): number | null {
@@ -75,16 +75,16 @@ export function MoodTrends({ checkIns, snapshots }: MoodTrendsProps) {
         onClick={() => setIsExpanded(!isExpanded)}
         className="flex items-center gap-2 w-full text-left mb-2"
       >
-        <TrendingUp size={14} className="text-forest-500" />
-        <span className="text-xs font-semibold text-blush-400 dark:text-blush-500 uppercase tracking-wide flex-1">
+        <TrendingUp size={14} className="text-[var(--accent-primary)]" />
+        <span className="text-xs font-semibold text-[var(--text-tertiary)] uppercase tracking-wide flex-1">
           Mood · 2 Weeks
         </span>
-        <span className="text-xs text-blush-400 dark:text-blush-500">{avgLabel} avg</span>
-        {isExpanded ? <ChevronUp size={14} className="text-blush-400" /> : <ChevronDown size={14} className="text-blush-400" />}
+        <span className="text-xs text-[var(--text-tertiary)]">{avgLabel} avg</span>
+        {isExpanded ? <ChevronUp size={14} className="text-[var(--text-tertiary)]" /> : <ChevronDown size={14} className="text-[var(--text-tertiary)]" />}
       </button>
 
       {isExpanded && (
-        <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-3">
+        <div className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-3">
           {/* Bar chart */}
           <div className="flex items-end gap-1" style={{ height: barHeight + 16 }}>
             {last14Days.map((day, i) => {
@@ -96,11 +96,11 @@ export function MoodTrends({ checkIns, snapshots }: MoodTrendsProps) {
                     className="w-full rounded-sm transition-all"
                     style={{
                       height: h,
-                      backgroundColor: val ? moodToColor(day.mood) : '#e5e7eb',
+                      backgroundColor: val ? moodToColor(day.mood) : 'var(--border-subtle)',
                       opacity: val ? 1 : 0.3,
                     }}
                   />
-                  <span className="text-[9px] text-blush-400 dark:text-blush-500">{day.label}</span>
+                  <span className="text-[9px] text-[var(--text-tertiary)]">{day.label}</span>
                 </div>
               );
             })}
@@ -108,8 +108,8 @@ export function MoodTrends({ checkIns, snapshots }: MoodTrendsProps) {
 
           {/* Legend */}
           <div className="flex justify-between mt-2 px-1">
-            <span className="text-[9px] text-blush-400">2 weeks ago</span>
-            <span className="text-[9px] text-blush-400">Today</span>
+            <span className="text-[9px] text-[var(--text-tertiary)]">2 weeks ago</span>
+            <span className="text-[9px] text-[var(--text-tertiary)]">Today</span>
           </div>
         </div>
       )}

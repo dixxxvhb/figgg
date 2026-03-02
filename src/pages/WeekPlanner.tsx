@@ -15,7 +15,7 @@ const DAYS: DayOfWeek[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday
 
 export function WeekPlanner() {
   const navigate = useNavigate();
-  const { data, getWeekNotes, saveWeekNotes, getCurrentWeekNotes } = useAppData();
+  const { data, getWeekNotes, saveWeekNotes } = useAppData();
   const [weekOffset, setWeekOffset] = useState(0);
   const [showLastWeek, setShowLastWeek] = useState(false);
 

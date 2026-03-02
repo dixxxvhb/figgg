@@ -4,7 +4,6 @@ import {
   getDoc,
   getDocs,
   setDoc,
-  updateDoc,
   deleteDoc,
   writeBatch,
   onSnapshot,
@@ -41,10 +40,6 @@ import { migrateMediaItems, migrateMusicTrack, migrateStudentPhoto, isBase64Data
 function requireDb() {
   if (!db) throw new Error('Firestore not configured');
   return db;
-}
-
-function userRef(userId: string) {
-  return doc(requireDb(), 'users', userId);
 }
 
 function userCollection(userId: string, collectionName: string) {
@@ -277,13 +272,7 @@ export async function getSelfCare(userId: string): Promise<SelfCareData | undefi
 }
 
 export async function updateSelfCareDoc(userId: string, updates: Partial<SelfCareData>): Promise<void> {
-  const ref = userDoc(userId, 'singletons', 'selfCare');
-  const snap = await getDoc(ref);
-  if (snap.exists()) {
-    await updateDoc(ref, updates as Record<string, unknown>);
-  } else {
-    await setDoc(ref, updates);
-  }
+  await setDoc(userDoc(userId, 'singletons', 'selfCare'), updates, { merge: true });
 }
 
 // ============================================================
@@ -307,13 +296,7 @@ export async function getLaunchPlan(userId: string): Promise<LaunchPlanData | un
 }
 
 export async function updateLaunchPlanDoc(userId: string, updates: Partial<LaunchPlanData>): Promise<void> {
-  const ref = userDoc(userId, 'singletons', 'launchPlan');
-  const snap = await getDoc(ref);
-  if (snap.exists()) {
-    await updateDoc(ref, updates as Record<string, unknown>);
-  } else {
-    await setDoc(ref, updates);
-  }
+  await setDoc(userDoc(userId, 'singletons', 'launchPlan'), updates, { merge: true });
 }
 
 // ============================================================
@@ -337,13 +320,7 @@ export async function getProfile(userId: string): Promise<{ settings: AppSetting
 }
 
 export async function updateProfile(userId: string, updates: { settings?: AppSettings; lastModified?: string }): Promise<void> {
-  const ref = userDoc(userId, 'singletons', 'profile');
-  const snap = await getDoc(ref);
-  if (snap.exists()) {
-    await updateDoc(ref, updates as Record<string, unknown>);
-  } else {
-    await setDoc(ref, updates);
-  }
+  await setDoc(userDoc(userId, 'singletons', 'profile'), updates, { merge: true });
 }
 
 // ============================================================
@@ -355,13 +332,7 @@ export async function getTherapist(userId: string): Promise<TherapistData | unde
 }
 
 export async function updateTherapistDoc(userId: string, updates: Partial<TherapistData>): Promise<void> {
-  const ref = userDoc(userId, 'singletons', 'therapist');
-  const snap = await getDoc(ref);
-  if (snap.exists()) {
-    await updateDoc(ref, updates as Record<string, unknown>);
-  } else {
-    await setDoc(ref, updates);
-  }
+  await setDoc(userDoc(userId, 'singletons', 'therapist'), updates, { merge: true });
 }
 
 // ============================================================
@@ -373,13 +344,7 @@ export async function getMeditation(userId: string): Promise<MeditationData | un
 }
 
 export async function updateMeditationDoc(userId: string, updates: Partial<MeditationData>): Promise<void> {
-  const ref = userDoc(userId, 'singletons', 'meditation');
-  const snap = await getDoc(ref);
-  if (snap.exists()) {
-    await updateDoc(ref, updates as Record<string, unknown>);
-  } else {
-    await setDoc(ref, updates);
-  }
+  await setDoc(userDoc(userId, 'singletons', 'meditation'), updates, { merge: true });
 }
 
 // ============================================================
@@ -391,13 +356,7 @@ export async function getGrief(userId: string): Promise<GriefData | undefined> {
 }
 
 export async function updateGriefDoc(userId: string, updates: Partial<GriefData>): Promise<void> {
-  const ref = userDoc(userId, 'singletons', 'grief');
-  const snap = await getDoc(ref);
-  if (snap.exists()) {
-    await updateDoc(ref, updates as Record<string, unknown>);
-  } else {
-    await setDoc(ref, updates);
-  }
+  await setDoc(userDoc(userId, 'singletons', 'grief'), updates, { merge: true });
 }
 
 // ============================================================
@@ -409,7 +368,7 @@ export function onTherapistSnapshot(
 ): Unsubscribe {
   return onSnapshot(userDoc(userId, 'singletons', 'therapist'), (snap) => {
     callback(snap.exists() ? (snap.data() as TherapistData) : undefined);
-  });
+  }, (error) => { console.error('therapist snapshot error:', error); });
 }
 
 export function onMeditationSnapshot(
@@ -418,7 +377,7 @@ export function onMeditationSnapshot(
 ): Unsubscribe {
   return onSnapshot(userDoc(userId, 'singletons', 'meditation'), (snap) => {
     callback(snap.exists() ? (snap.data() as MeditationData) : undefined);
-  });
+  }, (error) => { console.error('meditation snapshot error:', error); });
 }
 
 export function onGriefSnapshot(
@@ -427,7 +386,7 @@ export function onGriefSnapshot(
 ): Unsubscribe {
   return onSnapshot(userDoc(userId, 'singletons', 'grief'), (snap) => {
     callback(snap.exists() ? (snap.data() as GriefData) : undefined);
-  });
+  }, (error) => { console.error('grief snapshot error:', error); });
 }
 
 export function onSelfCareSnapshot(
@@ -436,7 +395,7 @@ export function onSelfCareSnapshot(
 ): Unsubscribe {
   return onSnapshot(userDoc(userId, 'singletons', 'selfCare'), (snap) => {
     callback(snap.exists() ? (snap.data() as SelfCareData) : undefined);
-  });
+  }, (error) => { console.error('selfCare snapshot error:', error); });
 }
 
 export function onDayPlanSnapshot(
@@ -445,7 +404,7 @@ export function onDayPlanSnapshot(
 ): Unsubscribe {
   return onSnapshot(userDoc(userId, 'singletons', 'dayPlan'), (snap) => {
     callback(snap.exists() ? (snap.data() as DayPlan) : undefined);
-  });
+  }, (error) => { console.error('dayPlan snapshot error:', error); });
 }
 
 export function onLaunchPlanSnapshot(
@@ -454,7 +413,7 @@ export function onLaunchPlanSnapshot(
 ): Unsubscribe {
   return onSnapshot(userDoc(userId, 'singletons', 'launchPlan'), (snap) => {
     callback(snap.exists() ? (snap.data() as LaunchPlanData) : undefined);
-  });
+  }, (error) => { console.error('launchPlan snapshot error:', error); });
 }
 
 // ============================================================

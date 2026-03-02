@@ -306,10 +306,10 @@ export function Library() {
                   </div>
                   {comp.dances.length > 0 && (
                     <div className="mt-3">
-                      <div className="text-xs text-blush-400 dark:text-blush-500 mb-1">Dances:</div>
+                      <div className="text-xs text-[var(--text-tertiary)] mb-1">Dances:</div>
                       <div className="flex flex-wrap gap-1">
-                        {comp.dances.map((dance, i) => (
-                          <span key={i} className="text-xs bg-forest-100 dark:bg-forest-900/30 text-forest-700 dark:text-forest-400 px-2 py-0.5 rounded-full">
+                        {(comp.dances || []).map((dance, i) => (
+                          <span key={i} className="text-xs bg-[var(--accent-muted)] text-[var(--accent-primary)] px-2 py-0.5 rounded-full">
                             {dance}
                           </span>
                         ))}

@@ -51,7 +51,7 @@ export function generateDailySnapshot(data: AppData, dateStr?: string): DailySna
   // Wellness states are stored in unifiedTaskStates, guarded by unifiedTaskDate
   const wellnessStates = (sc?.unifiedTaskDate === targetDate) ? (sc?.unifiedTaskStates || {}) : {};
   const wellnessCompleted = Object.entries(wellnessStates)
-    .filter(([_, v]) => v === true)
+    .filter(([, v]) => v === true)
     .map(([k]) => k);
 
   // Count today's classes

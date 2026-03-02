@@ -37,6 +37,7 @@ export function CollapsibleSection({
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between px-4 py-3 text-left active:bg-[var(--surface-inset)] transition-colors"
+        aria-expanded={expanded}
       >
         <div className="flex items-center gap-2.5">
           <Icon size={18} className={muted ? 'text-[var(--text-tertiary)]' : 'text-[var(--accent-primary)]'} />
