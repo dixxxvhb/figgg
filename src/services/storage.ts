@@ -681,6 +681,90 @@ export function saveDayPlanToStorage(plan: import('../types').DayPlan): void {
   });
 }
 
+// Save therapist data with immediate cloud sync (same pattern as selfCare)
+export function saveTherapistToStorage(updates: Partial<import('../types').TherapistData>): void {
+  const data = loadData();
+  const now = new Date().toISOString();
+  const current = data.therapist || { prepNotes: [], sessions: [], lastModified: now };
+  const updated = { ...current, ...updates, lastModified: now };
+  const updatedData = { ...data, therapist: updated };
+  const dataWithTimestamp = saveDataLocalOnly(updatedData);
+  saveEvents.emit('saving');
+
+  withCloudMutex(async () => {
+    try {
+      const cloudData = await fetchCloudData();
+      if (cloudData) {
+        const freshLocal = loadData();
+        const merged = mergeLocalAndCloud(freshLocal, cloudData, now);
+        merged.therapist = { ...current, ...updates, lastModified: now };
+        saveDataLocalOnly(merged);
+        await immediateCloudSave(merged);
+      } else {
+        await immediateCloudSave(dataWithTimestamp);
+      }
+    } catch {
+      await immediateCloudSave(dataWithTimestamp);
+    }
+  });
+}
+
+// Save meditation data with immediate cloud sync
+export function saveMeditationToStorage(updates: Partial<import('../types').MeditationData>): void {
+  const data = loadData();
+  const now = new Date().toISOString();
+  const current = data.meditation || { sessions: [], preferences: { defaultRounds: { box: 4, fourSevenEight: 4, slow: 6 } }, lastModified: now };
+  const updated = { ...current, ...updates, lastModified: now };
+  const updatedData = { ...data, meditation: updated };
+  const dataWithTimestamp = saveDataLocalOnly(updatedData);
+  saveEvents.emit('saving');
+
+  withCloudMutex(async () => {
+    try {
+      const cloudData = await fetchCloudData();
+      if (cloudData) {
+        const freshLocal = loadData();
+        const merged = mergeLocalAndCloud(freshLocal, cloudData, now);
+        merged.meditation = { ...current, ...updates, lastModified: now };
+        saveDataLocalOnly(merged);
+        await immediateCloudSave(merged);
+      } else {
+        await immediateCloudSave(dataWithTimestamp);
+      }
+    } catch {
+      await immediateCloudSave(dataWithTimestamp);
+    }
+  });
+}
+
+// Save grief data with immediate cloud sync
+export function saveGriefToStorage(updates: Partial<import('../types').GriefData>): void {
+  const data = loadData();
+  const now = new Date().toISOString();
+  const current = data.grief || { letters: [], emotionalCheckins: [], lastPermissionSlipIndex: -1, lastModified: now };
+  const updated = { ...current, ...updates, lastModified: now };
+  const updatedData = { ...data, grief: updated };
+  const dataWithTimestamp = saveDataLocalOnly(updatedData);
+  saveEvents.emit('saving');
+
+  withCloudMutex(async () => {
+    try {
+      const cloudData = await fetchCloudData();
+      if (cloudData) {
+        const freshLocal = loadData();
+        const merged = mergeLocalAndCloud(freshLocal, cloudData, now);
+        merged.grief = { ...current, ...updates, lastModified: now };
+        saveDataLocalOnly(merged);
+        await immediateCloudSave(merged);
+      } else {
+        await immediateCloudSave(dataWithTimestamp);
+      }
+    } catch {
+      await immediateCloudSave(dataWithTimestamp);
+    }
+  });
+}
+
 // Force sync: pull cloud, merge with local, push merged result back
 // This replaces the old blind push that clobbered other devices' data
 export async function pushToCloud(): Promise<boolean> {
