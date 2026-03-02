@@ -87,10 +87,17 @@ export function useAppData() {
         || firestoreData.dayPlan
         || (firestoreData.students && firestoreData.students.length > 0);
       if (hasFirestoreData) {
-        // If Firestore has no classes (weren't migrated), keep using seed data
+        // Preserve seed/localStorage data for collections not yet migrated to Firestore.
+        // Without this, Firestore's empty arrays wipe out seed studios, classes, etc.
+        const localData = loadData();
         const mergedData = {
           ...firestoreData,
-          classes: firestoreData.classes.length > 0 ? firestoreData.classes : initialClasses,
+          classes: firestoreData.classes.length > 0 ? firestoreData.classes : localData.classes,
+          studios: firestoreData.studios.length > 0 ? firestoreData.studios : localData.studios,
+          competitions: firestoreData.competitions.length > 0 ? firestoreData.competitions : localData.competitions,
+          competitionDances: firestoreData.competitionDances.length > 0 ? firestoreData.competitionDances : localData.competitionDances,
+          terminology: firestoreData.terminology.length > 0 ? firestoreData.terminology : localData.terminology,
+          students: (firestoreData.students?.length ?? 0) > 0 ? firestoreData.students : localData.students,
         };
         setData(mergedData);
         // Also update localStorage cache for offline use

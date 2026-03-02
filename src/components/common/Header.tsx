@@ -8,16 +8,16 @@ import {
   Check,
   MoreHorizontal,
   WifiOff,
-  Heart,
+  ListChecks,
   Sparkles,
 } from 'lucide-react';
 import { useSyncStatus } from '../../contexts/SyncContext';
 
-// 5-tab navigation: Home, Schedule, Wellness, AI, More
+// 5-tab navigation: Home, Schedule, Tasks, AI, More
 const navItems = [
   { path: '/', icon: Home, label: 'Home' },
   { path: '/schedule', icon: Calendar, label: 'Schedule' },
-  { path: '/me', icon: Heart, label: 'Wellness' },
+  { path: '/tasks', icon: ListChecks, label: 'Tasks' },
   { path: '/ai', icon: Sparkles, label: 'AI' },
   { path: '/settings', icon: MoreHorizontal, label: 'More' },
 ];
@@ -102,18 +102,10 @@ export function Header() {
               {navItems.map((item) => {
                 const { path, icon: Icon, label } = item;
                 const isActive = location.pathname === path || (path !== '/' && location.pathname.startsWith(path));
-                const handleClick = () => {
-                  if (path === '/me') {
-                    sessionStorage.setItem('meActiveTab', 'meds');
-                    sessionStorage.removeItem('meTabTarget');
-                    window.dispatchEvent(new CustomEvent('meTabChange', { detail: 'meds' }));
-                  }
-                };
                 return (
                   <Link
                     key={path}
                     to={path}
-                    onClick={handleClick}
                     className={`relative flex items-center justify-center min-w-[44px] min-h-[44px] rounded-xl transition-colors ${
                       isActive
                         ? 'text-[var(--accent-primary)]'
@@ -149,7 +141,7 @@ export function MobileNav() {
              location.pathname.startsWith('/event') ||
              location.pathname.startsWith('/plan');
     }
-    if (path === '/me') return location.pathname === '/me';
+    if (path === '/tasks') return location.pathname === '/tasks';
     if (path === '/ai') return location.pathname === '/ai';
     if (path === '/settings') {
       return location.pathname.startsWith('/settings') ||
@@ -158,17 +150,10 @@ export function MobileNav() {
              location.pathname.startsWith('/choreography') ||
              location.pathname.startsWith('/launch') ||
              location.pathname.startsWith('/students') ||
-             location.pathname.startsWith('/dance');
+             location.pathname.startsWith('/dance') ||
+             location.pathname === '/me';
     }
     return location.pathname === path;
-  };
-
-  const handleNavClick = (path: string) => {
-    if (path === '/me') {
-      sessionStorage.setItem('meActiveTab', 'meds');
-      sessionStorage.removeItem('meTabTarget');
-      window.dispatchEvent(new CustomEvent('meTabChange', { detail: 'meds' }));
-    }
   };
 
   return (
@@ -188,7 +173,6 @@ export function MobileNav() {
             <Link
               key={path}
               to={path}
-              onClick={() => handleNavClick(path)}
               className={`flex flex-col items-center justify-center gap-0.5 min-w-[44px] min-h-[48px] px-1 py-1 transition-all duration-150 active:scale-95 ${
                 active
                   ? 'text-[var(--accent-primary)]'

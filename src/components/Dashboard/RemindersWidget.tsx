@@ -51,7 +51,7 @@ export function RemindersWidget({ reminders, onToggle }: RemindersWidgetProps) {
     <div className="bg-[var(--surface-card)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
       {/* Header — tapping navigates to full tasks */}
       <button
-        onClick={() => navigate('/me?tab=tasks')}
+        onClick={() => navigate('/tasks')}
         className="w-full px-4 py-3 flex items-center justify-between"
       >
         <div className="flex items-center gap-2">
@@ -129,7 +129,7 @@ export function RemindersWidget({ reminders, onToggle }: RemindersWidgetProps) {
             ))}
             {totalIncomplete > displayReminders.length && (
               <button
-                onClick={() => navigate('/me?tab=tasks')}
+                onClick={() => navigate('/tasks')}
                 className="type-caption text-[var(--text-tertiary)] text-center pt-1 w-full"
               >
                 +{totalIncomplete - displayReminders.length} more
