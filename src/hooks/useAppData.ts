@@ -25,6 +25,7 @@ import {
   saveCalendarEvent as firestoreSaveCalendarEvent,
   saveAICheckInDoc,
   saveChoreography as firestoreSaveChoreography,
+  deleteChoreographyDoc,
   updateSelfCareDoc,
   updateDayPlanDoc,
   updateLaunchPlanDoc,
@@ -93,7 +94,9 @@ export function useAppData() {
       if (selfCare) {
         snapshotUpdateRef.current = true;
         setData(prev => ({ ...prev, selfCare }));
-        Promise.resolve().then(() => { snapshotUpdateRef.current = false; });
+        // Reset after a short delay to ensure the save effect sees the flag
+        // Using setTimeout instead of Promise.resolve for more reliable timing
+        setTimeout(() => { snapshotUpdateRef.current = false; }, 50);
       }
     });
 
@@ -101,7 +104,7 @@ export function useAppData() {
       if (dayPlan) {
         snapshotUpdateRef.current = true;
         setData(prev => ({ ...prev, dayPlan }));
-        Promise.resolve().then(() => { snapshotUpdateRef.current = false; });
+        setTimeout(() => { snapshotUpdateRef.current = false; }, 50);
       }
     });
 
@@ -109,7 +112,7 @@ export function useAppData() {
       if (launchPlan) {
         snapshotUpdateRef.current = true;
         setData(prev => ({ ...prev, launchPlan }));
-        Promise.resolve().then(() => { snapshotUpdateRef.current = false; });
+        setTimeout(() => { snapshotUpdateRef.current = false; }, 50);
       }
     });
 
@@ -486,7 +489,7 @@ export function useAppData() {
     const now = new Date().toISOString();
     setData(prev => ({
       ...prev,
-      launchPlan: { ...(prev.launchPlan || { tasks: [], decisions: [], contacts: [], planStartDate: '2026-02-12', planEndDate: '2026-06-30', lastModified: '', version: 1 }), ...updates, lastModified: now },
+      launchPlan: { ...(prev.launchPlan || { tasks: [], decisions: [], contacts: [], planStartDate: '', planEndDate: '', lastModified: '', version: 1 }), ...updates, lastModified: now },
     }));
 
     // Firestore write
@@ -504,6 +507,15 @@ export function useAppData() {
         firestoreSaveChoreography(uid, choreo).catch(console.warn);
       }
     }
+  }, []);
+
+  const deleteChoreography = useCallback((choreoId: string) => {
+    setData(prev => ({
+      ...prev,
+      choreographies: (prev.choreographies || []).filter(c => c.id !== choreoId),
+    }));
+    const uid = getUserId();
+    if (uid) deleteChoreographyDoc(uid, choreoId).catch(console.warn);
   }, []);
 
   // AI check-ins — append and prune entries older than 30 days
@@ -572,6 +584,7 @@ export function useAppData() {
     // Self-care & choreography
     updateSelfCare,
     updateChoreographies,
+    deleteChoreography,
     // Launch plan
     updateLaunchPlan,
     // AI

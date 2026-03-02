@@ -74,7 +74,15 @@ export interface AIAction {
     | 'batchRescheduleTasks'
     | 'assignSub'
     | 'clearWeekPlan'
-    | 'generateCatchUpPlan';
+    | 'generateCatchUpPlan'
+    // Class management
+    | 'updateClass'
+    | 'deleteReminder'
+    // Settings
+    | 'updateSettings'
+    // Student management
+    | 'addSkillNote'
+    | 'updateStudentNote';
   id?: string;
   ids?: string[];
   dayMode?: 'light' | 'normal' | 'intense' | 'comp';
@@ -115,6 +123,14 @@ export interface AIAction {
   filter?: 'overdue' | 'due-this-week' | 'all-active';
   newDate?: string;
   dates?: string[];
+  // Class management fields
+  updates?: Record<string, unknown>;
+  // Settings fields
+  settingKey?: string;
+  settingValue?: unknown;
+  // Student fields
+  studentId?: string;
+  skillCategory?: string;
 }
 
 export async function expandNotes(

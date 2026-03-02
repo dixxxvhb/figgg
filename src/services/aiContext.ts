@@ -58,6 +58,20 @@ export interface AIContextPayload {
   weekClassList: Array<{ id: string; name: string; day: string; startTime: string }>;
   // Competition dance lookup (for rehearsal notes)
   competitionDanceList: Array<{ id: string; registrationName: string; songTitle: string }>;
+  // Teaching load awareness
+  teachingLoad?: {
+    classesToday: number;
+    classesThisWeek: number;
+    busiestDay: string;
+    busiestDayCount: number;
+  };
+  // Upcoming competition proximity
+  nextCompetition?: {
+    name: string;
+    daysAway: number;
+    dancesReady: number;
+    dancesTotal: number;
+  };
   // Preferences
   tone: 'supportive' | 'direct' | 'minimal';
 }
@@ -213,6 +227,31 @@ export function buildAIContext(
     ? [lastReflection.aiSummary, lastReflection.nextWeekFocus ? `Focus: ${lastReflection.nextWeekFocus}` : ''].filter(Boolean).join('. ')
     : undefined;
 
+  // Teaching load awareness — helps AI gauge intensity
+  const allDaysForLoad: DayOfWeek[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+  const classCounts = allDaysForLoad.map(d => ({ day: d, count: getClassesByDay(data.classes, d).length }));
+  const totalWeekClasses = classCounts.reduce((sum, d) => sum + d.count, 0);
+  const busiestDay = classCounts.reduce((max, d) => d.count > max.count ? d : max, classCounts[0]);
+  const teachingLoad = {
+    classesToday: todayClasses.length,
+    classesThisWeek: totalWeekClasses,
+    busiestDay: busiestDay.day,
+    busiestDayCount: busiestDay.count,
+  };
+
+  // Next competition proximity — so AI can adjust urgency
+  const comps = (data.competitions || [])
+    .filter(c => c.date >= todayStr)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const nextComp = comps[0];
+  let nextCompetition: AIContextPayload['nextCompetition'] = undefined;
+  if (nextComp) {
+    const daysAway = Math.ceil((new Date(nextComp.date + 'T00:00:00').getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const compDances = (data.competitionDances || []).filter(d => nextComp.dances?.includes(d.id));
+    const dancesReady = compDances.filter(d => d.rehearsalNotes && d.rehearsalNotes.length > 0).length;
+    nextCompetition = { name: nextComp.name, daysAway, dancesReady, dancesTotal: compDances.length };
+  }
+
   return {
     time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
     dayOfWeek: dayName,
@@ -234,6 +273,8 @@ export function buildAIContext(
     previousCheckIn,
     dayMode: dayMode !== 'normal' ? dayMode : undefined,
     lastReflection: lastReflectionStr,
+    teachingLoad,
+    nextCompetition,
     tone: config.tone,
   };
 }
@@ -245,6 +286,14 @@ export function buildFullAIContext(
   allActiveReminders?: Array<{ id: string; title: string; dueDate?: string; flagged: boolean; completed: boolean }>;
   upcomingCompetitions?: Array<{ name: string; date: string; daysAway: number }>;
   date: string;
+  // Full data access for AI
+  classDetails?: Array<{ id: string; name: string; day: string; startTime: string; endTime: string; studioId: string; level?: string; recitalSong?: string; choreographyNotes?: string }>;
+  studioList?: Array<{ id: string; name: string; shortName: string; address: string }>;
+  studentList?: Array<{ id: string; name: string; nickname?: string; classIds: string[]; notes: string; recentSkillNotes?: Array<{ date: string; category: string; text: string }> }>;
+  competitionDetails?: Array<{ id: string; name: string; date: string; endDate?: string; location: string; dances: string[]; notes: string }>;
+  competitionDanceDetails?: Array<{ id: string; registrationName: string; songTitle: string; style: string; category: string; level: string; dancers: string[]; dancerIds?: string[]; notes: string; recentRehearsals?: Array<{ date: string; notes: string; workOn: string[] }>; costume?: { hair: string; shoes?: string; tights?: string; accessories?: string[]; notes?: string } }>;
+  settingsSnapshot?: { darkMode?: boolean; themeId?: string; fontSize?: string; medConfig?: { medType: string; maxDoses: number }; aiConfig?: { tone: string; morningCheckInEnabled: boolean; afternoonCheckInEnabled: boolean; autoPlanEnabled: boolean } };
+  recentWeekNotes?: Array<{ weekOf: string; classNotes: Record<string, { plan: string; noteCount: number; hasException?: boolean; exceptionType?: string }> }>;
 } {
   const hour = new Date().getHours();
   const checkInType = hour < 12 ? 'morning' : 'afternoon';
@@ -274,11 +323,122 @@ export function buildFullAIContext(
       return { name: c.name, date: c.date, daysAway };
     });
 
+  // Full class details (for AI to reference and modify)
+  const classDetails = data.classes.map(c => ({
+    id: c.id,
+    name: c.name,
+    day: c.day,
+    startTime: c.startTime,
+    endTime: c.endTime,
+    studioId: c.studioId,
+    level: c.level,
+    recitalSong: c.recitalSong,
+    choreographyNotes: c.choreographyNotes,
+  }));
+
+  // Studios
+  const studioList = data.studios.map(s => ({
+    id: s.id,
+    name: s.name,
+    shortName: s.shortName,
+    address: s.address,
+  }));
+
+  // Students with recent skill notes (last 3 per student)
+  const studentList = (data.students || []).map(s => ({
+    id: s.id,
+    name: s.name,
+    nickname: s.nickname,
+    classIds: s.classIds,
+    notes: s.notes,
+    recentSkillNotes: s.skillNotes
+      ?.sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 3)
+      .map(sn => ({ date: sn.date, category: sn.category, text: sn.text })),
+  }));
+
+  // Full competition details
+  const competitionDetails = (data.competitions || []).map(c => ({
+    id: c.id,
+    name: c.name,
+    date: c.date,
+    endDate: c.endDate,
+    location: c.location,
+    dances: c.dances,
+    notes: c.notes,
+  }));
+
+  // Full competition dance details with recent rehearsals
+  const competitionDanceDetails = (data.competitionDances || []).map(d => ({
+    id: d.id,
+    registrationName: d.registrationName,
+    songTitle: d.songTitle,
+    style: d.style,
+    category: d.category,
+    level: d.level,
+    dancers: d.dancers,
+    dancerIds: d.dancerIds,
+    notes: d.notes,
+    recentRehearsals: (d.rehearsalNotes || [])
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 3)
+      .map(r => ({ date: r.date, notes: r.notes, workOn: r.workOn })),
+    costume: d.costume ? {
+      hair: d.costume.hair,
+      shoes: d.costume.shoes,
+      tights: d.costume.tights,
+      accessories: d.costume.accessories,
+      notes: d.costume.notes,
+    } : undefined,
+  }));
+
+  // Settings snapshot (so AI can reference and modify)
+  const medConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
+  const aiConfig = data.settings?.aiConfig || DEFAULT_AI_CONFIG;
+  const settingsSnapshot = {
+    darkMode: data.settings?.darkMode,
+    themeId: data.settings?.themeId,
+    fontSize: data.settings?.fontSize,
+    medConfig: { medType: medConfig.medType, maxDoses: medConfig.maxDoses },
+    aiConfig: {
+      tone: aiConfig.tone,
+      morningCheckInEnabled: aiConfig.morningCheckInEnabled,
+      afternoonCheckInEnabled: aiConfig.afternoonCheckInEnabled,
+      autoPlanEnabled: aiConfig.autoPlanEnabled,
+    },
+  };
+
+  // Recent week notes (last 3 weeks, summarized)
+  const recentWeekNotes = [...(data.weekNotes || [])]
+    .sort((a, b) => b.weekOf.localeCompare(a.weekOf))
+    .slice(0, 3)
+    .map(w => ({
+      weekOf: w.weekOf,
+      classNotes: Object.fromEntries(
+        Object.entries(w.classNotes).map(([classId, cn]) => [
+          classId,
+          {
+            plan: cn.plan,
+            noteCount: cn.liveNotes.length,
+            hasException: !!cn.exception,
+            exceptionType: cn.exception?.type,
+          },
+        ])
+      ),
+    }));
+
   return {
     ...base,
     date: todayStr,
     allActiveReminders: reminders,
     upcomingCompetitions,
+    classDetails,
+    studioList,
+    studentList,
+    competitionDetails,
+    competitionDanceDetails,
+    settingsSnapshot,
+    recentWeekNotes,
   };
 }
 

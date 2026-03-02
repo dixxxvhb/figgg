@@ -100,7 +100,8 @@ export function useTeachingStats(data: AppData): TeachingStats {
     const classesWithoutNotes = classesUpToToday
       .filter(c => !classIdsWithNotes.has(c.id))
       .map(c => c.name);
-    const classesWithoutPlans = allClasses
+    // Only count classes up to today for missing plans (future classes shouldn't be flagged)
+    const classesWithoutPlans = classesUpToToday
       .filter(c => !classIdsWithPlans.has(c.id))
       .map(c => c.name);
 
@@ -113,7 +114,7 @@ export function useTeachingStats(data: AppData): TeachingStats {
       studentsSeenThisWeek: studentsSeenSet.size,
       plansFilled: {
         filled: plansFilled,
-        total: allClasses.length,
+        total: classesUpToToday.length,
       },
       attendanceRate,
       cancelledThisWeek,

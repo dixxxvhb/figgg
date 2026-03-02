@@ -6,7 +6,6 @@ import {
   CloudOff,
   Loader2,
   Check,
-  Users,
   MoreHorizontal,
   WifiOff,
   Pill,
@@ -14,12 +13,12 @@ import {
 } from 'lucide-react';
 import { useSyncStatus } from '../../contexts/SyncContext';
 
-// 6-tab navigation: Home, Schedule, Meds, Students, AI, More
+// 5-tab navigation: Home, Schedule, Meds, AI, More
+// Students moved to More — accessed via class detail or AI chat
 const navItems = [
   { path: '/', icon: Home, label: 'Home' },
   { path: '/schedule', icon: Calendar, label: 'Schedule' },
   { path: '/me', icon: Pill, label: 'Meds' },
-  { path: '/students', icon: Users, label: 'Students' },
   { path: '/ai', icon: Sparkles, label: 'AI' },
   { path: '/settings', icon: MoreHorizontal, label: 'More' },
 ];
@@ -152,14 +151,15 @@ export function MobileNav() {
              location.pathname.startsWith('/plan');
     }
     if (path === '/me') return location.pathname === '/me';
-    if (path === '/students') return location.pathname.startsWith('/students');
     if (path === '/ai') return location.pathname === '/ai';
     if (path === '/settings') {
       return location.pathname.startsWith('/settings') ||
              location.pathname.startsWith('/library') ||
              location.pathname.startsWith('/formations') ||
              location.pathname.startsWith('/choreography') ||
-             location.pathname.startsWith('/launch');
+             location.pathname.startsWith('/launch') ||
+             location.pathname.startsWith('/students') ||
+             location.pathname.startsWith('/dance');
     }
     return location.pathname === path;
   };
