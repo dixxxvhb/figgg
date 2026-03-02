@@ -137,9 +137,9 @@ export function buildContextString(payload: any, mode: Mode): string {
     }
   }
 
-  // Patterns
+  // Weekly patterns (AI-analyzed behavioral insights)
   if (ctx.patterns?.length > 0) {
-    contextLines.push(`Learned patterns: ${ctx.patterns.join("; ")}`);
+    contextLines.push(`Weekly patterns (use these to personalize advice):\n${ctx.patterns.map((p: string) => `  - ${p}`).join("\n")}`);
   }
 
   // Streak
@@ -213,6 +213,26 @@ export function buildContextString(payload: any, mode: Mode): string {
     contextLines.push(`Earlier today you said: "${ctx.previousCheckIn}"`);
   }
 
+  // Grief/wellness emotional state — relevant for day-plan, check-in, chat, briefing
+  if (["day-plan", "check-in", "chat", "briefing"].includes(mode)) {
+    if (ctx.griefCheckIn) {
+      contextLines.push(`Grief check-in today: emotions = [${ctx.griefCheckIn.emotions.join(", ")}]`);
+    }
+    if (ctx.therapySessionSoon) {
+      contextLines.push(`Therapy session in ${ctx.therapySessionSoon.daysUntil} days${ctx.therapySessionSoon.hasPrep ? " (has prep notes)" : ""}`);
+    }
+    if (ctx.meditationMinutesToday) {
+      contextLines.push(`Meditation today: ${ctx.meditationMinutesToday} minutes`);
+    }
+    if (ctx.wellnessMode) {
+      const modeDesc: Record<string, string> = {
+        rough: "ROUGH DAY — lighter checklist, gentler expectations",
+        survival: "SURVIVAL MODE — bare minimum only, skip non-essentials",
+      };
+      contextLines.push(`Wellness mode: ${ctx.wellnessMode}${modeDesc[ctx.wellnessMode] ? ` — ${modeDesc[ctx.wellnessMode]}` : ""}`);
+    }
+  }
+
   // Day-plan specific: mood and message from check-in
   if (mode === "day-plan") {
     if (ctx.checkInMood) contextLines.push(`Today's mood: ${ctx.checkInMood}`);
@@ -270,6 +290,7 @@ INTELLIGENCE:
 - If he says "skip it" or "not today" about meds, execute the skip.
 - If he talks about DWDC launch stuff, connect it to his launch backlog — suggest quick wins if he's low energy, or deep tasks if he's focused.
 - Read between the lines: "exhausted" + afternoon check-in + 0 wellness items = suggest scaling back the day.
+- WEEKLY PATTERNS: If weekly patterns are available, use them to give personalized advice. Examples: if dose 1 is averaging late, suggest setting an earlier alarm. If wellness is low on certain days, suggest lighter goals those days. If a dominant mood is "tired" or "stressed", proactively suggest lighter plans.
 - WEEKLY REFLECTION: On Friday afternoon or Sunday, ask a brief reflective question: "What went well this week?" or "Anything you want to do differently next week?" If he answers, capture it with addWeekReflection. Extract key themes into wentWell, challenges, nextWeekFocus. Write a 1-sentence aiSummary. Don't force it — if he just wants a normal check-in, that's fine.
 - If the schedule has competition entries (titles with "#" + number), set dayMode to "comp" if not already set. Comp days = focus on performance, suppress busywork.
 - If schedule is heavy (4+ hours of classes), consider setting dayMode to "intense" for extra fuel items.
@@ -306,6 +327,7 @@ INTELLIGENCE:
 - If he says "skip it" or "not today" about meds, execute the skip.
 - If he talks about DWDC launch stuff, connect it to his launch backlog — suggest quick wins if he's low energy, or deep tasks if he's focused.
 - Read between the lines: "exhausted" + afternoon check-in + 0 wellness items = suggest scaling back the day.
+- WEEKLY PATTERNS: If weekly patterns are available, use them to give personalized advice. Examples: if dose 1 is averaging late, suggest setting an earlier alarm. If wellness is low on certain days, suggest lighter goals those days. If a dominant mood is "tired" or "stressed", proactively suggest lighter plans.
 - WEEKLY REFLECTION: On Friday afternoon or Sunday, ask a brief reflective question: "What went well this week?" or "Anything you want to do differently next week?" If he answers, capture it with addWeekReflection. Extract key themes into wentWell, challenges, nextWeekFocus. Write a 1-sentence aiSummary. Don't force it — if he just wants a normal check-in, that's fine.
 - If the schedule has competition entries (titles with "#" + number), set dayMode to "comp" if not already set. Comp days = focus on performance, suppress busywork.
 - If schedule is heavy (4+ hours of classes), consider setting dayMode to "intense" for extra fuel items.
@@ -332,6 +354,7 @@ ${getActionsReference(true)}`;
       return `You are Dixon's morning briefing generator. Create a personalized 2-4 sentence briefing for his day.
 Cover: key classes/events, medication status, urgent tasks, and anything notable.
 Be warm but concise. Reference specific items by name.
+If weekly patterns show concerning trends (low wellness, late meds, dominant tired mood), weave in one gentle observation.
 If disruption is active, acknowledge it and focus on recovery/return planning.
 RETURN JSON: { "briefing": "2-4 sentence briefing text" }`;
 
@@ -349,6 +372,11 @@ PLANNING PHILOSOPHY:
   - "light": 5-7 items max, include calming wellness, skip intensive tasks
   - "intense": front-load admin before classes, include extra nutrition breaks
   - "comp": performance-only plan — warmup, fuel, entries. Suppress DWDC/admin work entirely.
+- GRIEF/WELLNESS AWARENESS:
+  - If grief emotions are present (sadness, anger, numbness, guilt), create a gentler plan: add buffer time, include breathing/meditation, reduce task count.
+  - If wellnessMode is "rough" or "survival", dramatically reduce the plan: 4-6 items max, only essentials + self-care.
+  - If therapy is within 2 days, suggest time for therapy prep notes.
+  - Never mention grief directly in aiNotes — just naturally build in more breaks and wellness. Be subtle.
 
 RULES:
 - Items marked [DONE] in the context are ALREADY COMPLETED. Do NOT include them in your plan — they will be merged in automatically.

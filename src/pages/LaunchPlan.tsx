@@ -259,6 +259,7 @@ function DecisionCard({
           <input
             value={text}
             onChange={e => setText(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && text.trim() && onDecide(decision.id, text.trim())}
             placeholder="Record your decision..."
             className="flex-1 text-sm bg-[var(--surface-inset)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-tertiary)]"
           />

@@ -178,9 +178,9 @@ export function buildAIContext(
   const configuredCount = wellnessItems.filter(w => w.enabled).length;
   const total = Object.keys(wellnessStates).length || configuredCount;
 
-  // Learned patterns from latest weekly summary
+  // Learned patterns from latest weekly summary (include more for richer AI context)
   const latestSummary = data.learningData?.weeklySummaries?.slice(-1)[0];
-  const patterns = latestSummary?.patterns?.slice(0, 3) || [];
+  const patterns = latestSummary?.patterns?.slice(0, 8) || [];
 
   // Previous check-in
   const todayCheckIns = (data.aiCheckIns || []).filter(c => c.date === todayStr);

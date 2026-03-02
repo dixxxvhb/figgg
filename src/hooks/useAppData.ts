@@ -5,6 +5,7 @@ import type { Choreography } from '../types/choreography';
 import { loadData, saveData, saveWeekNotes as saveWeekNotesToStorage, saveSelfCareToStorage, saveLaunchPlanToStorage, saveDayPlanToStorage, saveTherapistToStorage, saveMeditationToStorage, saveGriefToStorage } from '../services/storage';
 import { runLearningEngine } from '../services/learningEngine';
 import { getWeekStart, formatWeekOf, toDateStr } from '../utils/time';
+import { initialClasses } from '../data/classes';
 import { v4 as uuid } from 'uuid';
 import { auth } from '../services/firebase';
 import {
@@ -86,11 +87,16 @@ export function useAppData() {
         || firestoreData.dayPlan
         || (firestoreData.students && firestoreData.students.length > 0);
       if (hasFirestoreData) {
-        setData(firestoreData);
+        // If Firestore has no classes (weren't migrated), keep using seed data
+        const mergedData = {
+          ...firestoreData,
+          classes: firestoreData.classes.length > 0 ? firestoreData.classes : initialClasses,
+        };
+        setData(mergedData);
         // Also update localStorage cache for offline use
         try {
           localStorage.setItem('dance-teaching-app-data', JSON.stringify({
-            ...firestoreData,
+            ...mergedData,
             lastModified: new Date().toISOString(),
           }));
         } catch {
@@ -677,7 +683,11 @@ export function useAppData() {
     const uid = getUserId();
     if (uid) {
       deleteCalendarEventDoc(uid, eventId).catch(console.warn);
-      // Settings will be persisted by the saveData effect
+      // Persist settings (including hiddenCalendarEventIds) to Firestore
+      setData(current => {
+        updateProfile(uid, { settings: current.settings }).catch(console.warn);
+        return current;
+      });
     }
   }, []);
 

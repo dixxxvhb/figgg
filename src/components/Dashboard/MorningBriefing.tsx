@@ -59,6 +59,7 @@ export function MorningBriefing({
     const today = new Date().toISOString().slice(0, 10);
     return cachedDate === today ? cached : null;
   });
+  const [briefingLoading, setBriefingLoading] = useState(false);
 
   useEffect(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -66,6 +67,7 @@ export function MorningBriefing({
     if (cachedDate === today || briefingText) return;
 
     let cancelled = false;
+    setBriefingLoading(true);
     (async () => {
       try {
         const context = buildFullAIContext(data, 'morning briefing');
@@ -81,6 +83,8 @@ export function MorningBriefing({
         }
       } catch {
         // Silent fail — static briefing is fine
+      } finally {
+        if (!cancelled) setBriefingLoading(false);
       }
     })();
     return () => { cancelled = true; };
@@ -177,6 +181,12 @@ export function MorningBriefing({
   return (
     <div className="bg-[var(--surface-card)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
       {/* ── AI Briefing Text ── */}
+      {briefingLoading && !briefingText && (
+        <div className="px-4 pt-3.5 pb-1 flex items-center gap-2">
+          <div className="w-3 h-3 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-[var(--text-tertiary)] italic">Generating briefing...</p>
+        </div>
+      )}
       {briefingText && (
         <div className="px-4 pt-3.5 pb-1">
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed">

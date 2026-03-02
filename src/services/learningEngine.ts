@@ -1,4 +1,5 @@
 import { loadData, saveData } from './storage';
+import { subDays, differenceInCalendarDays } from 'date-fns';
 import { getClassesByDay } from '../data/classes';
 import { toDateStr, toTimeStr } from '../utils/time';
 import type { DailySnapshot, WeeklySummary, LearningData, AppData, DayOfWeek } from '../types';
@@ -38,7 +39,7 @@ function avgTimeStrings(times: string[]): string | undefined {
  * Reads from the current app data — selfCare, reminders, classes, wellness states.
  */
 export function generateDailySnapshot(data: AppData, dateStr?: string): DailySnapshot | null {
-  const targetDate = dateStr || formatDateKey(new Date(Date.now() - 86400000)); // yesterday
+  const targetDate = dateStr || formatDateKey(subDays(new Date(), 1)); // yesterday
   const sc = data.selfCare;
 
   // Check if selfCare has data for target date
@@ -79,6 +80,11 @@ export function generateDailySnapshot(data: AppData, dateStr?: string): DailySna
   if (sc?.dose3Time && dose3Date === targetDate) snapshot.dose3Time = msToHHmm(sc.dose3Time);
   if (sc?.skippedDoseDate === targetDate || sc?.skippedDose3Date === targetDate) snapshot.skippedDoses = true;
 
+  // Capture mood from AI check-ins for the target date
+  const checkIns = data.aiCheckIns || [];
+  const targetCheckIn = checkIns.filter(c => c.date === targetDate).pop();
+  if (targetCheckIn?.mood) snapshot.mood = targetCheckIn.mood;
+
   return snapshot;
 }
 
@@ -97,7 +103,7 @@ export function generateWeeklySummary(snapshots: DailySnapshot[], weekOfStr: str
   const totalTasksMax = snapshots.reduce((s, d) => s + Math.max(d.tasksTotal, 1), 0);
   const taskCompletionRate = totalTasksMax > 0 ? Math.round((totalTasks / totalTasksMax) * 100) : 0;
 
-  // Compute simple patterns
+  // Compute patterns
   const patterns: string[] = [];
   if (dose1Times.length > 0) patterns.push(`Dose 1 avg: ${avgTimeStrings(dose1Times)}`);
   if (dose2Times.length > 0) patterns.push(`Dose 2 avg: ${avgTimeStrings(dose2Times)}`);
@@ -114,6 +120,74 @@ export function generateWeeklySummary(snapshots: DailySnapshot[], weekOfStr: str
   }).length;
   if (eveningSkipCount >= 4 && snapshots.length >= 5) {
     patterns.push(`Skipped evening items ${eveningSkipCount}/${snapshots.length} days`);
+  }
+
+  // Detect med skip pattern
+  const skipDays = snapshots.filter(s => s.skippedDoses).length;
+  if (skipDays >= 2 && snapshots.length >= 5) {
+    patterns.push(`Skipped meds ${skipDays}/${snapshots.length} days`);
+  }
+
+  // Detect dose timing drift (late dose 1)
+  if (dose1Times.length >= 3) {
+    const avgD1 = avgTimeStrings(dose1Times)!;
+    const [h] = avgD1.split(':').map(Number);
+    if (h >= 10) patterns.push(`Dose 1 averaging late (${avgD1}) — consider earlier alarm`);
+  }
+
+  // Detect wellness trend (improving or declining vs previous)
+  if (wellnessRate < 30) {
+    patterns.push('Wellness completion low this week — consider reducing checklist');
+  } else if (wellnessRate >= 80) {
+    patterns.push('Strong wellness week — keep it up');
+  }
+
+  // Detect task overload
+  if (taskCompletionRate < 30 && totalTasksMax > 5) {
+    patterns.push('Task completion low — may be overcommitted');
+  }
+
+  // Detect which wellness items are consistently skipped
+  if (snapshots.length >= 5) {
+    const itemCounts: Record<string, number> = {};
+    snapshots.forEach(s => s.wellnessCompleted.forEach(id => {
+      itemCounts[id] = (itemCounts[id] || 0) + 1;
+    }));
+    const totalDays = snapshots.length;
+    const neverDone = Object.entries(itemCounts)
+      .filter(([, count]) => count <= 1)
+      .map(([id]) => id);
+    if (neverDone.length > 0 && neverDone.length <= 3) {
+      patterns.push(`Rarely completed: ${neverDone.join(', ')}`);
+    }
+
+    // Detect best day of week (most wellness completion)
+    const dayMap: Record<number, { wellness: number; total: number }> = {};
+    snapshots.forEach(s => {
+      const day = new Date(s.date).getDay();
+      if (!dayMap[day]) dayMap[day] = { wellness: 0, total: 0 };
+      dayMap[day].wellness += s.wellnessCompleted.length;
+      dayMap[day].total += 1;
+    });
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const bestDay = Object.entries(dayMap).reduce((best, [day, data]) =>
+      (data.wellness / data.total) > (best.avg) ? { day: Number(day), avg: data.wellness / data.total } : best,
+      { day: 0, avg: 0 }
+    );
+    if (bestDay.avg > 0 && totalDays >= 5) {
+      patterns.push(`Best wellness day: ${dayNames[bestDay.day]}`);
+    }
+  }
+
+  // Mood patterns (if available from AI check-ins)
+  const moods = snapshots.map(s => s.mood).filter(Boolean) as string[];
+  if (moods.length >= 3) {
+    const moodCounts: Record<string, number> = {};
+    moods.forEach(m => { moodCounts[m] = (moodCounts[m] || 0) + 1; });
+    const topMood = Object.entries(moodCounts).reduce((a, b) => b[1] > a[1] ? b : a, ['neutral', 0]);
+    if (topMood[0] !== 'neutral') {
+      patterns.push(`Dominant mood: ${topMood[0]} (${topMood[1]}/${moods.length} days)`);
+    }
   }
 
   return {
@@ -150,7 +224,7 @@ export function runLearningEngine(): boolean {
   };
 
   let changed = false;
-  const yesterday = formatDateKey(new Date(Date.now() - 86400000));
+  const yesterday = formatDateKey(subDays(new Date(), 1));
   const today = formatDateKey(new Date());
 
   // Generate yesterday's snapshot if missing
@@ -171,7 +245,7 @@ export function runLearningEngine(): boolean {
   if (learning.lastSummaryWeek !== thisMonday && learning.dailySnapshots.length >= 3) {
     // Get snapshots from the previous 7 days
     const lastWeekSnapshots = learning.dailySnapshots.filter(s => {
-      const diff = (new Date(today).getTime() - new Date(s.date).getTime()) / 86400000;
+      const diff = differenceInCalendarDays(new Date(today), new Date(s.date));
       return diff >= 0 && diff <= 7;
     });
     if (lastWeekSnapshots.length > 0) {

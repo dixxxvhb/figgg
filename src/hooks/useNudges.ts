@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { differenceInCalendarDays, parseISO } from 'date-fns';
 import { toDateStr } from '../utils/time';
 import type { AppData } from '../types';
 
@@ -78,7 +79,7 @@ export function useNudges(data: AppData): Nudge[] {
     // Rule 2: No meds logged in 2+ days
     const lastDoseDate = sc?.dose1Date;
     if (lastDoseDate) {
-      const daysSince = Math.ceil((now.getTime() - new Date(lastDoseDate + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24));
+      const daysSince = differenceInCalendarDays(now, parseISO(lastDoseDate));
       if (daysSince >= 2 && isActive('meds-gap')) {
         nudges.push({
           id: 'meds-gap',
@@ -96,7 +97,7 @@ export function useNudges(data: AppData): Nudge[] {
     const dances = data.competitionDances;
     for (const comp of competitions) {
       if (comp.date >= todayStr) {
-        const daysAway = Math.ceil((new Date(comp.date + 'T00:00:00').getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        const daysAway = differenceInCalendarDays(parseISO(comp.date), now);
         if (daysAway <= 14 && daysAway > 0) {
           const compDances = dances.filter(d => comp.dances.includes(d.id));
           const missingNotes = compDances.filter(d => !d.rehearsalNotes || d.rehearsalNotes.length === 0);
@@ -126,7 +127,7 @@ export function useNudges(data: AppData): Nudge[] {
         .sort((a, b) => (b.completedAt || '').localeCompare(a.completedAt || ''))
         [0];
       if (lastCompleted?.completedAt) {
-        const daysSince = Math.ceil((now.getTime() - new Date(lastCompleted.completedAt).getTime()) / (1000 * 60 * 60 * 24));
+        const daysSince = differenceInCalendarDays(now, new Date(lastCompleted.completedAt));
         if (daysSince >= 7 && isActive('launch-stale')) {
           nudges.push({
             id: 'launch-stale',

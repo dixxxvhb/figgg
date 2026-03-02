@@ -440,6 +440,14 @@ export interface AIChatMessage {
 
 export type AIChatMode = 'check-in' | 'chat' | 'briefing' | 'day-plan' | 'prep' | 'capture' | 'reflection';
 
+export interface AIChatThread {
+  id: string;
+  title: string;             // first user message, truncated
+  messages: AIChatMessage[];
+  createdAt: string;         // ISO
+  lastMessageAt: string;     // ISO
+}
+
 export interface AppData {
   studios: Studio[];
   classes: Class[];

@@ -293,7 +293,7 @@ export function Library() {
                       <div className="text-sm text-blush-500 dark:text-blush-400">{comp.location}</div>
                     </div>
                     <Link
-                      to={`/choreography/${comp.id}`}
+                      to="/choreography"
                       className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-colors min-h-[36px] ${
                         isUpcoming
                           ? 'bg-forest-100 dark:bg-forest-900/30 text-forest-700 dark:text-forest-400 hover:bg-forest-200 dark:hover:bg-forest-900/50'
