@@ -13,6 +13,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { loadData } from './services/storage';
 import { applyTheme } from './styles/applyTheme';
 import { restoreMoodLayer } from './styles/moodLayer';
+import { applyAppIcon } from './styles/appIcons';
 
 // Lazy-loaded routes (not needed on initial load)
 const ClassDetail = lazy(() => import('./pages/ClassDetail').then(m => ({ default: m.ClassDetail })));
@@ -70,6 +71,11 @@ function App() {
     // Apply color theme
     if (settings?.themeId) {
       applyTheme(settings.themeId, document.documentElement.classList.contains('dark'));
+    }
+
+    // Apply selected app icon (favicon + manifest)
+    if (settings?.appIconId) {
+      applyAppIcon(settings.appIconId);
     }
 
     // Restore mood layer from session (persists across navigations, resets daily)
