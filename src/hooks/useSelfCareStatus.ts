@@ -62,10 +62,14 @@ function calcDoseWindow(
   const hoursElapsed = (now - prevDoseTime) / (60 * 60 * 1000);
   // Only show window if we're within approach range (1h before start) through end
   if (hoursElapsed >= (windowStart - 1) && hoursElapsed <= windowEnd) {
+    // Mutually exclusive states: approaching → active → closing
+    const isClosing = hoursElapsed > (windowEnd - 1);
+    const isApproaching = !isClosing && hoursElapsed < windowStart;
+    const isActive = !isClosing && !isApproaching;
     return {
-      active: hoursElapsed >= windowStart && hoursElapsed <= (windowEnd - 1),
-      approaching: hoursElapsed >= (windowStart - 1) && hoursElapsed < windowStart,
-      closing: hoursElapsed > (windowEnd - 1),
+      active: isActive,
+      approaching: isApproaching,
+      closing: isClosing,
       hoursElapsed,
     };
   }

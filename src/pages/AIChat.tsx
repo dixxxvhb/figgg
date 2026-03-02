@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Send, Loader2, Plus, Sparkles, Undo2 } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Plus, Sparkles, Undo2, History, Trash2, ChevronLeft } from 'lucide-react';
 import { useAppData } from '../contexts/AppDataContext';
 import { callAIChat } from '../services/ai';
 import type { AIChatRequest } from '../services/ai';
-import type { AIChatMessage } from '../types';
+import type { AIChatMessage, AIChatThread } from '../types';
 import { DEFAULT_MED_CONFIG } from '../types';
 import { buildFullAIContext } from '../services/aiContext';
 import { executeAIActions } from '../services/aiActions';
@@ -12,8 +12,12 @@ import type { ActionCallbacks } from '../services/aiActions';
 import { haptic } from '../utils/haptics';
 import { updateSettings as updateStorageSettings } from '../services/storage';
 import { applyTheme } from '../styles/applyTheme';
+import { auth } from '../services/firebase';
+import { getChatThreads, saveChatThread, deleteChatThread } from '../services/firestore';
+import { v4 as uuid } from 'uuid';
+import { format, parseISO } from 'date-fns';
 
-const CHAT_STORAGE_KEY = 'figgg-ai-chat-messages';
+type View = 'chat' | 'history';
 
 export function AIChat() {
   const {
@@ -29,13 +33,11 @@ export function AIChat() {
   } = useAppData();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  // Persist chat messages in sessionStorage so they survive page refreshes
-  const [messages, setMessages] = useState<AIChatMessage[]>(() => {
-    try {
-      const saved = sessionStorage.getItem(CHAT_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
+
+  const [view, setView] = useState<View>('chat');
+  const [threads, setThreads] = useState<AIChatThread[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<AIChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [lastActionSnapshot, setLastActionSnapshot] = useState<string | null>(null);
@@ -43,13 +45,37 @@ export function AIChat() {
   const inputRef = useRef<HTMLInputElement>(null);
   const dataRef = useRef(data);
   dataRef.current = data;
+  const saveDebounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  // Save messages to sessionStorage whenever they change
+  // Load threads from Firestore on mount
   useEffect(() => {
-    try {
-      sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
-    } catch { /* sessionStorage write failed — not critical */ }
-  }, [messages]);
+    const uid = auth?.currentUser?.uid;
+    if (!uid) return;
+    getChatThreads(uid).then(setThreads).catch(console.warn);
+  }, []);
+
+  // Save thread to Firestore (debounced)
+  const persistThread = useCallback((threadId: string, msgs: AIChatMessage[]) => {
+    const uid = auth?.currentUser?.uid;
+    if (!uid || msgs.length === 0) return;
+    clearTimeout(saveDebounceRef.current);
+    saveDebounceRef.current = setTimeout(() => {
+      const firstUserMsg = msgs.find(m => m.role === 'user');
+      const thread: AIChatThread = {
+        id: threadId,
+        title: firstUserMsg?.content.slice(0, 60) || 'New chat',
+        messages: msgs,
+        createdAt: msgs[0].timestamp,
+        lastMessageAt: msgs[msgs.length - 1].timestamp,
+      };
+      saveChatThread(uid, thread).catch(console.warn);
+      // Update local threads list
+      setThreads(prev => {
+        const without = prev.filter(t => t.id !== threadId);
+        return [thread, ...without];
+      });
+    }, 1000);
+  }, []);
 
   // Handle preloaded message from nudge cards
   useEffect(() => {
@@ -66,10 +92,8 @@ export function AIChat() {
 
   // Build action callbacks
   const medConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
-  // Settings update handler — applies theme/darkMode changes immediately
   const handleUpdateSettings = useCallback((updates: Partial<import('../types').AppSettings>) => {
     updateStorageSettings(updates);
-    // Apply visual changes immediately
     if (updates.darkMode !== undefined) {
       if (updates.darkMode) document.documentElement.classList.add('dark');
       else document.documentElement.classList.remove('dark');
@@ -107,13 +131,18 @@ export function AIChat() {
     setInput('');
     haptic('light');
 
+    // Create thread ID if this is a new conversation
+    const threadId = activeThreadId || uuid();
+    if (!activeThreadId) setActiveThreadId(threadId);
+
     const userMsg: AIChatMessage = {
       id: `msg-${Date.now()}`,
       role: 'user',
       content: userMessage,
       timestamp: new Date().toISOString(),
     };
-    setMessages(prev => [...prev, userMsg]);
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
     setIsLoading(true);
 
     try {
@@ -126,7 +155,6 @@ export function AIChat() {
       };
       const result = await callAIChat(request);
 
-      // Execute any actions — snapshot state first for undo
       if (result.actions?.length) {
         try {
           setLastActionSnapshot(JSON.stringify({
@@ -146,7 +174,9 @@ export function AIChat() {
         adjustments: result.adjustments,
         timestamp: new Date().toISOString(),
       };
-      setMessages(prev => [...prev, aiMsg]);
+      const finalMessages = [...updatedMessages, aiMsg];
+      setMessages(finalMessages);
+      persistThread(threadId, finalMessages);
     } catch (err) {
       console.error('[AIChat] error:', err);
       const errorMsg: AIChatMessage = {
@@ -159,13 +189,35 @@ export function AIChat() {
     } finally {
       setIsLoading(false);
     }
-  }, [input, isLoading, messages, actionCallbacks]);
+  }, [input, isLoading, messages, actionCallbacks, activeThreadId, persistThread]);
 
   const handleNewChat = () => {
     setMessages([]);
     setInput('');
+    setActiveThreadId(null);
     setLastActionSnapshot(null);
+    setView('chat');
     haptic('light');
+  };
+
+  const handleLoadThread = (thread: AIChatThread) => {
+    setMessages(thread.messages);
+    setActiveThreadId(thread.id);
+    setLastActionSnapshot(null);
+    setView('chat');
+    haptic('light');
+  };
+
+  const handleDeleteThread = async (threadId: string) => {
+    const uid = auth?.currentUser?.uid;
+    if (!uid) return;
+    haptic('light');
+    setThreads(prev => prev.filter(t => t.id !== threadId));
+    if (activeThreadId === threadId) {
+      setMessages([]);
+      setActiveThreadId(null);
+    }
+    deleteChatThread(uid, threadId).catch(console.warn);
   };
 
   const handleUndo = useCallback(() => {
@@ -189,6 +241,51 @@ export function AIChat() {
     }
   }, [lastActionSnapshot, updateSelfCare, saveDayPlan, updateLaunchPlan]);
 
+  // ── History View ──
+  if (view === 'history') {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)] bg-[var(--surface-card)]">
+          <button onClick={() => setView('chat')} className="flex items-center gap-1 text-[var(--accent-primary)]">
+            <ChevronLeft size={18} />
+            <span className="text-sm font-medium">Back</span>
+          </button>
+          <span className="text-sm font-semibold text-[var(--text-primary)]">Chat History</span>
+          <div className="w-16" />
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {threads.length === 0 && (
+            <div className="text-center py-12">
+              <History size={32} className="mx-auto mb-3 text-[var(--text-tertiary)]" />
+              <p className="text-sm text-[var(--text-tertiary)]">No previous chats</p>
+            </div>
+          )}
+          {threads.map(thread => (
+            <div key={thread.id} className="flex items-center border-b border-[var(--border-subtle)]">
+              <button
+                onClick={() => handleLoadThread(thread)}
+                className="flex-1 px-4 py-3.5 text-left hover:bg-[var(--surface-card-hover)] transition-colors"
+              >
+                <p className="text-sm font-medium text-[var(--text-primary)] truncate">{thread.title}</p>
+                <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+                  {format(parseISO(thread.lastMessageAt), 'MMM d, h:mm a')} · {thread.messages.length} messages
+                </p>
+              </button>
+              <button
+                onClick={() => handleDeleteThread(thread.id)}
+                className="px-3 py-3.5 text-[var(--text-tertiary)] hover:text-[var(--status-danger)]"
+                aria-label="Delete thread"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Chat View ──
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -204,7 +301,7 @@ export function AIChat() {
           <Sparkles size={16} className="text-[var(--accent-primary)]" />
           <span className="text-sm font-semibold">AI Chat</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {lastActionSnapshot && (
             <button
               onClick={handleUndo}
@@ -215,8 +312,16 @@ export function AIChat() {
             </button>
           )}
           <button
+            onClick={() => setView('history')}
+            className="text-[var(--text-tertiary)] min-h-[44px] min-w-[44px] flex items-center justify-center"
+            aria-label="Chat history"
+          >
+            <History size={18} />
+          </button>
+          <button
             onClick={handleNewChat}
-            className="text-[var(--accent-primary)]"
+            className="text-[var(--accent-primary)] min-h-[44px] min-w-[44px] flex items-center justify-center"
+            aria-label="New chat"
           >
             <Plus size={18} />
           </button>
@@ -231,6 +336,15 @@ export function AIChat() {
             <p className="text-sm text-[var(--text-tertiary)]">
               Ask me anything about your day, classes, or tasks.
             </p>
+            {threads.length > 0 && (
+              <button
+                onClick={() => setView('history')}
+                className="mt-3 text-xs text-[var(--accent-primary)] flex items-center gap-1 mx-auto"
+              >
+                <History size={12} />
+                {threads.length} previous chat{threads.length > 1 ? 's' : ''}
+              </button>
+            )}
           </div>
         )}
         {messages.map(msg => (

@@ -13,7 +13,7 @@ interface AICheckInWidgetProps {
 
 type WidgetState = 'prompt' | 'loading' | 'response' | 'error' | 'gone';
 
-export function AICheckInWidget({ greeting, checkInType, onSubmit, onSkip, onDone, autoDismissSeconds = 20 }: AICheckInWidgetProps) {
+export function AICheckInWidget({ greeting, checkInType, onSubmit, onSkip, onDone, autoDismissSeconds = 45 }: AICheckInWidgetProps) {
   const [state, setState] = useState<WidgetState>('prompt');
   const [message, setMessage] = useState('');
   const [aiResponse, setAiResponse] = useState('');

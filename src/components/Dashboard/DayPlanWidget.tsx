@@ -34,6 +34,14 @@ interface DayPlanWidgetProps {
 export function DayPlanWidget({ plan, onToggleItem, onReplan, isReplanning, cancelledClassIds }: DayPlanWidgetProps) {
   const [expanded, setExpanded] = useState(false);
   const [justChecked, setJustChecked] = useState<string | null>(null);
+  const [replanError, setReplanError] = useState(false);
+
+  const handleReplan = () => {
+    setReplanError(false);
+    // Timeout safety: if replan takes >30s, show error
+    const timeout = setTimeout(() => setReplanError(true), 30000);
+    Promise.resolve(onReplan()).catch(() => setReplanError(true)).finally(() => clearTimeout(timeout));
+  };
 
   const completed = plan.items.filter(i => i.completed).length;
   const total = plan.items.length;
@@ -158,12 +166,12 @@ export function DayPlanWidget({ plan, onToggleItem, onReplan, isReplanning, canc
             />
           </div>
           <button
-            onClick={onReplan}
+            onClick={handleReplan}
             disabled={isReplanning}
             className="w-full text-xs text-[var(--text-tertiary)] flex items-center justify-center gap-1.5 py-1.5 rounded-lg hover:bg-[var(--surface-inset)] transition-colors disabled:opacity-50"
           >
             <RefreshCw size={11} className={isReplanning ? 'animate-spin' : ''} />
-            Re-plan
+            {replanError ? 'Failed — tap to retry' : 'Re-plan'}
           </button>
         </div>
       )}

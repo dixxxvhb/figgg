@@ -715,6 +715,7 @@ export function Dashboard() {
             classContext={classTiming.upcomingClass}
             minutesUntil={classTiming.minutesUntilNext || 0}
             data={data}
+            autoPrep
           />
         )}
 

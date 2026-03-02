@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BookOpen, Sparkles, Loader2, Clock, MapPin } from 'lucide-react';
 import type { ClassWithContext } from '../../hooks/useClassTiming';
 import type { AppData } from '../../types';
@@ -10,16 +10,20 @@ interface PrepCardProps {
   classContext: ClassWithContext;
   minutesUntil: number;
   data: AppData;
+  autoPrep?: boolean; // auto-generate on mount
 }
 
-export function PrepCard({ classContext, minutesUntil, data }: PrepCardProps) {
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+export function PrepCard({ classContext, minutesUntil, data, autoPrep }: PrepCardProps) {
   const cls = classContext.class;
+  const cacheKey = `figgg-prep-${cls.id}-${new Date().toISOString().slice(0, 10)}`;
 
-  const handleSmartPrep = async () => {
+  const [aiSummary, setAiSummary] = useState<string | null>(() => {
+    try { return sessionStorage.getItem(cacheKey); } catch { return null; }
+  });
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchPrep = async () => {
     setIsLoading(true);
-    haptic('light');
     try {
       const context = buildFullAIContext(data, `Preparing for ${cls.name}`);
       const result = await callAIChat({
@@ -37,11 +41,25 @@ export function PrepCard({ classContext, minutesUntil, data }: PrepCardProps) {
         },
       });
       setAiSummary(result.response);
+      try { sessionStorage.setItem(cacheKey, result.response); } catch { /* ok */ }
     } catch {
       setAiSummary("Couldn't generate prep. Check the details below.");
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Auto-generate prep when card first mounts if autoPrep is enabled
+  useEffect(() => {
+    if (autoPrep && !aiSummary && !isLoading) {
+      fetchPrep();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPrep, cls.id]);
+
+  const handleSmartPrep = () => {
+    haptic('light');
+    fetchPrep();
   };
 
   return (

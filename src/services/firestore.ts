@@ -25,6 +25,7 @@ import type {
   LaunchPlanData,
   LearningData,
   AICheckIn,
+  AIChatThread,
   DayPlan,
   AppSettings,
   TherapistData,
@@ -454,6 +455,23 @@ export function onLaunchPlanSnapshot(
   return onSnapshot(userDoc(userId, 'singletons', 'launchPlan'), (snap) => {
     callback(snap.exists() ? (snap.data() as LaunchPlanData) : undefined);
   });
+}
+
+// ============================================================
+// AI CHAT THREADS (conversation memory)
+// ============================================================
+export async function getChatThreads(userId: string): Promise<AIChatThread[]> {
+  const snapshot = await getDocs(userCollection(userId, 'chatThreads'));
+  return snapshot.docs.map(d => ({ ...d.data(), id: d.id } as AIChatThread))
+    .sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt));
+}
+
+export async function saveChatThread(userId: string, thread: AIChatThread): Promise<void> {
+  await setDoc(userDoc(userId, 'chatThreads', thread.id), thread);
+}
+
+export async function deleteChatThread(userId: string, threadId: string): Promise<void> {
+  await deleteDoc(userDoc(userId, 'chatThreads', threadId));
 }
 
 // ============================================================
