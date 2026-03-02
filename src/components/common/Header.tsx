@@ -9,15 +9,17 @@ import {
   MoreHorizontal,
   WifiOff,
   ListChecks,
+  Heart,
   Sparkles,
 } from 'lucide-react';
 import { useSyncStatus } from '../../contexts/SyncContext';
 
-// 5-tab navigation: Home, Schedule, Tasks, AI, More
+// 6-tab navigation: Home, Schedule, Tasks, Wellness, AI, More
 const navItems = [
   { path: '/', icon: Home, label: 'Home' },
   { path: '/schedule', icon: Calendar, label: 'Schedule' },
   { path: '/tasks', icon: ListChecks, label: 'Tasks' },
+  { path: '/me', icon: Heart, label: 'Wellness' },
   { path: '/ai', icon: Sparkles, label: 'AI' },
   { path: '/settings', icon: MoreHorizontal, label: 'More' },
 ];
@@ -142,6 +144,7 @@ export function MobileNav() {
              location.pathname.startsWith('/plan');
     }
     if (path === '/tasks') return location.pathname === '/tasks';
+    if (path === '/me') return location.pathname === '/me';
     if (path === '/ai') return location.pathname === '/ai';
     if (path === '/settings') {
       return location.pathname.startsWith('/settings') ||
@@ -150,8 +153,7 @@ export function MobileNav() {
              location.pathname.startsWith('/choreography') ||
              location.pathname.startsWith('/launch') ||
              location.pathname.startsWith('/students') ||
-             location.pathname.startsWith('/dance') ||
-             location.pathname === '/me';
+             location.pathname.startsWith('/dance');
     }
     return location.pathname === path;
   };
