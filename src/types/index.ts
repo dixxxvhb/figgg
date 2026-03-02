@@ -321,6 +321,7 @@ export interface AppSettings {
   medConfig?: MedConfig;
   wellnessItems?: WellnessItemConfig[];
   aiConfig?: AIConfig;
+  hiddenCalendarEventIds?: string[]; // Event IDs hidden by user (persists across syncs)
 }
 
 // ===== STUDENT MANAGEMENT =====

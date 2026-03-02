@@ -455,16 +455,17 @@ export function Dashboard() {
     return ids;
   }, [data.weekNotes]);
 
+  const hiddenEventIds = useMemo(() => new Set(data.settings?.hiddenCalendarEventIds || []), [data.settings?.hiddenCalendarEventIds]);
   const todayCalendarEvents = useMemo(() => {
     const classTimes = todayClasses.map(c => timeToMinutes(c.startTime));
     return (data.calendarEvents || [])
-      .filter((e: CalendarEvent) => e.date === todayStr && e.startTime && e.startTime !== '00:00')
+      .filter((e: CalendarEvent) => e.date === todayStr && e.startTime && e.startTime !== '00:00' && !hiddenEventIds.has(e.id))
       .filter((e: CalendarEvent) => {
         const et = timeToMinutes(e.startTime);
         return !classTimes.some(ct => Math.abs(ct - et) <= 10);
       })
       .sort((a: CalendarEvent, b: CalendarEvent) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
-  }, [data.calendarEvents, todayStr, todayClasses]);
+  }, [data.calendarEvents, todayStr, todayClasses, hiddenEventIds]);
 
   const currentCalendarEvent = useMemo(() => {
     return todayCalendarEvents.find((e: CalendarEvent) => {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, Play, Calendar, Plus, Trash2, FileText, Image, Edit2, Save, Users, UserCheck, UserX, Clock3, ChevronDown, ChevronUp, Music, Camera, History } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Clock, MapPin, Play, Calendar, Plus, Trash2, FileText, Image, Edit2, Save, Users, UserCheck, UserX, Clock3, ChevronDown, ChevronUp, Music, Camera, History, EyeOff } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
 import { formatTimeDisplay } from '../utils/time';
@@ -17,8 +17,9 @@ import { normalizeNoteCategory } from '../types';
 
 export function CalendarEventDetail() {
   const { eventId } = useParams<{ eventId: string }>();
-  const { data, getCurrentWeekNotes, saveWeekNotes, updateCalendarEvent } = useAppData();
+  const { data, getCurrentWeekNotes, saveWeekNotes, updateCalendarEvent, hideCalendarEvent } = useAppData();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
+  const navigate = useNavigate();
 
   const event = data.calendarEvents?.find(e => e.id === eventId);
 
@@ -214,6 +215,13 @@ export function CalendarEventDetail() {
     saveNotes(updatedNotes);
   };
 
+  const handleHideEvent = async () => {
+    if (!eventId) return;
+    if (!await confirm('Hide this event? It won\'t appear in your schedule anymore, even after calendar sync. You can unhide events in Settings.')) return;
+    hideCalendarEvent(eventId);
+    navigate('/schedule');
+  };
+
   // Smart Notes: find matching past sessions by event title
   const pastSessions = event?.title
     ? findMatchingPastSessions(data.weekNotes, event.title, eventId || '')
@@ -224,7 +232,7 @@ export function CalendarEventDetail() {
     return (
       <div className="page-w px-4 py-6">
         <p>Event not found</p>
-        <Link to="/schedule" className="text-forest-600">Back to schedule</Link>
+        <Link to="/schedule" className="text-[var(--accent-primary)]">Back to schedule</Link>
       </div>
     );
   }
@@ -305,15 +313,15 @@ export function CalendarEventDetail() {
       {confirmDialog}
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <Link to="/schedule" className="p-2 hover:bg-blush-100 dark:hover:bg-blush-700 rounded-lg text-forest-700 dark:text-white">
+        <Link to="/schedule" className="p-2 hover:bg-[var(--surface-card-hover)] rounded-lg text-[var(--text-primary)]">
           <ArrowLeft size={20} />
         </Link>
         <div className="flex-1">
-          <div className="flex items-center gap-2 text-amber-600 text-sm mb-1">
+          <div className="flex items-center gap-2 text-[var(--status-warning)] text-sm mb-1">
             <Calendar size={14} />
             <span>Calendar Event</span>
           </div>
-          <h1 className="text-xl font-bold text-forest-700 dark:text-white">{event.title}</h1>
+          <h1 className="text-xl font-bold text-[var(--text-primary)]">{event.title}</h1>
         </div>
         <DropdownMenu
           items={[
@@ -329,15 +337,21 @@ export function CalendarEventDetail() {
               onClick: handleClearEventData,
               danger: true,
             },
+            {
+              label: 'Hide event',
+              icon: <EyeOff size={16} />,
+              onClick: handleHideEvent,
+              danger: true,
+            },
           ]}
         />
       </div>
 
       {/* Event Info */}
-      <div className="bg-amber-50 dark:bg-blush-800 rounded-xl p-4 mb-6 border border-amber-200 dark:border-blush-700">
+      <div className="bg-[var(--surface-card)] rounded-xl p-4 mb-6 border border-[var(--border-subtle)]">
         <div className="flex items-center gap-4 mb-3">
           {event.startTime && event.startTime !== '00:00' && (
-            <div className="flex items-center gap-1.5 text-blush-700 dark:text-blush-300">
+            <div className="flex items-center gap-1.5 text-[var(--text-primary)]">
               <Clock size={16} />
               <span>
                 {formatTimeDisplay(event.startTime)}
@@ -349,7 +363,7 @@ export function CalendarEventDetail() {
           )}
         </div>
         {event.location && (
-          <div className="flex items-start gap-1.5 text-blush-600 dark:text-blush-400 mb-2">
+          <div className="flex items-start gap-1.5 text-[var(--text-secondary)] mb-2">
             <MapPin size={16} className="flex-shrink-0 mt-0.5" />
             <div>
               {(() => {
@@ -364,7 +378,7 @@ export function CalendarEventDetail() {
                         href={`https://maps.apple.com/?q=${encodeURIComponent(address)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block text-forest-600 dark:text-blush-300 underline"
+                        className="block text-[var(--accent-primary)] underline"
                       >
                         {address}
                       </a>
@@ -374,7 +388,7 @@ export function CalendarEventDetail() {
                         href={`https://maps.apple.com/?q=${encodeURIComponent(venueName)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block text-forest-600 dark:text-blush-300 underline text-xs mt-0.5"
+                        className="block text-[var(--accent-primary)] underline text-xs mt-0.5"
                       >
                         Get directions
                       </a>
@@ -386,7 +400,7 @@ export function CalendarEventDetail() {
           </div>
         )}
         {event.description && (
-          <p className="text-blush-600 dark:text-blush-400 text-sm mt-3">{event.description}</p>
+          <p className="text-[var(--text-secondary)] text-sm mt-3">{event.description}</p>
         )}
       </div>
 
@@ -415,46 +429,46 @@ export function CalendarEventDetail() {
 
       {/* Plan/Prep Notes */}
       <div className="mb-6">
-        <label className="block text-sm font-medium text-blush-700 dark:text-blush-300 mb-2">Plan / Prep Notes</label>
+        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Plan / Prep Notes</label>
         <textarea
           value={localPlan}
           onChange={(e) => setLocalPlan(e.target.value)}
           onBlur={() => { if (localPlan !== (eventNotes?.plan || '')) updatePlan(localPlan); }}
           placeholder="What do you need to prepare or remember for this event?"
           rows={4}
-          className="w-full px-3 py-2 border border-blush-300 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-white dark:bg-blush-800 text-blush-900 dark:text-white placeholder-blush-400 dark:placeholder-blush-500"
+          className="w-full px-3 py-2 border border-[var(--border-subtle)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent bg-[var(--surface-card)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)]"
         />
       </div>
 
       {/* Previous Notes */}
       {eventNotes?.liveNotes && eventNotes.liveNotes.length > 0 && (
         <div>
-          <h2 className="text-sm font-medium text-blush-700 dark:text-blush-300 mb-3">
+          <h2 className="text-sm font-medium text-[var(--text-secondary)] mb-3">
             Notes from this event ({eventNotes.liveNotes.length})
           </h2>
           <div className="space-y-2">
             {eventNotes.liveNotes.map(note => (
-              <div key={note.id} className="bg-white dark:bg-blush-800 rounded-lg border border-blush-200 dark:border-blush-700 p-3">
+              <div key={note.id} className="bg-[var(--surface-card)] rounded-lg border border-[var(--border-subtle)] p-3">
                 {editingNoteId === note.id ? (
                   <div className="space-y-2">
                     <textarea
                       value={editNoteText}
                       onChange={(e) => setEditNoteText(e.target.value)}
                       rows={3}
-                      className="w-full px-3 py-2 border border-blush-300 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent text-sm bg-white dark:bg-blush-700 text-blush-900 dark:text-white"
+                      className="w-full px-3 py-2 border border-[var(--border-subtle)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent text-sm bg-[var(--surface-card)] text-[var(--text-primary)]"
                       autoFocus
                     />
                     <div className="flex gap-2">
                       <button
                         onClick={saveNoteEdit}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-forest-600 text-white rounded-lg text-sm"
+                        className="flex items-center gap-1 px-3 py-1.5 bg-[var(--accent-primary)] text-[var(--text-on-accent)] rounded-lg text-sm"
                       >
                         <Save size={14} />
                         Save
                       </button>
                       <button
                         onClick={cancelEditingNote}
-                        className="flex items-center gap-1 px-3 py-1.5 text-blush-600 dark:text-blush-400 hover:bg-blush-100 dark:bg-blush-700 rounded-lg text-sm"
+                        className="flex items-center gap-1 px-3 py-1.5 text-[var(--text-secondary)] hover:bg-[var(--surface-card-hover)] rounded-lg text-sm"
                       >
                         Cancel
                       </button>
@@ -462,22 +476,22 @@ export function CalendarEventDetail() {
                   </div>
                 ) : (
                   <>
-                    <p className="text-blush-700 dark:text-blush-300">{note.text}</p>
+                    <p className="text-[var(--text-primary)]">{note.text}</p>
                     <div className="flex items-center justify-between mt-2">
-                      <p className="text-xs text-blush-400 dark:text-blush-500">
+                      <p className="text-xs text-[var(--text-tertiary)]">
                         {new Date(note.timestamp).toLocaleTimeString()}
                       </p>
                       <div className="flex gap-2">
                         <button
                           onClick={() => startEditingNote(note.id, note.text)}
-                          className="text-xs text-forest-600 flex items-center gap-1 hover:text-forest-700"
+                          className="text-xs text-[var(--accent-primary)] flex items-center gap-1 hover:opacity-80"
                         >
                           <Edit2 size={12} />
                           Edit
                         </button>
                         <button
                           onClick={() => deleteNote(note.id)}
-                          className="text-xs text-red-500 flex items-center gap-1 hover:text-red-600"
+                          className="text-xs text-[var(--status-error)] flex items-center gap-1 hover:opacity-80"
                         >
                           <Trash2 size={12} />
                           Delete
@@ -497,19 +511,19 @@ export function CalendarEventDetail() {
         <div className="mt-6">
           <button
             onClick={() => setShowLastSession(!showLastSession)}
-            className="w-full flex items-center justify-between p-3 bg-blush-50 dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 hover:bg-blush-100 dark:hover:bg-blush-700 transition-colors"
+            className="w-full flex items-center justify-between p-3 bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] hover:bg-[var(--surface-card-hover)] transition-colors"
           >
-            <div className="flex items-center gap-2 text-forest-600 dark:text-forest-400">
+            <div className="flex items-center gap-2 text-[var(--accent-primary)]">
               <History size={16} />
               <span className="font-medium">Last Session's Notes</span>
-              <span className="text-xs text-blush-500 dark:text-blush-400">
+              <span className="text-xs text-[var(--text-tertiary)]">
                 Week of {format(parseISO(mostRecentSession.weekOf), 'MMM d')}
               </span>
             </div>
             {showLastSession ? (
-              <ChevronUp size={18} className="text-forest-400 dark:text-blush-400" />
+              <ChevronUp size={18} className="text-[var(--text-tertiary)]" />
             ) : (
-              <ChevronDown size={18} className="text-forest-400 dark:text-blush-400" />
+              <ChevronDown size={18} className="text-[var(--text-tertiary)]" />
             )}
           </button>
 
@@ -534,7 +548,7 @@ export function CalendarEventDetail() {
                 {mostRecentSession.notes.nextWeekGoal && (
                   <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
                     <div className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Goal from Last Session</div>
-                    <p className="text-sm text-forest-700 dark:text-blush-300">{mostRecentSession.notes.nextWeekGoal}</p>
+                    <p className="text-sm text-[var(--text-primary)]">{mostRecentSession.notes.nextWeekGoal}</p>
                   </div>
                 )}
                 {categories.map(cat => {
@@ -545,10 +559,10 @@ export function CalendarEventDetail() {
                       <div className={`inline-block text-xs px-2 py-0.5 rounded-full mb-1.5 font-medium ${cat.style}`}>
                         {cat.label} ({catNotes.length})
                       </div>
-                      <div className="space-y-1 pl-2 border-l-2 border-blush-200 dark:border-blush-600">
+                      <div className="space-y-1 pl-2 border-l-2 border-[var(--border-subtle)]">
                         {catNotes.map(note => (
-                          <div key={note.id} className="bg-white dark:bg-blush-800 rounded-lg p-2.5 text-sm">
-                            <p className="text-forest-600 dark:text-blush-200">{note.text}</p>
+                          <div key={note.id} className="bg-[var(--surface-card)] rounded-lg p-2.5 text-sm">
+                            <p className="text-[var(--text-primary)]">{note.text}</p>
                           </div>
                         ))}
                       </div>
@@ -677,17 +691,17 @@ function EventRoster({
     <div className="mb-6">
       <button
         onClick={() => setShowRoster(!showRoster)}
-        className="w-full flex items-center justify-between p-4 bg-white dark:bg-blush-800 rounded-xl border border-forest-200 dark:border-blush-700 hover:border-forest-300 dark:hover:border-forest-600 transition-colors"
+        className="w-full flex items-center justify-between p-4 bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors"
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-forest-100 dark:bg-forest-900/30 flex items-center justify-center">
-            <Users size={20} className="text-forest-600" />
+          <div className="w-10 h-10 rounded-full bg-[var(--accent-muted)] flex items-center justify-center">
+            <Users size={20} className="text-[var(--accent-primary)]" />
           </div>
           <div className="text-left">
-            <div className="font-medium text-forest-700 dark:text-white">
+            <div className="font-medium text-[var(--text-primary)]">
               Rehearsal Roster ({dancers.length})
             </div>
-            <div className="text-sm text-forest-500 dark:text-blush-400">
+            <div className="text-sm text-[var(--text-secondary)]">
               {linkedDances.length === 0
                 ? 'Tap to link dances'
                 : `${linkedDances.length} dance${linkedDances.length === 1 ? '' : 's'} linked`}
@@ -698,31 +712,31 @@ function EventRoster({
           </div>
         </div>
         {showRoster ? (
-          <ChevronUp size={20} className="text-forest-400" />
+          <ChevronUp size={20} className="text-[var(--text-tertiary)]" />
         ) : (
-          <ChevronDown size={20} className="text-forest-400" />
+          <ChevronDown size={20} className="text-[var(--text-tertiary)]" />
         )}
       </button>
 
       {showRoster && (
-        <div className="mt-3 bg-white dark:bg-blush-800 rounded-xl border border-forest-200 dark:border-blush-700 overflow-hidden">
+        <div className="mt-3 bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] overflow-hidden">
           {/* Linked Dances */}
-          <div className="p-3 border-b border-forest-100 dark:border-blush-700">
+          <div className="p-3 border-b border-[var(--border-subtle)]">
             <div className="flex items-center justify-between mb-2">
-              <div className="text-sm font-medium text-forest-600 dark:text-forest-400 flex items-center gap-2">
+              <div className="text-sm font-medium text-[var(--accent-primary)] flex items-center gap-2">
                 <Music size={14} />
                 Linked Dances
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={handleAutoDetect}
-                  className="text-xs text-blush-600 bg-blush-100 px-2 py-1 rounded-lg hover:bg-blush-200"
+                  className="text-xs text-[var(--text-secondary)] bg-[var(--surface-inset)] px-2 py-1 rounded-lg hover:bg-[var(--surface-card-hover)]"
                 >
                   Auto-detect
                 </button>
                 <button
                   onClick={() => setShowLinkDances(!showLinkDances)}
-                  className="text-xs text-forest-600 bg-forest-100 px-2 py-1 rounded-lg hover:bg-forest-200"
+                  className="text-xs text-[var(--accent-primary)] bg-[var(--accent-muted)] px-2 py-1 rounded-lg hover:opacity-80"
                 >
                   {showLinkDances ? 'Done' : '+ Add/Remove'}
                 </button>
@@ -739,12 +753,12 @@ function EventRoster({
                       onClick={() => toggleDanceLink(dance.id)}
                       className={`w-full flex items-center justify-between p-2 rounded-lg text-left text-sm transition-colors ${
                         isLinked
-                          ? 'bg-forest-100 text-forest-700'
-                          : 'bg-blush-50 dark:bg-blush-800 text-blush-600 dark:text-blush-400 hover:bg-blush-100 dark:bg-blush-700'
+                          ? 'bg-[var(--accent-muted)] text-[var(--accent-primary)]'
+                          : 'bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:bg-[var(--surface-card-hover)]'
                       }`}
                     >
                       <span>{dance.registrationName}</span>
-                      <span className="text-xs text-blush-400 dark:text-blush-500">
+                      <span className="text-xs text-[var(--text-tertiary)]">
                         {dance.dancerIds?.length || 0} dancers
                       </span>
                     </button>
@@ -756,25 +770,25 @@ function EventRoster({
                 {linkedDances.map((dance: CompetitionDance) => (
                   <span
                     key={dance.id}
-                    className="text-xs bg-forest-100 dark:bg-forest-900/30 text-forest-700 dark:text-forest-400 px-2 py-1 rounded-full"
+                    className="text-xs bg-[var(--accent-muted)] text-[var(--accent-primary)] px-2 py-1 rounded-full"
                   >
                     {dance.registrationName}
                   </span>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-blush-400 dark:text-blush-500">No dances linked. Tap "+ Add/Remove" to link dances for attendance.</p>
+              <p className="text-sm text-[var(--text-tertiary)]">No dances linked. Tap "+ Add/Remove" to link dances for attendance.</p>
             )}
           </div>
 
           {/* Quick stats bar */}
           {dancers.length > 0 && (
-            <div className="flex border-b border-forest-100 dark:border-blush-700 text-sm">
+            <div className="flex border-b border-[var(--border-subtle)] text-sm">
               <div className="flex-1 text-center py-2 bg-green-50 dark:bg-green-900/20">
                 <span className="text-green-600 dark:text-green-400 font-medium">{attendance.present.length}</span>
                 <span className="text-green-500 dark:text-green-500 ml-1">Present</span>
               </div>
-              <div className="flex-1 text-center py-2 bg-amber-50 dark:bg-amber-900/20 border-x border-forest-100 dark:border-blush-700">
+              <div className="flex-1 text-center py-2 bg-amber-50 dark:bg-amber-900/20 border-x border-[var(--border-subtle)]">
                 <span className="text-amber-600 dark:text-amber-400 font-medium">{attendance.late.length}</span>
                 <span className="text-amber-500 ml-1">Late</span>
               </div>
@@ -787,12 +801,12 @@ function EventRoster({
 
           {/* Student list */}
           {dancers.length === 0 ? (
-            <div className="p-6 text-center text-blush-500 dark:text-blush-400">
-              <Users size={32} className="mx-auto mb-2 text-blush-300 dark:text-blush-600" />
+            <div className="p-6 text-center text-[var(--text-tertiary)]">
+              <Users size={32} className="mx-auto mb-2 text-[var(--text-tertiary)]" />
               <p>Link dances above to see the roster</p>
             </div>
           ) : (
-            <div className="divide-y divide-forest-100 dark:divide-blush-700">
+            <div className="divide-y divide-[var(--border-subtle)]">
               {dancers.map((student: Student) => {
                 const status = getAttendanceStatus(student.id);
                 return (
@@ -801,10 +815,10 @@ function EventRoster({
                       to={`/students?highlight=${student.id}`}
                       className="flex-1 min-w-0"
                     >
-                      <div className="font-medium text-forest-700 dark:text-white truncate">
+                      <div className="font-medium text-[var(--text-primary)] truncate">
                         {student.nickname || student.name.split(' ')[0]}
                       </div>
-                      <div className="text-xs text-forest-400 dark:text-blush-500 truncate">
+                      <div className="text-xs text-[var(--text-tertiary)] truncate">
                         {student.name}
                       </div>
                     </Link>
@@ -814,7 +828,7 @@ function EventRoster({
                         className={`p-2 rounded-lg transition-colors ${
                           status === 'present'
                             ? 'bg-green-500 text-white'
-                            : 'bg-blush-100 dark:bg-blush-700 text-blush-400 dark:text-blush-500 hover:bg-green-100 hover:text-green-600'
+                            : 'bg-[var(--surface-inset)] text-[var(--text-tertiary)] hover:bg-green-100 hover:text-green-600'
                         }`}
                         title="Present"
                       >
@@ -825,7 +839,7 @@ function EventRoster({
                         className={`p-2 rounded-lg transition-colors ${
                           status === 'late'
                             ? 'bg-amber-500 text-white'
-                            : 'bg-blush-100 dark:bg-blush-700 text-blush-400 dark:text-blush-500 hover:bg-amber-100 hover:text-amber-600'
+                            : 'bg-[var(--surface-inset)] text-[var(--text-tertiary)] hover:bg-amber-100 hover:text-amber-600'
                         }`}
                         title="Late"
                       >
@@ -836,7 +850,7 @@ function EventRoster({
                         className={`p-2 rounded-lg transition-colors ${
                           status === 'absent'
                             ? 'bg-red-500 text-white'
-                            : 'bg-blush-100 dark:bg-blush-700 text-blush-400 dark:text-blush-500 hover:bg-red-100 hover:text-red-600'
+                            : 'bg-[var(--surface-inset)] text-[var(--text-tertiary)] hover:bg-red-100 hover:text-red-600'
                         }`}
                         title="Absent"
                       >

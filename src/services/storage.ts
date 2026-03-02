@@ -734,6 +734,7 @@ export function saveWeekNotes(weekNotes: WeekNotes): void {
 export function updateCalendarEvents(events: CalendarEvent[]): void {
   const data = loadData();
   const existingEvents = data.calendarEvents || [];
+  const hiddenIds = new Set(data.settings?.hiddenCalendarEventIds || []);
 
   // Create a map of existing events to preserve user modifications (like linkedDanceIds)
   const existingMap = new Map<string, CalendarEvent>();
@@ -744,6 +745,9 @@ export function updateCalendarEvents(events: CalendarEvent[]): void {
   // Deduplicate new events by ID, merging with existing user modifications
   const seen = new Map<string, CalendarEvent>();
   for (const event of events) {
+    // Skip events the user has hidden — they won't reappear after sync
+    if (hiddenIds.has(event.id)) continue;
+
     const existing = existingMap.get(event.id);
     if (existing) {
       // Merge: keep new calendar data but preserve user modifications
