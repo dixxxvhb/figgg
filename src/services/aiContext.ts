@@ -167,7 +167,7 @@ export function buildAIContext(
   // Previous check-in
   const todayCheckIns = (data.aiCheckIns || []).filter(c => c.date === todayStr);
   const previousCheckIn = todayCheckIns.length > 0
-    ? todayCheckIns[todayCheckIns.length - 1].aiResponse.slice(0, 100)
+    ? (todayCheckIns[todayCheckIns.length - 1].aiResponse || '').slice(0, 100)
     : undefined;
 
   // Build wellness items with done state for day plan sourceId matching

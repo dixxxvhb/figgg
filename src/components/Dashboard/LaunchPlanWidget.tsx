@@ -4,13 +4,13 @@ import { Rocket, Star, ChevronRight, Check, CircleDot } from 'lucide-react';
 import { format, parseISO, differenceInDays, startOfDay } from 'date-fns';
 import type { LaunchPlanData, LaunchCategory } from '../../types';
 
-const categoryDots: Record<LaunchCategory, string> = {
-  BIZ: 'bg-blue-500',
-  CONTENT: 'bg-purple-500',
-  ADULT: 'bg-green-500',
-  PRO: 'bg-amber-500',
-  DECIDE: 'bg-rose-500',
-  PREP: 'bg-teal-500',
+const categoryDotColors: Record<LaunchCategory, string> = {
+  BIZ: 'var(--accent-primary)',
+  CONTENT: 'var(--accent-secondary)',
+  ADULT: 'var(--status-success)',
+  PRO: '#7c3aed',
+  DECIDE: 'var(--status-warning)',
+  PREP: '#0d9488',
 };
 
 interface LaunchPlanWidgetProps {
@@ -83,7 +83,7 @@ export function LaunchPlanWidget({ launchPlan }: LaunchPlanWidgetProps) {
                 <div className={`w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center border-2 ${isDone ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)]' : 'border-[var(--border-strong)]'}`}>
                   {isDone && <Check size={10} className="text-[var(--text-on-accent)]" />}
                 </div>
-                <div className={`w-2 h-2 rounded-full ${categoryDots[task.category]} flex-shrink-0`} />
+                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: categoryDotColors[task.category] }} />
                 <span className={`text-sm text-[var(--text-primary)] line-clamp-1 ${isDone ? 'line-through opacity-50' : ''}`}>
                   {task.title}
                 </span>

@@ -64,21 +64,21 @@ function computeMedStreak(selfCare?: SelfCareData, learningData?: LearningData):
     }
   }
 
-  // Compute longest streak from all dates
-  let longest = 0;
+  // Compute longest streak from all dates (sorted descending)
+  let longest = 1;
   let run = 1;
   for (let i = 1; i < sorted.length; i++) {
-    const prev = new Date(sorted[i - 1]);
-    const curr = new Date(sorted[i]);
+    const prev = new Date(sorted[i - 1] + 'T00:00:00');
+    const curr = new Date(sorted[i] + 'T00:00:00');
     const diffDays = Math.round((prev.getTime() - curr.getTime()) / 86400000);
     if (diffDays === 1) {
       run++;
-    } else {
       longest = Math.max(longest, run);
+    } else {
       run = 1;
     }
   }
-  longest = Math.max(longest, run, current);
+  longest = Math.max(longest, current);
 
   return { current, longest };
 }
