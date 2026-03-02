@@ -26,9 +26,14 @@ interface GeneratePlanOptions {
 }
 
 export async function generatePlan(options: GeneratePlanOptions): Promise<string> {
-  const fn = httpsCallable<GeneratePlanOptions, { plan: string }>(requireFunctions(), 'generatePlan');
-  const result = await fn(options);
-  return result.data.plan;
+  try {
+    const fn = httpsCallable<GeneratePlanOptions, { plan: string }>(requireFunctions(), 'generatePlan');
+    const result = await fn(options);
+    return result.data.plan;
+  } catch (error) {
+    console.error('generatePlan failed:', error);
+    throw new Error('Failed to generate plan. Please try again.');
+  }
 }
 
 export async function detectReminders(
@@ -138,9 +143,14 @@ export async function expandNotes(
   date: string,
   notes: LiveNote[],
 ): Promise<string> {
-  const fn = httpsCallable<{ className: string; date: string; notes: LiveNote[] }, { expanded: string }>(requireFunctions(), 'expandNotes');
-  const result = await fn({ className, date, notes });
-  return result.data.expanded;
+  try {
+    const fn = httpsCallable<{ className: string; date: string; notes: LiveNote[] }, { expanded: string }>(requireFunctions(), 'expandNotes');
+    const result = await fn({ className, date, notes });
+    return result.data.expanded;
+  } catch (error) {
+    console.error('expandNotes failed:', error);
+    throw new Error('Failed to expand notes. Please try again.');
+  }
 }
 
 export async function callGenerateDayPlan(
