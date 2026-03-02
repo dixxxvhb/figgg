@@ -50,36 +50,36 @@ export function ConfirmDialog({
       <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
 
       {/* Dialog */}
-      <div className="relative bg-white dark:bg-blush-800 rounded-2xl shadow-xl w-full max-w-xs overflow-hidden">
+      <div className="relative bg-[var(--surface-card)] rounded-2xl shadow-xl w-full max-w-xs overflow-hidden">
         <div className="p-5 text-center">
           {danger && (
-            <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-3">
-              <AlertTriangle size={24} className="text-red-500" />
+            <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ backgroundColor: 'color-mix(in srgb, var(--status-danger) 15%, transparent)' }}>
+              <AlertTriangle size={24} className="text-[var(--status-danger)]" />
             </div>
           )}
           {title && (
-            <h3 className="text-lg font-semibold text-forest-700 dark:text-white mb-1">
+            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-1">
               {title}
             </h3>
           )}
-          <p className="text-sm text-forest-500 dark:text-blush-300">{message}</p>
+          <p className="text-sm text-[var(--text-secondary)]">{message}</p>
         </div>
 
-        <div className="flex border-t border-blush-200 dark:border-blush-700">
+        <div className="flex border-t border-[var(--border-subtle)]">
           <button
             onClick={onCancel}
-            className="flex-1 py-3.5 text-sm font-medium text-forest-600 dark:text-blush-300 hover:bg-blush-50 dark:hover:bg-blush-700 transition-colors"
+            className="flex-1 py-3.5 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] transition-colors"
           >
             {cancelLabel}
           </button>
-          <div className="w-px bg-blush-200 dark:bg-blush-700" />
+          <div className="w-px bg-[var(--border-subtle)]" />
           <button
             ref={confirmRef}
             onClick={onConfirm}
             className={`flex-1 py-3.5 text-sm font-semibold transition-colors ${
               danger
-                ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
-                : 'text-forest-600 hover:bg-forest-50 dark:hover:bg-forest-900/20'
+                ? 'text-[var(--status-danger)] hover:bg-[var(--surface-inset)]'
+                : 'text-[var(--accent-primary)] hover:bg-[var(--surface-inset)]'
             }`}
           >
             {confirmLabel}

@@ -59,10 +59,10 @@ export function generateDailySnapshot(data: AppData, dateStr?: string): DailySna
   const dayName = days[targetDay.getDay()];
   const classesScheduled = getClassesByDay(data.classes, dayName).length;
 
-  // Tasks (reminders)
+  // Tasks (reminders) — count tasks that were due on or before the target date
   const reminders = sc?.reminders || [];
-  const tasksTotal = reminders.filter(r => !r.completed || r.dueDate === targetDate).length;
-  const tasksCompleted = reminders.filter(r => r.completed).length;
+  const tasksTotal = reminders.filter(r => r.dueDate && r.dueDate <= targetDate).length;
+  const tasksCompleted = reminders.filter(r => r.completed && r.dueDate && r.dueDate <= targetDate).length;
 
   // Build snapshot
   const snapshot: DailySnapshot = {

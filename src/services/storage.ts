@@ -30,7 +30,11 @@ function withCloudMutex<T>(fn: () => Promise<T>): Promise<T> {
   let resolve: (v: T) => void;
   let reject: (e: unknown) => void;
   const result = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
-  cloudOpQueue = cloudOpQueue.then(() => fn().then(resolve!, reject!), () => fn().then(resolve!, reject!));
+  // Always recover the queue on failure so subsequent operations aren't blocked
+  cloudOpQueue = cloudOpQueue.then(
+    () => fn().then(resolve!, reject!).catch(reject!),
+    () => fn().then(resolve!, reject!).catch(reject!)
+  ).catch(() => { /* queue recovery — prevent unhandled rejection from locking queue */ });
   return result;
 }
 
@@ -346,37 +350,8 @@ export function saveData(data: AppData): void {
       try {
         const cloudData = await fetchCloudData();
         if (cloudData) {
-          // Re-read local data FRESH inside mutex to avoid stale closure
           const freshLocal = loadData();
-          const now = new Date().toISOString();
-          const localSC = freshLocal.selfCare || {};
-          const cloudSC = cloudData.selfCare || {};
-          const localMod = localSC.selfCareModified ? new Date(localSC.selfCareModified).getTime() : 0;
-          const cloudMod = cloudSC.selfCareModified ? new Date(cloudSC.selfCareModified).getTime() : 0;
-          const mergedSelfCare = cloudMod > localMod ? cloudSC : localSC;
-          const mergedWeekNotes = mergeWeekNotes(
-            freshLocal.weekNotes || [],
-            cloudData.weekNotes || []
-          );
-          const localLP = freshLocal.launchPlan;
-          const cloudLP = cloudData.launchPlan;
-          const localLPMod = localLP?.lastModified ? new Date(localLP.lastModified).getTime() : 0;
-          const cloudLPMod = cloudLP?.lastModified ? new Date(cloudLP.lastModified).getTime() : 0;
-          const mergedLP = cloudLPMod > localLPMod ? cloudLP : localLP;
-          const localDP = freshLocal.dayPlan;
-          const cloudDP = cloudData.dayPlan;
-          const localDPMod = localDP?.lastModified ? new Date(localDP.lastModified).getTime() : 0;
-          const cloudDPMod = cloudDP?.lastModified ? new Date(cloudDP.lastModified).getTime() : 0;
-          const mergedDP = cloudDPMod > localDPMod ? cloudDP : localDP;
-          const merged: AppData = {
-            ...cloudData,
-            ...freshLocal,
-            selfCare: mergedSelfCare,
-            weekNotes: mergedWeekNotes,
-            launchPlan: mergedLP,
-            dayPlan: mergedDP,
-            lastModified: now,
-          };
+          const merged = mergeLocalAndCloud(freshLocal, cloudData, new Date().toISOString());
           saveDataLocalOnly(merged);
           await immediateCloudSave(merged);
         } else {
@@ -431,6 +406,56 @@ function migrateCloudData(cloudData: AppData): AppData {
     competitionDances: migratedDances,
     // Merged students: initial roster + user-added students preserved
     students,
+  };
+}
+
+// Shared merge helper — merges local + cloud AppData using consistent rules:
+// - selfCare, launchPlan, dayPlan: last-write-wins via timestamps
+// - weekNotes: union-merge by weekOf, then by classId, then by liveNote ID
+// - aiCheckIns: union-merge by id
+// This consolidates the 5 previously separate merge implementations.
+function mergeLocalAndCloud(local: AppData, cloud: AppData, now: string): AppData {
+  // selfCare: last-write-wins
+  const localSC = local.selfCare || {};
+  const cloudSC = cloud.selfCare || {};
+  const localSCMod = localSC.selfCareModified ? new Date(localSC.selfCareModified).getTime() : 0;
+  const cloudSCMod = cloudSC.selfCareModified ? new Date(cloudSC.selfCareModified).getTime() : 0;
+  const mergedSelfCare = cloudSCMod > localSCMod ? cloudSC : localSC;
+
+  // weekNotes: union-merge
+  const mergedWeekNotes = mergeWeekNotes(local.weekNotes || [], cloud.weekNotes || []);
+
+  // launchPlan: last-write-wins
+  const localLP = local.launchPlan;
+  const cloudLP = cloud.launchPlan;
+  const localLPMod = localLP?.lastModified ? new Date(localLP.lastModified).getTime() : 0;
+  const cloudLPMod = cloudLP?.lastModified ? new Date(cloudLP.lastModified).getTime() : 0;
+  const mergedLP = cloudLPMod > localLPMod ? cloudLP : localLP;
+
+  // dayPlan: last-write-wins
+  const localDP = local.dayPlan;
+  const cloudDP = cloud.dayPlan;
+  const localDPMod = localDP?.lastModified ? new Date(localDP.lastModified).getTime() : 0;
+  const cloudDPMod = cloudDP?.lastModified ? new Date(cloudDP.lastModified).getTime() : 0;
+  const mergedDP = cloudDPMod > localDPMod ? cloudDP : localDP;
+
+  // aiCheckIns: union-merge by id
+  const localCheckIns = local.aiCheckIns || [];
+  const cloudCheckIns = cloud.aiCheckIns || [];
+  const checkInMap = new Map<string, typeof localCheckIns[0]>();
+  cloudCheckIns.forEach(c => checkInMap.set(c.id, c));
+  localCheckIns.forEach(c => checkInMap.set(c.id, c));
+  const mergedCheckIns = Array.from(checkInMap.values());
+
+  return {
+    ...cloud,
+    ...local,
+    selfCare: mergedSelfCare,
+    weekNotes: mergedWeekNotes,
+    launchPlan: mergedLP,
+    dayPlan: mergedDP,
+    aiCheckIns: mergedCheckIns,
+    lastModified: now,
   };
 }
 
@@ -532,65 +557,8 @@ export async function syncFromCloud(force: boolean = false): Promise<AppData | n
 
     const localData = loadData();
 
-    // ALWAYS merge weekNotes - never lose notes from either source
-    const mergedWeekNotes = mergeWeekNotes(
-      localData.weekNotes || [],
-      migratedCloudData.weekNotes || []
-    );
-
-    // === SIMPLE LAST-WRITE-WINS FOR ENTIRE selfCare OBJECT ===
-    // Compare selfCareModified timestamps. The device that wrote last wins everything.
-    // No per-field merge, no dose merge, no reminder dedup. Last save = new baseline.
-    const localSelfCare = localData.selfCare || {};
-    const cloudSelfCare = migratedCloudData.selfCare || {};
-    const localMod = localSelfCare.selfCareModified ? new Date(localSelfCare.selfCareModified).getTime() : 0;
-    const cloudMod = cloudSelfCare.selfCareModified ? new Date(cloudSelfCare.selfCareModified).getTime() : 0;
-    const mergedSelfCare = cloudMod > localMod ? cloudSelfCare : localSelfCare;
-
-    // === LAUNCH PLAN: last-write-wins via lastModified ===
-    const localLP = localData.launchPlan;
-    const cloudLP = migratedCloudData.launchPlan;
-    const localLPMod = localLP?.lastModified ? new Date(localLP.lastModified).getTime() : 0;
-    const cloudLPMod = cloudLP?.lastModified ? new Date(cloudLP.lastModified).getTime() : 0;
-    const mergedLaunchPlan = cloudLPMod > localLPMod ? cloudLP : localLP;
-
-    // === DAY PLAN: last-write-wins via lastModified ===
-    const localDP = localData.dayPlan;
-    const cloudDP = migratedCloudData.dayPlan;
-    const localDPMod = localDP?.lastModified ? new Date(localDP.lastModified).getTime() : 0;
-    const cloudDPMod = cloudDP?.lastModified ? new Date(cloudDP.lastModified).getTime() : 0;
-    const mergedDayPlan = cloudDPMod > localDPMod ? cloudDP : localDP;
-
-    // === AI CHECK-INS: union-merge by id ===
-    const localCheckIns = localData.aiCheckIns || [];
-    const cloudCheckIns = migratedCloudData.aiCheckIns || [];
-    const checkInMap = new Map<string, typeof localCheckIns[0]>();
-    // Cloud first, then local overwrites — local is authoritative for today
-    cloudCheckIns.forEach(c => checkInMap.set(c.id, c));
-    localCheckIns.forEach(c => checkInMap.set(c.id, c));
-    const mergedCheckIns = Array.from(checkInMap.values());
-
-    // Compare timestamps for base data resolution (but weekNotes are always merged)
-    const cloudTime = migratedCloudData.lastModified ? new Date(migratedCloudData.lastModified).getTime() : 0;
-    const localTime = localData.lastModified ? new Date(localData.lastModified).getTime() : 0;
-
-    let baseData: AppData;
-    if (cloudTime > localTime) {
-      baseData = migratedCloudData;
-    } else {
-      baseData = localData;
-    }
-
-    // Create merged result - weekNotes always merged, selfCare + launchPlan + dayPlan + aiCheckIns are last-write-wins
-    const mergedData: AppData = {
-      ...baseData,
-      weekNotes: mergedWeekNotes,
-      selfCare: mergedSelfCare,
-      launchPlan: mergedLaunchPlan,
-      dayPlan: mergedDayPlan,
-      aiCheckIns: mergedCheckIns,
-      lastModified: new Date().toISOString(),
-    };
+    // Use the shared merge helper for consistent merge logic everywhere
+    const mergedData = mergeLocalAndCloud(localData, migratedCloudData, new Date().toISOString());
 
     // Save merged data locally (uses quota guard)
     saveDataLocalOnly(mergedData);
@@ -623,10 +591,10 @@ export function saveSelfCareToStorage(updates: Partial<import('../types').SelfCa
     try {
       const cloudData = await fetchCloudData();
       if (cloudData) {
-        const cloudSelfCare = cloudData.selfCare || {};
-        const mergedSelfCare = { ...cloudSelfCare, ...updates, selfCareModified: now };
-        const mergedWeekNotes = mergeWeekNotes(data.weekNotes || [], cloudData.weekNotes || []);
-        const merged: AppData = { ...cloudData, ...data, selfCare: mergedSelfCare, weekNotes: mergedWeekNotes, lastModified: now };
+        const freshLocal = loadData();
+        // Apply the selfCare update on top of the merge
+        const merged = mergeLocalAndCloud(freshLocal, cloudData, now);
+        merged.selfCare = { ...(merged.selfCare || {}), ...updates, selfCareModified: now };
         saveDataLocalOnly(merged);
         await immediateCloudSave(merged);
       } else {
@@ -643,7 +611,7 @@ export function saveSelfCareToStorage(updates: Partial<import('../types').SelfCa
 export function saveLaunchPlanToStorage(updates: Partial<LaunchPlanData>): void {
   const data = loadData();
   const now = new Date().toISOString();
-  const currentPlan = data.launchPlan || { tasks: [], decisions: [], contacts: [], planStartDate: '2026-02-12', planEndDate: '2026-06-30', lastModified: now, version: 1 };
+  const currentPlan = data.launchPlan || { tasks: [], decisions: [], contacts: [], planStartDate: '', planEndDate: '', lastModified: now, version: 1 };
   const updatedPlan = { ...currentPlan, ...updates, lastModified: now };
   const updatedData = {
     ...data,
@@ -657,23 +625,11 @@ export function saveLaunchPlanToStorage(updates: Partial<LaunchPlanData>): void 
     try {
       const cloudData = await fetchCloudData();
       if (cloudData) {
-        // Re-read local data FRESH inside mutex to avoid stale closure
         const freshLocal = loadData();
-        const cloudPlan = cloudData.launchPlan || currentPlan;
-        const mergedPlan = { ...cloudPlan, ...updates, lastModified: now };
-        const mergedWeekNotes = mergeWeekNotes(freshLocal.weekNotes || [], cloudData.weekNotes || []);
-        const localSC = freshLocal.selfCare || {};
-        const cloudSC = cloudData.selfCare || {};
-        const localMod = (localSC as any).selfCareModified ? new Date((localSC as any).selfCareModified).getTime() : 0;
-        const cloudMod = (cloudSC as any).selfCareModified ? new Date((cloudSC as any).selfCareModified).getTime() : 0;
-        const mergedSelfCare = cloudMod > localMod ? cloudSC : localSC;
-        const localDP = freshLocal.dayPlan;
-        const cloudDP = cloudData.dayPlan;
-        const localDPMod = localDP?.lastModified ? new Date(localDP.lastModified).getTime() : 0;
-        const cloudDPMod = cloudDP?.lastModified ? new Date(cloudDP.lastModified).getTime() : 0;
-        const mergedDP = cloudDPMod > localDPMod ? cloudDP : localDP;
-        const merged: AppData = { ...cloudData, ...freshLocal, launchPlan: mergedPlan, selfCare: mergedSelfCare, weekNotes: mergedWeekNotes, dayPlan: mergedDP, lastModified: now };
-        console.log('[LaunchPlan] Cloud merge done:', mergedPlan.decisions?.filter((d: any) => d.status === 'decided').length, 'decided');
+        const merged = mergeLocalAndCloud(freshLocal, cloudData, now);
+        // Apply the launch plan update on top of the merge
+        const basePlan = cloudData.launchPlan || currentPlan;
+        merged.launchPlan = { ...currentPlan, ...basePlan, ...updates, lastModified: now };
         saveDataLocalOnly(merged);
         await immediateCloudSave(merged);
       } else {
@@ -702,31 +658,10 @@ export function saveDayPlanToStorage(plan: import('../types').DayPlan): void {
     try {
       const cloudData = await fetchCloudData();
       if (cloudData) {
-        // Day plan: we just mutated it, so our version is authoritative
-        // (timestamp-based merge only happens in syncFromCloud)
-
-        // Re-read local data FRESH inside mutex to avoid stale closure
         const freshLocal = loadData();
-        const mergedWeekNotes = mergeWeekNotes(freshLocal.weekNotes || [], cloudData.weekNotes || []);
-        const localSC = freshLocal.selfCare || {};
-        const cloudSC = cloudData.selfCare || {};
-        const localSCMod = (localSC as any).selfCareModified ? new Date((localSC as any).selfCareModified).getTime() : 0;
-        const cloudSCMod = (cloudSC as any).selfCareModified ? new Date((cloudSC as any).selfCareModified).getTime() : 0;
-        const mergedSelfCare = cloudSCMod > localSCMod ? cloudSC : localSC;
-        const localLP = freshLocal.launchPlan;
-        const cloudLP = cloudData.launchPlan;
-        const localLPMod = localLP?.lastModified ? new Date(localLP.lastModified).getTime() : 0;
-        const cloudLPMod = cloudLP?.lastModified ? new Date(cloudLP.lastModified).getTime() : 0;
-        const mergedLP = cloudLPMod > localLPMod ? cloudLP : localLP;
-
-        const merged: AppData = {
-          ...cloudData, ...freshLocal,
-          dayPlan: plan,
-          selfCare: mergedSelfCare,
-          weekNotes: mergedWeekNotes,
-          launchPlan: mergedLP,
-          lastModified: now,
-        };
+        const merged = mergeLocalAndCloud(freshLocal, cloudData, now);
+        // Day plan: we just mutated it, so our version is authoritative
+        merged.dayPlan = plan;
         saveDataLocalOnly(merged);
         await immediateCloudSave(merged);
       } else {
@@ -783,26 +718,8 @@ export function saveWeekNotes(weekNotes: WeekNotes): void {
     try {
       const cloudData = await fetchCloudData();
       if (cloudData) {
-        // Re-read local data FRESH inside mutex to avoid stale closure
         const freshLocal = loadData();
-        const now = new Date().toISOString();
-        const mergedWeekNotes = mergeWeekNotes(freshLocal.weekNotes, cloudData.weekNotes || []);
-        const localSC = freshLocal.selfCare || {};
-        const cloudSC = cloudData.selfCare || {};
-        const localMod = localSC.selfCareModified ? new Date(localSC.selfCareModified).getTime() : 0;
-        const cloudMod = cloudSC.selfCareModified ? new Date(cloudSC.selfCareModified).getTime() : 0;
-        const mergedSelfCare = cloudMod > localMod ? cloudSC : localSC;
-        const localLP = freshLocal.launchPlan;
-        const cloudLP = cloudData.launchPlan;
-        const localLPMod = localLP?.lastModified ? new Date(localLP.lastModified).getTime() : 0;
-        const cloudLPMod = cloudLP?.lastModified ? new Date(cloudLP.lastModified).getTime() : 0;
-        const mergedLP = cloudLPMod > localLPMod ? cloudLP : localLP;
-        const localDP = freshLocal.dayPlan;
-        const cloudDP = cloudData.dayPlan;
-        const localDPMod = localDP?.lastModified ? new Date(localDP.lastModified).getTime() : 0;
-        const cloudDPMod = cloudDP?.lastModified ? new Date(cloudDP.lastModified).getTime() : 0;
-        const mergedDP = cloudDPMod > localDPMod ? cloudDP : localDP;
-        const merged: AppData = { ...cloudData, ...freshLocal, selfCare: mergedSelfCare, weekNotes: mergedWeekNotes, launchPlan: mergedLP, dayPlan: mergedDP, lastModified: now };
+        const merged = mergeLocalAndCloud(freshLocal, cloudData, new Date().toISOString());
         saveDataLocalOnly(merged);
         await immediateCloudSave(merged);
       } else {

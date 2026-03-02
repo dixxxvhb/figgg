@@ -147,6 +147,18 @@ export function buildContextString(payload: any, mode: Mode): string {
     contextLines.push(`Current streak: ${ctx.streak} days`);
   }
 
+  // Teaching load awareness
+  if (ctx.teachingLoad) {
+    const tl = ctx.teachingLoad;
+    contextLines.push(`Teaching load: ${tl.classesToday} classes today, ${tl.classesThisWeek}/week (busiest: ${tl.busiestDay} with ${tl.busiestDayCount})`);
+  }
+
+  // Competition proximity
+  if (ctx.nextCompetition) {
+    const nc = ctx.nextCompetition;
+    contextLines.push(`Next competition: ${nc.name} in ${nc.daysAway} days (${nc.dancesReady}/${nc.dancesTotal} dances have rehearsal notes)`);
+  }
+
   // Last week reflection
   if (ctx.lastReflection) {
     contextLines.push(`Last week's reflection: ${ctx.lastReflection}`);

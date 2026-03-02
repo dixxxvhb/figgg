@@ -58,6 +58,20 @@ export interface AIContextPayload {
   weekClassList: Array<{ id: string; name: string; day: string; startTime: string }>;
   // Competition dance lookup (for rehearsal notes)
   competitionDanceList: Array<{ id: string; registrationName: string; songTitle: string }>;
+  // Teaching load awareness
+  teachingLoad?: {
+    classesToday: number;
+    classesThisWeek: number;
+    busiestDay: string;
+    busiestDayCount: number;
+  };
+  // Upcoming competition proximity
+  nextCompetition?: {
+    name: string;
+    daysAway: number;
+    dancesReady: number;
+    dancesTotal: number;
+  };
   // Preferences
   tone: 'supportive' | 'direct' | 'minimal';
 }
@@ -213,6 +227,31 @@ export function buildAIContext(
     ? [lastReflection.aiSummary, lastReflection.nextWeekFocus ? `Focus: ${lastReflection.nextWeekFocus}` : ''].filter(Boolean).join('. ')
     : undefined;
 
+  // Teaching load awareness — helps AI gauge intensity
+  const allDaysForLoad: DayOfWeek[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+  const classCounts = allDaysForLoad.map(d => ({ day: d, count: getClassesByDay(data.classes, d).length }));
+  const totalWeekClasses = classCounts.reduce((sum, d) => sum + d.count, 0);
+  const busiestDay = classCounts.reduce((max, d) => d.count > max.count ? d : max, classCounts[0]);
+  const teachingLoad = {
+    classesToday: todayClasses.length,
+    classesThisWeek: totalWeekClasses,
+    busiestDay: busiestDay.day,
+    busiestDayCount: busiestDay.count,
+  };
+
+  // Next competition proximity — so AI can adjust urgency
+  const comps = (data.competitions || [])
+    .filter(c => c.date >= todayStr)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const nextComp = comps[0];
+  let nextCompetition: AIContextPayload['nextCompetition'] = undefined;
+  if (nextComp) {
+    const daysAway = Math.ceil((new Date(nextComp.date + 'T00:00:00').getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const compDances = (data.competitionDances || []).filter(d => nextComp.dances?.includes(d.id));
+    const dancesReady = compDances.filter(d => d.rehearsalNotes && d.rehearsalNotes.length > 0).length;
+    nextCompetition = { name: nextComp.name, daysAway, dancesReady, dancesTotal: compDances.length };
+  }
+
   return {
     time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
     dayOfWeek: dayName,
@@ -234,6 +273,8 @@ export function buildAIContext(
     previousCheckIn,
     dayMode: dayMode !== 'normal' ? dayMode : undefined,
     lastReflection: lastReflectionStr,
+    teachingLoad,
+    nextCompetition,
     tone: config.tone,
   };
 }

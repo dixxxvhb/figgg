@@ -173,14 +173,14 @@ export function PullToRefresh({ children, onRefresh }: PullToRefreshProps) {
         <div className="flex flex-col items-center gap-1 py-2">
           <RefreshCw
             size={24}
-            className={`text-forest-500 transition-transform ${
+            className={`text-[var(--accent-primary)] transition-transform ${
               isRefreshing || status === 'syncing' ? 'animate-spin' : ''
             }`}
             style={{
               transform: `rotate(${progress * 180}deg)`,
             }}
           />
-          <span className="text-xs text-forest-500">
+          <span className="text-xs text-[var(--accent-primary)]">
             {isRefreshing || status === 'syncing'
               ? 'Syncing...'
               : shouldTrigger
