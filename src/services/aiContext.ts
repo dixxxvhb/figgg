@@ -3,7 +3,7 @@
  * Reads from AppData and produces a compact object for the Netlify Function.
  */
 import { getClassesByDay } from '../data/classes';
-import { timeToMinutes, formatWeekOf, getWeekStart } from '../utils/time';
+import { timeToMinutes, formatWeekOf, getWeekStart, toDateStr, toTimeStr } from '../utils/time';
 import type { AppData, DayOfWeek, AIConfig } from '../types';
 import { DEFAULT_AI_CONFIG, DEFAULT_MED_CONFIG, DEFAULT_WELLNESS_ITEMS } from '../types';
 
@@ -82,7 +82,7 @@ export function buildAIContext(
   userMessage: string,
 ): AIContextPayload {
   const now = new Date();
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const todayStr = toDateStr(now);
   const days: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const dayName = days[now.getDay()];
   const config = data.settings?.aiConfig || DEFAULT_AI_CONFIG;
@@ -253,7 +253,7 @@ export function buildAIContext(
   }
 
   return {
-    time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+    time: toTimeStr(now),
     dayOfWeek: dayName,
     checkInType,
     userMessage,
@@ -299,7 +299,7 @@ export function buildFullAIContext(
   const checkInType = hour < 12 ? 'morning' : 'afternoon';
   const base = buildAIContext(data, checkInType, userMessage);
   const now = new Date();
-  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const todayStr = toDateStr(now);
 
   // All active reminders (not just top 5)
   const reminders = (data.selfCare?.reminders || [])
@@ -443,6 +443,5 @@ export function buildFullAIContext(
 }
 
 function formatMs(ms: number): string {
-  const d = new Date(ms);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return toTimeStr(new Date(ms));
 }

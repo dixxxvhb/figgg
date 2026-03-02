@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { toDateStr } from '../utils/time';
 import type { AICheckIn, AIConfig } from '../types';
 import { DEFAULT_AI_CONFIG } from '../types';
 
@@ -16,7 +17,7 @@ export function useCheckInStatus(
   return useMemo(() => {
     const config = aiConfig || DEFAULT_AI_CONFIG;
     const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const todayStr = toDateStr(now);
     const hour = now.getHours();
 
     const todayCheckIns = (aiCheckIns || []).filter(c => c.date === todayStr);

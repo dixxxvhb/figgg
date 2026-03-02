@@ -1,17 +1,17 @@
 import { loadData, saveData } from './storage';
 import { getClassesByDay } from '../data/classes';
+import { toDateStr, toTimeStr } from '../utils/time';
 import type { DailySnapshot, WeeklySummary, LearningData, AppData, DayOfWeek } from '../types';
 
 const MAX_SNAPSHOTS = 30;
 const MAX_SUMMARIES = 12;
 
 function formatDateKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return toDateStr(d);
 }
 
 function msToHHmm(ms: number): string {
-  const d = new Date(ms);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return toTimeStr(new Date(ms));
 }
 
 function getMonday(d: Date): Date {

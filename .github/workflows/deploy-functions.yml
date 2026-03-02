@@ -41,23 +41,37 @@ jobs:
   deploy-functions:
     name: Deploy Cloud Functions
     runs-on: ubuntu-latest
-    if: contains(github.event.head_commit.modified, 'functions/') || contains(github.event.head_commit.added, 'functions/') || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check for functions changes
+        id: changes
+        run: |
+          if git diff --name-only HEAD~1 HEAD | grep -q '^functions/'; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
 
       - uses: actions/setup-node@v4
+        if: steps.changes.outputs.changed == 'true'
         with:
           node-version: 20
           cache: npm
           cache-dependency-path: functions/package-lock.json
 
       - name: Install functions dependencies
+        if: steps.changes.outputs.changed == 'true'
         run: cd functions && npm ci
 
       - name: Build functions
+        if: steps.changes.outputs.changed == 'true'
         run: cd functions && npm run build
 
       - name: Deploy Functions
+        if: steps.changes.outputs.changed == 'true'
         uses: w9jds/firebase-action@master
         with:
           args: deploy --only functions
