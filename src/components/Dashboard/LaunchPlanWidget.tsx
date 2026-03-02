@@ -18,11 +18,10 @@ interface LaunchPlanWidgetProps {
 }
 
 export function LaunchPlanWidget({ launchPlan }: LaunchPlanWidgetProps) {
-  if (!launchPlan) return null;
-
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
   const { todayTasks, nextMilestone, progress, currentWeekLabel, pendingDecisions } = useMemo(() => {
+    if (!launchPlan) return { todayTasks: [], nextMilestone: null, progress: { done: 0, total: 0 }, currentWeekLabel: 'Launch Plan', pendingDecisions: 0 };
     const tasks = launchPlan.tasks;
     const today = tasks.filter(t => t.scheduledDate === todayStr);
 
@@ -50,6 +49,8 @@ export function LaunchPlanWidget({ launchPlan }: LaunchPlanWidgetProps) {
 
     return { todayTasks: today, nextMilestone: nextM, progress: { done, total }, currentWeekLabel: weekLabel, pendingDecisions: pending };
   }, [launchPlan, todayStr]);
+
+  if (!launchPlan) return null;
 
   return (
     <Link
@@ -100,7 +101,7 @@ export function LaunchPlanWidget({ launchPlan }: LaunchPlanWidgetProps) {
         {/* Milestone + decisions */}
         <div className="flex items-center justify-between pt-2 border-t border-[var(--border-subtle)]">
           {nextMilestone ? (
-            <span className="text-xs text-orange-600 dark:text-orange-400 font-medium flex items-center gap-1">
+            <span className="text-xs text-[var(--status-warning)] font-medium flex items-center gap-1">
               <Star size={10} className="fill-current" />
               {nextMilestone.label} — {nextMilestone.daysAway === 0 ? 'TODAY' : `${nextMilestone.daysAway}d`}
             </span>
@@ -108,7 +109,7 @@ export function LaunchPlanWidget({ launchPlan }: LaunchPlanWidgetProps) {
             <span className="type-caption text-[var(--text-tertiary)]">All milestones complete</span>
           )}
           {pendingDecisions > 0 && (
-            <span className="text-xs font-medium text-rose-600 dark:text-rose-400 flex items-center gap-1">
+            <span className="text-xs font-medium text-[var(--status-danger)] flex items-center gap-1">
               <CircleDot size={10} />
               {pendingDecisions} decisions
             </span>
