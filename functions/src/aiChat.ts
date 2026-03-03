@@ -97,7 +97,28 @@ export const aiChat = onCall(
       return parsed;
     } catch (error: unknown) {
       console.error("AI chat error:", error);
-      throw new HttpsError("internal", "AI chat failed");
+
+      // Surface specific error details for better client-side messaging
+      if (error instanceof Error) {
+        const msg = error.message || "";
+        const anyErr = error as unknown as Record<string, unknown>;
+        const status = (anyErr.status as number) || 0;
+
+        if (status === 401 || msg.includes("authentication") || msg.includes("api_key")) {
+          throw new HttpsError("permission-denied", "AI API key is invalid or expired");
+        }
+        if (status === 429 || msg.includes("rate_limit") || msg.includes("rate limit")) {
+          throw new HttpsError("resource-exhausted", "AI rate limit reached — try again in a moment");
+        }
+        if (status === 529 || msg.includes("overloaded")) {
+          throw new HttpsError("unavailable", "AI service is temporarily overloaded — try again shortly");
+        }
+        if (msg.includes("Could not resolve") || msg.includes("ENOTFOUND") || msg.includes("network")) {
+          throw new HttpsError("unavailable", "Cannot reach AI service — check network connection");
+        }
+      }
+
+      throw new HttpsError("internal", "AI chat failed — please try again");
     }
   }
 );

@@ -1388,34 +1388,34 @@ export function LiveNotes() {
                         <>
                           <button
                             onClick={saveEdit}
-                            className="p-1.5 text-forest-500 hover:text-forest-700 active:text-forest-800 transition-colors rounded-lg"
+                            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-forest-500 hover:text-forest-700 active:text-forest-800 transition-colors rounded-lg"
                             title="Save edit"
                           >
-                            <Check size={14} />
+                            <Check size={16} />
                           </button>
                           <button
                             onClick={cancelEdit}
-                            className="p-1.5 text-blush-400 hover:text-red-500 active:text-red-600 transition-colors rounded-lg"
+                            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-blush-400 hover:text-red-500 active:text-red-600 transition-colors rounded-lg"
                             title="Cancel edit"
                           >
-                            <X size={14} />
+                            <X size={16} />
                           </button>
                         </>
                       ) : (
                         <>
                           <button
                             onClick={() => editNote(note)}
-                            className="p-1.5 text-blush-400 hover:text-forest-500 active:text-forest-600 transition-colors rounded-lg"
+                            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-blush-400 hover:text-forest-500 active:text-forest-600 transition-colors rounded-lg"
                             title="Edit note"
                           >
-                            <Pencil size={14} />
+                            <Pencil size={16} />
                           </button>
                           <button
                             onClick={() => deleteNote(note.id)}
-                            className="p-1.5 text-blush-400 hover:text-red-500 active:text-red-600 transition-colors rounded-lg"
+                            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-blush-400 hover:text-red-500 active:text-red-600 transition-colors rounded-lg"
                             title="Delete note"
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={16} />
                           </button>
                         </>
                       )}
@@ -1443,15 +1443,15 @@ export function LiveNotes() {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-blush-200 dark:border-blush-700 bg-white dark:bg-blush-800 p-4 pb-safe">
+      <div className="border-t border-blush-200 dark:border-blush-700 bg-white dark:bg-blush-800 p-4 pb-safe sticky bottom-0 z-10">
         <div className="page-w">
           {/* Quick Tags */}
-          <div className="flex gap-2 mb-3 overflow-x-auto pb-2">
+          <div className="flex gap-2 mb-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
             {QUICK_TAGS.map(tag => (
               <button
                 key={tag.id}
                 onClick={() => setSelectedTag(selectedTag === tag.id ? undefined : tag.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-sm whitespace-nowrap transition-all ${
                   selectedTag === tag.id
                     ? tag.color + ' shadow-sm'
                     : 'bg-blush-100 dark:bg-blush-700 text-forest-600 dark:text-blush-300 hover:bg-blush-200 dark:hover:bg-blush-600'

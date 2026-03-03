@@ -179,10 +179,29 @@ export function AIChat() {
       persistThread(threadId, finalMessages);
     } catch (err) {
       console.error('[AIChat] error:', err);
+      // Extract meaningful message from Firebase/Anthropic errors
+      let errorText = "Sorry, I couldn't connect. Try again?";
+      if (err && typeof err === 'object') {
+        const firebaseErr = err as { code?: string; message?: string };
+        const msg = firebaseErr.message || '';
+        if (msg.includes('API key')) {
+          errorText = "The AI API key needs to be updated. Let Dixon know!";
+        } else if (msg.includes('rate limit') || firebaseErr.code === 'functions/resource-exhausted') {
+          errorText = "I'm getting too many requests right now. Give me a sec and try again.";
+        } else if (msg.includes('overloaded') || firebaseErr.code === 'functions/unavailable') {
+          errorText = "The AI service is busy right now. Try again in a moment.";
+        } else if (msg.includes('unauthenticated') || firebaseErr.code === 'functions/unauthenticated') {
+          errorText = "You need to sign in again. Try refreshing the app.";
+        } else if (msg.includes('network') || msg.includes('Failed to fetch') || msg.includes('ENOTFOUND')) {
+          errorText = "Looks like you're offline. Check your connection and try again.";
+        } else if (firebaseErr.code === 'functions/internal') {
+          errorText = "Something went wrong on the AI side. Try again?";
+        }
+      }
       const errorMsg: AIChatMessage = {
         id: `msg-${Date.now()}-err`,
         role: 'assistant',
-        content: "Sorry, I couldn't connect. Try again?",
+        content: errorText,
         timestamp: new Date().toISOString(),
       };
       setMessages(prev => [...prev, errorMsg]);

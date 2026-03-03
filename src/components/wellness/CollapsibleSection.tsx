@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type ReactNode } from 'react';
+import { useState, useRef, useEffect, useCallback, type ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -20,13 +20,37 @@ export function CollapsibleSection({
 }: CollapsibleSectionProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const contentRef = useRef<HTMLDivElement>(null);
-  const [contentHeight, setContentHeight] = useState<number | undefined>(undefined);
+  const [contentHeight, setContentHeight] = useState<number>(0);
+  // After expand animation finishes, remove maxHeight so content is never clipped
+  const [animationDone, setAnimationDone] = useState(defaultExpanded);
 
+  // Use ResizeObserver to track content height changes (dynamic child content)
   useEffect(() => {
-    if (contentRef.current) {
-      setContentHeight(contentRef.current.scrollHeight);
+    const el = contentRef.current;
+    if (!el) return;
+
+    const measure = () => setContentHeight(el.scrollHeight);
+    measure();
+
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // When expanding, start animation; when collapsing, re-enable maxHeight constraint
+  useEffect(() => {
+    if (expanded) {
+      setAnimationDone(false);
+      const timer = setTimeout(() => setAnimationDone(true), 350);
+      return () => clearTimeout(timer);
+    } else {
+      setAnimationDone(false);
     }
-  }, [expanded, children]);
+  }, [expanded]);
+
+  const handleTransitionEnd = useCallback(() => {
+    if (expanded) setAnimationDone(true);
+  }, [expanded]);
 
   return (
     <div className={`rounded-[var(--radius-md)] border shadow-[var(--shadow-card)] overflow-hidden ${
@@ -49,10 +73,13 @@ export function CollapsibleSection({
         />
       </button>
       <div
+        onTransitionEnd={handleTransitionEnd}
         style={{
-          maxHeight: expanded ? (contentHeight ?? 'none') : 0,
+          maxHeight: expanded
+            ? (animationDone ? 'none' : contentHeight)
+            : 0,
           opacity: expanded ? 1 : 0,
-          overflow: 'hidden',
+          overflow: animationDone && expanded ? 'visible' : 'hidden',
           transition: 'max-height 0.3s ease, opacity 0.2s ease',
         }}
       >
