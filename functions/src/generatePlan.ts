@@ -1,6 +1,9 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { defineSecret } from "firebase-functions/params";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireAuth } from "./utils/auth";
+
+const anthropicKey = defineSecret("ANTHROPIC_API_KEY");
 
 interface LiveNote {
   id: string;
@@ -33,7 +36,7 @@ interface ClassInfo {
 }
 
 export const generatePlan = onCall(
-  { timeoutSeconds: 60, memory: "256MiB" },
+  { timeoutSeconds: 60, memory: "256MiB", secrets: [anthropicKey] },
   async (request) => {
     requireAuth(request);
 

@@ -1,4 +1,5 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { defineSecret } from "firebase-functions/params";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireAuth } from "./utils/auth";
 import {
@@ -9,10 +10,12 @@ import {
   getFallbackResponse,
 } from "./utils/prompts";
 
+const anthropicKey = defineSecret("ANTHROPIC_API_KEY");
+
 const VALID_MODES: Mode[] = ["check-in", "chat", "briefing", "day-plan", "prep", "capture", "reflection"];
 
 export const aiChat = onCall(
-  { timeoutSeconds: 60, memory: "256MiB" },
+  { timeoutSeconds: 60, memory: "256MiB", secrets: [anthropicKey] },
   async (request) => {
     requireAuth(request);
 
