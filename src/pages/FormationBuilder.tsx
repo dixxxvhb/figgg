@@ -725,7 +725,7 @@ export function FormationBuilder() {
           </div>
           <div
             ref={stageRef}
-            className="relative bg-gradient-to-b from-gray-800 to-gray-900 rounded-xl overflow-hidden shadow-lg touch-none"
+            className="relative bg-gradient-to-b from-stone-700 to-stone-800 rounded-xl overflow-hidden shadow-lg touch-none"
             style={{ aspectRatio: '16/9' }}
           >
             {/* Grid overlay */}

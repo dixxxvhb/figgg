@@ -469,8 +469,8 @@ export function LaunchPlan() {
           <h1 className="type-h1">DWDC Launch</h1>
         </div>
         <div className="text-right">
-          <p className="type-caption">{progress.done}/{progress.total} tasks</p>
-          <div className="w-24 h-1.5 bg-[var(--surface-inset)] rounded-full mt-1 overflow-hidden">
+          <p className="type-caption font-semibold">{progress.pct}% · {progress.done}/{progress.total}</p>
+          <div className="w-28 h-2 bg-[var(--surface-inset)] rounded-full mt-1 overflow-hidden">
             <div className="h-full bg-[var(--accent-primary)] rounded-full transition-all" style={{ width: `${progress.pct}%` }} />
           </div>
         </div>

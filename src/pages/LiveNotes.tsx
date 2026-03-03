@@ -554,7 +554,13 @@ export function LiveNotes() {
     saveWeekNotes(updatedWeekNotes);
   };
 
-  const deleteNote =(noteId: string) => {
+  const deleteNote = async (noteId: string) => {
+    const confirmed = await confirm('This note will be permanently removed.', {
+      title: 'Delete Note',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!confirmed) return;
     const updatedClassNotes: ClassWeekNotes = {
       ...classNotes,
       liveNotes: classNotes.liveNotes.filter(n => n.id !== noteId),

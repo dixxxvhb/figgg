@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Header, MobileNav } from './components/common/Header';
 import { PullToRefresh } from './components/common/PullToRefresh';
 import { Dashboard } from './pages/Dashboard';
@@ -38,6 +38,36 @@ function NotFound() {
       <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Page not found</h1>
       <p className="text-[var(--text-secondary)] mb-4">This page doesn't exist.</p>
       <Link to="/" className="text-[var(--accent-primary)] font-medium hover:underline">Back to home</Link>
+    </div>
+  );
+}
+
+function AnimatedRoutes() {
+  const location = useLocation();
+  return (
+    <div key={location.pathname} className="page-enter">
+      <Routes location={location}>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/schedule" element={<Schedule />} />
+        <Route path="/class/:classId" element={<ClassDetail />} />
+        <Route path="/class/:classId/notes" element={<LiveNotes />} />
+        <Route path="/event/:eventId" element={<CalendarEventDetail />} />
+        <Route path="/event/:eventId/notes" element={<EventNotes />} />
+        <Route path="/plan" element={<WeekPlanner />} />
+        <Route path="/choreography" element={<Choreography />} />
+        <Route path="/choreography/:id" element={<ChoreographyDetail />} />
+        <Route path="/dance/:danceId" element={<DanceDetail />} />
+        <Route path="/formations" element={<FormationBuilder />} />
+        <Route path="/formations/:danceId" element={<FormationBuilder />} />
+        <Route path="/students" element={<Students />} />
+        <Route path="/library" element={<Library />} />
+        <Route path="/tasks" element={<Me initialTab="reminders" />} />
+        <Route path="/me" element={<Me />} />
+        <Route path="/launch" element={<LaunchPlan />} />
+        <Route path="/ai" element={<AIChat />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
     </div>
   );
 }
@@ -100,28 +130,7 @@ function App() {
                 <PullToRefresh>
                   <Suspense fallback={<PageSkeleton />}>
                     <ErrorBoundary>
-                      <Routes>
-                        <Route path="/" element={<Dashboard />} />
-                        <Route path="/schedule" element={<Schedule />} />
-                        <Route path="/class/:classId" element={<ClassDetail />} />
-                        <Route path="/class/:classId/notes" element={<LiveNotes />} />
-                        <Route path="/event/:eventId" element={<CalendarEventDetail />} />
-                        <Route path="/event/:eventId/notes" element={<EventNotes />} />
-                        <Route path="/plan" element={<WeekPlanner />} />
-                        <Route path="/choreography" element={<Choreography />} />
-                        <Route path="/choreography/:id" element={<ChoreographyDetail />} />
-                        <Route path="/dance/:danceId" element={<DanceDetail />} />
-                        <Route path="/formations" element={<FormationBuilder />} />
-                        <Route path="/formations/:danceId" element={<FormationBuilder />} />
-                        <Route path="/students" element={<Students />} />
-                        <Route path="/library" element={<Library />} />
-                        <Route path="/tasks" element={<Me initialTab="reminders" />} />
-                        <Route path="/me" element={<Me />} />
-                        <Route path="/launch" element={<LaunchPlan />} />
-                        <Route path="/ai" element={<AIChat />} />
-                        <Route path="/settings" element={<Settings />} />
-                        <Route path="*" element={<NotFound />} />
-                      </Routes>
+                      <AnimatedRoutes />
                     </ErrorBoundary>
                   </Suspense>
                 </PullToRefresh>

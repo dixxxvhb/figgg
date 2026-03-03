@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Send, Loader2, Plus, Sparkles, Undo2, History, Trash2, ChevronLeft } from 'lucide-react';
+import { Send, Loader2, Plus, Sparkles, Undo2, History, Trash2, ChevronLeft } from 'lucide-react';
 import { useAppData } from '../contexts/AppDataContext';
 import { callAIChat } from '../services/ai';
 import type { AIChatRequest } from '../services/ai';
@@ -290,13 +290,7 @@ export function AIChat() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)] bg-[var(--surface-card)]">
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center gap-1 text-[var(--accent-primary)]"
-        >
-          <ArrowLeft size={18} />
-          <span className="text-sm font-medium">Back</span>
-        </button>
+        <div className="w-[50px]" />
         <div className="flex items-center gap-1.5 text-[var(--text-primary)]">
           <Sparkles size={16} className="text-[var(--accent-primary)]" />
           <span className="text-sm font-semibold">AI Chat</span>

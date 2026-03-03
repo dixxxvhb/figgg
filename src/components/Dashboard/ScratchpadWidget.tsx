@@ -42,14 +42,14 @@ export function ScratchpadWidget({ value, onChange }: ScratchpadWidgetProps) {
     return (
       <button
         onClick={() => setIsExpanded(true)}
-        className="w-full text-left bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-3"
+        className="w-full text-left bg-amber-50/60 dark:bg-amber-900/10 rounded-xl border border-amber-200/60 dark:border-amber-800/30 p-3.5 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors"
       >
-        <div className="flex items-start gap-2">
-          <StickyNote size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
+        <div className="flex items-start gap-2.5">
+          <StickyNote size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
           {value ? (
             <p className="text-sm text-[var(--text-primary)] line-clamp-2 whitespace-pre-wrap">{value}</p>
           ) : (
-            <p className="text-sm text-[var(--text-tertiary)] italic">Tap to jot something down...</p>
+            <p className="text-sm text-amber-600/60 dark:text-amber-400/50 italic">Tap to jot something down...</p>
           )}
         </div>
       </button>

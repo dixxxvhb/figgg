@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Copy, Eye, Calendar, MessageSquare, Sparkles, Loader2, CalendarOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Copy, Eye, Calendar, MessageSquare, Sparkles, Loader2, CalendarOff, CheckCircle2 } from 'lucide-react';
 import { format, addWeeks, startOfWeek, addDays } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
 import { formatTimeDisplay, formatWeekOf, timeToMinutes } from '../utils/time';
@@ -323,6 +323,9 @@ export function WeekPlanner() {
                             {formatTimeDisplay(cls.startTime)} · {studio?.shortName}
                           </div>
                         </div>
+                        {classNotes?.plan && (
+                          <CheckCircle2 size={18} className="text-[var(--status-success)] flex-shrink-0" />
+                        )}
                       </div>
 
                       <div className="px-4 py-3 bg-blush-50 dark:bg-blush-900/50">

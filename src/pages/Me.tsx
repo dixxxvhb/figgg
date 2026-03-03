@@ -8,6 +8,7 @@ import {
 import { useAppData } from '../contexts/AppDataContext';
 import { haptic } from '../utils/haptics';
 import { generateId } from '../utils/id';
+import { useConfirmDialog } from '../components/common/ConfirmDialog';
 import {
   format, isToday as isDateToday, isTomorrow, isPast, parseISO, startOfDay,
   addDays, isAfter,
@@ -64,6 +65,7 @@ const PRIORITY_COLORS = {
 type SmartListType = 'today' | 'scheduled' | 'all' | 'flagged';
 
 export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
+  const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const { data, updateSelfCare, updateTherapist, updateMeditation, updateGrief } = useAppData();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<'meds' | 'reminders'>(() => {
@@ -202,13 +204,19 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
     });
   }, [lists, persistTasks]);
 
-  const handleDeleteReminder = useCallback((id: string) => {
+  const handleDeleteReminder = useCallback(async (id: string) => {
+    const confirmed = await confirm('This reminder will be permanently deleted.', {
+      title: 'Delete Reminder',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!confirmed) return;
     const updated = reminders.filter(r => r.id !== id);
     setReminders(updated);
     persistTasks(updated, lists);
     setSelectedReminder(null);
     setShowReminderDetail(false);
-  }, [reminders, lists, persistTasks]);
+  }, [reminders, lists, persistTasks, confirm]);
 
   const handleUpdateReminder = useCallback((updated: Reminder) => {
     const newReminders = reminders.map(r => r.id === updated.id ? { ...updated, updatedAt: new Date().toISOString() } : r);
@@ -355,7 +363,8 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
 
   return (
     <div className="pb-24 bg-[var(--surface-primary)]">
-      <div className="max-w-md mx-auto px-4 py-6">
+      {confirmDialog}
+      <div className="max-w-lg mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-4">
           <h1 className="type-h1 text-[var(--text-primary)]">
@@ -424,7 +433,7 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
         {!showReminderDetail && (
           <>
             {/* Smart List Filters */}
-            <div className="flex gap-2 mb-3 overflow-x-auto scrollbar-hide pb-1">
+            <div className="flex gap-1.5 mb-3 overflow-x-auto scrollbar-hide pb-1">
               {([
                 { id: 'today' as SmartListType, label: 'Today', count: smartCounts.today, Icon: CalendarDays },
                 { id: 'scheduled' as SmartListType, label: 'Scheduled', count: smartCounts.scheduled, Icon: Calendar },
@@ -436,7 +445,7 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
                   <button
                     key={id}
                     onClick={() => setCurrentView(id)}
-                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-[var(--radius-full)] text-sm font-semibold whitespace-nowrap transition-colors min-h-[40px] flex-shrink-0 ${
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-[var(--radius-full)] text-sm font-semibold whitespace-nowrap transition-colors min-h-[36px] flex-shrink-0 ${
                       isActive
                         ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)]'
                         : 'bg-[var(--surface-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)]'

@@ -83,18 +83,20 @@ const isActionItem = (text: string) => ACTION_KEYWORDS.test(text) || text.starts
 const DEFAULT_WIDGET_ORDER = [
   'morning-briefing',
   'nudges',
+  'meds-quick',
+  'scratchpad',
   'todays-agenda',
   'reminders',
   'week-momentum',
   'week-stats',
   'streak',
   'launch-plan',
-  'scratchpad',
 ] as const;
 
 const WIDGET_LABELS: Record<string, string> = {
   'morning-briefing': 'Quick Stats',
   'nudges': 'Nudges',
+  'meds-quick': 'Meds',
   'todays-agenda': "Today's Schedule",
   'reminders': 'Tasks',
   'week-momentum': 'Week Momentum',
@@ -971,6 +973,41 @@ export function Dashboard() {
                 )}
                 {id === 'launch-plan' && (
                   <LaunchPlanWidget launchPlan={data.launchPlan} />
+                )}
+                {id === 'meds-quick' && (
+                  <Link to="/me" className="block bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Pill size={16} className="text-[var(--accent-primary)]" />
+                        <span className="text-sm font-semibold text-[var(--text-primary)]">Meds</span>
+                      </div>
+                      {canLogDose ? (
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleLogDose(); }}
+                          className="px-3 py-1.5 text-xs font-semibold bg-[var(--accent-primary)] text-[var(--text-on-accent)] rounded-full active:scale-90 transition-all duration-150"
+                        >
+                          Log Dose
+                        </button>
+                      ) : (
+                        <span className="text-xs font-medium text-[var(--status-success)]">All taken</span>
+                      )}
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      {[
+                        { label: 'D1', active: selfCareStatus.dose1Active },
+                        ...(medConfig.medType === 'IR' ? [{ label: 'D2', active: selfCareStatus.dose2Active }] : []),
+                        ...(medConfig.medType === 'IR' && medConfig.maxDoses === 3 ? [{ label: 'D3', active: selfCareStatus.dose3Active }] : []),
+                      ].map(d => (
+                        <div key={d.label} className={`flex items-center gap-1 text-xs ${d.active ? 'text-[var(--status-success)]' : 'text-[var(--text-tertiary)]'}`}>
+                          {d.active ? <Check size={12} /> : <Clock size={12} />}
+                          {d.label}
+                        </div>
+                      ))}
+                      {selfCareStatus.dose1Active && selfCareStatus.dose1Status && (
+                        <span className="text-xs text-[var(--text-secondary)] ml-auto capitalize">{selfCareStatus.dose1Status}</span>
+                      )}
+                    </div>
+                  </Link>
                 )}
                 {id === 'scratchpad' && (
                   <ScratchpadWidget value={data.selfCare?.scratchpad || ''} onChange={handleScratchpadChange} />

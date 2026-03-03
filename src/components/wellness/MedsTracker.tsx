@@ -52,7 +52,7 @@ function DoseCard({ num, time, info, skipped, onTake, onSkip, onUndoSkip, onEdit
           <div className="text-xs font-semibold text-[var(--text-tertiary)] mb-2">Dose {num} Skipped</div>
           <div className="flex gap-1">
             <button onClick={onUndoSkip} className="flex-1 px-2 py-1.5 text-xs text-[var(--text-secondary)] rounded-[var(--radius-sm)] hover:bg-[var(--surface-inset)]">Undo</button>
-            <button onClick={onTake} className="flex-1 px-2 py-1.5 text-xs bg-[var(--accent-primary)] text-[var(--text-on-accent)] font-medium rounded-[var(--radius-sm)]">Take</button>
+            <button onClick={onTake} className="flex-1 px-2 py-1.5 text-xs bg-[var(--accent-primary)] text-[var(--text-on-accent)] font-medium rounded-[var(--radius-sm)] active:scale-90 transition-all duration-150">Take</button>
           </div>
         </div>
       ) : time ? (
@@ -70,7 +70,7 @@ function DoseCard({ num, time, info, skipped, onTake, onSkip, onUndoSkip, onEdit
           <Pill size={18} className="mx-auto text-[var(--text-tertiary)] mb-1" />
           <div className="text-xs font-bold text-[var(--text-primary)]">Dose {num}</div>
           <div className="type-caption text-[var(--text-tertiary)] mb-2">Not taken</div>
-          <button onClick={onTake} className="w-full px-3 py-2 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-[var(--text-on-accent)] text-xs font-semibold rounded-[var(--radius-sm)] min-h-[36px]">Take Now</button>
+          <button onClick={onTake} className="w-full px-3 py-2 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-[var(--text-on-accent)] text-xs font-semibold rounded-[var(--radius-sm)] min-h-[36px] active:scale-90 transition-all duration-150">Take Now</button>
         </div>
       )}
     </div>

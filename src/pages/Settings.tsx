@@ -48,6 +48,7 @@ export function Settings() {
   const [recoveryJson, setRecoveryJson] = useState('');
   const [recoveryStatus, setRecoveryStatus] = useState<'idle' | 'success' | 'error' | 'invalid'>('idle');
   const [recoveryStats, setRecoveryStats] = useState<{ weekNotes: number; classes: number } | null>(null);
+  const [showRecovery, setShowRecovery] = useState(false);
   const { user, signIn, signOut } = useAuth();
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -1018,8 +1019,14 @@ export function Settings() {
 
       {/* Recover Old Data */}
       <section className="mt-4">
-        <h2 className="type-h3 mb-1.5 px-1">Recover Old Notes</h2>
-        <Card variant="standard" padding="sm">
+        <button
+          onClick={() => setShowRecovery(!showRecovery)}
+          className="w-full flex items-center justify-between px-1 mb-1.5"
+        >
+          <h2 className="type-h3">Recover Old Notes</h2>
+          {showRecovery ? <ChevronUp size={16} className="text-[var(--text-tertiary)]" /> : <ChevronDown size={16} className="text-[var(--text-tertiary)]" />}
+        </button>
+        {showRecovery && <Card variant="standard" padding="sm">
           <p className="text-xs text-[var(--text-secondary)] mb-2">
             If you had class notes on the old Netlify version, you can recover them. Open the old site in the same browser,
             go to DevTools (F12) &gt; Application &gt; Local Storage &gt; find the <code className="bg-[var(--surface-inset)] px-1 rounded">dance-teaching-app-data</code> key, copy the value, and paste it below.
@@ -1097,7 +1104,7 @@ export function Settings() {
               Invalid JSON format. Make sure you copied the full value from localStorage.
             </p>
           )}
-        </Card>
+        </Card>}
       </section>
 
       {/* App Version */}
