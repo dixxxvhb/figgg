@@ -38,6 +38,11 @@ import {
   onTherapistSnapshot,
   onMeditationSnapshot,
   onGriefSnapshot,
+  onClassesSnapshot,
+  onStudentsSnapshot,
+  onWeekNotesSnapshot,
+  onCompetitionsSnapshot,
+  onCompetitionDancesSnapshot,
 } from '../services/firestore';
 
 // Helper: get current user ID or null
@@ -162,6 +167,36 @@ export function useAppData() {
       }
     });
 
+    // Collection listeners for cross-device sync
+    const unsubClasses = onClassesSnapshot(user.uid, (classes) => {
+      if (classes.length > 0) {
+        snapshotUpdateRef.current++;
+        setData(prev => ({ ...prev, classes }));
+      }
+    });
+
+    const unsubStudents = onStudentsSnapshot(user.uid, (students) => {
+      snapshotUpdateRef.current++;
+      setData(prev => ({ ...prev, students }));
+    });
+
+    const unsubWeekNotes = onWeekNotesSnapshot(user.uid, (weekNotes) => {
+      if (weekNotes.length > 0) {
+        snapshotUpdateRef.current++;
+        setData(prev => ({ ...prev, weekNotes }));
+      }
+    });
+
+    const unsubCompetitions = onCompetitionsSnapshot(user.uid, (competitions) => {
+      snapshotUpdateRef.current++;
+      setData(prev => ({ ...prev, competitions }));
+    });
+
+    const unsubCompetitionDances = onCompetitionDancesSnapshot(user.uid, (competitionDances) => {
+      snapshotUpdateRef.current++;
+      setData(prev => ({ ...prev, competitionDances }));
+    });
+
     return () => {
       unsubSelfCare();
       unsubDayPlan();
@@ -169,6 +204,11 @@ export function useAppData() {
       unsubTherapist();
       unsubMeditation();
       unsubGrief();
+      unsubClasses();
+      unsubStudents();
+      unsubWeekNotes();
+      unsubCompetitions();
+      unsubCompetitionDances();
     };
   }, []);
 

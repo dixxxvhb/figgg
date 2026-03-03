@@ -417,6 +417,54 @@ export function onLaunchPlanSnapshot(
 }
 
 // ============================================================
+// COLLECTION REAL-TIME LISTENERS (cross-device sync)
+// ============================================================
+export function onClassesSnapshot(
+  userId: string,
+  callback: (classes: Class[]) => void
+): Unsubscribe {
+  return onSnapshot(userCollection(userId, 'classes'), (snapshot) => {
+    callback(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Class)));
+  }, (error) => { console.error('classes snapshot error:', error); });
+}
+
+export function onStudentsSnapshot(
+  userId: string,
+  callback: (students: Student[]) => void
+): Unsubscribe {
+  return onSnapshot(userCollection(userId, 'students'), (snapshot) => {
+    callback(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Student)));
+  }, (error) => { console.error('students snapshot error:', error); });
+}
+
+export function onWeekNotesSnapshot(
+  userId: string,
+  callback: (weekNotes: WeekNotes[]) => void
+): Unsubscribe {
+  return onSnapshot(userCollection(userId, 'weekNotes'), (snapshot) => {
+    callback(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as unknown as WeekNotes)));
+  }, (error) => { console.error('weekNotes snapshot error:', error); });
+}
+
+export function onCompetitionsSnapshot(
+  userId: string,
+  callback: (competitions: Competition[]) => void
+): Unsubscribe {
+  return onSnapshot(userCollection(userId, 'competitions'), (snapshot) => {
+    callback(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Competition)));
+  }, (error) => { console.error('competitions snapshot error:', error); });
+}
+
+export function onCompetitionDancesSnapshot(
+  userId: string,
+  callback: (dances: CompetitionDance[]) => void
+): Unsubscribe {
+  return onSnapshot(userCollection(userId, 'competitionDances'), (snapshot) => {
+    callback(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as CompetitionDance)));
+  }, (error) => { console.error('competitionDances snapshot error:', error); });
+}
+
+// ============================================================
 // AI CHAT THREADS (conversation memory)
 // ============================================================
 export async function getChatThreads(userId: string): Promise<AIChatThread[]> {
