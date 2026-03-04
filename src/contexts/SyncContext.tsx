@@ -73,7 +73,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     timeoutRef.current = setTimeout(() => setStatusState('idle'), 2000);
   }, []);
 
-  // Firestore onSnapshot handles real-time data sync — no more Netlify Blob polling.
+  // Firestore onSnapshot handles real-time data sync.
   // triggerSync is kept for backward compatibility (UI components may call it).
   const triggerSync = useCallback(async () => {
     setLastSynced(new Date());

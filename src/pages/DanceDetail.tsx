@@ -14,21 +14,21 @@ import { getStudentById } from '../data/students';
 import { saveEvents } from '../services/storage';
 
 const levelColors: Record<DanceLevel, string> = {
-  'beginner': 'bg-emerald-100 text-emerald-700',
-  'intermediate': 'bg-amber-100 text-amber-700',
-  'advanced': 'bg-rose-100 text-rose-700',
+  'beginner': 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
+  'intermediate': 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
+  'advanced': 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400',
 };
 
 const styleColors: Record<DanceStyle, string> = {
-  'jazz': 'bg-purple-100 text-purple-700',
-  'contemporary': 'bg-blue-100 text-blue-700',
-  'lyrical': 'bg-pink-100 text-pink-700',
-  'musical-theatre': 'bg-orange-100 text-orange-700',
-  'tap': 'bg-blush-100 text-blush-700',
-  'hip-hop': 'bg-red-100 text-red-700',
-  'acro': 'bg-teal-100 text-teal-700',
-  'open': 'bg-indigo-100 text-indigo-700',
-  'monologue': 'bg-violet-100 text-violet-700',
+  'jazz': 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
+  'contemporary': 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
+  'lyrical': 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400',
+  'musical-theatre': 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400',
+  'tap': 'bg-blush-100 dark:bg-blush-900/30 text-blush-700 dark:text-blush-400',
+  'hip-hop': 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
+  'acro': 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400',
+  'open': 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400',
+  'monologue': 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400',
 };
 
 export function DanceDetail() {
@@ -411,8 +411,8 @@ export function DanceDetail() {
           <ArrowLeft size={20} />
         </Link>
         <div className="flex-1">
-          <h1 className="text-xl font-bold text-forest-700">{displayDance.registrationName}</h1>
-          <p className="text-sm text-forest-500">{displayDance.songTitle}</p>
+          <h1 className="text-xl font-bold text-[var(--text-primary)]">{displayDance.registrationName}</h1>
+          <p className="text-sm text-[var(--text-secondary)]">{displayDance.songTitle}</p>
         </div>
         {isEditing ? (
           <div className="flex gap-2">
@@ -470,9 +470,9 @@ export function DanceDetail() {
       </div>
 
       {/* Competition Music Track */}
-      <div className="bg-white rounded-xl border border-forest-200 p-4 mb-6">
+      <div className="bg-white dark:bg-blush-800 rounded-xl border border-forest-200 dark:border-blush-700 p-4 mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-forest-700 flex items-center gap-2">
+          <h2 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
             <Music size={18} />
             Competition Music
           </h2>
@@ -507,7 +507,7 @@ export function DanceDetail() {
                 {isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
               </button>
               <div className="flex-1 min-w-0">
-                <div className="font-medium text-forest-700 truncate">{dance.musicTrack.name}</div>
+                <div className="font-medium text-[var(--text-primary)] truncate">{dance.musicTrack.name}</div>
                 <div className="text-sm text-forest-500">
                   {dance.musicTrack.duration || 'Unknown duration'}
                 </div>
@@ -557,7 +557,7 @@ export function DanceDetail() {
 
       {/* Costume & Hair Info */}
       {displayDance.costume && (
-        <div className="bg-white rounded-xl border border-forest-200 p-4 mb-6">
+        <div className="bg-white dark:bg-blush-800 rounded-xl border border-forest-200 dark:border-blush-700 p-4 mb-6">
           <h2 className="font-semibold text-forest-700 mb-3 flex items-center gap-2">
             <Scissors size={18} />
             Costume & Hair
@@ -569,7 +569,7 @@ export function DanceDetail() {
               </div>
               <div>
                 <div className="text-xs text-forest-500 uppercase tracking-wide">Hair</div>
-                <div className="text-forest-700 font-medium">{displayDance.costume.hair}</div>
+                <div className="text-[var(--text-primary)] font-medium">{displayDance.costume.hair}</div>
                 {displayDance.costume.hairAccessories && (
                   <div className="text-sm text-forest-500">{displayDance.costume.hairAccessories}</div>
                 )}
@@ -583,7 +583,7 @@ export function DanceDetail() {
                 </div>
                 <div>
                   <div className="text-xs text-forest-500 uppercase tracking-wide">Tights</div>
-                  <div className="text-forest-700 font-medium">{displayDance.costume.tights}</div>
+                  <div className="text-[var(--text-primary)] font-medium">{displayDance.costume.tights}</div>
                 </div>
               </div>
             )}
@@ -595,7 +595,7 @@ export function DanceDetail() {
                 </div>
                 <div>
                   <div className="text-xs text-forest-500 uppercase tracking-wide">Shoes</div>
-                  <div className="text-forest-700 font-medium">{displayDance.costume.shoes}</div>
+                  <div className="text-[var(--text-primary)] font-medium">{displayDance.costume.shoes}</div>
                 </div>
               </div>
             )}
@@ -644,7 +644,7 @@ export function DanceDetail() {
       </Link>
 
       {/* Dancers */}
-      <div className="bg-white rounded-xl border border-forest-200 p-4 mb-6">
+      <div className="bg-white dark:bg-blush-800 rounded-xl border border-forest-200 dark:border-blush-700 p-4 mb-6">
         <h2 className="font-semibold text-forest-700 mb-3 flex items-center gap-2">
           <Users size={18} />
           Dancers ({displayDance.dancerIds?.length || displayDance.dancers.length})
@@ -677,8 +677,8 @@ export function DanceDetail() {
       </div>
 
       {/* Choreographers */}
-      <div className="bg-white rounded-xl border border-forest-200 p-4 mb-6">
-        <h2 className="font-semibold text-forest-700 mb-3">Choreographers</h2>
+      <div className="bg-white dark:bg-blush-800 rounded-xl border border-forest-200 dark:border-blush-700 p-4 mb-6">
+        <h2 className="font-semibold text-[var(--text-primary)] mb-3">Choreographers</h2>
         <div className="flex flex-wrap gap-2">
           {displayDance.choreographers.map((choreo, i) => (
             <span key={i} className="bg-forest-100 text-forest-600 px-3 py-1 rounded-full text-sm">
@@ -707,9 +707,9 @@ export function DanceDetail() {
       </div>
 
       {/* Media */}
-      <div className="bg-white rounded-xl border border-forest-200 p-4 mb-6">
+      <div className="bg-white dark:bg-blush-800 rounded-xl border border-forest-200 dark:border-blush-700 p-4 mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-forest-700 flex items-center gap-2">
+          <h2 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
             <Camera size={18} />
             Photos
           </h2>
@@ -735,7 +735,7 @@ export function DanceDetail() {
         />
 
         {mediaUploadError && (
-          <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+          <div className="mb-3 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm">
             {mediaUploadError}
           </div>
         )}
@@ -762,9 +762,9 @@ export function DanceDetail() {
       </div>
 
       {/* Rehearsal Notes Section */}
-      <div className="bg-white rounded-xl border border-forest-200 p-4 mb-6">
+      <div className="bg-white dark:bg-blush-800 rounded-xl border border-forest-200 dark:border-blush-700 p-4 mb-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-forest-700 flex items-center gap-2">
+          <h2 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
             <Music size={18} />
             Rehearsal Notes
           </h2>
@@ -854,13 +854,13 @@ export function DanceDetail() {
               <div key={note.id} className="border border-forest-200 rounded-lg overflow-hidden">
                 <button
                   onClick={() => toggleNoteExpanded(note.id)}
-                  className="w-full flex items-center justify-between p-3 bg-forest-50 hover:bg-forest-100"
+                  className="w-full flex items-center justify-between p-3 bg-[var(--surface-secondary)] hover:bg-[var(--surface-inset)]"
                 >
-                  <span className="font-medium text-forest-700">{formatDate(note.date)}</span>
+                  <span className="font-medium text-[var(--text-primary)]">{formatDate(note.date)}</span>
                   {expandedNotes.includes(note.id) ? (
-                    <ChevronUp size={18} className="text-forest-500" />
+                    <ChevronUp size={18} className="text-[var(--text-tertiary)]" />
                   ) : (
-                    <ChevronDown size={18} className="text-forest-500" />
+                    <ChevronDown size={18} className="text-[var(--text-tertiary)]" />
                   )}
                 </button>
 
@@ -934,7 +934,7 @@ export function DanceDetail() {
                         {note.notes && (
                           <div>
                             <div className="text-xs text-forest-500 mb-1">Notes</div>
-                            <p className="text-forest-700 whitespace-pre-wrap">{note.notes}</p>
+                            <p className="text-[var(--text-primary)] whitespace-pre-wrap">{note.notes}</p>
                           </div>
                         )}
 
@@ -943,8 +943,8 @@ export function DanceDetail() {
                             <div className="text-xs text-forest-500 mb-1">Work on next week</div>
                             <ul className="space-y-1">
                               {note.workOn.map((item, i) => (
-                                <li key={i} className="flex items-start gap-2 text-forest-700">
-                                  <span className="text-forest-400 mt-1">•</span>
+                                <li key={i} className="flex items-start gap-2 text-[var(--text-primary)]">
+                                  <span className="text-[var(--text-tertiary)] mt-1">•</span>
                                   {item}
                                 </li>
                               ))}

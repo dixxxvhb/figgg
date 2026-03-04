@@ -19,8 +19,8 @@ cd functions && npm run build        # Verify Cloud Functions compile
 ## Entry Point & Routing
 - `src/main.tsx` > `src/App.tsx`
 - Provider hierarchy: `AuthProvider` > `SyncProvider` > `BrowserRouter` > `AppDataProvider`
-- 19 routes, most lazy-loaded via `React.lazy()`
-- Layout: Header (top) + MobileNav (bottom 5-tab bar) + QuickAddButton (FAB)
+- 20 routes, most lazy-loaded via `React.lazy()`
+- Layout: Header (top) + MobileNav (bottom 6-tab bar: Home, Schedule, Tasks, Wellness, AI, More)
 
 ### Routes
 | Path | Page | Lazy |
@@ -39,6 +39,7 @@ cd functions && npm run build        # Verify Cloud Functions compile
 | `/formations/:danceId` | FormationBuilder | Yes |
 | `/students` | Students | Yes |
 | `/library` | Library | Yes |
+| `/tasks` | Me (reminders tab) | Yes |
 | `/me` | Me (self-care/meds) | Yes |
 | `/launch` | LaunchPlan | Yes |
 | `/ai` | AIChat | Yes |
@@ -93,6 +94,9 @@ User action > useAppData().updateX() > setData() + firestoreSaveX(uid, doc)
       ├── dayPlan
       ├── launchPlan
       ├── learningData
+      ├── therapist
+      ├── meditation
+      ├── grief
       └── profile (settings + lastModified)
 ```
 
@@ -157,16 +161,18 @@ All jobs use `w9jds/firebase-action@master` with `FIREBASE_SERVICE_ACCOUNT` secr
 | `choreography.ts` | Choreography domain: Section, Progression, Formation, PracticeNote |
 
 ### Components (`src/components/`)
-**Common** (`common/`): Header, Button, Card, ConfirmDialog, DropdownMenu, EmptyState, ErrorBoundary, PageSkeleton, PlanDisplay, PullToRefresh, SaveStatus, QuickAddButton
+**Common** (`common/`): Header, Button, Card, ConfirmDialog, DropdownMenu, EmptyState, ErrorBoundary, PageSkeleton, PlanDisplay, PullToRefresh, SaveStatus
 
 **Dashboard** (`Dashboard/`): TodaysAgenda, MorningBriefing, AICheckInWidget, DayPlanWidget, NudgeCards, PrepCard, PostClassCapture, RemindersWidget, ScratchpadWidget, WeekStats, WeekMomentumBar, StreakCard, LaunchPlanWidget, EventCountdown, SortableWidget
+
+**Wellness** (`wellness/`): CollapsibleSection, GriefToolkit, MeditationSpace, MedsTracker, SmartChecklist, TherapistTracker
 
 **Other**: `events/PreviousSessionsPanel.tsx`, `MoodTrends.tsx`
 
 ### Config & Other
 | File | Purpose |
 |------|---------|
-| `styles/themes.ts` | Color themes (forest, ocean, plum, sunset, midnight, rose) |
+| `styles/themes.ts` | Color themes (stone, ocean, plum, midnight, clay, dusk, pride, dwdc, neon) |
 | `functions/src/utils/prompts.ts` | All AI system prompts and context builders |
 | `firebase.json` | Hosting (SPA rewrite, cache headers), functions, rules config |
 | `firestore.rules` | Firestore security rules |
@@ -176,7 +182,7 @@ All jobs use `w9jds/firebase-action@master` with `FIREBASE_SERVICE_ACCOUNT` secr
 | `tailwind.config.js` | Tailwind config; dark mode via class; fonts: Inter, Fraunces |
 
 ## AppData Shape (root keys)
-`studios, classes, weekNotes, exercises, terminology, projects, competitions, competitionDances, calendarEvents, settings, students, attendance, selfCare, choreographies, launchPlan, aiCheckIns, lastModified`
+`studios, classes, weekNotes, exercises, terminology, projects, competitions, competitionDances, calendarEvents, settings, students, attendance, selfCare, choreographies, launchPlan, aiCheckIns, dayPlan, learningData, therapist, meditation, grief, lastModified`
 
 ## Environment Variables
 

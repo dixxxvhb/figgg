@@ -24,7 +24,6 @@ import { useTeachingStats } from '../hooks/useTeachingStats';
 import { useSelfCareStatus } from '../hooks/useSelfCareStatus';
 import { getCurrentDayOfWeek, formatTimeDisplay, formatWeekOf, getWeekStart, timeToMinutes } from '../utils/time';
 import { getClassesByDay } from '../data/classes';
-import { updateSettings } from '../services/storage';
 import { WeekStats } from '../components/Dashboard/WeekStats';
 import { TodaysAgenda } from '../components/Dashboard/TodaysAgenda';
 import { MorningBriefing } from '../components/Dashboard/MorningBriefing';
@@ -107,7 +106,7 @@ const WIDGET_LABELS: Record<string, string> = {
 };
 
 export function Dashboard() {
-  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, refreshData, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes } = useAppData();
+  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, refreshData, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes, updateSettings } = useAppData();
   const stats = useTeachingStats(data);
   const medConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
   const selfCareStatus = useSelfCareStatus(data.selfCare, medConfig);

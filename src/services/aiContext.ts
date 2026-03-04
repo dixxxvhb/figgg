@@ -1,6 +1,6 @@
 /**
  * Assembles a lean context payload (~800-1000 tokens) for AI check-in and day plan functions.
- * Reads from AppData and produces a compact object for the Netlify Function.
+ * Reads from AppData and produces a compact object for the Firebase Cloud Function.
  */
 import { getClassesByDay } from '../data/classes';
 import { timeToMinutes, formatWeekOf, getWeekStart, toDateStr, toTimeStr } from '../utils/time';

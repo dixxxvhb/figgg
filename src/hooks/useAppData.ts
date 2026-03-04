@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { AppData, Class, WeekNotes, Competition, CompetitionDance, Student, CalendarEvent, SelfCareData, LaunchPlanData } from '../types';
+import { AppData, AppSettings, Class, WeekNotes, Competition, CompetitionDance, Student, CalendarEvent, SelfCareData, LaunchPlanData } from '../types';
 import type { AICheckIn, DayPlan, TherapistData, MeditationData, GriefData } from '../types';
 import type { Choreography } from '../types/choreography';
 import { loadData, saveData, saveWeekNotes as saveWeekNotesToStorage, saveSelfCareToStorage, saveLaunchPlanToStorage, saveDayPlanToStorage, saveTherapistToStorage, saveMeditationToStorage, saveGriefToStorage } from '../services/storage';
 import { runLearningEngine } from '../services/learningEngine';
 import { getWeekStart, formatWeekOf, toDateStr } from '../utils/time';
-import { initialClasses } from '../data/classes';
 import { v4 as uuid } from 'uuid';
 import { auth } from '../services/firebase';
 import {
@@ -43,6 +42,7 @@ import {
   onWeekNotesSnapshot,
   onCompetitionsSnapshot,
   onCompetitionDancesSnapshot,
+  updateLearningDataDoc,
 } from '../services/firestore';
 
 // Helper: get current user ID or null
@@ -74,7 +74,15 @@ export function useAppData() {
   // Run learning engine on app open (generates yesterday's snapshot if missing)
   useEffect(() => {
     const updated = runLearningEngine();
-    if (updated) setData(loadData());
+    if (updated) {
+      const newData = loadData();
+      setData(newData);
+      // Push learningData to Firestore so it syncs across devices
+      const uid = getUserId();
+      if (uid && newData.learningData) {
+        updateLearningDataDoc(uid, newData.learningData).catch(console.warn);
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -738,6 +746,17 @@ export function useAppData() {
     }
   }, []);
 
+  // Settings — writes to both localStorage and Firestore
+  const updateSettings = useCallback((updates: Partial<AppSettings>) => {
+    setData(prev => {
+      const newSettings = { ...prev.settings, ...updates };
+      // Persist to Firestore
+      const uid = getUserId();
+      if (uid) updateProfile(uid, { settings: newSettings }).catch(console.warn);
+      return { ...prev, settings: newSettings };
+    });
+  }, []);
+
   return {
     data,
     updateClass,
@@ -752,6 +771,8 @@ export function useAppData() {
     deleteCompetitionDance,
     updateStudio,
     refreshData,
+    // Settings
+    updateSettings,
     // Student management
     addStudent,
     updateStudent,

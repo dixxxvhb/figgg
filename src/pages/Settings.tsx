@@ -8,7 +8,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useAppData } from '../contexts/AppDataContext';
-import { exportData, importData, updateCalendarEvents, updateSettings, loadData } from '../services/storage';
+import { exportData, importData, updateCalendarEvents, loadData } from '../services/storage';
 import { useAuth } from '../contexts/AuthContext';
 import { firebaseConfigured } from '../services/firebase';
 import { migrateDataToFirestore } from '../services/firestore';
@@ -22,7 +22,7 @@ import { applyTheme } from '../styles/applyTheme';
 import { appIcons, applyAppIcon } from '../styles/appIcons';
 
 export function Settings() {
-  const { data, refreshData, updateStudio, updateClass } = useAppData();
+  const { data, refreshData, updateStudio, updateClass, updateSettings } = useAppData();
   const [showRecitalSongs, setShowRecitalSongs] = useState(false);
   const [showImportSuccess, setShowImportSuccess] = useState(false);
   const [editingStudio, setEditingStudio] = useState<string | null>(null);
@@ -242,7 +242,7 @@ export function Settings() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `dixxx-backup-${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `figgg-backup-${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -944,7 +944,7 @@ export function Settings() {
           <h2 className="type-h3 mb-1.5 px-1">Firebase Migration</h2>
           <Card variant="standard" padding="sm">
             <p className="text-xs text-[var(--text-secondary)] mb-2">
-              Migrate all data from localStorage/Netlify to Firebase Firestore. This is a one-time operation.
+              Migrate all data from localStorage to Firebase Firestore. This is a one-time operation.
             </p>
             <button
               onClick={async () => {
@@ -995,7 +995,7 @@ export function Settings() {
         </button>
         {showRecovery && <Card variant="standard" padding="sm">
           <p className="text-xs text-[var(--text-secondary)] mb-2">
-            If you had class notes on the old Netlify version, you can recover them. Open the old site in the same browser,
+            If you had class notes on an older version of the app, you can recover them. Open the old site in the same browser,
             go to DevTools (F12) &gt; Application &gt; Local Storage &gt; find the <code className="bg-[var(--surface-inset)] px-1 rounded">dance-teaching-app-data</code> key, copy the value, and paste it below.
           </p>
           <textarea

@@ -10,7 +10,6 @@ import { buildFullAIContext } from '../services/aiContext';
 import { executeAIActions } from '../services/aiActions';
 import type { ActionCallbacks } from '../services/aiActions';
 import { haptic } from '../utils/haptics';
-import { updateSettings as updateStorageSettings } from '../services/storage';
 import { applyTheme } from '../styles/applyTheme';
 import { auth } from '../services/firebase';
 import { getChatThreads, saveChatThread, deleteChatThread } from '../services/firestore';
@@ -30,6 +29,7 @@ export function AIChat() {
     updateCompetitionDance,
     updateClass,
     updateStudent,
+    updateSettings,
   } = useAppData();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -93,7 +93,7 @@ export function AIChat() {
   // Build action callbacks
   const medConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
   const handleUpdateSettings = useCallback((updates: Partial<import('../types').AppSettings>) => {
-    updateStorageSettings(updates);
+    updateSettings(updates);
     if (updates.darkMode !== undefined) {
       if (updates.darkMode) document.documentElement.classList.add('dark');
       else document.documentElement.classList.remove('dark');

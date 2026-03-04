@@ -15,10 +15,10 @@ import { useConfirmDialog } from '../components/common/ConfirmDialog';
 import { EmptyState } from '../components/common/EmptyState';
 
 const QUICK_TAGS = [
-  { id: 'worked-on', label: 'Worked On', icon: CheckCircle, color: 'bg-forest-100 text-forest-700' },
-  { id: 'needs-work', label: 'Needs More Work', icon: AlertCircle, color: 'bg-amber-100 text-amber-700' },
-  { id: 'next-week', label: 'Next Week', icon: Clock, color: 'bg-blue-100 text-blue-700' },
-  { id: 'ideas', label: 'Ideas', icon: Lightbulb, color: 'bg-purple-100 text-purple-700' },
+  { id: 'worked-on', label: 'Worked On', icon: CheckCircle, color: 'bg-forest-100 dark:bg-forest-900/30 text-forest-700 dark:text-forest-400' },
+  { id: 'needs-work', label: 'Needs More Work', icon: AlertCircle, color: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' },
+  { id: 'next-week', label: 'Next Week', icon: Clock, color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' },
+  { id: 'ideas', label: 'Ideas', icon: Lightbulb, color: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' },
 ];
 
 export function EventNotes() {

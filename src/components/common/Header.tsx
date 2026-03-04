@@ -88,8 +88,8 @@ export function Header() {
     <header className="bg-[var(--surface-primary)] border-b border-[var(--border-subtle)] sticky top-0 z-50">
       <div className="max-w-4xl mx-auto px-4">
         <div className="flex items-center justify-between h-12">
-          <Link to="/" className="flex items-center gap-2" aria-label="FIG home">
-            <span className="font-display text-xl font-bold text-[var(--accent-primary)]">FIG</span>
+          <Link to="/" className="flex items-center gap-2" aria-label="Figgg home">
+            <span className="font-display text-xl font-bold text-[var(--accent-primary)]">Figgg</span>
           </Link>
 
           <div className="flex items-center gap-2">
