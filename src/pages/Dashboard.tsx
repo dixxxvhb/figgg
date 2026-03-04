@@ -37,6 +37,8 @@ import { SortableWidget } from '../components/Dashboard/SortableWidget';
 import { NudgeCards } from '../components/Dashboard/NudgeCards';
 import { PrepCard } from '../components/Dashboard/PrepCard';
 import { PostClassCapture } from '../components/Dashboard/PostClassCapture';
+import { QuickNoteCapture } from '../components/Dashboard/QuickNoteCapture';
+import { EndOfDaySummary } from '../components/Dashboard/EndOfDaySummary';
 import { useNudges } from '../hooks/useNudges';
 import { useClassTiming } from '../hooks/useClassTiming';
 import { CalendarEvent, DEFAULT_MED_CONFIG, DEFAULT_AI_CONFIG } from '../types';
@@ -106,7 +108,7 @@ const WIDGET_LABELS: Record<string, string> = {
 };
 
 export function Dashboard() {
-  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, refreshData, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes, updateSettings } = useAppData();
+  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, refreshData, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes, updateSettings, updateTherapist } = useAppData();
   const stats = useTeachingStats(data);
   const medConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
   const selfCareStatus = useSelfCareStatus(data.selfCare, medConfig);
@@ -229,7 +231,8 @@ export function Dashboard() {
     updateLaunchPlan,
     updateCompetitionDance,
     getMedConfig: () => medConfig,
-  }), [updateSelfCare, saveDayPlan, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance, medConfig]);
+    updateTherapist,
+  }), [updateSelfCare, saveDayPlan, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance, medConfig, updateTherapist]);
 
   const executeAIActions = useCallback((actions: AIAction[]) => {
     executeSharedAIActions(actions, actionCallbacks);
@@ -730,6 +733,12 @@ export function Dashboard() {
           />
         )}
 
+        {/* ── End-of-Day Summary — all classes done, evening hours ── */}
+        {todayClasses.length > 0 && hour >= 18 && !classInfo.class && !recentlyEndedClass &&
+          todayClasses.every(c => timeToMinutes(c.endTime) < currentMinute) && (
+          <EndOfDaySummary todayClasses={todayClasses} data={data} />
+        )}
+
         {/* ── Hero Card — only shows during active class/event or recently ended ── */}
         {classInfo.class && classInfo.status === 'during' ? (
           <div className="bg-[var(--surface-card)] rounded-2xl overflow-hidden ring-2 ring-[var(--accent-primary)]/30 shadow-lg shadow-[var(--accent-primary)]/10 relative">
@@ -1017,6 +1026,23 @@ export function Dashboard() {
           </SortableContext>
         </DndContext>
       </div>
+
+      {/* Quick Note FAB — always available on teaching days */}
+      <QuickNoteCapture
+        todayClasses={todayClasses}
+        currentClassId={classInfo.status === 'during' ? classInfo.class?.id : undefined}
+        onSaveNote={(classId, note) => {
+          const weekNote = getCurrentWeekNotes();
+          const existing = weekNote.classNotes[classId] || {
+            classId, plan: '', liveNotes: [], isOrganized: false,
+          };
+          weekNote.classNotes[classId] = {
+            ...existing,
+            liveNotes: [...existing.liveNotes, note],
+          };
+          saveWeekNotes(weekNote);
+        }}
+      />
     </div>
   );
 }

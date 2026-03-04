@@ -30,6 +30,7 @@ export function AIChat() {
     updateClass,
     updateStudent,
     updateSettings,
+    updateTherapist,
   } = useAppData();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -123,7 +124,8 @@ export function AIChat() {
     updateClass,
     updateSettings: handleUpdateSettings,
     updateStudent,
-  }), [updateSelfCare, saveDayPlan, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance, medConfig, updateClass, handleUpdateSettings, updateStudent]);
+    updateTherapist,
+  }), [updateSelfCare, saveDayPlan, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance, medConfig, updateClass, handleUpdateSettings, updateStudent, updateTherapist]);
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || isLoading) return;

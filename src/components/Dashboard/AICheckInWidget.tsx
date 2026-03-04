@@ -13,9 +13,28 @@ interface AICheckInWidgetProps {
 
 type WidgetState = 'prompt' | 'loading' | 'response' | 'error' | 'gone';
 
+const MOOD_OPTIONS = [
+  { emoji: '😩', label: 'Rough', value: 1 },
+  { emoji: '😕', label: 'Low', value: 2 },
+  { emoji: '😐', label: 'Okay', value: 3 },
+  { emoji: '🙂', label: 'Good', value: 4 },
+  { emoji: '😊', label: 'Great', value: 5 },
+];
+
+const ENERGY_OPTIONS = [
+  { emoji: '🪫', label: 'Empty', value: 1 },
+  { emoji: '😴', label: 'Tired', value: 2 },
+  { emoji: '⚡', label: 'Steady', value: 3 },
+  { emoji: '🔥', label: 'Focused', value: 4 },
+  { emoji: '💪', label: 'Wired', value: 5 },
+];
+
 export function AICheckInWidget({ greeting, checkInType, onSubmit, onSkip, onDone, autoDismissSeconds = 45 }: AICheckInWidgetProps) {
   const [state, setState] = useState<WidgetState>('prompt');
+  const [inputMode, setInputMode] = useState<'text' | 'quick'>('text');
   const [message, setMessage] = useState('');
+  const [quickMood, setQuickMood] = useState<number | null>(null);
+  const [quickEnergy, setQuickEnergy] = useState<number | null>(null);
   const [aiResponse, setAiResponse] = useState('');
   const [adjustments, setAdjustments] = useState<string[]>([]);
   const [actionsApplied, setActionsApplied] = useState(false);
@@ -48,12 +67,13 @@ export function AICheckInWidget({ greeting, checkInType, onSubmit, onSkip, onDon
 
   if (state === 'gone') return null;
 
-  const handleSubmit = async () => {
-    if (!message.trim()) return;
+  const handleSubmit = async (overrideMessage?: string) => {
+    const text = overrideMessage || message.trim();
+    if (!text) return;
     setState('loading');
     haptic('light');
     try {
-      const result = await onSubmit(message.trim());
+      const result = await onSubmit(text);
       setAiResponse(result.response);
       setAdjustments(result.adjustments || []);
       setActionsApplied((result.actions?.length ?? 0) > 0);
@@ -62,6 +82,14 @@ export function AICheckInWidget({ greeting, checkInType, onSubmit, onSkip, onDon
       console.error('[AICheckInWidget] caught error, showing error state', err);
       setState('error');
     }
+  };
+
+  const handleQuickSubmit = () => {
+    if (quickMood === null) return;
+    const moodLabel = MOOD_OPTIONS.find(m => m.value === quickMood)?.label || '';
+    const energyLabel = quickEnergy !== null ? ENERGY_OPTIONS.find(e => e.value === quickEnergy)?.label || '' : '';
+    const quickMsg = `Quick check-in: Mood is ${moodLabel.toLowerCase()} (${quickMood}/5)${energyLabel ? `, energy is ${energyLabel.toLowerCase()} (${quickEnergy}/5)` : ''}.`;
+    handleSubmit(quickMsg);
   };
 
   const handleRetry = () => {
@@ -87,25 +115,90 @@ export function AICheckInWidget({ greeting, checkInType, onSubmit, onSkip, onDon
       {/* Prompt state */}
       {state === 'prompt' && (
         <div className="p-4">
-          <p className="text-sm text-[var(--text-primary)] mb-3">{greeting}</p>
-          <div className="flex gap-2">
-            <input
-              ref={inputRef}
-              type="text"
-              value={message}
-              onChange={e => setMessage(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-              placeholder={checkInType === 'morning' ? 'Long day ahead...' : 'Things are going...'}
-              className="flex-1 px-3 py-2 text-sm bg-[var(--surface-inset)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
-            />
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm text-[var(--text-primary)]">{greeting}</p>
             <button
-              onClick={handleSubmit}
-              disabled={!message.trim()}
-              className="w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--accent-primary)] text-[var(--text-on-accent)] disabled:opacity-30 active:scale-95 transition-transform"
+              onClick={() => { setInputMode(inputMode === 'text' ? 'quick' : 'text'); haptic('light'); }}
+              className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--surface-inset)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
             >
-              <Send size={16} />
+              {inputMode === 'text' ? 'Quick tap' : 'Type instead'}
             </button>
           </div>
+
+          {inputMode === 'text' ? (
+            <>
+              <div className="flex gap-2">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={message}
+                  onChange={e => setMessage(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+                  placeholder={checkInType === 'morning' ? 'Long day ahead...' : 'Things are going...'}
+                  className="flex-1 px-3 py-2 text-sm bg-[var(--surface-inset)] border border-[var(--border-subtle)] rounded-xl text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
+                />
+                <button
+                  onClick={() => handleSubmit()}
+                  disabled={!message.trim()}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl bg-[var(--accent-primary)] text-[var(--text-on-accent)] disabled:opacity-30 active:scale-95 transition-transform"
+                >
+                  <Send size={16} />
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-3">
+              {/* Mood row */}
+              <div>
+                <p className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5">Mood</p>
+                <div className="flex gap-1.5">
+                  {MOOD_OPTIONS.map(m => (
+                    <button
+                      key={m.value}
+                      onClick={() => { setQuickMood(m.value); haptic('light'); }}
+                      className={`flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl transition-all duration-150 active:scale-90
+                        ${quickMood === m.value
+                          ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)] shadow-sm'
+                          : 'bg-[var(--surface-inset)] text-[var(--text-secondary)]'
+                        }`}
+                    >
+                      <span className="text-lg">{m.emoji}</span>
+                      <span className="text-[9px] font-medium">{m.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Energy row */}
+              <div>
+                <p className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase tracking-wide mb-1.5">Energy <span className="font-normal">(optional)</span></p>
+                <div className="flex gap-1.5">
+                  {ENERGY_OPTIONS.map(e => (
+                    <button
+                      key={e.value}
+                      onClick={() => { setQuickEnergy(quickEnergy === e.value ? null : e.value); haptic('light'); }}
+                      className={`flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl transition-all duration-150 active:scale-90
+                        ${quickEnergy === e.value
+                          ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)] shadow-sm'
+                          : 'bg-[var(--surface-inset)] text-[var(--text-secondary)]'
+                        }`}
+                    >
+                      <span className="text-lg">{e.emoji}</span>
+                      <span className="text-[9px] font-medium">{e.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Submit */}
+              <button
+                onClick={handleQuickSubmit}
+                disabled={quickMood === null}
+                className="w-full py-2.5 text-sm font-semibold rounded-xl bg-[var(--accent-primary)] text-[var(--text-on-accent)] disabled:opacity-30 active:scale-95 transition-all duration-150"
+              >
+                Check in
+              </button>
+            </div>
+          )}
+
           <button onClick={handleSkip} className="mt-2 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">
             Skip
           </button>

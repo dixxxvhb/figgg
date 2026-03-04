@@ -91,6 +91,10 @@ export interface ClassWeekNotes {
     type: 'cancelled' | 'subbed';
     subName?: string; // only used when type === 'subbed'
     reason?: 'sick' | 'personal' | 'holiday' | 'other';
+    timeOverride?: {   // One-time schedule change for this week only
+      startTime: string; // HH:mm
+      endTime?: string;  // HH:mm
+    };
   };
 }
 

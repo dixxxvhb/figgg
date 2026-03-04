@@ -223,13 +223,24 @@ export function buildContextString(payload: any, mode: Mode): string {
     contextLines.push(`Current settings: theme=${ss.themeId || "default"}, dark=${ss.darkMode || false}, font=${ss.fontSize || "normal"}, AI tone=${ss.aiConfig?.tone || "direct"}, auto-plan=${ss.aiConfig?.autoPlanEnabled ?? true}`);
   }
 
-  // Recent week notes (chat mode)
+  // Recent week notes (chat mode — includes actual note content)
   if (ctx.recentWeekNotes?.length > 0 && mode === "chat") {
-    contextLines.push(`Recent week notes:\n${ctx.recentWeekNotes.map((w: { weekOf: string; classNotes: Record<string, { plan: string; noteCount: number; hasException?: boolean; exceptionType?: string }> }) => {
-      const classCount = Object.keys(w.classNotes).length;
-      const noteTotal = Object.values(w.classNotes).reduce((sum, cn) => sum + cn.noteCount, 0);
-      return `  Week of ${w.weekOf}: ${classCount} classes, ${noteTotal} notes`;
-    }).join("\n")}`);
+    const weekLines = ctx.recentWeekNotes.map((w: { weekOf: string; classNotes: Record<string, { plan: string; noteCount: number; hasException?: boolean; exceptionType?: string; notes?: Array<{ text: string; category?: string }> }> }) => {
+      const entries = Object.entries(w.classNotes);
+      const noteTotal = entries.reduce((sum, [, cn]) => sum + cn.noteCount, 0);
+      let line = `  Week of ${w.weekOf}: ${entries.length} classes, ${noteTotal} notes`;
+      // Show actual note content when available
+      for (const [classId, cn] of entries) {
+        if (cn.notes?.length) {
+          line += `\n    [${classId}]${cn.plan ? ` Plan: "${cn.plan}"` : ""}`;
+          for (const n of cn.notes) {
+            line += `\n      - ${n.category ? `(${n.category}) ` : ""}${n.text}`;
+          }
+        }
+      }
+      return line;
+    });
+    contextLines.push(`Recent week notes (class observations & plans):\n${weekLines.join("\n")}`);
   }
 
   // Last week reflection
@@ -548,6 +559,15 @@ Medication:
 Day Mode:
   { "type": "setDayMode", "dayMode": "light|intense|comp" }
 
+Wellness Mode (Smart Checklist):
+  { "type": "setWellnessMode", "wellnessMode": "okay|rough|survival" }
+
+Therapy:
+  { "type": "logTherapySession", "sessionSummary": "what we talked about", "sessionTakeaways": "key insights", "sessionMood": "better|same|heavier", "sessionDate": "YYYY-MM-DD" (optional, defaults to today) }
+
+One-Time Class Time Override:
+  { "type": "overrideClassTime", "classIds": ["classId"], "timeOverrideStart": "HH:mm", "timeOverrideEnd": "HH:mm" }
+
 Week Reflection:
   { "type": "addWeekReflection", "wentWell": "...", "challenges": "...", "nextWeekFocus": "...", "aiSummary": "1-sentence week summary" }
 
@@ -621,7 +641,10 @@ RULES FOR ACTIONS:
 - CLASS MODIFICATIONS: When user asks to change a class time, name, studio, or level → use updateClass with the classId and only the changed fields. Match from classDetails list. Don't change fields the user didn't mention.
 - SETTINGS: When user asks to change theme, dark mode, font size, AI tone, or auto-plan → use updateSettings. Apply changes immediately. E.g., "make it dark" → { "type": "updateSettings", "settingKey": "darkMode", "settingValue": true }
 - STUDENT NOTES: When user mentions something about a specific student → use addSkillNote with the studentId from studentList. Use appropriate category (strength for positive, improvement for growth areas, concern for worrying behavior, achievement for milestones).
-- DELETE REMINDER: When user says to delete/remove a reminder → use deleteReminder with exact title match.`;
+- DELETE REMINDER: When user says to delete/remove a reminder → use deleteReminder with exact title match.
+- WELLNESS MODE: When user says "put me in survival mode", "switch to rough day", "I'm not okay" → use setWellnessMode. This changes the Smart Daily Checklist mode (okay = full list, rough = gentler, survival = bare minimum). Don't confuse with setDayMode (teaching intensity).
+- THERAPY SESSION: When user says "I had therapy today", "log my session", "therapy went well" → use logTherapySession. Capture what they share as summary/takeaways. Ask clarifying questions if they only give minimal info. sessionDate defaults to today if not specified.
+- CLASS TIME OVERRIDE: When user says "move my 3 PM to 4:30 today" or "my class is at a different time this week" → use overrideClassTime. This creates a one-time change for THIS WEEK only, not a permanent schedule change. Use updateClass only for permanent changes.`;
 
   return actions;
 }

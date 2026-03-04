@@ -33,6 +33,7 @@ export interface ActionCallbacks {
   updateClass?: (cls: import('../types').Class) => void;
   updateSettings?: (updates: Partial<import('../types').AppSettings>) => void;
   updateStudent?: (student: import('../types').Student) => void;
+  updateTherapist?: (updates: Partial<import('../types').TherapistData>) => void;
 }
 
 export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks): void {
@@ -499,6 +500,64 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           ...student,
           skillNotes: [...(student.skillNotes || []), newSkillNote],
         });
+        break;
+      }
+
+      // ── Wellness Mode ─────────────────────────────────────────────────
+      case 'setWellnessMode': {
+        if (!action.wellnessMode) break;
+        selfCareUpdates = {
+          ...selfCareUpdates,
+          wellnessMode: action.wellnessMode,
+          wellnessModeDate: todayKey,
+        };
+        needsSelfCareUpdate = true;
+        break;
+      }
+
+      // ── Therapy Session ────────────────────────────────────────────────
+      case 'logTherapySession': {
+        if (!action.sessionSummary || !callbacks.updateTherapist) break;
+        const therapist = data.therapist || { prepNotes: [], sessions: [], lastModified: new Date().toISOString() };
+        const newSession = {
+          id: `ai-session-${Date.now()}`,
+          date: action.sessionDate || todayKey,
+          summary: action.sessionSummary,
+          takeaways: action.sessionTakeaways || '',
+          actionItems: [] as { id: string; text: string; completed: boolean }[],
+          moodAfter: action.sessionMood || ('same' as const),
+          createdAt: new Date().toISOString(),
+        };
+        const updatedSessions = [...therapist.sessions, newSession];
+        const updatedPrep = therapist.prepNotes.map((n: { discussed: boolean; [key: string]: unknown }) => ({ ...n, discussed: true }));
+        callbacks.updateTherapist({
+          sessions: updatedSessions,
+          prepNotes: updatedPrep,
+          lastModified: new Date().toISOString(),
+        });
+        break;
+      }
+
+      // ── One-Time Class Time Override ─────────────────────────────────
+      case 'overrideClassTime': {
+        if (!action.classIds?.length || !action.timeOverrideStart) break;
+        const owWeekNotes = callbacks.getCurrentWeekNotes();
+        for (const classId of action.classIds) {
+          const existing: ClassWeekNotes = owWeekNotes.classNotes[classId] || {
+            classId, plan: '', liveNotes: [], isOrganized: false,
+          };
+          owWeekNotes.classNotes[classId] = {
+            ...existing,
+            exception: {
+              ...(existing.exception || { type: 'cancelled' as const }),
+              timeOverride: {
+                startTime: action.timeOverrideStart,
+                endTime: action.timeOverrideEnd,
+              },
+            },
+          };
+        }
+        callbacks.saveWeekNotes(owWeekNotes);
         break;
       }
 

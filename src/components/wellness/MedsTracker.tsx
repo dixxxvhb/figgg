@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Pill, Zap, Moon, SkipForward, Undo2, Check, X, ChevronRight, Clock, ChevronDown,
 } from 'lucide-react';
-import type { SelfCareData, MedConfig, Class, Studio } from '../../types';
+import type { SelfCareData, MedConfig, Class, Studio, LearningData } from '../../types';
 import { DEFAULT_MED_CONFIG } from '../../types';
 import { getCurrentDayOfWeek } from '../../utils/time';
 import { haptic } from '../../utils/haptics';
@@ -17,6 +17,12 @@ function formatTime12(date: Date): string {
   const ampm = h >= 12 ? 'PM' : 'AM';
   const h12 = h % 12 || 12;
   return m === 0 ? `${h12} ${ampm}` : `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+function formatShortDate(dateStr: string): string {
+  const [, m, d] = dateStr.split('-');
+  const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${months[parseInt(m)]} ${parseInt(d)}`;
 }
 
 function getDoseInfo(takenAt: number): { status: string; color: string; percent: number } {
@@ -83,9 +89,10 @@ interface MedsTrackerProps {
   classes: Class[];
   studios: Studio[];
   onUpdateSelfCare: (updates: Partial<SelfCareData>) => void;
+  learningData?: LearningData;
 }
 
-export function MedsTracker({ selfCare, medConfig, classes, studios, onUpdateSelfCare }: MedsTrackerProps) {
+export function MedsTracker({ selfCare, medConfig, classes, studios, onUpdateSelfCare, learningData }: MedsTrackerProps) {
   const sc = selfCare || {};
   const config = medConfig || DEFAULT_MED_CONFIG;
 
@@ -226,22 +233,42 @@ export function MedsTracker({ selfCare, medConfig, classes, studios, onUpdateSel
         ? { info: dose1Info, time: dose1Time, num: 1 }
         : null;
 
-  // Simple 7-day history
+  const [historyRange, setHistoryRange] = useState<7 | 30>(7);
+
+  // Build dose history from learningData snapshots + today's live data
   const doseHistory = useMemo(() => {
-    // We only have today's data directly. For real history, this would come from learningData snapshots.
-    // For now, show today's status as a basic view.
     const today = getTodayKey();
-    const entries: Array<{ date: string; dose1?: string; dose2?: string; dose3?: string }> = [];
-    if (dose1Time || dose2Time || dose3Time || skippedToday) {
+    type HistoryEntry = { date: string; dose1: string; dose2: string; dose3?: string; skipped?: boolean };
+    const entries: HistoryEntry[] = [];
+
+    // Today's live entry
+    entries.push({
+      date: today,
+      dose1: dose1Time ? formatTime12(new Date(dose1Time)) : skippedDose1 ? 'Skipped' : '—',
+      dose2: dose2Time ? formatTime12(new Date(dose2Time)) : skippedDose2 ? 'Skipped' : '—',
+      dose3: (config.maxDoses === 3 || dose3Time) ? (dose3Time ? formatTime12(new Date(dose3Time)) : skippedDose3 ? 'Skipped' : '—') : undefined,
+      skipped: skippedToday,
+    });
+
+    // Past days from learningData snapshots
+    const snapshots = learningData?.dailySnapshots || [];
+    const pastDays = snapshots
+      .filter(s => s.date !== today && s.date < today)
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, historyRange - 1);
+
+    for (const snap of pastDays) {
       entries.push({
-        date: today,
-        dose1: dose1Time ? formatTime12(new Date(dose1Time)) : skippedDose1 ? 'Skipped' : '—',
-        dose2: dose2Time ? formatTime12(new Date(dose2Time)) : skippedDose2 ? 'Skipped' : '—',
-        dose3: (config.maxDoses === 3 || dose3Time) ? (dose3Time ? formatTime12(new Date(dose3Time)) : skippedDose3 ? 'Skipped' : '—') : undefined,
+        date: snap.date,
+        dose1: snap.dose1Time || (snap.skippedDoses ? 'Skipped' : '—'),
+        dose2: snap.dose2Time || (snap.skippedDoses ? 'Skipped' : '—'),
+        dose3: (config.maxDoses === 3 || snap.dose3Time) ? (snap.dose3Time || (snap.skippedDoses ? 'Skipped' : '—')) : undefined,
+        skipped: snap.skippedDoses,
       });
     }
+
     return entries;
-  }, [dose1Time, dose2Time, dose3Time, skippedToday, skippedDose1, skippedDose2, skippedDose3, config.maxDoses]);
+  }, [dose1Time, dose2Time, dose3Time, skippedToday, skippedDose1, skippedDose2, skippedDose3, config.maxDoses, learningData, historyRange]);
 
   return (
     <div className="px-4 py-3 space-y-3">
@@ -350,26 +377,44 @@ export function MedsTracker({ selfCare, medConfig, classes, studios, onUpdateSel
       )}
 
       {/* History toggle */}
-      {doseHistory.length > 0 && (
-        <button
-          onClick={() => setShowHistory(!showHistory)}
-          className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
-        >
-          <Clock size={12} />
-          <span className="text-xs">Today's log</span>
-          <ChevronDown size={12} className={`transition-transform ${showHistory ? 'rotate-180' : ''}`} />
-        </button>
-      )}
-      {showHistory && doseHistory.length > 0 && (
-        <div className="bg-[var(--surface-inset)] rounded-[var(--radius-md)] p-3 space-y-1">
-          {doseHistory.map(entry => (
-            <div key={entry.date} className="flex items-center gap-3 text-xs">
-              <span className="text-[var(--text-tertiary)] w-20">{entry.date}</span>
-              <span className="text-[var(--text-secondary)]">D1: {entry.dose1}</span>
-              <span className="text-[var(--text-secondary)]">D2: {entry.dose2}</span>
-              {entry.dose3 && <span className="text-[var(--text-secondary)]">D3: {entry.dose3}</span>}
+      <button
+        onClick={() => setShowHistory(!showHistory)}
+        className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
+      >
+        <Clock size={12} />
+        <span className="text-xs">{showHistory ? 'Hide' : 'Show'} history</span>
+        <ChevronDown size={12} className={`transition-transform ${showHistory ? 'rotate-180' : ''}`} />
+      </button>
+      {showHistory && (
+        <div className="bg-[var(--surface-inset)] rounded-[var(--radius-md)] p-3 space-y-2">
+          {/* Range toggle */}
+          <div className="flex items-center justify-end gap-1">
+            <button onClick={() => setHistoryRange(7)} className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${historyRange === 7 ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)]' : 'text-[var(--text-tertiary)]'}`}>7 days</button>
+            <button onClick={() => setHistoryRange(30)} className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${historyRange === 30 ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)]' : 'text-[var(--text-tertiary)]'}`}>30 days</button>
+          </div>
+          {doseHistory.length === 0 ? (
+            <p className="text-xs text-[var(--text-tertiary)] text-center py-2">No history yet</p>
+          ) : (
+            <div className="space-y-0.5">
+              {doseHistory.map((entry, idx) => {
+                const isToday = idx === 0;
+                const dateLabel = isToday ? 'Today' : formatShortDate(entry.date);
+                const allTaken = entry.dose1 !== '—' && entry.dose1 !== 'Skipped' && entry.dose2 !== '—' && entry.dose2 !== 'Skipped';
+                return (
+                  <div key={entry.date} className={`flex items-center gap-2 text-xs py-1 px-1 rounded ${isToday ? 'bg-[var(--surface-card)]' : ''}`}>
+                    <span className={`w-12 flex-shrink-0 ${isToday ? 'font-semibold text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]'}`}>{dateLabel}</span>
+                    <span className={`w-3 text-center ${entry.skipped ? '❌' : allTaken ? '' : ''}`}>
+                      {entry.skipped ? <Moon size={10} className="text-[var(--text-tertiary)]" /> : allTaken ? <Check size={10} className="text-[var(--status-success)]" /> : <span className="text-[var(--text-tertiary)]">·</span>}
+                    </span>
+                    <span className="text-[var(--text-secondary)]">{entry.dose1}</span>
+                    <span className="text-[var(--text-tertiary)]">|</span>
+                    <span className="text-[var(--text-secondary)]">{entry.dose2}</span>
+                    {entry.dose3 !== undefined && <><span className="text-[var(--text-tertiary)]">|</span><span className="text-[var(--text-secondary)]">{entry.dose3}</span></>}
+                  </div>
+                );
+              })}
             </div>
-          ))}
+          )}
         </div>
       )}
     </div>

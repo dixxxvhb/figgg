@@ -496,11 +496,11 @@ export function buildFullAIContext(
     },
   };
 
-  // Recent week notes (last 3 weeks, summarized)
+  // Recent week notes (last 3 weeks, with actual note content for current week)
   const recentWeekNotes = [...(data.weekNotes || [])]
     .sort((a, b) => b.weekOf.localeCompare(a.weekOf))
     .slice(0, 3)
-    .map(w => ({
+    .map((w, idx) => ({
       weekOf: w.weekOf,
       classNotes: Object.fromEntries(
         Object.entries(w.classNotes).map(([classId, cn]) => [
@@ -510,6 +510,16 @@ export function buildFullAIContext(
             noteCount: cn.liveNotes.length,
             hasException: !!cn.exception,
             exceptionType: cn.exception?.type,
+            // Include actual note text for the most recent 2 weeks (truncated for token budget)
+            ...(idx < 2 && cn.liveNotes.length > 0 ? {
+              notes: cn.liveNotes
+                .slice(-8)  // last 8 notes per class
+                .map(n => ({
+                  text: n.text.slice(0, 120),
+                  category: n.category,
+                  timestamp: n.timestamp,
+                })),
+            } : {}),
           },
         ])
       ),

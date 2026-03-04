@@ -174,8 +174,8 @@ export function Schedule() {
         </button>
       </div>
 
-      {/* Today Button - always visible */}
-      <div className="flex justify-center mb-4">
+      {/* Today + Week Review buttons */}
+      <div className="flex justify-center gap-2 mb-4">
         <button
           onClick={() => {
             setWeekOffset(0);
@@ -185,6 +185,12 @@ export function Schedule() {
         >
           Today
         </button>
+        <Link
+          to="/week-review"
+          className="px-4 py-2 bg-[var(--surface-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)] rounded-full text-sm font-medium hover:text-[var(--text-primary)] transition-colors shadow-sm min-h-[44px] flex items-center"
+        >
+          Week Review
+        </Link>
       </div>
 
       {/* Day Tabs */}

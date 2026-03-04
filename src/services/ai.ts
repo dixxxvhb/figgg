@@ -87,7 +87,13 @@ export interface AIAction {
     | 'updateSettings'
     // Student management
     | 'addSkillNote'
-    | 'updateStudentNote';
+    | 'updateStudentNote'
+    // Wellness mode
+    | 'setWellnessMode'
+    // Therapist
+    | 'logTherapySession'
+    // One-time class time override
+    | 'overrideClassTime';
   id?: string;
   ids?: string[];
   dayMode?: 'light' | 'normal' | 'intense' | 'comp';
@@ -136,6 +142,16 @@ export interface AIAction {
   // Student fields
   studentId?: string;
   skillCategory?: string;
+  // Wellness mode
+  wellnessMode?: 'okay' | 'rough' | 'survival';
+  // Therapy session
+  sessionSummary?: string;
+  sessionTakeaways?: string;
+  sessionMood?: 'better' | 'same' | 'heavier';
+  sessionDate?: string; // YYYY-MM-DD, defaults to today
+  // One-time class time override
+  timeOverrideStart?: string;
+  timeOverrideEnd?: string;
 }
 
 export async function expandNotes(

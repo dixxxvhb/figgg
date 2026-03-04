@@ -64,6 +64,43 @@ const PRIORITY_COLORS = {
 
 type SmartListType = 'today' | 'scheduled' | 'all' | 'flagged';
 
+const WELLNESS_MODES = [
+  { id: 'okay' as const, label: "I'm okay", color: 'bg-[var(--status-success)]', textColor: 'text-[var(--status-success)]' },
+  { id: 'rough' as const, label: 'Rough day', color: 'bg-[var(--status-warning)]', textColor: 'text-[var(--status-warning)]' },
+  { id: 'survival' as const, label: 'Survival', color: 'bg-[var(--status-danger)]', textColor: 'text-[var(--status-danger)]' },
+] as const;
+
+function QuickModeSwitcher({ selfCare, onUpdateSelfCare }: { selfCare: import('../types').SelfCareData | undefined; onUpdateSelfCare: (updates: Partial<import('../types').SelfCareData>) => void }) {
+  const todayKey = getTodayKey();
+  const currentMode = selfCare?.wellnessModeDate === todayKey ? (selfCare?.wellnessMode || 'okay') : 'okay';
+
+  const handleSetMode = (mode: 'okay' | 'rough' | 'survival') => {
+    haptic('light');
+    onUpdateSelfCare({ wellnessMode: mode, wellnessModeDate: todayKey });
+  };
+
+  return (
+    <div className="flex items-center gap-1.5 px-1">
+      {WELLNESS_MODES.map(m => {
+        const active = currentMode === m.id;
+        return (
+          <button
+            key={m.id}
+            onClick={() => handleSetMode(m.id)}
+            className={`flex-1 py-2 px-2 rounded-[var(--radius-md)] text-xs font-semibold transition-all duration-200 ${
+              active
+                ? `${m.color} text-white shadow-sm`
+                : 'bg-[var(--surface-card)] text-[var(--text-secondary)] border border-[var(--border-subtle)]'
+            }`}
+          >
+            {m.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const { data, updateSelfCare, updateTherapist, updateMeditation, updateGrief } = useAppData();
@@ -378,6 +415,12 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
         {/* === Wellness Tab === */}
         {activeTab === 'meds' && (
           <div className="space-y-3">
+            {/* Quick Mode Switcher — always visible at top */}
+            <QuickModeSwitcher
+              selfCare={data.selfCare}
+              onUpdateSelfCare={updateSelfCare}
+            />
+
             {/* Section 1: Meds Tracker */}
             <CollapsibleSection title="Meds" icon={Pill} defaultExpanded>
               <MedsTracker
@@ -386,6 +429,7 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
                 classes={data.classes || []}
                 studios={data.studios || []}
                 onUpdateSelfCare={updateSelfCare}
+                learningData={data.learningData}
               />
             </CollapsibleSection>
 
