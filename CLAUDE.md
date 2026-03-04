@@ -73,7 +73,7 @@ User action > useAppData().updateX() > setData() + firestoreSaveX(uid, doc)
 - Auth: Email/password
 - Database: Firestore
 - Files: Firebase Storage
-- Serverless: Firebase Cloud Functions (Node 20)
+- Serverless: Firebase Cloud Functions (Node 22)
 
 ### Firestore Structure
 ```
@@ -135,8 +135,7 @@ All jobs use `w9jds/firebase-action@master` with `FIREBASE_SERVICE_ACCOUNT` secr
 | `aiContext.ts` | Builds lean AI context payloads (~800-1000 tokens) for Cloud Functions |
 | `aiActions.ts` | Executes AI-suggested actions (toggleWellness, addReminder, setDayMode, etc.) |
 | `calendar.ts` | iCal parsing via Firebase calendarProxy; recurring events (90-day window) |
-| `storage.ts` | localStorage CRUD (offline cache) |
-| `cloudStorage.ts` | Legacy no-op stubs (kept for compatibility) |
+| `storage.ts` | localStorage CRUD (offline cache); no cloud sync stubs — Firestore handles sync |
 | `learningEngine.ts` | Daily snapshots + weekly summaries; tracks meds, wellness, class metrics |
 | `location.ts` | Haversine distance between studios; travel time estimates |
 
@@ -221,11 +220,15 @@ VITE_FIREBASE_*             # All 7 client env vars above
 ## Static Seed Data (`src/data/`)
 `classes.ts, studios.ts, students.ts, competitions.ts, competitionDances.ts, terminology.ts, projects.ts, progressions.ts, launchPlan.ts`
 
+These files are **first-run seed data only**. Once the app has stored data (localStorage cache or Firestore), the seed data is never used again. All data is fully editable in-app and persists via Firestore — no hardcoded overrides.
+
 ## Gotchas
 - No test suite — verify with `npm run build` (TypeScript + Vite)
-- Cloud Functions: `cd functions && npm install && npm run build` — separate Node project
+- Cloud Functions: `cd functions && npm install && npm run build` — separate Node 22 project
 - selfCare sync: do NOT use per-field merge — whole-object last-write-wins only
 - App works offline/local-only if Firebase env vars are missing (graceful degradation)
 - Settings page has "Migrate Data" button to move localStorage data to Firestore
-- Cloud Functions require Node 20 (specified in `functions/package.json`)
+- Settings "Cloud Sync" row is a read-only Firestore status indicator (not a button)
+- All data (classes, competitions, students, studios) is fully dynamic from Firestore — `src/data/` files are first-run seed only, never overwrite stored data
+- `loadData()` in `storage.ts` uses stored data as source of truth; only falls back to defaults if no data is stored yet
 - The `dwdc.netlify.app` URLs in `src/data/launchPlan.ts` are for a separate DWDC website, not this app

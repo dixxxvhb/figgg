@@ -8,7 +8,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useAppData } from '../contexts/AppDataContext';
-import { exportData, importData, updateCalendarEvents, updateSettings, syncFromCloud, pushToCloud, loadData } from '../services/storage';
+import { exportData, importData, updateCalendarEvents, updateSettings, loadData } from '../services/storage';
 import { useAuth } from '../contexts/AuthContext';
 import { firebaseConfigured } from '../services/firebase';
 import { migrateDataToFirestore } from '../services/firestore';
@@ -41,8 +41,6 @@ export function Settings() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncSuccess, setSyncSuccess] = useState(false);
-  const [cloudSyncing, setCloudSyncing] = useState(false);
-  const [cloudStatus, setCloudStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [migrating, setMigrating] = useState(false);
   const [migrateStatus, setMigrateStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [recoveryJson, setRecoveryJson] = useState('');
@@ -183,29 +181,6 @@ export function Settings() {
     applyAppIcon(id);
     updateSettings({ ...data.settings, appIconId: id });
     refreshData();
-  };
-
-  const handleCloudSync = async () => {
-    setCloudSyncing(true);
-    setCloudStatus('idle');
-    try {
-      // First push local data to cloud
-      const pushResult = await pushToCloud();
-      if (pushResult) {
-        // Then pull latest from cloud
-        await syncFromCloud();
-        refreshData();
-        setCloudStatus('success');
-        setTimeout(() => setCloudStatus('idle'), 3000);
-      } else {
-        setCloudStatus('error');
-      }
-    } catch (e) {
-      console.error('Cloud sync failed:', e);
-      setCloudStatus('error');
-    } finally {
-      setCloudSyncing(false);
-    }
   };
 
   const handleAddCalendar = () => {
@@ -823,28 +798,20 @@ export function Settings() {
       <section className="mb-5">
         <h2 className="type-h3 mb-1.5 px-1">Sync</h2>
         <Card variant="standard" padding="none" className="overflow-hidden">
-          {/* Cloud Sync row */}
+          {/* Cloud Sync status */}
           <div className="px-3 py-2.5 flex items-center justify-between border-b border-[var(--border-subtle)]">
             <div className="flex items-center gap-2">
               <Cloud size={14} className="text-[var(--accent-primary)]" />
               <span className="text-sm font-medium text-[var(--text-primary)]">Cloud Sync</span>
-              <span className="text-xs text-[var(--text-tertiary)]">Auto</span>
             </div>
-            <button
-              onClick={handleCloudSync}
-              disabled={cloudSyncing}
-              className="text-xs font-medium text-[var(--accent-primary)] flex items-center gap-1 px-2.5 py-1 rounded-[var(--radius-sm)] bg-[var(--accent-muted)] hover:bg-[var(--surface-highlight)] transition-colors disabled:opacity-50"
-            >
-              <RefreshCw size={12} className={cloudSyncing ? 'animate-spin' : ''} />
-              {cloudSyncing ? 'Syncing' : 'Sync'}
-            </button>
+            <span className="text-xs text-[var(--text-tertiary)] flex items-center gap-1">
+              {user ? (
+                <><Check size={12} className="text-[var(--status-success)]" /> Auto via Firestore</>
+              ) : (
+                <><AlertCircle size={12} className="text-[var(--status-warning)]" /> Sign in to sync</>
+              )}
+            </span>
           </div>
-          {cloudStatus === 'success' && (
-            <div className="text-xs text-[var(--status-success)] bg-[var(--surface-highlight)] px-3 py-1.5">Synced!</div>
-          )}
-          {cloudStatus === 'error' && (
-            <div className="text-xs text-[var(--status-danger)] bg-[var(--surface-highlight)] px-3 py-1.5">Sync failed -- check connection</div>
-          )}
 
           {/* Calendar row */}
           <div className="px-3 py-2.5 flex items-center justify-between border-b border-[var(--border-subtle)]">
