@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, Clock, Users, User, Music, Edit2, Save, X,
   Plus, Trash2, Camera, Play, Pause, Upload,
-  ChevronDown, ChevronUp, Grid3X3, Scissors, Footprints, Trophy, Award
+  ChevronDown, ChevronUp, Scissors, Footprints, Trophy, Award
 } from 'lucide-react';
 import { useAppData } from '../contexts/AppDataContext';
 import { Button } from '../components/common/Button';
@@ -626,22 +626,6 @@ export function DanceDetail() {
           </div>
         </div>
       )}
-
-      {/* Formation Builder Link */}
-      <Link
-        to={`/formations/${danceId}`}
-        className="block bg-gradient-to-r from-purple-500 to-blush-500 rounded-xl p-4 mb-6 text-white hover:opacity-90 transition-opacity"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-            <Grid3X3 size={24} />
-          </div>
-          <div>
-            <h3 className="font-semibold">Formation Builder</h3>
-            <p className="text-sm text-white/80">Design and visualize stage positions</p>
-          </div>
-        </div>
-      </Link>
 
       {/* Dancers */}
       <div className="bg-white dark:bg-blush-800 rounded-xl border border-forest-200 dark:border-blush-700 p-4 mb-6">

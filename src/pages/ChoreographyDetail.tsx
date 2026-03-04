@@ -268,12 +268,6 @@ export function ChoreographyDetail() {
                   className="w-full mt-1 px-3 py-2 text-sm border border-blush-300 dark:border-blush-600 rounded-lg bg-white dark:bg-blush-700 text-forest-700 dark:text-white resize-none"
                 />
               </div>
-              <Link
-                to={`/formations/${choreography.id}`}
-                className="block w-full py-2 text-center text-forest-600 dark:text-forest-400 font-medium hover:bg-forest-50 dark:hover:bg-forest-900/20 rounded-lg border border-forest-200 dark:border-forest-800"
-              >
-                Open Formation Builder
-              </Link>
             </div>
           </div>
         )}

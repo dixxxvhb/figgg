@@ -283,7 +283,6 @@ export function Settings() {
         <div className="space-y-2">
           {([
             { to: '/students', icon: Users, label: 'Students', sub: `${(data.students || []).length} enrolled` },
-            { to: '/formations', icon: Grid3X3, label: 'Formations', sub: 'Stage layouts' },
             { to: '/library', icon: BookOpen, label: 'Library', sub: 'Glossary & exercises' },
           ] as const).map((item) => (
             <Link key={item.to} to={item.to} className="block">

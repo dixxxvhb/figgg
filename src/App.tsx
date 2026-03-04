@@ -24,7 +24,6 @@ const WeekPlanner = lazy(() => import('./pages/WeekPlanner').then(m => ({ defaul
 const Choreography = lazy(() => import('./pages/Choreography').then(m => ({ default: m.Choreography })));
 const ChoreographyDetail = lazy(() => import('./pages/ChoreographyDetail').then(m => ({ default: m.ChoreographyDetail })));
 const DanceDetail = lazy(() => import('./pages/DanceDetail').then(m => ({ default: m.DanceDetail })));
-const FormationBuilder = lazy(() => import('./pages/FormationBuilder').then(m => ({ default: m.FormationBuilder })));
 const Students = lazy(() => import('./pages/Students').then(m => ({ default: m.Students })));
 const Library = lazy(() => import('./pages/Library').then(m => ({ default: m.Library })));
 const Me = lazy(() => import('./pages/Me').then(m => ({ default: m.Me })));
@@ -57,8 +56,6 @@ function AnimatedRoutes() {
         <Route path="/choreography" element={<Choreography />} />
         <Route path="/choreography/:id" element={<ChoreographyDetail />} />
         <Route path="/dance/:danceId" element={<DanceDetail />} />
-        <Route path="/formations" element={<FormationBuilder />} />
-        <Route path="/formations/:danceId" element={<FormationBuilder />} />
         <Route path="/students" element={<Students />} />
         <Route path="/library" element={<Library />} />
         <Route path="/tasks" element={<Me initialTab="reminders" />} />
