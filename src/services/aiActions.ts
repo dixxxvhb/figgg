@@ -528,7 +528,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           createdAt: new Date().toISOString(),
         };
         const updatedSessions = [...therapist.sessions, newSession];
-        const updatedPrep = therapist.prepNotes.map((n: { discussed: boolean; [key: string]: unknown }) => ({ ...n, discussed: true }));
+        const updatedPrep = therapist.prepNotes.map((n) => ({ ...n, discussed: true }));
         callbacks.updateTherapist({
           sessions: updatedSessions,
           prepNotes: updatedPrep,
