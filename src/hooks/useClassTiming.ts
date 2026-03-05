@@ -28,11 +28,19 @@ export function useClassTiming(data: AppData, currentMinute: number): {
 
     const nowMinutes = currentMinute; // minutes since midnight
 
+    // Look up this week's notes to check for cancelled/subbed exceptions
+    const weekOf = formatWeekOf(getWeekStart());
+    const weekNote = data.weekNotes.find(w => w.weekOf === weekOf);
+
     // Find upcoming class (within 60 min)
     let upcomingClass: ClassWithContext | null = null;
     let minutesUntilNext: number | null = null;
 
     for (const cls of todayClasses) {
+      // Skip cancelled or subbed classes
+      const exc = weekNote?.classNotes[cls.id]?.exception;
+      if (exc && exc.type !== 'time-change') continue;
+
       const classStart = timeToMinutes(cls.startTime);
       const diff = classStart - nowMinutes;
       if (diff > 0 && diff <= 60) {
@@ -47,13 +55,14 @@ export function useClassTiming(data: AppData, currentMinute: number): {
     let justEndedClass: ClassWithContext | null = null;
 
     for (const cls of todayClasses) {
+      // Skip cancelled or subbed classes
+      const exc = weekNote?.classNotes[cls.id]?.exception;
+      if (exc && exc.type !== 'time-change') continue;
+
       const classEnd = timeToMinutes(cls.endTime);
       const sinceEnd = nowMinutes - classEnd;
 
       if (sinceEnd >= 0 && sinceEnd <= 30) {
-        // Check if notes have been logged for this class this week
-        const weekOf = formatWeekOf(getWeekStart());
-        const weekNote = data.weekNotes.find(w => w.weekOf === weekOf);
         const classNotes = weekNote?.classNotes[cls.id];
         const hasRecentNotes = classNotes?.liveNotes?.some(n => {
           const noteDate = new Date(n.timestamp);
@@ -71,6 +80,10 @@ export function useClassTiming(data: AppData, currentMinute: number): {
     // If no upcoming within 60min, find the next class at all
     if (minutesUntilNext === null) {
       for (const cls of todayClasses) {
+        // Skip cancelled or subbed classes
+        const exc = weekNote?.classNotes[cls.id]?.exception;
+      if (exc && exc.type !== 'time-change') continue;
+
         const classStart = timeToMinutes(cls.startTime);
         const diff = classStart - nowMinutes;
         if (diff > 0) {

@@ -52,7 +52,7 @@ type AgendaItem = {
   toStudio?: string;
   location?: string;
   status?: ItemStatus;
-  exception?: { type: 'cancelled' | 'subbed'; subName?: string };
+  exception?: { type: 'cancelled' | 'subbed' | 'time-change'; subName?: string; timeOverride?: { startTime: string; endTime?: string } };
 };
 
 function statusToEnergy(status: string | null): 'peak' | 'building' | 'fading' | 'low' | 'none' {
@@ -369,6 +369,11 @@ export function TodaysAgenda({
                   {hasException && item.exception?.type === 'subbed' && (
                     <span className="type-label text-[var(--status-success)] bg-[var(--accent-muted)] px-1.5 py-0.5 rounded-full flex-shrink-0">
                       Sub{item.exception.subName ? `: ${item.exception.subName}` : ''}
+                    </span>
+                  )}
+                  {hasException && item.exception?.type === 'time-change' && item.exception.timeOverride && (
+                    <span className="type-label text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                      Moved to {item.exception.timeOverride.startTime}
                     </span>
                   )}
                 </div>

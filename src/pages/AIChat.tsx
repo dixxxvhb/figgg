@@ -56,11 +56,14 @@ export function AIChat() {
   }, []);
 
   // Save thread to Firestore (debounced)
+  const pendingSaveRef = useRef<{ threadId: string; msgs: AIChatMessage[] } | null>(null);
   const persistThread = useCallback((threadId: string, msgs: AIChatMessage[]) => {
     const uid = auth?.currentUser?.uid;
     if (!uid || msgs.length === 0) return;
+    pendingSaveRef.current = { threadId, msgs };
     clearTimeout(saveDebounceRef.current);
     saveDebounceRef.current = setTimeout(() => {
+      pendingSaveRef.current = null;
       const firstUserMsg = msgs.find(m => m.role === 'user');
       const thread: AIChatThread = {
         id: threadId,
@@ -76,6 +79,28 @@ export function AIChat() {
         return [thread, ...without];
       });
     }, 1000);
+  }, []);
+
+  // Flush pending save on unmount
+  useEffect(() => {
+    return () => {
+      clearTimeout(saveDebounceRef.current);
+      const pending = pendingSaveRef.current;
+      if (pending) {
+        const uid = auth?.currentUser?.uid;
+        if (uid) {
+          const firstUserMsg = pending.msgs.find(m => m.role === 'user');
+          const thread: AIChatThread = {
+            id: pending.threadId,
+            title: firstUserMsg?.content.slice(0, 60) || 'New chat',
+            messages: pending.msgs,
+            createdAt: pending.msgs[0].timestamp,
+            lastMessageAt: pending.msgs[pending.msgs.length - 1].timestamp,
+          };
+          saveChatThread(uid, thread).catch(console.warn);
+        }
+      }
+    };
   }, []);
 
   // Handle preloaded message from nudge cards

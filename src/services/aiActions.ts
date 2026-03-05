@@ -462,8 +462,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
         const delReminders = (selfCareUpdates.reminders as Reminder[]) || [...(sc.reminders || [])];
         const delIdx = delReminders.findIndex((r: Reminder) => r.title.toLowerCase() === action.title!.toLowerCase());
         if (delIdx >= 0) {
-          delReminders.splice(delIdx, 1);
-          selfCareUpdates.reminders = delReminders;
+          selfCareUpdates.reminders = delReminders.filter((_: Reminder, i: number) => i !== delIdx);
           needsSelfCareUpdate = true;
         }
         break;
@@ -549,7 +548,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           owWeekNotes.classNotes[classId] = {
             ...existing,
             exception: {
-              ...(existing.exception || { type: 'cancelled' as const }),
+              ...(existing.exception || { type: 'time-change' as const }),
               timeOverride: {
                 startTime: action.timeOverrideStart,
                 endTime: action.timeOverrideEnd,

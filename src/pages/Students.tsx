@@ -402,8 +402,8 @@ export function Students() {
 
 // Student Card Component
 function StudentCard({ student, classes, onClick }: { student: Student; classes: Class[]; onClick: () => void }) {
-  const enrolledClasses = classes.filter(c => student.classIds.includes(c.id));
-  const recentNote = student.skillNotes[student.skillNotes.length - 1];
+  const enrolledClasses = classes.filter(c => student.classIds?.includes(c.id));
+  const recentNote = student.skillNotes?.[student.skillNotes.length - 1];
 
   return (
     <Card variant="elevated" onClick={onClick} className="w-full text-left">
@@ -701,7 +701,7 @@ function StudentDetailModal({
   const [noteText, setNoteText] = useState('');
   const [noteCategory, setNoteCategory] = useState<SkillNote['category']>('improvement');
 
-  const enrolledClasses = classes.filter(c => student.classIds.includes(c.id));
+  const enrolledClasses = classes.filter(c => student.classIds?.includes(c.id));
 
   // Find all competition dances this student is in
   const studentDances = competitionDances.filter(dance =>

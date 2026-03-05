@@ -171,6 +171,8 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
   const [showCompleted, setShowCompleted] = useState(false);
   const [inlineAddText, setInlineAddText] = useState('');
   const inlineInputRef = useRef<HTMLInputElement>(null);
+  const listsRef = useRef(lists);
+  listsRef.current = lists;
 
   // Reminders & lists reactive to sync
   useEffect(() => {
@@ -220,7 +222,7 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
                 dueDate: nextDate, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
               };
               setTimeout(() => {
-                setReminders(p => { const withNew = [...p, newReminder]; persistTasks(withNew, lists); return withNew; });
+                setReminders(p => { const withNew = [...p, newReminder]; persistTasks(withNew, listsRef.current); return withNew; });
               }, 0);
             }
           }
@@ -540,7 +542,7 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
               <h2 className="type-h2" style={{ color: getViewColor() }}>{getViewTitle()}</h2>
               <div className="flex items-center gap-3">
                 <span className="type-caption text-[var(--text-tertiary)]">{filteredReminders.filter(r => !r.completed).length} tasks</span>
-                {currentView !== 'today' && currentView !== 'scheduled' && currentView !== 'all' && currentView !== 'flagged' && currentView !== 'inbox' && (
+                {currentView !== 'today' && currentView !== 'scheduled' && currentView !== 'all' && currentView !== 'flagged' && currentView !== 'inbox' && lists.find(l => l.id === currentView) && (
                   <button onClick={() => handleOpenEditList(lists.find(l => l.id === currentView)!)} className="p-1.5 rounded-[var(--radius-sm)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-inset)]">
                     <Pencil size={14} />
                   </button>

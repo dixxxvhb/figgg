@@ -22,6 +22,11 @@ export function PrepCard({ classContext, minutesUntil, data, autoPrep }: PrepCar
   });
   const [isLoading, setIsLoading] = useState(false);
 
+  // Reset cached summary when class changes
+  useEffect(() => {
+    try { setAiSummary(sessionStorage.getItem(cacheKey)); } catch { setAiSummary(null); }
+  }, [cacheKey]);
+
   const fetchPrep = async () => {
     setIsLoading(true);
     try {

@@ -444,7 +444,7 @@ export function Dashboard() {
 
   const currentDay = useMemo(() => getCurrentDayOfWeek(), [currentMinute]);
   const todayClasses = useMemo(() => getClassesByDay(data.classes, currentDay), [data.classes, currentDay]);
-  const classInfo = useCurrentClass(data.classes);
+  const classInfo = useCurrentClass(data.classes, data.weekNotes);
   const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [currentMinute]);
 
   // Compute cancelled class IDs for this week (used by Day Plan + context)
@@ -454,10 +454,20 @@ export function Dashboard() {
     if (!weekNotes) return new Set<string>();
     const ids = new Set<string>();
     for (const [classId, notes] of Object.entries(weekNotes.classNotes)) {
-      if (notes.exception?.type === 'cancelled') ids.add(classId);
+      if (notes.exception?.type === 'cancelled' || notes.exception?.type === 'subbed') ids.add(classId);
     }
     return ids;
   }, [data.weekNotes]);
+
+  // Active classes: today's schedule minus cancelled/subbed exceptions
+  const activeTodayClasses = useMemo(() => {
+    const weekOf = formatWeekOf(getWeekStart());
+    const wn = data.weekNotes.find(w => w.weekOf === weekOf);
+    return todayClasses.filter(c => {
+      const exc = wn?.classNotes[c.id]?.exception;
+      return !exc || exc.type === 'time-change';
+    });
+  }, [todayClasses, data.weekNotes]);
 
   const hiddenEventIds = useMemo(() => new Set(data.settings?.hiddenCalendarEventIds || []), [data.settings?.hiddenCalendarEventIds]);
   const todayCalendarEvents = useMemo(() => {
@@ -484,7 +494,7 @@ export function Dashboard() {
   }, [todayCalendarEvents, currentMinute]);
 
   const nextUpInfo = useMemo(() => {
-    const totalItems = todayClasses.length + todayCalendarEvents.length;
+    const totalItems = activeTodayClasses.length + todayCalendarEvents.length;
     if (totalItems === 0) return null;
     if (classInfo.status === 'during' && classInfo.class) {
       return { type: 'during' as const, name: classInfo.class.name, timeRemaining: classInfo.timeRemaining };
@@ -503,7 +513,7 @@ export function Dashboard() {
       : null;
     if (classNext && eventNext) return classNext.startMinutes <= eventNext.startMinutes ? classNext : eventNext;
     return classNext || eventNext || null;
-  }, [classInfo, currentCalendarEvent, nextCalendarEvent, currentMinute, todayClasses.length, todayCalendarEvents.length]);
+  }, [classInfo, currentCalendarEvent, nextCalendarEvent, currentMinute, activeTodayClasses.length, todayCalendarEvents.length]);
 
   const nextComp = useMemo(() => {
     const today = new Date();
@@ -546,13 +556,13 @@ export function Dashboard() {
 
   const recentlyEndedClass = useMemo(() => {
     if (classInfo.status === 'during') return null;
-    for (const cls of todayClasses) {
+    for (const cls of activeTodayClasses) {
       const endMinutes = timeToMinutes(cls.endTime);
       const elapsed = currentMinute - endMinutes;
       if (elapsed >= 0 && elapsed <= 15) return cls;
     }
     return null;
-  }, [todayClasses, currentMinute, classInfo.status]);
+  }, [activeTodayClasses, currentMinute, classInfo.status]);
 
   const medClassWarning = useMemo(() => {
     if (!classInfo.class || classInfo.status !== 'before') return null;
@@ -606,17 +616,17 @@ export function Dashboard() {
     const activityState: ActivityState =
       classInfo.status === 'during' ? 'teaching' :
       classTiming.upcomingClass ? 'prepping' :
-      todayClasses.length > 0 && todayClasses.every(c => timeToMinutes(c.endTime) < currentMinute) ? 'done' :
-      todayClasses.length === 0 ? 'off' : 'idle';
+      activeTodayClasses.length > 0 && activeTodayClasses.every(c => timeToMinutes(c.endTime) < currentMinute) ? 'done' :
+      activeTodayClasses.length === 0 ? 'off' : 'idle';
 
     applyMoodLayer(todayMood as MoodSignal, hour, activityState);
-  }, [todayMood, hour, classInfo.status, classTiming.upcomingClass, todayClasses, currentMinute]);
+  }, [todayMood, hour, classInfo.status, classTiming.upcomingClass, activeTodayClasses, currentMinute]);
 
   const { greeting, greetingSub } = useMemo(() => {
     const base = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-    const allClassesDone = todayClasses.length > 0 && !classInfo.class && !recentlyEndedClass &&
-      todayClasses.every(c => timeToMinutes(c.endTime) < currentMinute);
+    const allClassesDone = activeTodayClasses.length > 0 && !classInfo.class && !recentlyEndedClass &&
+      activeTodayClasses.every(c => timeToMinutes(c.endTime) < currentMinute);
     const isLateNight = hour >= 22;
     const noMedsYet = !selfCareStatus.dose1Active && !selfCareStatus.dose2Active && !selfCareStatus.dose3Active;
     const skippedToday = data.selfCare?.skippedDoseDate === todayStr2;
@@ -632,17 +642,17 @@ export function Dashboard() {
 
     if (isLateNight) return { greeting: 'Getting late', greetingSub: 'Time to wind down' };
     if (noMedsYet && !skippedToday && hour >= 7 && hour < 12) return { greeting: base, greetingSub: 'Meds not taken yet' };
-    if (allClassesDone) return { greeting: base, greetingSub: `All ${todayClasses.length} class${todayClasses.length > 1 ? 'es' : ''} done` };
+    if (allClassesDone) return { greeting: base, greetingSub: `All ${activeTodayClasses.length} class${activeTodayClasses.length > 1 ? 'es' : ''} done` };
     if (classInfo.status === 'during' && classInfo.class) return { greeting: base, greetingSub: `In class: ${classInfo.class.name}` };
-    if (todayClasses.length > 0) {
-      const remaining = todayClasses.filter(c => timeToMinutes(c.endTime) >= currentMinute).length;
+    if (activeTodayClasses.length > 0) {
+      const remaining = activeTodayClasses.filter(c => timeToMinutes(c.endTime) >= currentMinute).length;
       if (remaining > 0) return { greeting: base, greetingSub: `${remaining} class${remaining > 1 ? 'es' : ''} left today` };
     }
     // Use mood-aware sub if check-in captured mood
     if (todayMood && moodSubs[todayMood]) return { greeting: base, greetingSub: moodSubs[todayMood] };
-    if (todayClasses.length === 0 && todayCalendarEvents.length === 0) return { greeting: base, greetingSub: 'No classes today' };
+    if (activeTodayClasses.length === 0 && todayCalendarEvents.length === 0) return { greeting: base, greetingSub: 'No classes today' };
     return { greeting: base, greetingSub: undefined as string | undefined };
-  }, [hour, todayClasses, todayCalendarEvents, classInfo, selfCareStatus, currentMinute, recentlyEndedClass, data.selfCare?.skippedDoseDate, todayStr2, todayMood]);
+  }, [hour, activeTodayClasses, todayCalendarEvents, classInfo, selfCareStatus, currentMinute, recentlyEndedClass, data.selfCare?.skippedDoseDate, todayStr2, todayMood]);
 
   return (
     <div className="pb-24 bg-[var(--mood-surface-tint)] min-h-screen">
@@ -734,9 +744,9 @@ export function Dashboard() {
         )}
 
         {/* ── End-of-Day Summary — all classes done, evening hours ── */}
-        {todayClasses.length > 0 && hour >= 18 && !classInfo.class && !recentlyEndedClass &&
-          todayClasses.every(c => timeToMinutes(c.endTime) < currentMinute) && (
-          <EndOfDaySummary todayClasses={todayClasses} data={data} />
+        {activeTodayClasses.length > 0 && hour >= 18 && !classInfo.class && !recentlyEndedClass &&
+          activeTodayClasses.every(c => timeToMinutes(c.endTime) < currentMinute) && (
+          <EndOfDaySummary todayClasses={activeTodayClasses} data={data} />
         )}
 
         {/* ── Hero Card — only shows during active class/event or recently ended ── */}
@@ -934,7 +944,7 @@ export function Dashboard() {
                 )}
                 {id === 'morning-briefing' && (
                   <MorningBriefing
-                    todayClasses={todayClasses}
+                    todayClasses={activeTodayClasses}
                     todayCalendarEvents={todayCalendarEvents}
                     selfCareStatus={selfCareStatus}
                     classInfo={classInfo}
@@ -1029,7 +1039,7 @@ export function Dashboard() {
 
       {/* Quick Note FAB — always available on teaching days */}
       <QuickNoteCapture
-        todayClasses={todayClasses}
+        todayClasses={activeTodayClasses}
         currentClassId={classInfo.status === 'during' ? classInfo.class?.id : undefined}
         onSaveNote={(classId, note) => {
           const weekNote = getCurrentWeekNotes();

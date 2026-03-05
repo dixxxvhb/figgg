@@ -7,10 +7,9 @@ import {
 } from 'lucide-react';
 import { useAppData } from '../contexts/AppDataContext';
 import { Button } from '../components/common/Button';
-import { RehearsalNote, MediaItem, DanceLevel, DanceStyle, CompetitionResult } from '../types';
+import { RehearsalNote, MediaItem, DanceLevel, DanceStyle, CompetitionResult, Student } from '../types';
 import { v4 as uuid } from 'uuid';
 import { processMediaFile } from '../utils/mediaCompression';
-import { getStudentById } from '../data/students';
 import { saveEvents } from '../services/storage';
 
 const levelColors: Record<DanceLevel, string> = {
@@ -637,7 +636,7 @@ export function DanceDetail() {
           {displayDance.dancerIds ? (
             // Link to student profiles if we have dancerIds
             displayDance.dancerIds.map((studentId) => {
-              const student = getStudentById(studentId);
+              const student = (data.students || []).find((s: Student) => s.id === studentId);
               if (!student) return null;
               return (
                 <Link

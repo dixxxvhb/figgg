@@ -64,7 +64,7 @@ export function Settings() {
   const handleMedConfigChange = (patch: Partial<MedConfig>) => {
     const updated = { ...medConfig, ...patch };
     setMedConfig(updated);
-    updateSettings({ ...data.settings, medConfig: updated });
+    updateSettings({ medConfig: updated });
     refreshData();
   };
 
@@ -76,7 +76,7 @@ export function Settings() {
 
   const saveWellnessItems = (items: WellnessItemConfig[]) => {
     setWellnessItems(items);
-    updateSettings({ ...data.settings, wellnessItems: items });
+    updateSettings({ wellnessItems: items });
     refreshData();
   };
 
@@ -121,7 +121,7 @@ export function Settings() {
   const handleAiConfigChange = (patch: Partial<AIConfig>) => {
     const updated = { ...aiConfig, ...patch };
     setAiConfig(updated);
-    updateSettings({ ...data.settings, aiConfig: updated });
+    updateSettings({ aiConfig: updated });
     refreshData();
   };
 
@@ -151,14 +151,14 @@ export function Settings() {
 
   const handleFontSizeChange = (size: 'normal' | 'large' | 'extra-large') => {
     setFontSize(size);
-    updateSettings({ ...data.settings, fontSize: size });
+    updateSettings({ fontSize: size });
     refreshData();
   };
 
   const handleDarkModeToggle = () => {
     const newDarkMode = !darkMode;
     setDarkMode(newDarkMode);
-    updateSettings({ ...data.settings, darkMode: newDarkMode });
+    updateSettings({ darkMode: newDarkMode });
     applyTheme(themeId, newDarkMode);
     refreshData();
   };
@@ -168,7 +168,7 @@ export function Settings() {
     document.documentElement.classList.add('theme-transitioning');
     setThemeId(id);
     applyTheme(id, document.documentElement.classList.contains('dark'));
-    updateSettings({ ...data.settings, themeId: id });
+    updateSettings({ themeId: id });
     refreshData();
     // Remove transition class after 400ms
     setTimeout(() => {
@@ -179,7 +179,7 @@ export function Settings() {
   const handleAppIconChange = (id: string) => {
     setAppIconId(id);
     applyAppIcon(id);
-    updateSettings({ ...data.settings, appIconId: id });
+    updateSettings({ appIconId: id });
     refreshData();
   };
 
@@ -190,14 +190,14 @@ export function Settings() {
     const updated = [...calendarUrls, url];
     setCalendarUrls(updated);
     setNewCalendarUrl('');
-    updateSettings({ ...data.settings, calendarUrl: updated[0], calendarUrls: updated });
+    updateSettings({ calendarUrl: updated[0], calendarUrls: updated });
     setSyncError(null);
   };
 
   const handleRemoveCalendar = (url: string) => {
     const updated = calendarUrls.filter(u => u !== url);
     setCalendarUrls(updated);
-    updateSettings({ ...data.settings, calendarUrl: updated[0] || '', calendarUrls: updated });
+    updateSettings({ calendarUrl: updated[0] || '', calendarUrls: updated });
   };
 
   const handleSyncCalendar = async () => {

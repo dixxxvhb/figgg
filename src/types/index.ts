@@ -88,7 +88,7 @@ export interface ClassWeekNotes {
   eventTitle?: string; // Calendar event title — persisted for cross-session matching
   carryForwardDismissed?: boolean; // True = user dismissed the carry-forward banner
   exception?: {
-    type: 'cancelled' | 'subbed';
+    type: 'cancelled' | 'subbed' | 'time-change';
     subName?: string; // only used when type === 'subbed'
     reason?: 'sick' | 'personal' | 'holiday' | 'other';
     timeOverride?: {   // One-time schedule change for this week only

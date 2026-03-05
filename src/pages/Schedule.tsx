@@ -331,6 +331,11 @@ export function Schedule() {
                             Sub{exception.subName ? `: ${exception.subName}` : ''}
                           </span>
                         )}
+                        {exception?.type === 'time-change' && exception.timeOverride && (
+                          <span className="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded-full">
+                            Moved to {exception.timeOverride.startTime}
+                          </span>
+                        )}
                         {!hasException && studentCount > 0 && (
                           <div className="flex items-center gap-1 text-sm bg-[var(--accent-muted)] text-[var(--accent-primary)] px-2 py-0.5 rounded-full">
                             <Users size={14} />

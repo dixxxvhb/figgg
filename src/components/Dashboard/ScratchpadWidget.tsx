@@ -26,6 +26,21 @@ export function ScratchpadWidget({ value, onChange }: ScratchpadWidgetProps) {
     }
   }, [isExpanded, draft]);
 
+  const latestDraftRef = useRef(value);
+  latestDraftRef.current = draft;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  // Flush pending save on unmount
+  useEffect(() => {
+    return () => {
+      if (saveRef.current) {
+        clearTimeout(saveRef.current);
+        onChangeRef.current(latestDraftRef.current);
+      }
+    };
+  }, []);
+
   const handleChange = (text: string) => {
     setDraft(text);
     clearTimeout(saveRef.current);

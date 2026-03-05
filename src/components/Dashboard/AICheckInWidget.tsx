@@ -38,6 +38,7 @@ export function AICheckInWidget({ greeting, checkInType, onSubmit, onSkip, onDon
   const [aiResponse, setAiResponse] = useState('');
   const [adjustments, setAdjustments] = useState<string[]>([]);
   const [actionsApplied, setActionsApplied] = useState(false);
+  const lastSubmittedRef = useRef<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
   const autoDismissRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const dismissMs = autoDismissSeconds * 1000;
@@ -70,6 +71,7 @@ export function AICheckInWidget({ greeting, checkInType, onSubmit, onSkip, onDon
   const handleSubmit = async (overrideMessage?: string) => {
     const text = overrideMessage || message.trim();
     if (!text) return;
+    lastSubmittedRef.current = text;
     setState('loading');
     haptic('light');
     try {
@@ -94,7 +96,7 @@ export function AICheckInWidget({ greeting, checkInType, onSubmit, onSkip, onDon
 
   const handleRetry = () => {
     haptic('light');
-    handleSubmit();
+    handleSubmit(lastSubmittedRef.current || undefined);
   };
 
   const handleSkip = () => {

@@ -394,7 +394,8 @@ export function LaunchPlan() {
   // ─── Computed: overall progress ───
   const progress = useMemo(() => {
     const done = plan.tasks.filter(t => t.completed || t.skipped).length;
-    return { done, total: plan.tasks.length, pct: Math.round((done / plan.tasks.length) * 100) };
+    const total = plan.tasks.length;
+    return { done, total, pct: total > 0 ? Math.round((done / total) * 100) : 0 };
   }, [plan.tasks]);
 
   const pendingDecisions = plan.decisions.filter(d => d.status === 'pending').length;

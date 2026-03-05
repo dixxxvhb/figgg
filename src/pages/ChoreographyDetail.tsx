@@ -41,8 +41,7 @@ export function ChoreographyDetail() {
         setExpandedSection(found.sections[0].id);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, data.choreographies]);
 
   // Save helper
   const persist = (updated: Choreography) => {
@@ -556,7 +555,7 @@ export function ChoreographyDetail() {
                           choreography.teachingProgression?.advanced || ''
                         }
                         onChange={e => {
-                          const prog = choreography.teachingProgression || { simplified: '', full: '' };
+                          const prog = { ...(choreography.teachingProgression || { simplified: '', full: '' }) };
                           if (idx === 0) prog.simplified = e.target.value;
                           else if (idx === 1) prog.full = e.target.value;
                           else if (idx === 2) prog.styling = e.target.value;
