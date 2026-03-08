@@ -87,6 +87,14 @@ export const aiChat = onCall(
         if (!Array.isArray(parsed.actions)) parsed.actions = [];
         if (!Array.isArray(parsed.adjustments)) parsed.adjustments = [];
       }
+      // Normalize briefingUpdate — only keep non-empty strings from chat mode
+      if (mode === "chat") {
+        if (typeof parsed.briefingUpdate !== "string" || !parsed.briefingUpdate.trim()) {
+          delete parsed.briefingUpdate;
+        }
+      } else {
+        delete parsed.briefingUpdate;
+      }
       if (mode === "reflection") {
         if (!Array.isArray(parsed.actions)) parsed.actions = [];
       }

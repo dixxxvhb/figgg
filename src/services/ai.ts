@@ -208,6 +208,7 @@ export interface AIChatResponse {
   adjustments?: string[];
   actions?: AIAction[];
   briefing?: string;
+  briefingUpdate?: string;  // Chat mode: updated briefing when user shares context that shifts the day
   structuredNotes?: Array<{ text: string; category: string }>;
 }
 

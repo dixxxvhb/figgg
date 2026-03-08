@@ -193,6 +193,13 @@ export function AIChat() {
         executeAIActions(result.actions, actionCallbacks);
       }
 
+      // If the AI detected a context shift, update the dashboard briefing
+      if (result.briefingUpdate) {
+        const today = new Date().toISOString().slice(0, 10);
+        sessionStorage.setItem('figgg-briefing-text', result.briefingUpdate);
+        sessionStorage.setItem('figgg-briefing-date', today);
+      }
+
       const aiMsg: AIChatMessage = {
         id: `msg-${Date.now()}-ai`,
         role: 'assistant',

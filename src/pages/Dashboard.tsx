@@ -141,6 +141,15 @@ export function Dashboard() {
     }
   }, [checkInStatus.isDue, checkInStatus.type, checkInActive]);
 
+  // AI-generated briefing text — gated behind check-in, cached in sessionStorage
+  const [briefingText, setBriefingText] = useState<string | null>(() => {
+    const cached = sessionStorage.getItem('figgg-briefing-text');
+    const cachedDate = sessionStorage.getItem('figgg-briefing-date');
+    const today = new Date().toISOString().slice(0, 10);
+    return cachedDate === today ? cached : null;
+  });
+  const [briefingLoading, setBriefingLoading] = useState(false);
+
   const [isReplanning, setIsReplanning] = useState(false);
   // Ref for data so generateDayPlan doesn't re-create on every data change
   const dataRef = useRef(data);
@@ -221,6 +230,64 @@ export function Dashboard() {
     }
   }, [saveDayPlan]);
 
+  // Generate briefing (called after check-in or as fallback on mount)
+  const generateBriefing = useCallback(async (mood?: string, message?: string) => {
+    setBriefingLoading(true);
+    try {
+      const context = buildFullAIContext(dataRef.current, 'Generate my morning briefing');
+      const result = await callAIChat({
+        mode: 'briefing',
+        userMessage: 'Generate my morning briefing',
+        context: {
+          ...context,
+          checkInMood: mood,
+          checkInMessage: message,
+        },
+      });
+      if (result.briefing) {
+        const today = new Date().toISOString().slice(0, 10);
+        setBriefingText(result.briefing);
+        sessionStorage.setItem('figgg-briefing-text', result.briefing);
+        sessionStorage.setItem('figgg-briefing-date', today);
+      }
+    } catch {
+      // Silent fail — stats-only briefing is fine
+    } finally {
+      setBriefingLoading(false);
+    }
+  }, []);
+
+  // Re-check sessionStorage for briefing updates (from AI chat on /ai page)
+  useEffect(() => {
+    const checkForBriefingUpdate = () => {
+      const cached = sessionStorage.getItem('figgg-briefing-text');
+      const cachedDate = sessionStorage.getItem('figgg-briefing-date');
+      const today = new Date().toISOString().slice(0, 10);
+      if (cachedDate === today && cached && cached !== briefingText) {
+        setBriefingText(cached);
+      }
+    };
+    // Check on visibility change (returning from AI chat)
+    const handleVisibility = () => {
+      if (!document.hidden) checkForBriefingUpdate();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    // Also check on mount (covers SPA navigation back to dashboard)
+    checkForBriefingUpdate();
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [briefingText]);
+
+  // Fallback: if check-in already done today but no cached briefing, generate one
+  useEffect(() => {
+    if (briefingText || briefingLoading || checkInActive) return;
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const todayCheckIns = (data.aiCheckIns || []).filter(c => c.date === todayStr);
+    const morningCheckIn = todayCheckIns.find(c => c.type === 'morning' && c.userMessage);
+    if (morningCheckIn) {
+      generateBriefing(morningCheckIn.mood, morningCheckIn.userMessage);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Action callbacks for shared AI action executor
   const actionCallbacks: ActionCallbacks = useMemo(() => ({
     getData: () => dataRef.current,
@@ -270,6 +337,8 @@ export function Dashboard() {
       if (aiConfig.autoPlanEnabled) {
         generateDayPlan(result.mood, message);
       }
+      // Generate personalized briefing incorporating check-in mood
+      generateBriefing(result.mood, message);
       return result;
     } catch (e) {
       // Save a record so the check-in doesn't keep re-appearing on page refresh
@@ -284,7 +353,7 @@ export function Dashboard() {
       // Throw so widget can show its error state with retry button
       throw e;
     }
-  }, [frozenCheckInType, saveAICheckIn, aiConfig.autoPlanEnabled, generateDayPlan, executeAIActions]);
+  }, [frozenCheckInType, saveAICheckIn, aiConfig.autoPlanEnabled, generateDayPlan, generateBriefing, executeAIActions]);
 
   const handleCheckInSkip = useCallback(() => {
     const type = frozenCheckInType;
@@ -299,7 +368,11 @@ export function Dashboard() {
       timestamp: new Date().toISOString(),
     };
     saveAICheckIn(skipRecord);
-  }, [frozenCheckInType, saveAICheckIn]);
+    // Generate generic briefing (no mood context) if none cached
+    if (!briefingText) {
+      generateBriefing();
+    }
+  }, [frozenCheckInType, saveAICheckIn, briefingText, generateBriefing]);
 
   const handleTogglePlanItem = useCallback((itemId: string) => {
     if (!data.dayPlan) return;
@@ -957,7 +1030,8 @@ export function Dashboard() {
                       done: todayPlan.items.filter(i => i.completed).length,
                       total: todayPlan.items.length,
                     } : null}
-                    data={data}
+                    briefingText={briefingText}
+                    briefingLoading={briefingLoading}
                   />
                 )}
                 {id === 'todays-agenda' && (

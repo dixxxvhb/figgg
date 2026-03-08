@@ -95,6 +95,9 @@ export interface AIContextPayload {
   };
   // Preferences
   tone: 'supportive' | 'direct' | 'minimal';
+  // Check-in context (for briefing and day-plan generation)
+  checkInMood?: string;
+  checkInMessage?: string;
 }
 
 export function buildAIContext(

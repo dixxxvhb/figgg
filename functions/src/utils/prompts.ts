@@ -273,8 +273,8 @@ export function buildContextString(payload: any, mode: Mode): string {
     }
   }
 
-  // Day-plan specific: mood and message from check-in
-  if (mode === "day-plan") {
+  // Mood and message from check-in (used by day-plan and briefing)
+  if (mode === "day-plan" || mode === "briefing") {
     if (ctx.checkInMood) contextLines.push(`Today's mood: ${ctx.checkInMood}`);
     if (ctx.checkInMessage) contextLines.push(`Dixon said: "${ctx.checkInMessage}"`);
   }
@@ -402,20 +402,33 @@ FULL APP ACCESS:
 DISRUPTION AUTONOMY:
 - For disruptions, proactively suggest cancelling classes, deferring tasks, and assigning subs. Don't wait to be asked — if Dixon says he's sick, lead with practical steps.
 
+BRIEFING REACTIVITY:
+You are the manager of this app. Dixon's dashboard shows a briefing — your live status report on his day.
+- Include "briefingUpdate" whenever what Dixon told you meaningfully changes the day's picture — mood shift, feeling sick, schedule change, emotional state, energy shift, new priorities, unexpected news.
+- Write it as a fresh standalone 2-4 sentence briefing reflecting everything you now know. Warm, concise, like a trusted assistant saying "here's how I see your day now."
+- Omit "briefingUpdate" only for truly routine exchanges — simple questions, minor task completions, quick lookups with no broader impact on the day.
+
 RETURN JSON:
 {
   "response": "1-3 sentence reply",
   "mood": "one word: good, tired, stressed, excited, neutral, low, anxious, focused, overwhelmed",
   "adjustments": ["short badge text describing each change made"],
-  "actions": [...]
+  "actions": [...],
+  "briefingUpdate": "optional — fresh 2-4 sentence briefing if the day's picture has shifted. Omit for routine exchanges."
 }
 
 ${getActionsReference(true)}`;
 
     case "briefing":
-      return `You are Dixon's morning briefing generator. Create a personalized 2-4 sentence briefing for his day.
+      return `You are Dixon's personal assistant and the manager of his day. The briefing is your live status report — a warm, concise snapshot of how you see his day right now.
+
+If a check-in mood and message are provided, weave them in naturally:
+- Tired/low/rough mood → gentler, supportive tone. Acknowledge how he's feeling and adjust expectations.
+- Good/focused mood → energized, actionable tone. Match his energy.
+- If no check-in, give a neutral but warm overview.
+
 Cover: key classes/events, medication status, urgent tasks, and anything notable.
-Be warm but concise. Reference specific items by name.
+Be warm but concise. Reference specific items by name. 2-4 sentences max.
 If weekly patterns show concerning trends (low wellness, late meds, dominant tired mood), weave in one gentle observation.
 If disruption is active, acknowledge it and focus on recovery/return planning.
 RETURN JSON: { "briefing": "2-4 sentence briefing text" }`;

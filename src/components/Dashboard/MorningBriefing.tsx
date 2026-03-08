@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   BookOpen,
@@ -10,9 +10,7 @@ import {
 import { isPast, startOfDay, parseISO } from 'date-fns';
 import { formatTimeDisplay, formatDuration, timeToMinutes, toDateStr } from '../../utils/time';
 import { haptic } from '../../utils/haptics';
-import { callAIChat } from '../../services/ai';
-import { buildFullAIContext } from '../../services/aiContext';
-import type { Class, Reminder, CurrentClassInfo, CalendarEvent, AppData } from '../../types';
+import type { Class, Reminder, CurrentClassInfo, CalendarEvent } from '../../types';
 import type { SelfCareStatus } from '../../hooks/useSelfCareStatus';
 
 interface NextUpInfo {
@@ -34,7 +32,8 @@ interface MorningBriefingProps {
   onLogDose?: () => void;
   canLogDose?: boolean;
   dayPlanProgress?: { done: number; total: number } | null;
-  data: AppData;
+  briefingText?: string | null;
+  briefingLoading?: boolean;
 }
 
 export function MorningBriefing({
@@ -48,47 +47,10 @@ export function MorningBriefing({
   onLogDose,
   canLogDose,
   dayPlanProgress,
-  data,
+  briefingText,
+  briefingLoading,
 }: MorningBriefingProps) {
   const [justLogged, setJustLogged] = useState(false);
-
-  // AI-generated morning briefing text (cached per day in sessionStorage)
-  const [briefingText, setBriefingText] = useState<string | null>(() => {
-    const cached = sessionStorage.getItem('figgg-briefing-text');
-    const cachedDate = sessionStorage.getItem('figgg-briefing-date');
-    const today = new Date().toISOString().slice(0, 10);
-    return cachedDate === today ? cached : null;
-  });
-  const [briefingLoading, setBriefingLoading] = useState(false);
-
-  useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    const cachedDate = sessionStorage.getItem('figgg-briefing-date');
-    if (cachedDate === today || briefingText) return;
-
-    let cancelled = false;
-    setBriefingLoading(true);
-    (async () => {
-      try {
-        const context = buildFullAIContext(data, 'morning briefing');
-        const result = await callAIChat({
-          mode: 'briefing',
-          userMessage: 'Generate my morning briefing',
-          context,
-        });
-        if (!cancelled && result.briefing) {
-          setBriefingText(result.briefing);
-          sessionStorage.setItem('figgg-briefing-text', result.briefing);
-          sessionStorage.setItem('figgg-briefing-date', today);
-        }
-      } catch {
-        // Silent fail — static briefing is fine
-      } finally {
-        if (!cancelled) setBriefingLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleQuickLogDose = () => {
     if (!onLogDose || !canLogDose) return;
