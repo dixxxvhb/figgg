@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Pill, Clock, Circle, CheckCircle2, CheckSquare, Flag, ChevronRight, Calendar, Bell, List, ChevronLeft, Trash2,
   CalendarDays, Inbox, AlertCircle, Repeat, Link as LinkIcon, Plus, X, Check, Pencil,
-  Heart, Brain, Feather, type LucideIcon,
+  Brain, type LucideIcon,
 } from 'lucide-react';
 import { useAppData } from '../contexts/AppDataContext';
 import { haptic } from '../utils/haptics';
@@ -20,11 +20,7 @@ import { DEFAULT_MED_CONFIG } from '../types';
 import { CollapsibleSection } from '../components/wellness/CollapsibleSection';
 import { MedsTracker } from '../components/wellness/MedsTracker';
 import { SmartChecklist } from '../components/wellness/SmartChecklist';
-import { TherapistTracker } from '../components/wellness/TherapistTracker';
-import { MeditationSpace } from '../components/wellness/MeditationSpace';
-
-// Lazy-load heavier sections
-const GriefToolkit = lazy(() => import('../components/wellness/GriefToolkit').then(m => ({ default: m.GriefToolkit })));
+import { TherapyHub } from '../components/wellness/TherapyHub';
 
 function getTodayKey(): string {
   return new Date().toISOString().split('T')[0];
@@ -445,30 +441,16 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
               />
             </CollapsibleSection>
 
-            {/* Section 3: Therapist Session Tracker */}
+            {/* Section 3: Therapy (Sessions, Journal, Breathing) */}
             <CollapsibleSection title="Therapy" icon={Brain}>
-              <TherapistTracker
-                data={therapistData}
-                onUpdate={updateTherapist}
+              <TherapyHub
+                therapistData={therapistData}
+                onUpdateTherapist={updateTherapist}
+                meditationData={meditationData}
+                onUpdateMeditation={updateMeditation}
+                journalData={griefData}
+                onUpdateJournal={updateGrief}
               />
-            </CollapsibleSection>
-
-            {/* Section 4: Meditation & Breathing */}
-            <CollapsibleSection title="Breathing & Grounding" icon={Heart}>
-              <MeditationSpace
-                data={meditationData}
-                onUpdate={updateMeditation}
-              />
-            </CollapsibleSection>
-
-            {/* Section 5: Grief Toolkit */}
-            <CollapsibleSection title="Grief Toolkit" icon={Feather} muted>
-              <Suspense fallback={<div className="px-4 py-8 text-center text-[var(--text-tertiary)] text-sm">Loading...</div>}>
-                <GriefToolkit
-                  data={griefData}
-                  onUpdate={updateGrief}
-                />
-              </Suspense>
             </CollapsibleSection>
           </div>
         )}

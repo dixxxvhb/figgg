@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
-  Mail, Heart, RefreshCw, Plus, ChevronRight, Calendar,
+  BookOpen, Heart, RefreshCw, Plus, ChevronRight,
   Pencil, X, ArrowLeft,
 } from 'lucide-react';
 import { haptic } from '../../utils/haptics';
@@ -14,22 +14,24 @@ import type {
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 
-interface GriefToolkitProps {
+interface TherapyJournalProps {
   data: GriefData;
   onUpdate: (updates: Partial<GriefData>) => void;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-type SubTab = 'letters' | 'feelings' | 'permission' | 'timeline';
+type SubTab = 'entries' | 'feelings' | 'affirmations';
 
 const WRITING_PROMPTS = [
+  "What's taking up the most space in my mind right now?",
+  'What am I avoiding thinking about?',
+  'What would I tell a friend going through this?',
+  "What do I need right now that I'm not giving myself?",
+  'What felt different about today?',
+  "What am I grateful for, even in the hard stuff?",
   'What do I want her to know?',
   "What's a memory I keep coming back to?",
-  'What did she teach me that I carry every day?',
-  "What am I afraid of?",
-  'What would I want to tell her about my life right now?',
-  'What would she say to me today?',
 ];
 
 const EMOTION_LABELS: Record<GriefEmotion, string> = {
@@ -68,7 +70,7 @@ const EMOTION_SELECTED_COLORS: Record<GriefEmotion, string> = {
   dont_know: 'bg-[var(--accent-muted)] text-[var(--text-primary)] border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/30',
 };
 
-const PERMISSION_SLIPS = [
+const AFFIRMATIONS = [
   "You don't have to be productive today.",
   "It's okay to laugh. It doesn't mean you've forgotten.",
   "You're allowed to be angry about this.",
@@ -94,6 +96,10 @@ const PERMISSION_SLIPS = [
   "It's okay to need a break from being brave.",
   'You can love her and be furious at the same time.',
   "Today doesn't have to be anything more than today.",
+  "Progress isn't always visible. That doesn't mean it's not happening.",
+  'You are allowed to outgrow old versions of yourself.',
+  "Healing isn't linear. Bad days don't erase good ones.",
+  "You're doing harder things than most people realize.",
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -116,16 +122,15 @@ function firstLine(text: string): string {
 // ─── Sub-tab pills ───────────────────────────────────────────────────────────
 
 const TABS: { key: SubTab; label: string }[] = [
-  { key: 'letters', label: 'Letters' },
+  { key: 'entries', label: 'Entries' },
   { key: 'feelings', label: 'Feelings' },
-  { key: 'permission', label: 'Permission Slips' },
-  { key: 'timeline', label: 'Timeline' },
+  { key: 'affirmations', label: 'Affirmations' },
 ];
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export function GriefToolkit({ data, onUpdate }: GriefToolkitProps) {
-  const [activeTab, setActiveTab] = useState<SubTab>('letters');
+export function TherapyJournal({ data, onUpdate }: TherapyJournalProps) {
+  const [activeTab, setActiveTab] = useState<SubTab>('entries');
 
   return (
     <div className="px-4 py-5 space-y-4">
@@ -147,23 +152,22 @@ export function GriefToolkit({ data, onUpdate }: GriefToolkitProps) {
       </div>
 
       {/* Content */}
-      {activeTab === 'letters' && <LettersSection data={data} onUpdate={onUpdate} />}
+      {activeTab === 'entries' && <EntriesSection data={data} onUpdate={onUpdate} />}
       {activeTab === 'feelings' && <FeelingsSection data={data} onUpdate={onUpdate} />}
-      {activeTab === 'permission' && <PermissionSlipsSection data={data} onUpdate={onUpdate} />}
-      {activeTab === 'timeline' && <TimelineSection data={data} />}
+      {activeTab === 'affirmations' && <AffirmationsSection data={data} onUpdate={onUpdate} />}
     </div>
   );
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// A. Letters
+// A. Journal Entries
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-type LetterView = 'list' | 'write' | 'read';
+type EntryView = 'list' | 'write' | 'read';
 
-function LettersSection({ data, onUpdate }: GriefToolkitProps) {
-  const [view, setView] = useState<LetterView>('list');
-  const [activeLetter, setActiveLetter] = useState<GriefLetter | null>(null);
+function EntriesSection({ data, onUpdate }: TherapyJournalProps) {
+  const [view, setView] = useState<EntryView>('list');
+  const [activeEntry, setActiveEntry] = useState<GriefLetter | null>(null);
   const [draft, setDraft] = useState('');
   const [usedPrompt, setUsedPrompt] = useState<string | null>(null);
   const [showPrompts, setShowPrompts] = useState(true);
@@ -171,7 +175,7 @@ function LettersSection({ data, onUpdate }: GriefToolkitProps) {
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const letters = useMemo(
+  const entries = useMemo(
     () => [...data.letters].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     [data.letters],
   );
@@ -194,19 +198,17 @@ function LettersSection({ data, onUpdate }: GriefToolkitProps) {
 
   // Debounced auto-save
   const autoSave = useCallback(
-    (content: string, letter: GriefLetter | null, prompt: string | null) => {
+    (content: string, entry: GriefLetter | null, prompt: string | null) => {
       clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = setTimeout(() => {
         const now = new Date().toISOString();
-        if (letter) {
-          // Update existing letter
+        if (entry) {
           const updated = data.letters.map(l =>
-            l.id === letter.id ? { ...l, content, updatedAt: now } : l,
+            l.id === entry.id ? { ...l, content, updatedAt: now } : l,
           );
           onUpdate({ letters: updated });
         } else if (content.trim()) {
-          // Create new letter
-          const newLetter: GriefLetter = {
+          const newEntry: GriefLetter = {
             id: generateId(),
             date: todayStr(),
             content,
@@ -214,9 +216,8 @@ function LettersSection({ data, onUpdate }: GriefToolkitProps) {
             createdAt: now,
             updatedAt: now,
           };
-          onUpdate({ letters: [...data.letters, newLetter] });
-          // Set as active so further edits update rather than create
-          setActiveLetter(newLetter);
+          onUpdate({ letters: [...data.letters, newEntry] });
+          setActiveEntry(newEntry);
         }
       }, 500);
     },
@@ -225,11 +226,11 @@ function LettersSection({ data, onUpdate }: GriefToolkitProps) {
 
   const handleDraftChange = (value: string) => {
     setDraft(value);
-    autoSave(value, isEditing ? activeLetter : (activeLetter?.id && view === 'write' ? activeLetter : null), usedPrompt);
+    autoSave(value, isEditing ? activeEntry : (activeEntry?.id && view === 'write' ? activeEntry : null), usedPrompt);
   };
 
-  const startNewLetter = (prompt?: string) => {
-    setActiveLetter(null);
+  const startNewEntry = (prompt?: string) => {
+    setActiveEntry(null);
     setDraft('');
     setUsedPrompt(prompt ?? null);
     setShowPrompts(!prompt);
@@ -238,9 +239,9 @@ function LettersSection({ data, onUpdate }: GriefToolkitProps) {
     haptic('light');
   };
 
-  const openLetter = (letter: GriefLetter) => {
-    setActiveLetter(letter);
-    setDraft(letter.content);
+  const openEntry = (entry: GriefLetter) => {
+    setActiveEntry(entry);
+    setDraft(entry.content);
     setIsEditing(false);
     setView('read');
     haptic('light');
@@ -253,16 +254,15 @@ function LettersSection({ data, onUpdate }: GriefToolkitProps) {
 
   const backToList = () => {
     clearTimeout(saveTimeoutRef.current);
-    // Final save if there's unsaved content
     if (view === 'write' && draft.trim()) {
       const now = new Date().toISOString();
-      if (activeLetter) {
+      if (activeEntry) {
         const updated = data.letters.map(l =>
-          l.id === activeLetter.id ? { ...l, content: draft, updatedAt: now } : l,
+          l.id === activeEntry.id ? { ...l, content: draft, updatedAt: now } : l,
         );
         onUpdate({ letters: updated });
       } else {
-        const newLetter: GriefLetter = {
+        const newEntry: GriefLetter = {
           id: generateId(),
           date: todayStr(),
           content: draft,
@@ -270,11 +270,11 @@ function LettersSection({ data, onUpdate }: GriefToolkitProps) {
           createdAt: now,
           updatedAt: now,
         };
-        onUpdate({ letters: [...data.letters, newLetter] });
+        onUpdate({ letters: [...data.letters, newEntry] });
       }
     }
     setView('list');
-    setActiveLetter(null);
+    setActiveEntry(null);
     setDraft('');
     setIsEditing(false);
   };
@@ -284,34 +284,34 @@ function LettersSection({ data, onUpdate }: GriefToolkitProps) {
     return (
       <div className="space-y-4">
         <button
-          onClick={() => startNewLetter()}
+          onClick={() => startNewEntry()}
           className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-[var(--radius-md)] border border-dashed border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)]/40 hover:text-[var(--accent-primary)] transition-colors"
         >
           <Plus size={16} />
-          <span className="text-sm font-medium">New Letter</span>
+          <span className="text-sm font-medium">New Entry</span>
         </button>
 
-        {letters.length === 0 ? (
+        {entries.length === 0 ? (
           <div className="py-10 text-center">
-            <Mail size={28} className="mx-auto text-[var(--text-tertiary)] opacity-40 mb-3" />
+            <BookOpen size={28} className="mx-auto text-[var(--text-tertiary)] opacity-40 mb-3" />
             <p className="text-sm text-[var(--text-tertiary)]">
-              A quiet place to write what you need to say.
+              A space to process and reflect.
             </p>
             <p className="text-xs text-[var(--text-tertiary)] mt-1 opacity-70">
-              No one reads these but you.
+              Just for you.
             </p>
           </div>
         ) : (
           <div className="space-y-2">
-            {letters.map(letter => (
+            {entries.map(entry => (
               <button
-                key={letter.id}
-                onClick={() => openLetter(letter)}
+                key={entry.id}
+                onClick={() => openEntry(entry)}
                 className="w-full text-left p-4 rounded-[var(--radius-md)] bg-[var(--surface-primary)] border border-[var(--border-subtle)]/50 hover:border-[var(--border-subtle)] transition-colors group"
               >
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs text-[var(--text-tertiary)]">
-                    {formatDate(letter.date)}
+                    {formatDate(entry.date)}
                   </span>
                   <ChevronRight
                     size={14}
@@ -319,7 +319,7 @@ function LettersSection({ data, onUpdate }: GriefToolkitProps) {
                   />
                 </div>
                 <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                  {firstLine(letter.content)}
+                  {firstLine(entry.content)}
                 </p>
               </button>
             ))}
@@ -330,7 +330,7 @@ function LettersSection({ data, onUpdate }: GriefToolkitProps) {
   }
 
   // ── Read view ──
-  if (view === 'read' && activeLetter && !isEditing) {
+  if (view === 'read' && activeEntry && !isEditing) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -352,18 +352,18 @@ function LettersSection({ data, onUpdate }: GriefToolkitProps) {
 
         <div className="py-2">
           <span className="text-xs text-[var(--text-tertiary)]">
-            {formatDate(activeLetter.date)}
+            {formatDate(activeEntry.date)}
           </span>
-          {activeLetter.prompt && (
+          {activeEntry.prompt && (
             <p className="text-xs text-[var(--text-tertiary)] italic mt-1">
-              {activeLetter.prompt}
+              {activeEntry.prompt}
             </p>
           )}
         </div>
 
         <div className="py-4 min-h-[200px]">
           <p className="text-sm text-[var(--text-secondary)] leading-[1.8] whitespace-pre-wrap font-[var(--font-display,inherit)]">
-            {activeLetter.content}
+            {activeEntry.content}
           </p>
         </div>
       </div>
@@ -386,8 +386,8 @@ function LettersSection({ data, onUpdate }: GriefToolkitProps) {
         </span>
       </div>
 
-      {/* Writing prompts — only for new letters */}
-      {showPrompts && !isEditing && !activeLetter && (
+      {/* Writing prompts — only for new entries */}
+      {showPrompts && !isEditing && !activeEntry && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs text-[var(--text-tertiary)]">
@@ -404,7 +404,7 @@ function LettersSection({ data, onUpdate }: GriefToolkitProps) {
             {WRITING_PROMPTS.map(prompt => (
               <button
                 key={prompt}
-                onClick={() => startNewLetter(prompt)}
+                onClick={() => startNewEntry(prompt)}
                 className="text-xs px-2.5 py-1.5 rounded-full bg-[var(--surface-inset)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] border border-[var(--border-subtle)]/40 hover:border-[var(--border-subtle)] transition-colors"
               >
                 {prompt}
@@ -427,7 +427,7 @@ function LettersSection({ data, onUpdate }: GriefToolkitProps) {
           ref={textareaRef}
           value={draft}
           onChange={e => handleDraftChange(e.target.value)}
-          placeholder="Write what you need to say..."
+          placeholder="Write what's on your mind..."
           className="w-full min-h-[280px] bg-transparent text-sm text-[var(--text-secondary)] leading-[1.8] placeholder-[var(--text-tertiary)]/50 focus:outline-none resize-none font-[var(--font-display,inherit)] px-1"
         />
       </div>
@@ -436,7 +436,7 @@ function LettersSection({ data, onUpdate }: GriefToolkitProps) {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// B. How I'm Feeling Right Now
+// B. How I'm Feeling
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const ALL_EMOTIONS: GriefEmotion[] = [
@@ -444,7 +444,7 @@ const ALL_EMOTIONS: GriefEmotion[] = [
   'peaceful', 'grateful', 'all_of_it', 'dont_know',
 ];
 
-function FeelingsSection({ data, onUpdate }: GriefToolkitProps) {
+function FeelingsSection({ data, onUpdate }: TherapyJournalProps) {
   const today = todayStr();
   const todayCheckin = data.emotionalCheckins.find(c => c.date === today);
   const [selectedEmotions, setSelectedEmotions] = useState<GriefEmotion[]>(
@@ -453,7 +453,6 @@ function FeelingsSection({ data, onUpdate }: GriefToolkitProps) {
   const [context, setContext] = useState(todayCheckin?.context ?? '');
   const [saved, setSaved] = useState(!!todayCheckin);
 
-  // Recent check-ins (last 7, excluding today)
   const recentCheckins = useMemo(
     () =>
       [...data.emotionalCheckins]
@@ -491,7 +490,6 @@ function FeelingsSection({ data, onUpdate }: GriefToolkitProps) {
 
   return (
     <div className="space-y-6">
-      {/* Emotion chips */}
       <div>
         <p className="text-xs text-[var(--text-tertiary)] mb-3">
           Tap what fits. Pick as many as you need.
@@ -514,18 +512,16 @@ function FeelingsSection({ data, onUpdate }: GriefToolkitProps) {
         </div>
       </div>
 
-      {/* Optional context */}
       <div>
         <input
           type="text"
           value={context}
           onChange={e => { setContext(e.target.value); setSaved(false); }}
-          placeholder="Today was hard because..."
+          placeholder="What's on your mind..."
           className="w-full text-sm bg-[var(--surface-inset)] border border-[var(--border-subtle)]/60 rounded-[var(--radius-sm)] px-3 py-2.5 text-[var(--text-primary)] placeholder-[var(--text-tertiary)]/50 focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]/40"
         />
       </div>
 
-      {/* Save button */}
       <button
         onClick={saveCheckin}
         disabled={selectedEmotions.length === 0}
@@ -540,7 +536,6 @@ function FeelingsSection({ data, onUpdate }: GriefToolkitProps) {
         {saved ? 'Saved' : todayCheckin ? 'Update' : 'Save'}
       </button>
 
-      {/* Recent check-ins */}
       {recentCheckins.length > 0 && (
         <div className="space-y-2 pt-2">
           <p className="text-xs text-[var(--text-tertiary)] font-medium uppercase tracking-wide">
@@ -580,14 +575,13 @@ function FeelingsSection({ data, onUpdate }: GriefToolkitProps) {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// C. Permission Slips
+// C. Affirmations
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-function PermissionSlipsSection({ data, onUpdate }: GriefToolkitProps) {
+function AffirmationsSection({ data, onUpdate }: TherapyJournalProps) {
   const [index, setIndex] = useState(() => {
     const last = data.lastPermissionSlipIndex;
-    // Show the next one from where they left off, wrapping around
-    return last >= 0 && last < PERMISSION_SLIPS.length - 1 ? last + 1 : 0;
+    return last >= 0 && last < AFFIRMATIONS.length - 1 ? last + 1 : 0;
   });
   const [isTransitioning, setIsTransitioning] = useState(false);
 
@@ -597,15 +591,14 @@ function PermissionSlipsSection({ data, onUpdate }: GriefToolkitProps) {
     setTimeout(() => {
       let next: number;
       do {
-        next = Math.floor(Math.random() * PERMISSION_SLIPS.length);
-      } while (next === index && PERMISSION_SLIPS.length > 1);
+        next = Math.floor(Math.random() * AFFIRMATIONS.length);
+      } while (next === index && AFFIRMATIONS.length > 1);
       setIndex(next);
       onUpdate({ lastPermissionSlipIndex: next });
       setIsTransitioning(false);
     }, 150);
   };
 
-  // Save initial index on mount
   useEffect(() => {
     if (data.lastPermissionSlipIndex !== index) {
       onUpdate({ lastPermissionSlipIndex: index });
@@ -621,7 +614,7 @@ function PermissionSlipsSection({ data, onUpdate }: GriefToolkitProps) {
         }`}
       >
         <p className="text-base italic leading-relaxed text-[var(--text-secondary)] font-[var(--font-display,inherit)]">
-          &ldquo;{PERMISSION_SLIPS[index]}&rdquo;
+          &ldquo;{AFFIRMATIONS[index]}&rdquo;
         </p>
       </div>
 
@@ -632,96 +625,6 @@ function PermissionSlipsSection({ data, onUpdate }: GriefToolkitProps) {
         <RefreshCw size={13} />
         <span>Another</span>
       </button>
-    </div>
-  );
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// D. Grief Log (Timeline)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-type TimelineEntry =
-  | { type: 'letter'; date: string; letter: GriefLetter }
-  | { type: 'checkin'; date: string; checkin: GriefEmotionalCheckin };
-
-function TimelineSection({ data }: { data: GriefData }) {
-  const entries = useMemo<TimelineEntry[]>(() => {
-    const all: TimelineEntry[] = [
-      ...data.letters.map(
-        (letter): TimelineEntry => ({ type: 'letter', date: letter.createdAt, letter }),
-      ),
-      ...data.emotionalCheckins.map(
-        (checkin): TimelineEntry => ({ type: 'checkin', date: checkin.createdAt, checkin }),
-      ),
-    ];
-    return all.sort((a, b) => b.date.localeCompare(a.date));
-  }, [data.letters, data.emotionalCheckins]);
-
-  if (entries.length === 0) {
-    return (
-      <div className="py-10 text-center">
-        <Calendar size={28} className="mx-auto text-[var(--text-tertiary)] opacity-40 mb-3" />
-        <p className="text-sm text-[var(--text-tertiary)]">
-          Nothing here yet. That&apos;s okay.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      {entries.map(entry => {
-        if (entry.type === 'letter') {
-          return (
-            <div
-              key={`letter-${entry.letter.id}`}
-              className="flex items-start gap-3 p-3 rounded-[var(--radius-sm)] bg-[var(--surface-primary)] border border-[var(--border-subtle)]/40"
-            >
-              <div className="mt-0.5 w-7 h-7 rounded-full bg-[var(--surface-inset)] flex items-center justify-center flex-shrink-0">
-                <Mail size={13} className="text-[var(--text-tertiary)]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="text-xs text-[var(--text-tertiary)]">
-                  {formatDate(entry.letter.date)}
-                </span>
-                <p className="text-sm text-[var(--text-secondary)] mt-0.5 truncate">
-                  {firstLine(entry.letter.content)}
-                </p>
-              </div>
-            </div>
-          );
-        }
-        return (
-          <div
-            key={`checkin-${entry.checkin.id}`}
-            className="flex items-start gap-3 p-3 rounded-[var(--radius-sm)] bg-[var(--surface-primary)] border border-[var(--border-subtle)]/40"
-          >
-            <div className="mt-0.5 w-7 h-7 rounded-full bg-[var(--surface-inset)] flex items-center justify-center flex-shrink-0">
-              <Heart size={13} className="text-[var(--text-tertiary)]" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <span className="text-xs text-[var(--text-tertiary)]">
-                {formatDate(entry.checkin.date)}
-              </span>
-              <div className="flex flex-wrap gap-1 mt-1">
-                {entry.checkin.emotions.map(e => (
-                  <span
-                    key={e}
-                    className={`text-[10px] px-2 py-0.5 rounded-full border ${EMOTION_COLORS[e]}`}
-                  >
-                    {EMOTION_LABELS[e]}
-                  </span>
-                ))}
-              </div>
-              {entry.checkin.context && (
-                <p className="text-xs text-[var(--text-tertiary)] mt-1 italic">
-                  {entry.checkin.context}
-                </p>
-              )}
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
 }
