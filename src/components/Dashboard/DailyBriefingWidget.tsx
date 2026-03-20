@@ -637,31 +637,21 @@ function stripBriefingSections(raw: string): string {
   for (const line of lines) {
     const trimmed = line.trim();
 
-    // Skip --- dividers
+    // --- dividers reset section state but are always skipped
     if (/^-{2,}\s*$/.test(trimmed)) {
       inSection = false;
       continue;
     }
 
-    // Detect section headers: ALL-CAPS words followed by optional (parenthetical) and colon
+    // Detect section headers and enter "skip" mode
     if (sectionPattern.test(trimmed)) {
       inSection = true;
       continue;
     }
 
-    // Skip bulleted content under a section header
-    if (inSection && (trimmed.startsWith('-') || trimmed.startsWith('•') || trimmed === '')) {
+    // While inside a section, skip ALL content until we hit the next section or divider
+    if (inSection) {
       continue;
-    }
-
-    // If we hit non-bulleted text after a section, we're out of that section
-    if (inSection && trimmed.length > 0) {
-      // Check if this line looks like section content (short, no sentence structure)
-      // vs. narrative text (longer, has sentence structure)
-      if (trimmed.length < 100 && !trimmed.includes('. ')) {
-        continue; // Likely still section content
-      }
-      inSection = false;
     }
 
     kept.push(line);
