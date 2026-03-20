@@ -434,6 +434,14 @@ export async function deleteChatThread(userId: string, threadId: string): Promis
   await deleteDoc(userDoc(userId, 'chatThreads', threadId));
 }
 
+export async function updateDailyBriefingSummary(
+  userId: string,
+  date: string,
+  summary: string
+): Promise<void> {
+  await setDoc(doc(requireDb(), 'users', userId, 'briefings', date), { summary }, { merge: true });
+}
+
 export function onDailyBriefingSnapshot(
   userId: string,
   date: string,

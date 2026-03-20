@@ -12,7 +12,7 @@ import type { ActionCallbacks } from '../services/aiActions';
 import { haptic } from '../utils/haptics';
 import { applyTheme } from '../styles/applyTheme';
 import { auth } from '../services/firebase';
-import { getChatThreads, saveChatThread, deleteChatThread } from '../services/firestore';
+import { getChatThreads, saveChatThread, deleteChatThread, updateDailyBriefingSummary } from '../services/firestore';
 import { v4 as uuid } from 'uuid';
 import { format, parseISO } from 'date-fns';
 
@@ -193,11 +193,15 @@ export function AIChat() {
         executeAIActions(result.actions, actionCallbacks);
       }
 
-      // If the AI detected a context shift, update the dashboard briefing
+      // If the AI detected a context shift, persist updated briefing to Firestore + sessionStorage
       if (result.briefingUpdate) {
         const today = new Date().toISOString().slice(0, 10);
         sessionStorage.setItem('figgg-briefing-text', result.briefingUpdate);
         sessionStorage.setItem('figgg-briefing-date', today);
+        const uid = auth?.currentUser?.uid;
+        if (uid) {
+          updateDailyBriefingSummary(uid, today, result.briefingUpdate).catch(console.warn);
+        }
       }
 
       const aiMsg: AIChatMessage = {

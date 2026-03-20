@@ -36,7 +36,7 @@ import { WeeklyInsight } from '../components/Dashboard/WeeklyInsight';
 import { WeekMomentumBar } from '../components/Dashboard/WeekMomentumBar';
 import { SortableWidget } from '../components/Dashboard/SortableWidget';
 import { NudgeCards } from '../components/Dashboard/NudgeCards';
-import { DailyBriefingWidget } from '../components/Dashboard/DailyBriefingWidget';
+import { DailyBriefingWidget, type CreateTaskOptions } from '../components/Dashboard/DailyBriefingWidget';
 import { PrepCard } from '../components/Dashboard/PrepCard';
 import { PostClassCapture } from '../components/Dashboard/PostClassCapture';
 import { QuickNoteCapture } from '../components/Dashboard/QuickNoteCapture';
@@ -392,6 +392,31 @@ export function Dashboard() {
     }
 
     updateSelfCare({ reminders: updated });
+  }, [data.selfCare, updateSelfCare]);
+
+  // Create a task/reminder from the daily briefing widget
+  const handleBriefingCreateTask = useCallback((title: string, opts?: CreateTaskOptions) => {
+    const sc = data.selfCare || {};
+    const reminders = sc.reminders || [];
+    const lists = sc.reminderLists || [];
+    const defaultList = lists.find(l => !l.isSmartList) || lists[0];
+    const now = new Date().toISOString();
+
+    const newReminder = {
+      id: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+      title,
+      notes: opts?.notes || '',
+      listId: defaultList?.id || 'inbox',
+      completed: false,
+      dueDate: opts?.dueDate || format(new Date(), 'yyyy-MM-dd'),
+      priority: opts?.priority || 'medium' as const,
+      flagged: opts?.flagged || false,
+      subtasks: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    updateSelfCare({ reminders: [...reminders, newReminder] });
   }, [data.selfCare, updateSelfCare]);
 
   const handleScratchpadChange = useCallback((text: string) => {
@@ -944,7 +969,7 @@ export function Dashboard() {
             {widgetOrder.map(id => (
               <SortableWidget key={id} id={id} isEditing={isEditingLayout} label={WIDGET_LABELS[id] || id}>
                 {id === 'daily-briefing' && data.dailyBriefing && (
-                  <DailyBriefingWidget briefing={data.dailyBriefing} />
+                  <DailyBriefingWidget briefing={data.dailyBriefing} onCreateTask={handleBriefingCreateTask} calendarEvents={todayCalendarEvents} />
                 )}
                 {id === 'nudges' && (
                   <NudgeCards nudges={nudges} onDismissOrSnooze={() => setNudgeKey(k => k + 1)} key={`nudge-${nudgeKey}`} />

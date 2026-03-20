@@ -93,8 +93,15 @@ export interface AIContextPayload {
     dancesReady: number;
     dancesTotal: number;
   };
-  // Daily briefing summary (from Cloud Function)
+  // Daily briefing (from Cloud Function + Cowork enrichment)
   dailyBriefing?: string;
+  briefingEmail?: {
+    needsResponse: Array<{ from: string; subject: string; priority: string }>;
+    actionRequired: Array<{ from: string; subject: string; actionType: string }>;
+  };
+  briefingProjects?: Array<{ name: string; health: string; note?: string }>;
+  briefingMessages?: Array<{ contact: string; lastMessage: string; youReplied: boolean; priority: string }>;
+  briefingNotes?: Array<{ title: string; snippet: string }>;
   // Preferences
   tone: 'supportive' | 'direct' | 'minimal';
   // Check-in context (for briefing and day-plan generation)
@@ -544,6 +551,15 @@ export function buildFullAIContext(
     ...base,
     date: todayStr,
     dailyBriefing: data.dailyBriefing?.summary,
+    briefingEmail: data.dailyBriefing?.email ? {
+      needsResponse: (data.dailyBriefing.email.needsResponse || []).map(e => ({ from: e.from, subject: e.subject, priority: e.priority })),
+      actionRequired: (data.dailyBriefing.email.actionRequired || []).map(e => ({ from: e.from, subject: e.subject, actionType: e.actionType })),
+    } : undefined,
+    briefingProjects: data.dailyBriefing?.projects?.status,
+    briefingMessages: data.dailyBriefing?.messages?.threads?.filter(t => t.priority === 'high' || !t.youReplied).map(t => ({
+      contact: t.contact, lastMessage: t.lastMessage.slice(0, 80), youReplied: t.youReplied, priority: t.priority,
+    })),
+    briefingNotes: data.dailyBriefing?.notes?.newOrModified?.map(n => ({ title: n.title, snippet: n.snippet.slice(0, 80) })),
     allActiveReminders: reminders,
     upcomingCompetitions,
     classDetails,

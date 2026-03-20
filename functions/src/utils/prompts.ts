@@ -20,9 +20,24 @@ export function buildContextString(payload: any, mode: Mode): string {
 
   const ctx = payload.context || payload;
 
-  // Daily briefing context (from Cloud Function)
+  // Daily briefing context (from Cloud Function + Cowork enrichment)
   if (ctx.dailyBriefing) {
     contextLines.push(`Today's briefing summary: ${ctx.dailyBriefing}`);
+  }
+  if (ctx.briefingEmail) {
+    const urgent = [...(ctx.briefingEmail.needsResponse || []), ...(ctx.briefingEmail.actionRequired || [])];
+    if (urgent.length > 0) {
+      contextLines.push(`Email needing attention: ${urgent.map((e: { from: string; subject: string }) => `${e.from} — ${e.subject}`).join("; ")}`);
+    }
+  }
+  if (ctx.briefingProjects?.length) {
+    contextLines.push(`Project status: ${ctx.briefingProjects.map((p: { name: string; health: string; note?: string }) => `${p.name}: ${p.health}${p.note ? ` (${p.note})` : ""}`).join(", ")}`);
+  }
+  if (ctx.briefingMessages?.length) {
+    contextLines.push(`Unreplied messages: ${ctx.briefingMessages.map((m: { contact: string; lastMessage: string }) => `${m.contact}: "${m.lastMessage}"`).join("; ")}`);
+  }
+  if (ctx.briefingNotes?.length) {
+    contextLines.push(`Recent notes: ${ctx.briefingNotes.map((n: { title: string }) => n.title).join(", ")}`);
   }
 
   // Meds
