@@ -1,9 +1,12 @@
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import Anthropic from "@anthropic-ai/sdk";
 import { google } from "googleapis";
 import { requireAuth } from "./utils/auth";
+
+const anthropicKey = defineSecret("ANTHROPIC_API_KEY");
 
 const db = admin.firestore();
 
@@ -455,6 +458,7 @@ export const generateDailyBriefing = onSchedule(
     timeZone: "America/New_York",
     timeoutSeconds: 120,
     memory: "256MiB",
+    secrets: [anthropicKey],
   },
   async () => {
     await generateBriefingCore();
@@ -463,7 +467,7 @@ export const generateDailyBriefing = onSchedule(
 
 // Manual trigger — callable from browser for testing
 export const triggerDailyBriefing = onCall(
-  { timeoutSeconds: 120, memory: "256MiB" },
+  { timeoutSeconds: 120, memory: "256MiB", secrets: [anthropicKey] },
   async (request) => {
     requireAuth(request);
     await generateBriefingCore();
