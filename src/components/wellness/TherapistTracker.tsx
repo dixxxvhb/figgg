@@ -1121,12 +1121,12 @@ export function TherapistTracker({ data, onUpdate, journalEntries, calendarEvent
 
   const handleSaveSession = (session: TherapistSession) => {
     haptic('light');
-    onUpdate({ sessions: [...data.sessions, session] });
+    onUpdate({ sessions: [...(data.sessions || []), session] });
     setShowNewSession(false);
   };
 
   const handleToggleAction = (sessionId: string, actionId: string) => {
-    const updated = data.sessions.map(s => {
+    const updated = (data.sessions || []).map(s => {
       if (s.id !== sessionId) return s;
       return {
         ...s,
@@ -1142,7 +1142,7 @@ export function TherapistTracker({ data, onUpdate, journalEntries, calendarEvent
     <div className="space-y-5">
       {/* A. Open Action Items Banner */}
       <OpenActionItemsBanner
-        sessions={data.sessions}
+        sessions={data.sessions || []}
         onToggleAction={handleToggleAction}
       />
 
@@ -1163,7 +1163,7 @@ export function TherapistTracker({ data, onUpdate, journalEntries, calendarEvent
 
       {/* C. Prep Notes */}
       <PrepNotesSection
-        prepNotes={data.prepNotes}
+        prepNotes={data.prepNotes || []}
         onUpdate={handlePrepNotesUpdate}
         inputRef={prepInputRef}
         journalEntries={journalEntries}
@@ -1193,7 +1193,7 @@ export function TherapistTracker({ data, onUpdate, journalEntries, calendarEvent
 
       {/* E. Session History */}
       <SessionHistory
-        sessions={data.sessions}
+        sessions={data.sessions || []}
         onToggleAction={handleToggleAction}
       />
     </div>
