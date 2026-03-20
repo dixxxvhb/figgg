@@ -32,8 +32,6 @@ interface MorningBriefingProps {
   onLogDose?: () => void;
   canLogDose?: boolean;
   dayPlanProgress?: { done: number; total: number } | null;
-  briefingText?: string | null;
-  briefingLoading?: boolean;
 }
 
 export function MorningBriefing({
@@ -47,8 +45,6 @@ export function MorningBriefing({
   onLogDose,
   canLogDose,
   dayPlanProgress,
-  briefingText,
-  briefingLoading,
 }: MorningBriefingProps) {
   const [justLogged, setJustLogged] = useState(false);
 
@@ -142,20 +138,6 @@ export function MorningBriefing({
 
   return (
     <div className="bg-[var(--surface-card)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
-      {/* ── AI Briefing Text ── */}
-      {briefingLoading && !briefingText && (
-        <div className="px-4 pt-3.5 pb-1 flex items-center gap-2">
-          <div className="w-3 h-3 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-[var(--text-tertiary)] italic">Generating briefing...</p>
-        </div>
-      )}
-      {briefingText && (
-        <div className="px-4 pt-3.5 pb-1">
-          <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-            {briefingText}
-          </p>
-        </div>
-      )}
       {/* ── 3-column stat row with large serif numbers ── */}
       <div className="grid grid-cols-3 divide-x divide-[var(--border-subtle)]">
         {/* Classes */}

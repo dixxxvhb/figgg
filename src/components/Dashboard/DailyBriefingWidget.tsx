@@ -1,15 +1,42 @@
 import { useState } from 'react';
+import { format } from 'date-fns';
 import { FileText, ChevronDown, ChevronUp, Calendar, Heart, AlertTriangle, Clock } from 'lucide-react';
 import type { DailyBriefing } from '../../types';
+
+const COLLAPSE_STORAGE_KEY = 'figgg-briefing-collapsed';
+
+function getInitialCollapsed(): boolean {
+  try {
+    const raw = localStorage.getItem(COLLAPSE_STORAGE_KEY);
+    if (!raw) return false;
+    const stored = JSON.parse(raw) as { date: string; collapsed: boolean };
+    const today = format(new Date(), 'yyyy-MM-dd');
+    return stored.date === today ? stored.collapsed : false;
+  } catch {
+    return false;
+  }
+}
 
 interface DailyBriefingWidgetProps {
   briefing: DailyBriefing | undefined;
 }
 
 export function DailyBriefingWidget({ briefing }: DailyBriefingWidgetProps) {
+  const [collapsed, setCollapsed] = useState(getInitialCollapsed);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['summary']));
 
   if (!briefing) return null;
+
+  const toggleCollapsed = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    try {
+      localStorage.setItem(COLLAPSE_STORAGE_KEY, JSON.stringify({
+        date: format(new Date(), 'yyyy-MM-dd'),
+        collapsed: next,
+      }));
+    } catch { /* localStorage full or unavailable */ }
+  };
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {
@@ -29,11 +56,14 @@ export function DailyBriefingWidget({ briefing }: DailyBriefingWidgetProps) {
 
   return (
     <div className="bg-[var(--surface-card)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
-      {/* Header */}
-      <div className="px-4 py-3 flex items-center justify-between border-b border-[var(--border-subtle)]">
+      {/* Header — clickable to toggle collapse */}
+      <button
+        onClick={toggleCollapsed}
+        className={`w-full px-4 py-3 flex items-center justify-between hover:bg-[var(--surface-card-hover)] transition-colors ${collapsed ? '' : 'border-b border-[var(--border-subtle)]'}`}
+      >
         <div className="flex items-center gap-2">
           <FileText size={16} className="text-[var(--accent-primary)]" />
-          <h2 className="type-h1">Daily Briefing</h2>
+          <h2 className="type-h1">Today's Briefing</h2>
         </div>
         <div className="flex items-center gap-2">
           {briefing.enriched && (
@@ -42,10 +72,19 @@ export function DailyBriefingWidget({ briefing }: DailyBriefingWidgetProps) {
             </span>
           )}
           <span className="type-caption text-[var(--text-tertiary)]">{generatedTime}</span>
+          {collapsed ? (
+            <ChevronDown size={14} className="text-[var(--text-tertiary)]" />
+          ) : (
+            <ChevronUp size={14} className="text-[var(--text-tertiary)]" />
+          )}
         </div>
-      </div>
+      </button>
 
-      {/* Summary — always visible */}
+      {/* Animated content wrapper */}
+      <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${collapsed ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>
+        <div className="overflow-hidden">
+
+      {/* Summary */}
       <div className="px-4 py-3.5">
         <p className="type-body text-[var(--text-primary)] whitespace-pre-line leading-relaxed">
           {briefing.summary}
@@ -166,6 +205,9 @@ export function DailyBriefingWidget({ briefing }: DailyBriefingWidgetProps) {
           <p className="type-body text-[var(--text-primary)]">{briefing.nudge}</p>
         </div>
       )}
+
+        </div>{/* end overflow-hidden */}
+      </div>{/* end grid animation wrapper */}
     </div>
   );
 }
