@@ -268,6 +268,8 @@ export function updateCalendarEvents(events: CalendarEvent[]): void {
       seen.set(event.id, {
         ...event,
         linkedDanceIds: existing.linkedDanceIds, // Preserve linked dances
+        googleCalendarEventId: event.googleCalendarEventId || existing.googleCalendarEventId,
+        source: event.source || existing.source,
       });
     } else {
       seen.set(event.id, event);

@@ -13,5 +13,13 @@ export { detectReminders } from "./detectReminders";
 // HTTP functions
 export { calendarProxy } from "./calendarProxy";
 
+// Google Calendar CRUD
+export {
+  createGoogleCalendarEvent,
+  updateGoogleCalendarEvent,
+  deleteGoogleCalendarEvent,
+  fetchGoogleCalendarEvents,
+} from "./googleCalendar";
+
 // Scheduled functions
 export { generateDailyBriefing, triggerDailyBriefing } from "./generateDailyBriefing";

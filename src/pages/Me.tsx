@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Pill, Clock, Circle, CheckCircle2, CheckSquare, Flag, ChevronRight, Calendar, Bell, List, ChevronLeft, Trash2,
   CalendarDays, Inbox, AlertCircle, Repeat, Link as LinkIcon, Plus, X, Check, Pencil,
-  Brain, type LucideIcon,
+  Brain, Wind, BookHeart, type LucideIcon,
 } from 'lucide-react';
 import { useAppData } from '../contexts/AppDataContext';
 import { haptic } from '../utils/haptics';
@@ -17,10 +17,12 @@ import type { Reminder, ReminderList, Subtask, RecurringSchedule, MedConfig } fr
 import { DEFAULT_MED_CONFIG } from '../types';
 
 // Wellness section components
-import { CollapsibleSection } from '../components/wellness/CollapsibleSection';
 import { MedsTracker } from '../components/wellness/MedsTracker';
 import { SmartChecklist } from '../components/wellness/SmartChecklist';
-import { TherapyHub } from '../components/wellness/TherapyHub';
+import { TherapistTracker } from '../components/wellness/TherapistTracker';
+import { MeditationSpace } from '../components/wellness/MeditationSpace';
+
+const TherapyJournal = lazy(() => import('../components/wellness/TherapyJournal').then(m => ({ default: m.TherapyJournal })));
 
 function getTodayKey(): string {
   return new Date().toISOString().split('T')[0];
@@ -59,6 +61,14 @@ const PRIORITY_COLORS = {
 };
 
 type SmartListType = 'today' | 'scheduled' | 'all' | 'flagged';
+type WellnessSubTab = 'checkin' | 'therapy' | 'journal' | 'breathing';
+
+const WELLNESS_SUB_TABS: { key: WellnessSubTab; label: string; icon: LucideIcon }[] = [
+  { key: 'checkin', label: 'Check-in', icon: CheckSquare },
+  { key: 'therapy', label: 'Therapy', icon: Brain },
+  { key: 'journal', label: 'Journal', icon: BookHeart },
+  { key: 'breathing', label: 'Breathing', icon: Wind },
+];
 
 const WELLNESS_MODES = [
   { id: 'okay' as const, label: "I'm okay", color: 'bg-[var(--status-success)]', textColor: 'text-[var(--status-success)]' },
@@ -113,6 +123,7 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
     }
     return (sessionStorage.getItem('meActiveTab') as 'meds' | 'reminders') || 'meds';
   });
+  const [wellnessSubTab, setWellnessSubTab] = useState<WellnessSubTab>('checkin');
 
   // Listen for tab changes from bottom nav
   useEffect(() => {
@@ -145,12 +156,13 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
   }, [data.meditation]);
 
   // Grief data with defaults
-  const griefData = useMemo(() => data.grief || {
+  const griefData = useMemo(() => ({
     letters: [],
     emotionalCheckins: [],
     lastPermissionSlipIndex: -1,
     lastModified: new Date().toISOString(),
-  }, [data.grief]);
+    ...data.grief,
+  }), [data.grief]);
 
   // ===== Tasks/Reminders State =====
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -412,46 +424,71 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
 
         {/* === Wellness Tab === */}
         {activeTab === 'meds' && (
-          <div className="space-y-3">
-            {/* Quick Mode Switcher — always visible at top */}
-            <QuickModeSwitcher
+          <div className="space-y-4">
+            {/* Meds — always visible at top */}
+            <MedsTracker
               selfCare={data.selfCare}
+              medConfig={medConfig}
+              classes={data.classes || []}
+              studios={data.studios || []}
               onUpdateSelfCare={updateSelfCare}
+              learningData={data.learningData}
             />
 
-            {/* Section 1: Meds Tracker */}
-            <CollapsibleSection title="Meds" icon={Pill} defaultExpanded>
-              <MedsTracker
-                selfCare={data.selfCare}
-                medConfig={medConfig}
-                classes={data.classes || []}
-                studios={data.studios || []}
-                onUpdateSelfCare={updateSelfCare}
-                learningData={data.learningData}
-              />
-            </CollapsibleSection>
+            {/* Wellness Sub-Tab Bar */}
+            <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
+              {WELLNESS_SUB_TABS.map(tab => {
+                const Icon = tab.icon;
+                const isActive = wellnessSubTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => { setWellnessSubTab(tab.key); haptic('light'); }}
+                    className={`whitespace-nowrap px-3 py-2 rounded-[var(--radius-full)] text-xs font-semibold transition-colors ${
+                      isActive
+                        ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)] shadow-sm'
+                        : 'bg-[var(--surface-card)] text-[var(--text-secondary)] border border-[var(--border-subtle)]'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
 
-            {/* Section 2: Smart Daily Checklist */}
-            <CollapsibleSection title="Daily Check-in" icon={CheckSquare} defaultExpanded>
-              <SmartChecklist
-                selfCare={data.selfCare}
-                aiCheckIns={data.aiCheckIns}
-                dose1Taken={dose1Taken}
-                onUpdateSelfCare={updateSelfCare}
-              />
-            </CollapsibleSection>
+            {/* Sub-Tab Content */}
+            {wellnessSubTab === 'checkin' && (
+              <div className="space-y-3">
+                <QuickModeSwitcher
+                  selfCare={data.selfCare}
+                  onUpdateSelfCare={updateSelfCare}
+                />
+                <SmartChecklist
+                  selfCare={data.selfCare}
+                  aiCheckIns={data.aiCheckIns}
+                  dose1Taken={dose1Taken}
+                  onUpdateSelfCare={updateSelfCare}
+                  therapist={therapistData}
+                  grief={griefData}
+                  meditation={meditationData}
+                  classes={data.classes}
+                />
+              </div>
+            )}
 
-            {/* Section 3: Therapy (Sessions, Journal, Breathing) */}
-            <CollapsibleSection title="Therapy" icon={Brain}>
-              <TherapyHub
-                therapistData={therapistData}
-                onUpdateTherapist={updateTherapist}
-                meditationData={meditationData}
-                onUpdateMeditation={updateMeditation}
-                journalData={griefData}
-                onUpdateJournal={updateGrief}
-              />
-            </CollapsibleSection>
+            {wellnessSubTab === 'therapy' && (
+              <TherapistTracker data={therapistData} onUpdate={updateTherapist} journalEntries={griefData.letters} calendarEvents={data.calendarEvents} />
+            )}
+
+            {wellnessSubTab === 'journal' && (
+              <Suspense fallback={<div className="py-8 text-center text-[var(--text-tertiary)] text-sm">Loading...</div>}>
+                <TherapyJournal data={griefData} onUpdate={updateGrief} />
+              </Suspense>
+            )}
+
+            {wellnessSubTab === 'breathing' && (
+              <MeditationSpace data={meditationData} onUpdate={updateMeditation} />
+            )}
           </div>
         )}
 

@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { loadData, updateCalendarEvents } from '../services/storage';
 import { fetchCalendarEvents } from '../services/calendar';
+import { fetchGoogleCalendarEvents } from '../services/googleCalendar';
 import { auth } from '../services/firebase';
+import type { CalendarEvent } from '../types';
 
 type SyncStatus = 'idle' | 'syncing' | 'success' | 'error' | 'offline';
 
@@ -34,18 +36,47 @@ async function syncAllCalendars() {
     data.settings.calendarUrls.forEach((u: string) => urls.add(u));
   }
 
-  const results = await Promise.allSettled(
-    Array.from(urls).map(url => fetchCalendarEvents(url))
-  );
+  // Fetch ICS calendars + Google Calendar in parallel
+  const icsPromises = Array.from(urls).map(url => fetchCalendarEvents(url));
+  const googlePromise = fetchGoogleCalendarEvents().catch(err => {
+    console.warn('Google Calendar sync failed:', err);
+    return [] as Awaited<ReturnType<typeof fetchGoogleCalendarEvents>>;
+  });
 
-  const fulfilled = results.filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof fetchCalendarEvents>>> => r.status === 'fulfilled');
-  const allEvents = fulfilled.flatMap(r => r.value);
-  const failedCount = results.filter(r => r.status === 'rejected').length;
+  const [icsResults, googleEvents] = await Promise.all([
+    Promise.allSettled(icsPromises),
+    googlePromise,
+  ]);
+
+  const fulfilled = icsResults.filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof fetchCalendarEvents>>> => r.status === 'fulfilled');
+  const icsEvents = fulfilled.flatMap(r => r.value);
+  const failedCount = icsResults.filter(r => r.status === 'rejected').length;
+
+  // Convert Google Calendar events to CalendarEvent format with source tracking
+  const googleCalEvents: CalendarEvent[] = googleEvents.map(ge => ({
+    id: `gcal-${ge.googleCalendarEventId}`,
+    title: ge.title,
+    date: ge.date,
+    startTime: ge.startTime,
+    endTime: ge.endTime,
+    location: ge.location || undefined,
+    description: ge.description || undefined,
+    googleCalendarEventId: ge.googleCalendarEventId,
+    source: 'google' as const,
+  }));
+
+  // Tag ICS events with source
+  const taggedIcsEvents: CalendarEvent[] = icsEvents.map(e => ({
+    ...e,
+    source: e.source || 'ics' as const,
+  }));
+
+  const allEvents = [...taggedIcsEvents, ...googleCalEvents];
 
   if (allEvents.length > 0) {
     updateCalendarEvents(allEvents);
     window.dispatchEvent(new CustomEvent('calendar-sync-complete'));
-  } else if (failedCount === results.length && results.length > 0) {
+  } else if (failedCount === icsResults.length && icsResults.length > 0 && googleEvents.length === 0) {
     console.warn(`Calendar sync: all ${failedCount} URL(s) failed`);
     window.dispatchEvent(new CustomEvent('calendar-sync-failed'));
   }

@@ -249,6 +249,8 @@ export interface CalendarEvent {
   location?: string;
   description?: string;
   linkedDanceIds?: string[]; // Competition dance IDs linked to this event for attendance
+  googleCalendarEventId?: string; // Links to real Google Calendar event for sync
+  source?: 'ics' | 'google' | 'manual'; // Where this event originated
 }
 
 // ===== MEDICATION CONFIGURATION =====
@@ -705,12 +707,9 @@ export interface SelfCareData {
   scratchpad?: string;
   // Timestamp for cross-device conflict resolution (ISO string)
   selfCareModified?: string;
-  // Therapy tracking
-  therapy?: TherapyData;
-  // Journal
-  journal?: JournalData;
-  // Breathing exercises
-  breathing?: BreathingData;
+  // Smart check-in: contextual items pinned for the day
+  contextualItemIds?: string[];
+  contextualItemsDate?: string;
   // Disruption tracking (sick days, travel, etc.)
   disruption?: {
     type: 'sick' | 'personal' | 'travel' | 'mental_health' | 'other';
@@ -725,78 +724,6 @@ export interface SelfCareData {
 // ===== MOOD RATING =====
 
 export type MoodRating = 1 | 2 | 3 | 4 | 5;
-
-// ===== THERAPY TRACKING =====
-
-export interface TherapyWeekNote {
-  id: string;
-  date: string;
-  text: string;
-  createdAt: string;
-}
-
-export interface TherapySessionNote {
-  id: string;
-  date: string;
-  preSessionNotes: string;
-  sessionNotes: string;
-  mood: MoodRating;
-  moodLabel?: string;
-  takeaways?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface TherapyData {
-  sessions: TherapySessionNote[];
-  weekNotes: TherapyWeekNote[];
-  nextSessionDate?: string;
-  therapistName?: string;
-}
-
-// ===== JOURNAL =====
-
-export interface JournalEntry {
-  id: string;
-  date: string;
-  title?: string;
-  content: string;
-  mood?: MoodRating;
-  tags?: string[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface JournalData {
-  entries: JournalEntry[];
-}
-
-// ===== BREATHING EXERCISES =====
-
-export interface BreathingPattern {
-  id: string;
-  name: string;
-  description: string;
-  inhale: number;
-  hold: number;
-  exhale: number;
-  holdAfterExhale?: number;
-  rounds: number;
-}
-
-export interface BreathingSession {
-  id: string;
-  patternId: string;
-  date: string;
-  durationSeconds: number;
-  completedRounds: number;
-  timestamp: string;
-}
-
-export interface BreathingData {
-  sessions: BreathingSession[];
-  favoritePatternId?: string;
-}
 
 // ===== iOS-STYLE REMINDERS =====
 
@@ -858,6 +785,7 @@ export interface TherapistPrepNote {
   text: string;
   createdAt: string;    // ISO timestamp
   discussed: boolean;   // mark after session
+  linkedJournalId?: string; // reference to a GriefLetter
 }
 
 export interface TherapistActionItem {
@@ -872,7 +800,9 @@ export interface TherapistSession {
   summary: string;
   takeaways: string;
   actionItems: TherapistActionItem[];
-  moodAfter: 'better' | 'same' | 'heavier';
+  moodAfter: 'better' | 'same' | 'heavier';  // kept for backwards compat
+  emotions?: GriefEmotion[];      // richer emotion tracking (shared with journal)
+  moodContext?: string;            // optional note about how they feel
   createdAt: string;    // ISO timestamp
 }
 
@@ -881,6 +811,7 @@ export interface TherapistData {
     date: string;       // YYYY-MM-DD
     time: string;       // HH:mm
     notes: string;
+    googleCalendarEventId?: string; // Linked Google Calendar event
   };
   prepNotes: TherapistPrepNote[];
   sessions: TherapistSession[];
@@ -915,14 +846,16 @@ export interface MeditationData {
 // ===== GRIEF TOOLKIT =====
 
 export type GriefEmotion =
-  | 'numb' | 'angry' | 'sad' | 'anxious' | 'guilty'
-  | 'peaceful' | 'grateful' | 'all_of_it' | 'dont_know';
+  | 'numb' | 'angry' | 'sad' | 'anxious' | 'guilty' | 'overwhelmed' | 'disconnected'
+  | 'peaceful' | 'grateful' | 'hopeful' | 'relieved' | 'creative'
+  | 'all_of_it' | 'dont_know';
 
 export interface GriefLetter {
   id: string;
   date: string;           // YYYY-MM-DD
   content: string;
   prompt: string | null;  // which prompt was used, if any
+  tags?: string[];        // auto-tagged by prompt category
   createdAt: string;      // ISO timestamp
   updatedAt: string;      // ISO timestamp
 }
@@ -939,5 +872,6 @@ export interface GriefData {
   letters: GriefLetter[];
   emotionalCheckins: GriefEmotionalCheckin[];
   lastPermissionSlipIndex: number;
+  favoritePermissionIndices?: number[];  // for weighted shuffle
   lastModified: string;
 }
