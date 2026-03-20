@@ -97,17 +97,10 @@ export function DailyBriefingWidget({ briefing, onCreateTask, calendarEvents = [
   const hasProjects = briefing.projects?.status && briefing.projects.status.length > 0;
   const hasNotes = briefing.notes?.newOrModified && briefing.notes.newOrModified.length > 0;
 
-  // Strip section headers + their content from summary — these are shown in structured sections below
-  const cleanedSummary = (briefing.summary ?? '')
-    // Remove "DAILY BRIEFING — [date]" header line
-    .replace(/^DAILY BRIEFING\s*[—–-]\s*[^\n]*\n*/i, '')
-    // Remove section headers and their content blocks (everything until next section or end)
-    .replace(/(?:^|\n)(?:TODAY'S CALENDAR|MESSAGES\s*\([^)]*\)|EMAIL\s*\([^)]*\)|EMAIL\s*\(FYI[^)]*\)|PROJECTS|WELLNESS|DEADLINES|NOTES|YESTERDAY YOU)[:\s]*\n(?:[\s\S]*?)(?=\n(?:MESSAGES|EMAIL|PROJECTS|WELLNESS|DEADLINES|NOTES|YESTERDAY YOU|NUDGE|---)|$)/gi, '\n')
-    // Remove standalone --- dividers
-    .replace(/^---\s*$/gm, '')
-    // Collapse excessive whitespace
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  // The enriched briefing summary contains both narrative text and section dumps
+  // (MESSAGES, EMAIL, PROJECTS, etc.) which are already shown in structured sections below.
+  // Strip everything that looks like a structured section, keeping only the narrative.
+  const cleanedSummary = stripBriefingSections(briefing.summary ?? '');
 
   // Summary truncation
   const summaryLines = cleanedSummary.split('\n');
@@ -630,4 +623,49 @@ function formatRelativeTime(isoStr: string): string {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
+}
+
+/** Strip structured section dumps from briefing summary, keeping only narrative text. */
+function stripBriefingSections(raw: string): string {
+  // Known section header patterns (case-insensitive, may have parenthetical descriptions)
+  const sectionPattern = /^(?:DAILY BRIEFING|MESSAGES|EMAIL|PROJECTS|WELLNESS|DEADLINES|NOTES|YESTERDAY YOU|TODAY'S CALENDAR|COMING UP|NUDGE)\b/i;
+
+  const lines = raw.split('\n');
+  const kept: string[] = [];
+  let inSection = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Skip --- dividers
+    if (/^-{2,}\s*$/.test(trimmed)) {
+      inSection = false;
+      continue;
+    }
+
+    // Detect section headers: ALL-CAPS words followed by optional (parenthetical) and colon
+    if (sectionPattern.test(trimmed)) {
+      inSection = true;
+      continue;
+    }
+
+    // Skip bulleted content under a section header
+    if (inSection && (trimmed.startsWith('-') || trimmed.startsWith('•') || trimmed === '')) {
+      continue;
+    }
+
+    // If we hit non-bulleted text after a section, we're out of that section
+    if (inSection && trimmed.length > 0) {
+      // Check if this line looks like section content (short, no sentence structure)
+      // vs. narrative text (longer, has sentence structure)
+      if (trimmed.length < 100 && !trimmed.includes('. ')) {
+        continue; // Likely still section content
+      }
+      inSection = false;
+    }
+
+    kept.push(line);
+  }
+
+  return kept.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
