@@ -97,10 +97,15 @@ export function DailyBriefingWidget({ briefing, onCreateTask, calendarEvents = [
   const hasProjects = briefing.projects?.status && briefing.projects.status.length > 0;
   const hasNotes = briefing.notes?.newOrModified && briefing.notes.newOrModified.length > 0;
 
-  // Strip the "TODAY'S CALENDAR" placeholder from summary — we render real calendar data in the Schedule section
+  // Strip section headers + their content from summary — these are shown in structured sections below
   const cleanedSummary = (briefing.summary ?? '')
-    .replace(/TODAY'S CALENDAR:\s*\n[^\n]*(?:\n|$)/g, '')  // Remove the header + its content line
-    .replace(/(---\s*\n)\s*---/g, '$1')                     // Collapse consecutive --- dividers
+    // Remove "DAILY BRIEFING — [date]" header line
+    .replace(/^DAILY BRIEFING\s*[—–-]\s*[^\n]*\n*/i, '')
+    // Remove section headers and their content blocks (everything until next section or end)
+    .replace(/(?:^|\n)(?:TODAY'S CALENDAR|MESSAGES\s*\([^)]*\)|EMAIL\s*\([^)]*\)|EMAIL\s*\(FYI[^)]*\)|PROJECTS|WELLNESS|DEADLINES|NOTES|YESTERDAY YOU)[:\s]*\n(?:[\s\S]*?)(?=\n(?:MESSAGES|EMAIL|PROJECTS|WELLNESS|DEADLINES|NOTES|YESTERDAY YOU|NUDGE|---)|$)/gi, '\n')
+    // Remove standalone --- dividers
+    .replace(/^---\s*$/gm, '')
+    // Collapse excessive whitespace
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 
@@ -468,11 +473,13 @@ export function DailyBriefingWidget({ briefing, onCreateTask, calendarEvents = [
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                const title = briefing.nudge!.length > 80 ? briefing.nudge!.slice(0, 80) + '...' : briefing.nudge!;
+                // Extract first sentence for a concise task title
+                const firstSentence = briefing.nudge!.match(/^[^.!?]+[.!?]?/)?.[0] || briefing.nudge!.slice(0, 60);
+                const title = `Briefing nudge: ${firstSentence.length > 60 ? firstSentence.slice(0, 60) + '...' : firstSentence}`;
                 handleAddTask('nudge', title, {
                   priority: 'low',
                   dueDate: today,
-                  notes: briefing.nudge!.length > 80 ? briefing.nudge! : undefined,
+                  notes: briefing.nudge!,
                 });
               }}
               disabled={addedItems.has('nudge')}

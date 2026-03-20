@@ -26,8 +26,12 @@ const DEFAULT_CALENDAR_URLS: string[] = (import.meta.env.VITE_CALENDAR_URLS || '
 
 // Sync all calendar URLs (defaults + any saved in settings) in parallel
 // Requires Firebase Auth — calendar proxy is a callable function that checks auth
-async function syncAllCalendars() {
+async function syncAllCalendars(force = false) {
   if (!auth?.currentUser) return;
+  // Skip if synced recently (unless forced — e.g. interval timer or manual trigger)
+  const now = Date.now();
+  if (!force && now - lastCalendarSyncTime < CALENDAR_SYNC_COOLDOWN) return;
+  lastCalendarSyncTime = now;
   const data = loadData();
   const urls = new Set<string>(DEFAULT_CALENDAR_URLS);
 
@@ -84,6 +88,9 @@ async function syncAllCalendars() {
 
 // Calendar sync interval: 15 minutes
 const CALENDAR_SYNC_INTERVAL = 15 * 60 * 1000;
+// Minimum time between calendar syncs (prevents rapid re-syncs on tab focus)
+const CALENDAR_SYNC_COOLDOWN = 5 * 60 * 1000;
+let lastCalendarSyncTime = 0;
 
 export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatusState] = useState<SyncStatus>('idle');
@@ -146,10 +153,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   // Calendar sync: on mount + every 15 minutes
   useEffect(() => {
-    syncAllCalendars();
+    syncAllCalendars(true);
 
     calendarSyncIntervalRef.current = setInterval(() => {
-      syncAllCalendars();
+      syncAllCalendars(true);
     }, CALENDAR_SYNC_INTERVAL);
 
     return () => {
