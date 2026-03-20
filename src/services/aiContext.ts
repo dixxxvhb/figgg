@@ -93,6 +93,8 @@ export interface AIContextPayload {
     dancesReady: number;
     dancesTotal: number;
   };
+  // Daily briefing summary (from Cloud Function)
+  dailyBriefing?: string;
   // Preferences
   tone: 'supportive' | 'direct' | 'minimal';
   // Check-in context (for briefing and day-plan generation)
@@ -129,6 +131,15 @@ export function buildAIContext(
   if (dose1Taken && sc?.dose1Time) medStatus.dose1Time = formatMs(sc.dose1Time);
   if (dose2Taken && sc?.dose2Time) medStatus.dose2Time = formatMs(sc.dose2Time);
   if (dose3Taken && sc?.dose3Time) medStatus.dose3Time = formatMs(sc.dose3Time);
+  // Current med status based on most recent dose timing
+  const latestDoseTime = [sc?.dose3Time, sc?.dose2Time, sc?.dose1Time].find(t => t != null);
+  if (latestDoseTime && !skipped) {
+    const minutesSinceDose = Math.floor((now.getTime() - latestDoseTime) / 60000);
+    if (minutesSinceDose < 30) medStatus.currentStatus = 'Building';
+    else if (minutesSinceDose < 180) medStatus.currentStatus = 'Peak';
+    else if (minutesSinceDose < 300) medStatus.currentStatus = 'Tapering';
+    else medStatus.currentStatus = 'Worn off';
+  }
 
   // Schedule
   const todayClasses = getClassesByDay(data.classes, dayName);
@@ -376,6 +387,7 @@ export function buildFullAIContext(
 ): AIContextPayload & {
   allActiveReminders?: Array<{ id: string; title: string; dueDate?: string; flagged: boolean; completed: boolean }>;
   upcomingCompetitions?: Array<{ name: string; date: string; daysAway: number }>;
+  therapyWeekNotes?: Array<{ date: string; text: string }>;
   date: string;
   // Full data access for AI
   classDetails?: Array<{ id: string; name: string; day: string; startTime: string; endTime: string; studioId: string; level?: string; recitalSong?: string; choreographyNotes?: string }>;
@@ -531,6 +543,7 @@ export function buildFullAIContext(
   return {
     ...base,
     date: todayStr,
+    dailyBriefing: data.dailyBriefing?.summary,
     allActiveReminders: reminders,
     upcomingCompetitions,
     classDetails,

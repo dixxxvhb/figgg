@@ -78,6 +78,8 @@ export interface AIAction {
     | 'markClassExceptionRange'
     | 'batchRescheduleTasks'
     | 'assignSub'
+    | 'startDisruption'
+    | 'endDisruption'
     | 'clearWeekPlan'
     | 'generateCatchUpPlan'
     // Class management

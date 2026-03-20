@@ -39,6 +39,14 @@
       window.addEventListener('unhandledrejection', function(e) {
         showBootError(e.reason?.message || e.reason || 'Unhandled promise rejection');
       });
+      // Hide boot-error once React mounts (covers race where error fires before mount)
+      new MutationObserver(function(_, obs) {
+        var root = document.getElementById('root');
+        if (root && root.children.length) {
+          document.getElementById('boot-error').style.display = 'none';
+          obs.disconnect();
+        }
+      }).observe(document.getElementById('root'), { childList: true });
       setTimeout(function() {
         if (!document.getElementById('root').children.length) {
           showBootError('App failed to load within 10 seconds. Try clearing site data or opening in an incognito window.');

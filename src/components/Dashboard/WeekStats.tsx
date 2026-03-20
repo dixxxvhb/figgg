@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { Lightbulb } from 'lucide-react';
 import type { TeachingStats } from '../../hooks/useTeachingStats';
 import type { Class, Competition, WeekNotes, DayOfWeek } from '../../types';
 
@@ -185,14 +184,6 @@ export function WeekStats({ stats, classes, competitions, weekNotes }: WeekStats
               stats.subbedThisWeek > 0 && `${stats.subbedThisWeek} subbed`,
             ].filter(Boolean).join(' · ')} this week
           </span>
-        </div>
-      )}
-
-      {/* Weekly insight footer */}
-      {insight && (
-        <div className="px-4 py-2.5 border-t border-[var(--border-subtle)] flex items-start gap-2">
-          <Lightbulb size={14} className="text-[var(--accent-secondary)] mt-0.5 flex-shrink-0" />
-          <p className="font-display italic text-[var(--text-secondary)] text-xs leading-relaxed">{insight}</p>
         </div>
       )}
     </div>

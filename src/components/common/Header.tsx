@@ -148,6 +148,7 @@ export function MobileNav() {
     if (path === '/ai') return location.pathname === '/ai';
     if (path === '/settings') {
       return location.pathname.startsWith('/settings') ||
+             location.pathname.startsWith('/students') ||
              location.pathname.startsWith('/library') ||
              location.pathname.startsWith('/choreography') ||
              location.pathname.startsWith('/launch') ||

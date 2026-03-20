@@ -32,9 +32,11 @@ import { ScratchpadWidget } from '../components/Dashboard/ScratchpadWidget';
 import { LaunchPlanWidget } from '../components/Dashboard/LaunchPlanWidget';
 import { EventCountdown } from '../components/Dashboard/EventCountdown';
 import { StreakCard } from '../components/Dashboard/StreakCard';
+import { WeeklyInsight } from '../components/Dashboard/WeeklyInsight';
 import { WeekMomentumBar } from '../components/Dashboard/WeekMomentumBar';
 import { SortableWidget } from '../components/Dashboard/SortableWidget';
 import { NudgeCards } from '../components/Dashboard/NudgeCards';
+import { DailyBriefingWidget } from '../components/Dashboard/DailyBriefingWidget';
 import { PrepCard } from '../components/Dashboard/PrepCard';
 import { PostClassCapture } from '../components/Dashboard/PostClassCapture';
 import { QuickNoteCapture } from '../components/Dashboard/QuickNoteCapture';
@@ -82,6 +84,7 @@ const ACTION_KEYWORDS = /\b(next (?:week|time|class)|need to|try|work on|remembe
 const isActionItem = (text: string) => ACTION_KEYWORDS.test(text) || text.startsWith('!');
 
 const DEFAULT_WIDGET_ORDER = [
+  'daily-briefing',
   'morning-briefing',
   'nudges',
   'meds-quick',
@@ -91,18 +94,21 @@ const DEFAULT_WIDGET_ORDER = [
   'week-momentum',
   'week-stats',
   'streak',
+  'weekly-insight',
   'launch-plan',
 ] as const;
 
 const WIDGET_LABELS: Record<string, string> = {
+  'daily-briefing': 'Daily Briefing',
   'morning-briefing': 'Quick Stats',
   'nudges': 'Nudges',
   'meds-quick': 'Meds',
   'todays-agenda': "Today's Schedule",
   'reminders': 'Tasks',
   'week-momentum': 'Week Momentum',
-  'week-stats': 'This Week',
+  'week-stats': 'Week Stats',
   'streak': 'Streak',
+  'weekly-insight': 'Weekly Insight',
   'launch-plan': 'Launch Plan',
   'scratchpad': 'Scratchpad',
 };
@@ -728,9 +734,9 @@ export function Dashboard() {
   }, [hour, activeTodayClasses, todayCalendarEvents, classInfo, selfCareStatus, currentMinute, recentlyEndedClass, data.selfCare?.skippedDoseDate, todayStr2, todayMood]);
 
   return (
-    <div className="pb-24 bg-[var(--mood-surface-tint)] min-h-screen">
-      {/* ── Greeting — clean edge-to-edge, ambient glow from mood layer ── */}
-      <div className="px-4 pt-8 pb-2 mood-ambient-glow overflow-hidden">
+    <div className="pb-24 bg-[var(--surface-primary)] min-h-screen">
+      {/* ── Greeting — clean edge-to-edge, no colored bar ── */}
+      <div className="px-4 pt-8 pb-2">
         <div className="page-w">
           <div className="flex items-start justify-between">
             <div>
@@ -741,7 +747,7 @@ export function Dashboard() {
                 {dayName}, <span className="text-[var(--accent-primary)]">{dateStr}</span>
               </h1>
               {greetingSub && (
-                <p className="text-sm font-display text-[var(--text-tertiary)] mt-1">{greetingSub}</p>
+                <p className="text-sm text-[var(--text-tertiary)] mt-1">{greetingSub}</p>
               )}
             </div>
             <button
@@ -793,7 +799,7 @@ export function Dashboard() {
         </div>
       )}
 
-      <div className="page-w px-4 pt-4 space-y-8">
+      <div className="page-w px-4 pt-4 space-y-6">
         <EventCountdown competitions={data.competitions} />
 
         {/* ── Prep Card — class starting within 60 min ── */}
@@ -997,7 +1003,6 @@ export function Dashboard() {
             onToggleItem={handleTogglePlanItem}
             onReplan={() => generateDayPlan()}
             isReplanning={isReplanning}
-            cancelledClassIds={cancelledClassIds}
           />
         )}
 
@@ -1009,9 +1014,11 @@ export function Dashboard() {
           modifiers={[restrictToVerticalAxis]}
         >
           <SortableContext items={widgetOrder} strategy={verticalListSortingStrategy}>
-            <div className={`space-y-8 ${!isEditingLayout ? 'widget-stagger-in' : ''}`}>
             {widgetOrder.map(id => (
               <SortableWidget key={id} id={id} isEditing={isEditingLayout} label={WIDGET_LABELS[id] || id}>
+                {id === 'daily-briefing' && data.dailyBriefing && (
+                  <DailyBriefingWidget briefing={data.dailyBriefing} />
+                )}
                 {id === 'nudges' && (
                   <NudgeCards nudges={nudges} onDismissOrSnooze={() => setNudgeKey(k => k + 1)} key={`nudge-${nudgeKey}`} />
                 )}
@@ -1058,10 +1065,13 @@ export function Dashboard() {
                   <WeekMomentumBar stats={stats} />
                 )}
                 {id === 'week-stats' && (
-                  <WeekStats stats={stats} classes={data.classes} competitions={data.competitions} weekNotes={data.weekNotes} />
+                  <WeekStats stats={stats} />
                 )}
                 {id === 'streak' && (
                   <StreakCard selfCare={data.selfCare} learningData={data.learningData} notesThisWeek={stats.classesThisWeek.completed} totalClassesThisWeek={stats.classesThisWeek.total} />
+                )}
+                {id === 'weekly-insight' && (
+                  <WeeklyInsight stats={stats} classes={data.classes} competitions={data.competitions} weekNotes={data.weekNotes} />
                 )}
                 {id === 'launch-plan' && (
                   <LaunchPlanWidget launchPlan={data.launchPlan} />
@@ -1106,7 +1116,6 @@ export function Dashboard() {
                 )}
               </SortableWidget>
             ))}
-            </div>
           </SortableContext>
         </DndContext>
       </div>

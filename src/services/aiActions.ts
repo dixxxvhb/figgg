@@ -17,7 +17,7 @@ import type {
   CompetitionDance,
 } from '../types';
 
-const VALID_CATEGORIES = new Set(['task', 'wellness', 'class', 'launch', 'break', 'med']);
+const VALID_CATEGORIES = new Set(['task', 'wellness', 'class', 'launch', 'break', 'med', 'selfcare']);
 const VALID_PRIORITIES = new Set(['high', 'medium', 'low']);
 
 export interface ActionCallbacks {
@@ -425,6 +425,54 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
         });
         selfCareUpdates.reminders = updated;
         needsSelfCareUpdate = true;
+        break;
+      }
+      case 'startDisruption': {
+        const dtype = action.disruptionType || 'other';
+        selfCareUpdates = {
+          ...selfCareUpdates,
+          disruption: {
+            type: dtype,
+            reason: action.reason || '',
+            startDate: todayKey,
+            expectedReturn: action.expectedReturn,
+            classesHandled: false,
+            tasksDeferred: false,
+          },
+        };
+        needsSelfCareUpdate = true;
+        break;
+      }
+      case 'endDisruption': {
+        selfCareUpdates = { ...selfCareUpdates, disruption: undefined };
+        needsSelfCareUpdate = true;
+        break;
+      }
+      case 'assignSub': {
+        // Assign a sub to specific classes on specific dates — uses markClassException under the hood
+        if (!action.classIds?.length || !action.subName) break;
+        const targetDates = action.dates?.length ? action.dates : [todayKey];
+        for (const dateStr of targetDates) {
+          const dt = new Date(dateStr + 'T12:00:00');
+          const wOf = formatWeekOf(getWeekStart(dt));
+          const existingWN = callbacks.getData().weekNotes.find(w => w.weekOf === wOf);
+          const wn: WeekNotes = existingWN
+            ? { ...existingWN, classNotes: { ...existingWN.classNotes } }
+            : { id: `week_${wOf}`, weekOf: wOf, classNotes: {} };
+          for (const cid of action.classIds) {
+            const existing = wn.classNotes[cid] || { classId: cid, plan: '', liveNotes: [], isOrganized: false };
+            wn.classNotes[cid] = {
+              ...existing,
+              exception: { type: 'subbed', subName: action.subName, reason: (action.reason as 'sick' | 'personal' | 'holiday' | 'other') || 'other' },
+            };
+          }
+          callbacks.saveWeekNotes(wn);
+        }
+        // Mark classesHandled on disruption if active
+        if (sc.disruption) {
+          selfCareUpdates = { ...selfCareUpdates, disruption: { ...sc.disruption, classesHandled: true } };
+          needsSelfCareUpdate = true;
+        }
         break;
       }
       case 'clearWeekPlan': {

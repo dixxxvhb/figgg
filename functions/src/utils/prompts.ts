@@ -20,6 +20,11 @@ export function buildContextString(payload: any, mode: Mode): string {
 
   const ctx = payload.context || payload;
 
+  // Daily briefing context (from Cloud Function)
+  if (ctx.dailyBriefing) {
+    contextLines.push(`Today's briefing summary: ${ctx.dailyBriefing}`);
+  }
+
   // Meds
   if (ctx.medStatus) {
     const m = ctx.medStatus;
@@ -284,6 +289,59 @@ export function buildContextString(payload: any, mode: Mode): string {
     contextLines.push(`Already completed today (DO NOT regenerate these):\n${ctx.completedItems.map((i: { title: string; category: string }) => `  - [DONE] ${i.title} (${i.category})`).join("\n")}`);
   }
 
+  // Therapy summary
+  if (ctx.therapySummary) {
+    const t = ctx.therapySummary;
+    const parts: string[] = [];
+    if (t.sessionCount > 0) parts.push(`${t.sessionCount} sessions`);
+    if (t.lastSessionDate) parts.push(`last session ${t.lastSessionDate}${t.lastSessionMood ? ` (mood: ${t.lastSessionMood}/5)` : ""}`);
+    if (t.nextSessionDate) parts.push(`next session ${t.nextSessionDate}`);
+    if (t.weekNoteCount > 0) parts.push(`${t.weekNoteCount} week notes captured`);
+    contextLines.push(`Therapy: ${parts.join(", ")}`);
+    if (t.recentWeekNotes?.length > 0) {
+      contextLines.push(`  Recent therapy notes: ${t.recentWeekNotes.map((n: string) => `"${n}"`).join(", ")}`);
+    }
+    if (t.recentMoodTrend?.length && t.recentMoodTrend.length >= 2) {
+      contextLines.push(`  Therapy mood trend (last ${t.recentMoodTrend.length} sessions): ${t.recentMoodTrend.join(", ")}`);
+    }
+  }
+
+  // All active reminders (chat mode — full list beyond top 5)
+  if (mode === "chat" && ctx.allActiveReminders?.length > 0) {
+    contextLines.push(`All active reminders:\n${ctx.allActiveReminders.map((r: { id: string; title: string; dueDate?: string; flagged: boolean }) => `  ${r.flagged ? "⚑ " : ""}${r.title}${r.dueDate ? ` (due ${r.dueDate})` : ""}`).join("\n")}`);
+  }
+
+  // Upcoming competitions (chat mode — next 3)
+  if (mode === "chat" && ctx.upcomingCompetitions?.length > 0) {
+    contextLines.push(`Upcoming competitions:\n${ctx.upcomingCompetitions.map((c: { name: string; date: string; daysAway: number }) => `  ${c.name} — ${c.date} (${c.daysAway} days away)`).join("\n")}`);
+  }
+
+  // Full therapy week notes (chat mode only — for deeper context)
+  if (mode === "chat" && ctx.therapyWeekNotes?.length > 0) {
+    contextLines.push(`Full therapy week notes:\n${ctx.therapyWeekNotes.map((n: { date: string; text: string }) => `  [${n.date}] ${n.text}`).join("\n")}`);
+  }
+
+  // Journal summary
+  if (ctx.journalSummary) {
+    const j = ctx.journalSummary;
+    const parts: string[] = [`${j.entryCount} entries`];
+    if (j.lastEntryDate) parts.push(`last entry ${j.lastEntryDate}${j.lastEntryMood ? ` (mood: ${j.lastEntryMood}/5)` : ""}`);
+    parts.push(`${j.daysSinceLastEntry} days since last entry`);
+    contextLines.push(`Journal: ${parts.join(", ")}`);
+    if (j.recentTags?.length) {
+      contextLines.push(`  Recent journal themes: ${j.recentTags.join(", ")}`);
+    }
+  }
+
+  // Breathing summary
+  if (ctx.breathingSummary) {
+    const b = ctx.breathingSummary;
+    const parts: string[] = [`${b.totalSessionsThisWeek} sessions this week`];
+    if (b.lastSessionDate) parts.push(`last: ${b.lastSessionDate}`);
+    if (b.favoritePattern) parts.push(`favorite: ${b.favoritePattern}`);
+    contextLines.push(`Breathing: ${parts.join(", ")}`);
+  }
+
   // Disruption context — relevant for chat, check-in, briefing, day-plan
   if (["chat", "check-in", "briefing", "day-plan"].includes(mode) && ctx.disruption) {
     const d = ctx.disruption;
@@ -345,6 +403,16 @@ INTELLIGENCE:
 - WEEKLY REFLECTION: On Friday afternoon or Sunday, ask a brief reflective question: "What went well this week?" or "Anything you want to do differently next week?" If he answers, capture it with addWeekReflection. Extract key themes into wentWell, challenges, nextWeekFocus. Write a 1-sentence aiSummary. Don't force it — if he just wants a normal check-in, that's fine.
 - If the schedule has competition entries (titles with "#" + number), set dayMode to "comp" if not already set. Comp days = focus on performance, suppress busywork.
 - If schedule is heavy (4+ hours of classes), consider setting dayMode to "intense" for extra fuel items.
+
+EMOTIONAL AWARENESS:
+- You can see Dixon's therapy notes, journal entries, and breathing history. Use this context naturally:
+  - If he has a therapy session coming up, ask how prep is going or reference recent week notes.
+  - If journal mood has been trending down, be gentler. If trending up, acknowledge the progress.
+  - If he hasn't journaled in 3+ days, gently suggest it (once, not every check-in).
+  - If he seems stressed/anxious, suggest a specific breathing exercise by name (e.g., "4-7-8 might help").
+  - If he mentions his mom, grief, or loss — be warm, not clinical. Reference his journal tags if relevant.
+- When he shares something therapy-worthy (processing emotions, insights about grief, breakthroughs), offer to capture it as a therapy week note via addTherapyWeekNote.
+- When he shares something journal-worthy (reflections, experiences, feelings), offer to save it as a journal entry via addJournalEntry.
 
 RETURN JSON:
 {
@@ -479,7 +547,7 @@ RETURN JSON:
       "id": "plan_0",
       "time": "09:00",
       "title": "...",
-      "category": "task" | "wellness" | "class" | "launch" | "break" | "med",
+      "category": "task" | "wellness" | "class" | "launch" | "break" | "med" | "selfcare",
       "sourceId": "..." (REQUIRED for wellness and class items, optional for others),
       "completed": false,
       "priority": "high" | "medium" | "low",
@@ -496,6 +564,7 @@ CATEGORY GUIDANCE:
 - "task": reminders/tasks from the task list. MUST include sourceId matching the task ID so completion syncs back to the task list.
 - "launch": DWDC launch backlog items — pick from the prioritized list, matching effort to available time. Use sourceId = task ID so completion syncs.
 - "break": suggested rest periods ("15min break", "Walk outside")
+- "selfcare": therapy prep, journaling time, breathing exercises. Use for pre-therapy prep, post-therapy reflection, journaling blocks, and breathing exercises.
 
 SMART TASK SCHEDULING:
 - Tasks provided in context have IDs, due dates, priorities, and flags. USE THIS DATA to intelligently schedule them.
@@ -561,7 +630,7 @@ Meds:
 
 Day Plan:
   { "type": "updatePlanSummary", "summary": "new summary text" }
-  { "type": "addPlanItem", "title": "...", "category": "task|wellness|class|launch|break|med", "priority": "high|medium|low", "time": "HH:mm" (optional), "aiNote": "short why" (optional) }
+  { "type": "addPlanItem", "title": "...", "category": "task|wellness|class|launch|break|med|selfcare", "priority": "high|medium|low", "time": "HH:mm" (optional), "aiNote": "short why" (optional) }
   { "type": "removePlanItem", "title": "title to remove" }
   { "type": "reschedulePlanItem", "title": "item title", "time": "HH:mm" }
   { "type": "reprioritizePlan", "order": ["plan_0", "plan_1", ...] }

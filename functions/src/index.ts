@@ -12,3 +12,6 @@ export { detectReminders } from "./detectReminders";
 
 // HTTP functions
 export { calendarProxy } from "./calendarProxy";
+
+// Scheduled functions
+export { generateDailyBriefing, triggerDailyBriefing } from "./generateDailyBriefing";

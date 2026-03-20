@@ -26,6 +26,7 @@ import type {
   AICheckIn,
   AIChatThread,
   DayPlan,
+  DailyBriefing,
   AppSettings,
   TherapistData,
   MeditationData,
@@ -479,6 +480,91 @@ export async function saveChatThread(userId: string, thread: AIChatThread): Prom
 
 export async function deleteChatThread(userId: string, threadId: string): Promise<void> {
   await deleteDoc(userDoc(userId, 'chatThreads', threadId));
+}
+
+export function onDailyBriefingSnapshot(
+  userId: string,
+  date: string,
+  callback: (data: DailyBriefing | undefined) => void
+): Unsubscribe {
+  return onSnapshot(doc(requireDb(), 'users', userId, 'briefings', date), (snap) => {
+    callback(snap.exists() ? ({ ...snap.data(), id: snap.id } as unknown as DailyBriefing) : undefined);
+  });
+}
+
+// ============================================================
+// REAL-TIME COLLECTION LISTENERS
+// ============================================================
+export function onStudiosSnapshot(
+  userId: string,
+  callback: (data: Studio[]) => void
+): Unsubscribe {
+  return onSnapshot(userCollection(userId, 'studios'), (snap) => {
+    callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as Studio)));
+  });
+}
+
+export function onClassesSnapshot(
+  userId: string,
+  callback: (data: Class[]) => void
+): Unsubscribe {
+  return onSnapshot(userCollection(userId, 'classes'), (snap) => {
+    callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as Class)));
+  });
+}
+
+export function onStudentsSnapshot(
+  userId: string,
+  callback: (data: Student[]) => void
+): Unsubscribe {
+  return onSnapshot(userCollection(userId, 'students'), (snap) => {
+    callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as Student)));
+  });
+}
+
+export function onWeekNotesSnapshot(
+  userId: string,
+  callback: (data: WeekNotes[]) => void
+): Unsubscribe {
+  return onSnapshot(userCollection(userId, 'weekNotes'), (snap) => {
+    callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as unknown as WeekNotes)));
+  });
+}
+
+export function onCompetitionsSnapshot(
+  userId: string,
+  callback: (data: Competition[]) => void
+): Unsubscribe {
+  return onSnapshot(userCollection(userId, 'competitions'), (snap) => {
+    callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as Competition)));
+  });
+}
+
+export function onCompetitionDancesSnapshot(
+  userId: string,
+  callback: (data: CompetitionDance[]) => void
+): Unsubscribe {
+  return onSnapshot(userCollection(userId, 'competitionDances'), (snap) => {
+    callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as CompetitionDance)));
+  });
+}
+
+export function onChoreographiesSnapshot(
+  userId: string,
+  callback: (data: Choreography[]) => void
+): Unsubscribe {
+  return onSnapshot(userCollection(userId, 'choreographies'), (snap) => {
+    callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as unknown as Choreography)));
+  });
+}
+
+export function onCalendarEventsSnapshot(
+  userId: string,
+  callback: (data: CalendarEvent[]) => void
+): Unsubscribe {
+  return onSnapshot(userCollection(userId, 'calendarEvents'), (snap) => {
+    callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as CalendarEvent)));
+  });
 }
 
 // ============================================================

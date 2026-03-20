@@ -118,12 +118,12 @@ export function MorningBriefing({
         text: `${overdueCount} overdue`,
         color: 'text-red-600 dark:text-red-400',
         bg: 'bg-red-50 dark:bg-red-900/20',
-        to: '/me?tab=reminders',
+        to: '/tasks',
       });
     }
     const todayDueCount = reminders.filter(r => !r.completed && r.dueDate === todayStr).length;
     if (todayDueCount > 0) {
-      items.push({ text: `${todayDueCount} due today`, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20', to: '/me?tab=reminders' });
+      items.push({ text: `${todayDueCount} due today`, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20', to: '/tasks' });
     }
     if (selfCareStatus.dose2Window) {
       const w = selfCareStatus.dose2Window;

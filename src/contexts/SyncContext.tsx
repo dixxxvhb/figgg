@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { loadData, updateCalendarEvents } from '../services/storage';
 import { fetchCalendarEvents } from '../services/calendar';
+import { auth } from '../services/firebase';
 
 type SyncStatus = 'idle' | 'syncing' | 'success' | 'error' | 'offline';
 
@@ -22,7 +23,9 @@ const DEFAULT_CALENDAR_URLS: string[] = (import.meta.env.VITE_CALENDAR_URLS || '
   .filter(Boolean);
 
 // Sync all calendar URLs (defaults + any saved in settings) in parallel
+// Requires Firebase Auth — calendar proxy is a callable function that checks auth
 async function syncAllCalendars() {
+  if (!auth?.currentUser) return;
   const data = loadData();
   const urls = new Set<string>(DEFAULT_CALENDAR_URLS);
 
