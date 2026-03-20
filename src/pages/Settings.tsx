@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   MapPin, Download, Upload, Check, Calendar, Sparkles, RefreshCw, AlertCircle, Cloud,
-  BookOpen, Sun, Moon, Type, Users, Grid3X3, ChevronRight, ArrowLeft, Music, Star,
+  BookOpen, Sun, Moon, Type, Users, Grid3X3, ChevronRight, ArrowLeft, Music, Star, Rocket,
   ChevronDown, ChevronUp, Palette, Pill, Heart, Plus, Trash2, Circle,
   Pencil, Droplets, Utensils, Footprints, Coffee, Brain, Smartphone, BedDouble, Zap, Bell, Bot, LogIn, LogOut,
   type LucideIcon,

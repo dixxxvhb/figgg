@@ -119,6 +119,7 @@ export interface AIAction {
   exceptionType?: 'cancelled' | 'subbed';
   subName?: string;
   reason?: string;
+  disruptionType?: string;
   classId?: string;
   text?: string;
   noteCategory?: string;

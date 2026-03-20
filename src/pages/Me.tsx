@@ -703,14 +703,6 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
         )}
         </>)}
 
-        {/* === Therapy Tab === */}
-        {activeTab === 'therapy' && <TherapyTab />}
-
-        {/* === Journal Tab === */}
-        {activeTab === 'journal' && <JournalTab />}
-
-        {/* === Breathing Tab === */}
-        {activeTab === 'breathing' && <BreathingTab />}
 
       </div>
     </div>

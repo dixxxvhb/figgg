@@ -1065,7 +1065,7 @@ export function Dashboard() {
                   <WeekMomentumBar stats={stats} />
                 )}
                 {id === 'week-stats' && (
-                  <WeekStats stats={stats} />
+                  <WeekStats stats={stats} classes={data.classes || []} competitions={data.competitions} weekNotes={data.weekNotes} />
                 )}
                 {id === 'streak' && (
                   <StreakCard selfCare={data.selfCare} learningData={data.learningData} notesThisWeek={stats.classesThisWeek.completed} totalClassesThisWeek={stats.classesThisWeek.total} />
