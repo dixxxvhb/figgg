@@ -299,7 +299,7 @@ RETURN JSON with this exact shape:
   }
   calendarData.today.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-  // 6. Write to Firestore
+  // 6. Write to Firestore (filter out undefined values — Firestore rejects them)
   const briefingDoc: Record<string, unknown> = {
     date: todayStr,
     source: "firebase",
@@ -308,18 +308,16 @@ RETURN JSON with this exact shape:
     calendar: calendarData,
     wellness: {
       medsStatus: parsed.wellness?.medsStatus || { onTrack: false, missedRecently: false },
-      moodTrend: parsed.wellness?.moodTrend || undefined,
+      ...(parsed.wellness?.moodTrend ? { moodTrend: parsed.wellness.moodTrend } : {}),
     },
     summary: parsed.summary || "",
-    nudge: parsed.nudge || undefined,
     deadlines: parsed.deadlines || [],
     yesterdayYou: parsed.yesterdayYou || [],
   };
 
-  // Include email data if available
-  if (parsed.email) {
-    briefingDoc.email = parsed.email;
-  }
+  // Only include optional fields if they have values
+  if (parsed.nudge) briefingDoc.nudge = parsed.nudge;
+  if (parsed.email) briefingDoc.email = parsed.email;
 
   await db.doc(`${userRoot}/briefings/${todayStr}`).set(briefingDoc);
   console.log(`Daily briefing written for ${todayStr}`);

@@ -53,6 +53,13 @@ jobs:
       - name: Install functions dependencies
         run: cd functions && npm ci
 
+      - name: Write functions .env
+        run: |
+          echo "GMAIL_CLIENT_ID=${{ secrets.GMAIL_CLIENT_ID }}" > functions/.env
+          echo "GMAIL_CLIENT_SECRET=${{ secrets.GMAIL_CLIENT_SECRET }}" >> functions/.env
+          echo "GMAIL_REFRESH_TOKEN=${{ secrets.GMAIL_REFRESH_TOKEN }}" >> functions/.env
+          echo "GMAIL_USER_EMAIL=${{ secrets.GMAIL_USER_EMAIL }}" >> functions/.env
+
       - name: Build functions
         run: cd functions && npm run build
 
