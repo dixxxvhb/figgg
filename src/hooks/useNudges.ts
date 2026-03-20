@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 import { toDateStr } from '../utils/time';
-import type { AppData } from '../types';
+import type { AppData, NudgeDismissState } from '../types';
 
 export interface Nudge {
   id: string;
@@ -14,38 +14,66 @@ export interface Nudge {
   snoozeable: boolean;
 }
 
-interface NudgeDismissState {
-  dismissed: Record<string, string>;  // nudgeId -> ISO date
-  snoozed: Record<string, string>;    // nudgeId -> ISO date (snooze expires after 24h)
-}
+const EMPTY_STATE: NudgeDismissState = { dismissed: {}, snoozed: {} };
 
-function loadNudgeState(): NudgeDismissState {
+// Migrate any existing localStorage nudge state to Firestore (one-time)
+function migrateLocalStorageNudgeState(): NudgeDismissState | null {
   try {
     const raw = localStorage.getItem('figgg-nudge-state');
-    return raw ? JSON.parse(raw) : { dismissed: {}, snoozed: {} };
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as NudgeDismissState;
+    // Remove from localStorage after migration
+    localStorage.removeItem('figgg-nudge-state');
+    return parsed;
   } catch {
-    return { dismissed: {}, snoozed: {} };
+    localStorage.removeItem('figgg-nudge-state');
+    return null;
   }
 }
 
-export function dismissNudge(nudgeId: string): void {
-  const state = loadNudgeState();
-  state.dismissed[nudgeId] = new Date().toISOString();
-  localStorage.setItem('figgg-nudge-state', JSON.stringify(state));
-}
+export function useNudges(
+  data: AppData,
+  updateNudgeState?: (state: NudgeDismissState) => void
+): { nudges: Nudge[]; dismissNudge: (id: string) => void; snoozeNudge: (id: string) => void } {
 
-export function snoozeNudge(nudgeId: string): void {
-  const state = loadNudgeState();
-  state.snoozed[nudgeId] = new Date().toISOString();
-  localStorage.setItem('figgg-nudge-state', JSON.stringify(state));
-}
+  // One-time migration: if localStorage has nudge state but Firestore doesn't, migrate it
+  const nudgeState = useMemo(() => {
+    const synced = data.nudgeState;
+    if (synced && (Object.keys(synced.dismissed).length > 0 || Object.keys(synced.snoozed).length > 0)) {
+      // Already have synced state — clean up any leftover localStorage
+      localStorage.removeItem('figgg-nudge-state');
+      return synced;
+    }
+    // Check for localStorage state to migrate
+    const local = migrateLocalStorageNudgeState();
+    if (local && updateNudgeState) {
+      // Migrate to Firestore
+      updateNudgeState(local);
+      return local;
+    }
+    return synced || EMPTY_STATE;
+  }, [data.nudgeState, updateNudgeState]);
 
-export function useNudges(data: AppData): Nudge[] {
-  return useMemo(() => {
+  const dismissNudge = useCallback((nudgeId: string) => {
+    const updated: NudgeDismissState = {
+      dismissed: { ...nudgeState.dismissed, [nudgeId]: new Date().toISOString() },
+      snoozed: { ...nudgeState.snoozed },
+    };
+    updateNudgeState?.(updated);
+  }, [nudgeState, updateNudgeState]);
+
+  const snoozeNudge = useCallback((nudgeId: string) => {
+    const updated: NudgeDismissState = {
+      dismissed: { ...nudgeState.dismissed },
+      snoozed: { ...nudgeState.snoozed, [nudgeId]: new Date().toISOString() },
+    };
+    updateNudgeState?.(updated);
+  }, [nudgeState, updateNudgeState]);
+
+  const nudges = useMemo(() => {
     const now = new Date();
     const todayStr = toDateStr(now);
-    const nudgeState = loadNudgeState();
-    const nudges: Nudge[] = [];
+    const result: Nudge[] = [];
 
     // Helper to check if nudge is dismissed/snoozed
     const isActive = (id: string): boolean => {
@@ -64,7 +92,7 @@ export function useNudges(data: AppData): Nudge[] {
     // Rule 1: Overdue tasks > 5
     const overdueCount = reminders.filter(r => !r.completed && r.dueDate && r.dueDate < todayStr).length;
     if (overdueCount > 5 && isActive('overdue-tasks')) {
-      nudges.push({
+      result.push({
         id: 'overdue-tasks',
         type: 'overdue',
         priority: 'high',
@@ -81,7 +109,7 @@ export function useNudges(data: AppData): Nudge[] {
     if (lastDoseDate) {
       const daysSince = differenceInCalendarDays(now, parseISO(lastDoseDate));
       if (daysSince >= 2 && isActive('meds-gap')) {
-        nudges.push({
+        result.push({
           id: 'meds-gap',
           type: 'meds',
           priority: 'high',
@@ -102,7 +130,7 @@ export function useNudges(data: AppData): Nudge[] {
           const compDances = dances.filter(d => comp.dances.includes(d.id));
           const missingNotes = compDances.filter(d => !d.rehearsalNotes || d.rehearsalNotes.length === 0);
           if (missingNotes.length > 0 && isActive(`comp-prep-${comp.id}`)) {
-            nudges.push({
+            result.push({
               id: `comp-prep-${comp.id}`,
               type: 'competition',
               priority: 'high',
@@ -129,7 +157,7 @@ export function useNudges(data: AppData): Nudge[] {
       if (lastCompleted?.completedAt) {
         const daysSince = differenceInCalendarDays(now, new Date(lastCompleted.completedAt));
         if (daysSince >= 7 && isActive('launch-stale')) {
-          nudges.push({
+          result.push({
             id: 'launch-stale',
             type: 'launch',
             priority: 'medium',
@@ -152,7 +180,7 @@ export function useNudges(data: AppData): Nudge[] {
       const percentage = doneCount / enabledCount;
       // Simple heuristic: if it's afternoon and below 30%, nudge
       if (now.getHours() >= 14 && percentage < 0.3 && isActive('wellness-low')) {
-        nudges.push({
+        result.push({
           id: 'wellness-low',
           type: 'wellness',
           priority: 'medium',
@@ -178,7 +206,7 @@ export function useNudges(data: AppData): Nudge[] {
         new Date(latestWithReflection.weekOf) >= sevenDaysAgo;
 
       if (!hasRecentReflection) {
-        nudges.push({
+        result.push({
           id: 'weekly-reflection',
           type: 'wellness',
           priority: 'medium',
@@ -193,8 +221,10 @@ export function useNudges(data: AppData): Nudge[] {
 
     // Sort by priority, return max 3
     const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
-    return nudges
+    return result
       .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])
       .slice(0, 3);
-  }, [data]);
+  }, [data, nudgeState]);
+
+  return { nudges, dismissNudge, snoozeNudge };
 }

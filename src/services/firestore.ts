@@ -31,6 +31,7 @@ import type {
   TherapistData,
   MeditationData,
   GriefData,
+  NudgeDismissState,
 } from '../types';
 import type { Choreography } from '../types/choreography';
 import { migrateMediaItems, migrateMusicTrack, migrateStudentPhoto, isBase64DataUrl } from './firebaseStorage';
@@ -361,6 +362,13 @@ export async function updateGriefDoc(userId: string, updates: Partial<GriefData>
 }
 
 // ============================================================
+// SINGLE DOCUMENT: NUDGE STATE (cross-device dismiss/snooze)
+// ============================================================
+export async function updateNudgeStateDoc(userId: string, state: NudgeDismissState): Promise<void> {
+  await setDoc(userDoc(userId, 'singletons', 'nudgeState'), state);
+}
+
+// ============================================================
 // REAL-TIME LISTENERS
 // ============================================================
 export function onTherapistSnapshot(
@@ -388,6 +396,15 @@ export function onGriefSnapshot(
   return onSnapshot(userDoc(userId, 'singletons', 'grief'), (snap) => {
     callback(snap.exists() ? (snap.data() as GriefData) : undefined);
   }, (error) => { console.error('grief snapshot error:', error); });
+}
+
+export function onNudgeStateSnapshot(
+  userId: string,
+  callback: (data: NudgeDismissState | undefined) => void
+): Unsubscribe {
+  return onSnapshot(userDoc(userId, 'singletons', 'nudgeState'), (snap) => {
+    callback(snap.exists() ? (snap.data() as NudgeDismissState) : undefined);
+  }, (error) => { console.error('nudgeState snapshot error:', error); });
 }
 
 export function onSelfCareSnapshot(

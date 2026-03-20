@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppData, AppSettings, Class, WeekNotes, Competition, CompetitionDance, Student, CalendarEvent, SelfCareData, LaunchPlanData } from '../types';
-import type { AICheckIn, DayPlan, TherapistData, MeditationData, GriefData, DailyBriefing } from '../types';
+import type { AICheckIn, DayPlan, TherapistData, MeditationData, GriefData, DailyBriefing, NudgeDismissState } from '../types';
 import type { Choreography } from '../types/choreography';
 import { loadData, saveData, saveWeekNotes as saveWeekNotesToStorage, saveSelfCareToStorage, saveLaunchPlanToStorage, saveDayPlanToStorage, saveTherapistToStorage, saveMeditationToStorage, saveGriefToStorage } from '../services/storage';
 import { runLearningEngine } from '../services/learningEngine';
@@ -48,6 +48,8 @@ import {
   onMeditationSnapshot,
   onGriefSnapshot,
   updateLearningDataDoc,
+  onNudgeStateSnapshot,
+  updateNudgeStateDoc,
 } from '../services/firestore';
 
 // Helper: get current user ID or null
@@ -199,6 +201,11 @@ export function useAppData() {
           snapshotUpdateRef.current++;
           setData(prev => ({ ...prev, grief }));
         }
+      }));
+
+      listenerUnsubs.push(onNudgeStateSnapshot(user.uid, (nudgeState) => {
+        snapshotUpdateRef.current++;
+        setData(prev => ({ ...prev, nudgeState: nudgeState || { dismissed: {}, snoozed: {} } }));
       }));
 
       // Collection listeners for cross-device sync
@@ -715,6 +722,13 @@ export function useAppData() {
     if (uid) updateGriefDoc(uid, { ...updates, lastModified: now }).catch(console.warn);
   }, []);
 
+  // Nudge state — cross-device dismiss/snooze sync
+  const updateNudgeState = useCallback((state: NudgeDismissState) => {
+    setData(prev => ({ ...prev, nudgeState: state }));
+    const uid = getUserId();
+    if (uid) updateNudgeStateDoc(uid, state).catch(console.warn);
+  }, []);
+
   // Calendar event management (for linking dances to calendar events)
   const updateCalendarEvent = useCallback((event: CalendarEvent) => {
     setData(prev => {
@@ -813,5 +827,7 @@ export function useAppData() {
     updateTherapist,
     updateMeditation,
     updateGrief,
+    // Nudge state (cross-device)
+    updateNudgeState,
   };
 }

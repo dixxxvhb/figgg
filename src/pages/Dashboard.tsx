@@ -114,14 +114,13 @@ const WIDGET_LABELS: Record<string, string> = {
 };
 
 export function Dashboard() {
-  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, refreshData, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes, updateSettings, updateTherapist } = useAppData();
+  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, refreshData, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes, updateSettings, updateTherapist, updateNudgeState } = useAppData();
   const stats = useTeachingStats(data);
   const medConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
   const selfCareStatus = useSelfCareStatus(data.selfCare, medConfig);
 
-  // Nudges + class timing
-  const nudges = useNudges(data);
-  const [nudgeKey, setNudgeKey] = useState(0);
+  // Nudges + class timing (synced across devices via Firestore)
+  const { nudges, dismissNudge, snoozeNudge } = useNudges(data, updateNudgeState);
 
   // Minute-level clock — drives timers, check-in status, etc.
   const [currentMinute, setCurrentMinute] = useState(() => {
@@ -972,7 +971,7 @@ export function Dashboard() {
                   <DailyBriefingWidget briefing={data.dailyBriefing} onCreateTask={handleBriefingCreateTask} calendarEvents={todayCalendarEvents} />
                 )}
                 {id === 'nudges' && (
-                  <NudgeCards nudges={nudges} onDismissOrSnooze={() => setNudgeKey(k => k + 1)} key={`nudge-${nudgeKey}`} />
+                  <NudgeCards nudges={nudges} onDismiss={dismissNudge} onSnooze={snoozeNudge} />
                 )}
                 {id === 'morning-briefing' && (
                   <MorningBriefing

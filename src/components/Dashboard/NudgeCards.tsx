@@ -1,27 +1,25 @@
 import { Link } from 'react-router-dom';
 import { X, Clock, ChevronRight } from 'lucide-react';
 import type { Nudge } from '../../hooks/useNudges';
-import { dismissNudge, snoozeNudge } from '../../hooks/useNudges';
 import { haptic } from '../../utils/haptics';
 
 interface NudgeCardsProps {
   nudges: Nudge[];
-  onDismissOrSnooze: () => void; // trigger re-render
+  onDismiss: (id: string) => void;
+  onSnooze: (id: string) => void;
 }
 
-export function NudgeCards({ nudges, onDismissOrSnooze }: NudgeCardsProps) {
+export function NudgeCards({ nudges, onDismiss, onSnooze }: NudgeCardsProps) {
   if (nudges.length === 0) return null;
 
   const handleDismiss = (id: string) => {
     haptic('light');
-    dismissNudge(id);
-    onDismissOrSnooze();
+    onDismiss(id);
   };
 
   const handleSnooze = (id: string) => {
     haptic('light');
-    snoozeNudge(id);
-    onDismissOrSnooze();
+    onSnooze(id);
   };
 
   const priorityStyles = {
