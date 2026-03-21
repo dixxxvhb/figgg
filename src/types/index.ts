@@ -508,6 +508,8 @@ export interface DailyBriefing {
 
   // Cowork enrichment fields (populated later)
   messages?: {
+    summary?: string;               // AI-generated context summary (e.g. "Dad went biking, Brittin's dogs hatching")
+    needsReply?: string[];           // names of people waiting on a response
     threads: Array<{
       contact: string;
       messageCount: number;
@@ -574,6 +576,19 @@ export interface AppData {
   dailyBriefing?: DailyBriefing;
   // Nudge dismiss/snooze state (synced across devices)
   nudgeState?: NudgeDismissState;
+  // App fix items (logged in Figgg, consumed by Cowork fix-queue task)
+  fixItems?: FixItem[];
+}
+
+// ===== APP FIX ITEMS (Figgg → Cowork fix-queue pipeline) =====
+export interface FixItem {
+  id: string;
+  description: string;              // what's broken or needs changing
+  page?: string;                    // which page/feature (e.g. "Dashboard", "Calendar")
+  priority: 'low' | 'medium' | 'high';
+  processed: boolean;               // true once Cowork fix-queue has consumed it
+  processedAt?: string;             // ISO timestamp
+  createdAt: string;                // ISO timestamp
 }
 
 // ===== NUDGE STATE (cross-device sync) =====

@@ -32,6 +32,7 @@ import type {
   MeditationData,
   GriefData,
   NudgeDismissState,
+  FixItem,
 } from '../types';
 import type { Choreography } from '../types/choreography';
 import { migrateMediaItems, migrateMusicTrack, migrateStudentPhoto, isBase64DataUrl } from './firebaseStorage';
@@ -255,6 +256,31 @@ export async function getAICheckIns(userId: string): Promise<AICheckIn[]> {
 
 export async function saveAICheckInDoc(userId: string, checkIn: AICheckIn): Promise<void> {
   await setDoc(userDoc(userId, 'aiCheckIns', checkIn.id), checkIn);
+}
+
+// ============================================================
+// FIX ITEMS (app fixes logged by user, consumed by Cowork)
+// ============================================================
+export async function getFixItems(userId: string): Promise<FixItem[]> {
+  const snapshot = await getDocs(userCollection(userId, 'fixItems'));
+  return snapshot.docs.map(d => ({ ...d.data(), id: d.id } as FixItem));
+}
+
+export async function saveFixItemDoc(userId: string, item: FixItem): Promise<void> {
+  await setDoc(userDoc(userId, 'fixItems', item.id), item);
+}
+
+export async function deleteFixItemDoc(userId: string, itemId: string): Promise<void> {
+  await deleteDoc(userDoc(userId, 'fixItems', itemId));
+}
+
+export function onFixItemsSnapshot(
+  userId: string,
+  callback: (data: FixItem[]) => void
+): Unsubscribe {
+  return onSnapshot(userCollection(userId, 'fixItems'), (snap) => {
+    callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as FixItem)));
+  });
 }
 
 // ============================================================
@@ -567,6 +593,7 @@ export async function loadAllData(userId: string): Promise<AppData> {
     therapist,
     meditation,
     grief,
+    fixItems,
   ] = await Promise.all([
     getStudios(userId),
     getClasses(userId),
@@ -586,6 +613,7 @@ export async function loadAllData(userId: string): Promise<AppData> {
     getTherapist(userId),
     getMeditation(userId),
     getGrief(userId),
+    getFixItems(userId),
   ]);
 
   return {
@@ -608,6 +636,7 @@ export async function loadAllData(userId: string): Promise<AppData> {
     therapist,
     meditation,
     grief,
+    fixItems,
   };
 }
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppData, AppSettings, Class, WeekNotes, Competition, CompetitionDance, Student, CalendarEvent, SelfCareData, LaunchPlanData } from '../types';
-import type { AICheckIn, DayPlan, TherapistData, MeditationData, GriefData, DailyBriefing, NudgeDismissState } from '../types';
+import type { AICheckIn, DayPlan, TherapistData, MeditationData, GriefData, DailyBriefing, NudgeDismissState, FixItem } from '../types';
 import type { Choreography } from '../types/choreography';
 import { loadData, saveData, saveWeekNotes as saveWeekNotesToStorage, saveSelfCareToStorage, saveLaunchPlanToStorage, saveDayPlanToStorage, saveTherapistToStorage, saveMeditationToStorage, saveGriefToStorage } from '../services/storage';
 import { runLearningEngine } from '../services/learningEngine';
@@ -50,6 +50,9 @@ import {
   updateLearningDataDoc,
   onNudgeStateSnapshot,
   updateNudgeStateDoc,
+  onFixItemsSnapshot,
+  saveFixItemDoc,
+  deleteFixItemDoc,
 } from '../services/firestore';
 
 // Helper: get current user ID or null
@@ -206,6 +209,11 @@ export function useAppData() {
       listenerUnsubs.push(onNudgeStateSnapshot(user.uid, (nudgeState) => {
         snapshotUpdateRef.current++;
         setData(prev => ({ ...prev, nudgeState: nudgeState || { dismissed: {}, snoozed: {} } }));
+      }));
+
+      listenerUnsubs.push(onFixItemsSnapshot(user.uid, (fixItems) => {
+        snapshotUpdateRef.current++;
+        setData(prev => ({ ...prev, fixItems }));
       }));
 
       // Collection listeners for cross-device sync
@@ -729,6 +737,31 @@ export function useAppData() {
     if (uid) updateNudgeStateDoc(uid, state).catch(console.warn);
   }, []);
 
+  // Fix items — app bugs/improvements logged for Cowork fix-queue
+  const addFixItem = useCallback((description: string, page?: string, priority: FixItem['priority'] = 'medium') => {
+    const item: FixItem = {
+      id: uuid(),
+      description,
+      page,
+      priority,
+      processed: false,
+      createdAt: new Date().toISOString(),
+    };
+    setData(prev => ({ ...prev, fixItems: [...(prev.fixItems || []), item] }));
+    const uid = getUserId();
+    if (uid) saveFixItemDoc(uid, item).catch(console.warn);
+    return item;
+  }, []);
+
+  const deleteFixItem = useCallback((itemId: string) => {
+    setData(prev => ({
+      ...prev,
+      fixItems: (prev.fixItems || []).filter(f => f.id !== itemId),
+    }));
+    const uid = getUserId();
+    if (uid) deleteFixItemDoc(uid, itemId).catch(console.warn);
+  }, []);
+
   // Calendar event management (for linking dances to calendar events)
   const updateCalendarEvent = useCallback((event: CalendarEvent) => {
     setData(prev => {
@@ -829,5 +862,8 @@ export function useAppData() {
     updateGrief,
     // Nudge state (cross-device)
     updateNudgeState,
+    // Fix items (app bugs → Cowork fix-queue)
+    addFixItem,
+    deleteFixItem,
   };
 }

@@ -40,6 +40,7 @@ import { DailyBriefingWidget, type CreateTaskOptions } from '../components/Dashb
 import { PrepCard } from '../components/Dashboard/PrepCard';
 import { PostClassCapture } from '../components/Dashboard/PostClassCapture';
 import { QuickNoteCapture } from '../components/Dashboard/QuickNoteCapture';
+import { FixItemWidget } from '../components/Dashboard/FixItemWidget';
 import { EndOfDaySummary } from '../components/Dashboard/EndOfDaySummary';
 import { useNudges } from '../hooks/useNudges';
 import { useClassTiming } from '../hooks/useClassTiming';
@@ -96,6 +97,7 @@ const DEFAULT_WIDGET_ORDER = [
   'streak',
   'weekly-insight',
   'launch-plan',
+  'fix-items',
 ] as const;
 
 const WIDGET_LABELS: Record<string, string> = {
@@ -111,10 +113,11 @@ const WIDGET_LABELS: Record<string, string> = {
   'weekly-insight': 'Weekly Insight',
   'launch-plan': 'Launch Plan',
   'scratchpad': 'Scratchpad',
+  'fix-items': 'App Fixes',
 };
 
 export function Dashboard() {
-  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, refreshData, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes, updateSettings, updateTherapist, updateNudgeState } = useAppData();
+  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, refreshData, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes, updateSettings, updateTherapist, updateNudgeState, addFixItem, deleteFixItem } = useAppData();
   const stats = useTeachingStats(data);
   const medConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
   const selfCareStatus = useSelfCareStatus(data.selfCare, medConfig);
@@ -1062,6 +1065,9 @@ export function Dashboard() {
                 )}
                 {id === 'scratchpad' && (
                   <ScratchpadWidget value={data.selfCare?.scratchpad || ''} onChange={handleScratchpadChange} />
+                )}
+                {id === 'fix-items' && (
+                  <FixItemWidget fixItems={data.fixItems || []} onAdd={addFixItem} onDelete={deleteFixItem} />
                 )}
               </SortableWidget>
             ))}
