@@ -30,3 +30,9 @@ dist-ssr
 # Firebase
 .firebase
 service-account.json
+
+# Netlify build artifacts
+.netlify/
+
+# Deno
+deno.lock
