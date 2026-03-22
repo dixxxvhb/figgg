@@ -572,9 +572,9 @@ export const themes: ThemePalette[] = [
   },
   // ── Studio ─────────────────────────────────────────────────────
   // Forest green primary, blush-pink highlights, deep forest dark mode
-  // DWDC brand identity
+  // DWD brand identity
   {
-    id: 'dwdc',
+    id: 'dwd',
     name: 'Studio',
     preview: { primary: '#2d6a4f', neutral: '#f9a8d4', accent: '#ec4899' },
     colors: {

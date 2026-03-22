@@ -115,12 +115,12 @@ export function buildContextString(payload: any, mode: Mode): string {
 
   // Launch tasks (prioritized backlog — these are the top ready tasks sorted by priority)
   if (ctx.launchTaskList?.length > 0) {
-    contextLines.push(`DWDC launch backlog — top ready tasks by priority (use taskId for actions):\n${ctx.launchTaskList.map((t: { id: string; title: string; category: string; milestone: boolean; effort?: string }) => `  [${t.id}] ${t.milestone ? "\u2605 " : ""}${t.title} (${t.category}${t.effort ? `, ${t.effort}` : ""})`).join("\n")}`);
+    contextLines.push(`DWD launch backlog — top ready tasks by priority (use taskId for actions):\n${ctx.launchTaskList.map((t: { id: string; title: string; category: string; milestone: boolean; effort?: string }) => `  [${t.id}] ${t.milestone ? "\u2605 " : ""}${t.title} (${t.category}${t.effort ? `, ${t.effort}` : ""})`).join("\n")}`);
   } else if (ctx.launchTasks?.length > 0) {
     if (mode === "day-plan") {
-      contextLines.push(`DWDC launch priorities:\n${ctx.launchTasks.map((t: string) => `  - ${t}`).join("\n")}`);
+      contextLines.push(`DWD launch priorities:\n${ctx.launchTasks.map((t: string) => `  - ${t}`).join("\n")}`);
     } else {
-      contextLines.push(`DWDC launch priorities: ${ctx.launchTasks.join(", ")}`);
+      contextLines.push(`DWD launch priorities: ${ctx.launchTasks.join(", ")}`);
     }
   }
 
@@ -178,7 +178,7 @@ export function buildContextString(payload: any, mode: Mode): string {
       const modeDescriptions: Record<string, string> = {
         light: "LIGHT DAY \u2014 fewer items, focus on rest and recovery. Include calming wellness (breathing, gentle walk). Skip intensive tasks.",
         intense: "INTENSE DAY \u2014 heavy teaching/rehearsal. Include extra nutrition/fuel items. Front-load admin tasks before classes.",
-        comp: "COMPETITION DAY \u2014 performance-focused. Strip non-essential tasks. Include warmup, fuel, mental prep. Suppress DWDC work. Entries are the priority.",
+        comp: "COMPETITION DAY \u2014 performance-focused. Strip non-essential tasks. Include warmup, fuel, mental prep. Suppress DWD work. Entries are the priority.",
       };
       contextLines.push(`Day mode: ${ctx.dayMode}\n${modeDescriptions[ctx.dayMode] || ""}`);
     } else {
@@ -407,7 +407,7 @@ INTELLIGENCE:
 - If his schedule is packed, suggest dropping low-priority items or adding breaks.
 - If wellness progress is low in the afternoon, suggest specific remaining items.
 - If he says "skip it" or "not today" about meds, execute the skip.
-- If he talks about DWDC launch stuff, connect it to his launch backlog — suggest quick wins if he's low energy, or deep tasks if he's focused.
+- If he talks about DWD launch stuff, connect it to his launch backlog — suggest quick wins if he's low energy, or deep tasks if he's focused.
 - Read between the lines: "exhausted" + afternoon check-in + 0 wellness items = suggest scaling back the day.
 - TASK INTELLIGENCE: You can see full task details with due dates and priorities. Use this to:
   - Remind him about overdue or flagged tasks naturally in conversation
@@ -465,7 +465,7 @@ INTELLIGENCE:
 - If his schedule is packed, suggest dropping low-priority items or adding breaks.
 - If wellness progress is low in the afternoon, suggest specific remaining items.
 - If he says "skip it" or "not today" about meds, execute the skip.
-- If he talks about DWDC launch stuff, connect it to his launch backlog — suggest quick wins if he's low energy, or deep tasks if he's focused.
+- If he talks about DWD launch stuff, connect it to his launch backlog — suggest quick wins if he's low energy, or deep tasks if he's focused.
 - Read between the lines: "exhausted" + afternoon check-in + 0 wellness items = suggest scaling back the day.
 - TASK INTELLIGENCE: You can see full task details with due dates and priorities. Use this to:
   - Remind him about overdue or flagged tasks naturally in conversation
@@ -529,7 +529,7 @@ PLANNING PHILOSOPHY:
 - If dayMode is set, adapt the plan accordingly:
   - "light": 5-7 items max, include calming wellness, skip intensive tasks
   - "intense": front-load admin before classes, include extra nutrition breaks
-  - "comp": performance-only plan — warmup, fuel, entries. Suppress DWDC/admin work entirely.
+  - "comp": performance-only plan — warmup, fuel, entries. Suppress DWD/admin work entirely.
 - GRIEF/WELLNESS AWARENESS:
   - If grief emotions are present (sadness, anger, numbness, guilt), create a gentler plan: add buffer time, include breathing/meditation, reduce task count.
   - If wellnessMode is "rough" or "survival", dramatically reduce the plan: 4-6 items max, only essentials + self-care.
@@ -552,7 +552,7 @@ RULES:
 - If mood is tired/stressed/low, create a LIGHTER plan: fewer items, more breaks, easier wellness.
 - If mood is good/excited/focused, create an AMBITIOUS plan: include stretch goals.
 - Summary should be 1 sentence, specific to THIS day, not generic advice.
-  Good: "Heavy teaching day — front-load DWDC work before 10am class."
+  Good: "Heavy teaching day — front-load DWD work before 10am class."
   Bad: "A productive day awaits!"
 
 RETURN JSON:
@@ -577,7 +577,7 @@ CATEGORY GUIDANCE:
 - "med": dose reminders ("Take dose 1", "Dose 2 window opens")
 - "wellness": checklist items — MUST include sourceId matching the wellness ID
 - "task": reminders/tasks from the task list. MUST include sourceId matching the task ID so completion syncs back to the task list.
-- "launch": DWDC launch backlog items — pick from the prioritized list, matching effort to available time. Use sourceId = task ID so completion syncs.
+- "launch": DWD launch backlog items — pick from the prioritized list, matching effort to available time. Use sourceId = task ID so completion syncs.
 - "break": suggested rest periods ("15min break", "Walk outside")
 - "selfcare": therapy prep, journaling time, breathing exercises. Use for pre-therapy prep, post-therapy reflection, journaling blocks, and breathing exercises.
 
@@ -732,7 +732,7 @@ RULES FOR ACTIONS:
 - If the context already shows a dayMode, don't re-set it unless the user explicitly wants to change it.
 - CLASS EXCEPTIONS: When user says they're sick, calling out, or found/have a sub for today -> use markClassException. Use scope "all" unless they specify which classes. Resolve sub name exactly as said. Use reason: sick/personal/holiday/other as appropriate.
 - CLASS NOTES: When user mentions a note, observation, or plan for a specific class -> use addClassNote or setClassPlan. Match the class name from weekClassList (fuzzy is ok, e.g., "Ballet 1" matches "Ballet 1 Beginner"). If ambiguous (multiple plausible matches), ask in your response instead of guessing.
-- LAUNCH TASKS: When user says they finished, skipped, or wants to note something about a DWDC task -> use completeLaunchTask/skipLaunchTask/addLaunchNote. Match from launchTaskList.
+- LAUNCH TASKS: When user says they finished, skipped, or wants to note something about a DWD task -> use completeLaunchTask/skipLaunchTask/addLaunchNote. Match from launchTaskList.
 - REHEARSAL NOTES: When user mentions rehearsal notes or working on a competition piece -> use addRehearsalNote. Match dance from competitionDanceList.
 - FUZZY RESOLUTION: You must always include the actual ID (from the lookup lists) in actions, not the name. If you can't confidently match a name to an ID, ask for clarification instead.
 - CLASS MODIFICATIONS: When user asks to change a class time, name, studio, or level → use updateClass with the classId and only the changed fields. Match from classDetails list. Don't change fields the user didn't mention.

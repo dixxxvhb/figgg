@@ -1,7 +1,7 @@
 # Figgg — Architecture Guide
 
 ## Overview
-Dance teaching assistant PWA for Dixon. Tracks classes, students, competitions, choreography, self-care (ADHD/meds), reminders, AI check-ins, day planning, and DWDC launch plan. Single-user app with cross-device sync via Firebase.
+Dance teaching assistant PWA for Dixon. Tracks classes, students, competitions, choreography, self-care (ADHD/meds), reminders, AI check-ins, day planning, and DWD launch plan. Single-user app with cross-device sync via Firebase.
 
 ## Stack
 React 19, TypeScript, Vite, Tailwind CSS, React Router v7, Firebase (Auth, Firestore, Storage, Cloud Functions, Hosting). **NO Zustand** — uses React Context + hooks. AI via Anthropic Claude (claude-sonnet-4-5-20250929) running in Firebase Cloud Functions.
@@ -172,7 +172,7 @@ All jobs use `w9jds/firebase-action@master` with `FIREBASE_SERVICE_ACCOUNT` secr
 ### Config & Other
 | File | Purpose |
 |------|---------|
-| `styles/themes.ts` | Color themes (stone, ocean, plum, midnight, clay, dusk, pride, dwdc, neon) |
+| `styles/themes.ts` | Color themes (stone, ocean, plum, midnight, clay, dusk, pride, dwd, neon) |
 | `functions/src/utils/prompts.ts` | All AI system prompts and context builders |
 | `firebase.json` | Hosting (SPA rewrite, cache headers), functions, rules config |
 | `firestore.rules` | Firestore security rules |
@@ -237,4 +237,4 @@ These files are **first-run seed data only**. Once the app has stored data (loca
 - Settings "Cloud Sync" row is a read-only Firestore status indicator (not a button)
 - All data (classes, competitions, students, studios) is fully dynamic from Firestore — `src/data/` files are first-run seed only, never overwrite stored data
 - `loadData()` in `storage.ts` uses stored data as source of truth; only falls back to defaults if no data is stored yet
-- The `dwdc.netlify.app` URLs in `src/data/launchPlan.ts` are for a separate DWDC website, not this app
+- The `dwd.netlify.app` URLs in `src/data/launchPlan.ts` are for a separate DWD website, not this app
