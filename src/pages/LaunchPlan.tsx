@@ -51,11 +51,13 @@ const categoryLabels: Record<LaunchCategory, string> = {
 
 // ─── Shared components ───
 
+const fallbackColor = { bg: 'bg-[var(--bg-tertiary)]', text: 'text-[var(--text-muted)]', dot: 'var(--text-muted)' };
+
 function CategoryBadge({ category }: { category: LaunchCategory }) {
-  const c = categoryColors[category];
+  const c = categoryColors[category] || fallbackColor;
   return (
     <span className={`text-[11px] font-semibold uppercase tracking-[0.04em] px-2 py-0.5 rounded-[var(--radius-full)] ${c.bg} ${c.text}`}>
-      {categoryLabels[category]}
+      {categoryLabels[category] || category}
     </span>
   );
 }
@@ -594,7 +596,7 @@ function PulseView({
         <p className="type-caption font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3">Categories</p>
         <div className="grid grid-cols-2 gap-2">
           {catStats.map(stat => {
-            const c = categoryColors[stat.category];
+            const c = categoryColors[stat.category] || fallbackColor;
             return (
               <div key={stat.category} className={`px-3 py-2 rounded-[var(--radius-md)] ${c.bg}`}>
                 <div className="flex items-center gap-1.5">
@@ -689,12 +691,9 @@ export function LaunchPlan() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Ensure we have plan data — auto-upgrade if version is old
-  const [showUpgrade, setShowUpgrade] = useState(false);
   useEffect(() => {
-    if (!data.launchPlan) {
+    if (!data.launchPlan || (data.launchPlan.version || 0) < initialLaunchPlan.version) {
       updateLaunchPlan(initialLaunchPlan);
-    } else if ((data.launchPlan.version || 0) < initialLaunchPlan.version) {
-      setShowUpgrade(true);
     }
   }, [data.launchPlan, updateLaunchPlan]);
 
@@ -785,30 +784,6 @@ export function LaunchPlan() {
           );
         })}
       </div>
-
-      {/* Upgrade banner */}
-      {showUpgrade && (
-        <div className="mb-4 p-4 rounded-[var(--radius-lg)] border border-[var(--status-warning)] bg-[color-mix(in_srgb,var(--status-warning)_8%,transparent)]">
-          <p className="type-body font-medium text-[var(--text-primary)] mb-1">New launch plan available</p>
-          <p className="type-caption text-[var(--text-secondary)] mb-3">
-            The master plan was updated March 21. Load the new 6-phase plan? Your notes and completed tasks from the old plan will be replaced.
-          </p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => { updateLaunchPlan(initialLaunchPlan); setShowUpgrade(false); }}
-              className="px-4 py-2 rounded-[var(--radius-md)] bg-[var(--accent-primary)] text-white text-[13px] font-medium"
-            >
-              Load new plan
-            </button>
-            <button
-              onClick={() => setShowUpgrade(false)}
-              className="px-4 py-2 rounded-[var(--radius-md)] border border-[var(--border-default)] text-[var(--text-muted)] text-[13px]"
-            >
-              Keep current
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Active view */}
       {activeView === 'today' && (

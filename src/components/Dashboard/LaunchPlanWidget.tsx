@@ -112,7 +112,7 @@ export function LaunchPlanWidget({ launchPlan }: LaunchPlanWidgetProps) {
             <p className="type-label text-[var(--text-tertiary)]">Up next</p>
             {nextTasks.map(task => (
               <div key={task.id} className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: categoryDotColors[task.category] }} />
+                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: categoryDotColors[task.category] || 'var(--text-muted)' }} />
                 <span className="text-sm text-[var(--text-primary)] line-clamp-1">{task.title}</span>
               </div>
             ))}
