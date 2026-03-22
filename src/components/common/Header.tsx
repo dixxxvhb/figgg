@@ -85,7 +85,7 @@ export function Header() {
   const location = useLocation();
 
   return (
-    <header className="bg-[var(--surface-primary)] border-b border-[var(--border-subtle)] sticky top-0 z-50">
+    <header className="bg-[var(--surface-primary)] border-b border-[var(--border-subtle)] sticky top-0 z-50" style={{ paddingTop: 'env(safe-area-inset-top, 0)' }}>
       <div className="max-w-4xl mx-auto px-4">
         <div className="flex items-center justify-between h-12">
           <Link to="/" className="flex items-center gap-2" aria-label="Figgg home">

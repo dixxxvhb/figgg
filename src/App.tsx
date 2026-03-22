@@ -235,7 +235,7 @@ function App() {
                 Skip to main content
               </a>
               <Header />
-              <main id="main-content" className="h-[calc(100dvh-120px)] lg:h-[calc(100dvh-56px)]">
+              <main id="main-content" style={{ height: 'calc(100dvh - 120px - env(safe-area-inset-top, 0px))' }} className="lg:h-[calc(100dvh-56px)]">
                 <PullToRefresh>
                   <Suspense fallback={<PageSkeleton />}>
                     <ErrorBoundary>
