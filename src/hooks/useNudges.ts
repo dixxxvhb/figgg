@@ -159,28 +159,38 @@ export function useNudges(
       }
     }
 
-    // Rule 4: No launch tasks completed in 7+ days
+    // Rule 4: No launch tasks completed recently
+    // Skip if plan was just updated (give grace period after rebuilds)
     const launchTasks = data.launchPlan?.tasks || [];
     const activeLaunch = launchTasks.filter(t => !t.completed && !t.skipped);
-    if (activeLaunch.length > 0) {
-      const lastCompleted = launchTasks
-        .filter(t => t.completedAt)
-        .sort((a, b) => (b.completedAt || '').localeCompare(a.completedAt || ''))
-        [0];
-      if (lastCompleted?.completedAt) {
-        const daysSince = differenceInCalendarDays(now, new Date(lastCompleted.completedAt));
-        if (daysSince >= thresholds.launchStale && isActive('launch-stale')) {
-          result.push({
-            id: 'launch-stale',
-            type: 'launch',
-            priority: 'medium',
-            text: `No DWD tasks completed in ${daysSince} days. ${activeLaunch.length} still active.`,
-            actionLabel: 'Review tasks',
-            aiPreload: 'Help me pick a DWD launch task to work on today.',
-            dismissable: true,
-            snoozeable: true,
-          });
-        }
+    const planLastModified = data.launchPlan?.lastModified;
+    const daysSincePlanUpdate = planLastModified
+      ? differenceInCalendarDays(now, new Date(planLastModified))
+      : 999;
+
+    if (activeLaunch.length > 0 && daysSincePlanUpdate >= 3) {
+      // Only look at tasks completed AFTER the plan was last modified
+      // (backdated completions from a plan rebuild don't count as "recent progress")
+      const recentCompletions = launchTasks
+        .filter(t => t.completedAt && (!planLastModified || t.completedAt > planLastModified))
+        .sort((a, b) => (b.completedAt || '').localeCompare(a.completedAt || ''));
+
+      const lastReal = recentCompletions[0];
+      const daysSinceReal = lastReal?.completedAt
+        ? differenceInCalendarDays(now, new Date(lastReal.completedAt))
+        : daysSincePlanUpdate; // Fall back to plan age if no real completions
+
+      if (daysSinceReal >= thresholds.launchStale && isActive('launch-stale')) {
+        result.push({
+          id: 'launch-stale',
+          type: 'launch',
+          priority: 'medium',
+          text: `No DWD tasks completed in ${daysSinceReal} days. Pick one to move forward.`,
+          actionLabel: 'Review tasks',
+          aiPreload: 'Help me pick a DWD launch task to work on today.',
+          dismissable: true,
+          snoozeable: true,
+        });
       }
     }
 
