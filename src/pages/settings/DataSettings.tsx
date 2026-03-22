@@ -60,7 +60,7 @@ export function DataSettings() {
   ];
 
   return (
-    <div className="min-h-screen bg-[var(--surface-page)] text-[var(--text-primary)]">
+    <div className="min-h-screen bg-[var(--surface-primary)] text-[var(--text-primary)]">
       <div className="max-w-2xl mx-auto px-4 py-6">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
