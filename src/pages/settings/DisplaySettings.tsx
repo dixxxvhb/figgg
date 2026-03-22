@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Check, RotateCcw } from 'lucide-react';
 import { useAppData } from '../../contexts/AppDataContext';
@@ -73,9 +73,22 @@ export function DisplaySettings() {
     if (customAccent) applyAccentOverride(customAccent);
   };
 
+  const [iconNotice, setIconNotice] = useState('');
+
   const handleIconSelect = (id: string) => {
     updateSettings({ appIconId: id });
     applyAppIcon(id);
+    // Show platform-specific notice
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isStandalone && isIOS) {
+      setIconNotice('Home screen icon won\u2019t update until you remove and re-add the app.');
+    } else if (isStandalone) {
+      setIconNotice('Icon updated. May take a moment to appear on home screen.');
+    } else {
+      setIconNotice('Icon updated in browser tab. Syncs to other devices on next load.');
+    }
+    setTimeout(() => setIconNotice(''), 5000);
   };
 
   const handleFontSize = (value: typeof currentFontSize) => {
@@ -248,6 +261,9 @@ export function DisplaySettings() {
             </button>
           ))}
         </div>
+        {iconNotice && (
+          <p className="text-xs text-[var(--text-secondary)] mt-2 px-1">{iconNotice}</p>
+        )}
       </section>
 
       {/* Font Family */}

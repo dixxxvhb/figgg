@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Header, MobileNav } from './components/common/Header';
 import { PullToRefresh } from './components/common/PullToRefresh';
@@ -8,12 +8,70 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { SaveStatus } from './components/common/SaveStatus';
 import { PageSkeleton } from './components/common/PageSkeleton';
 import { SyncProvider } from './contexts/SyncContext';
-import { AppDataProvider } from './contexts/AppDataContext';
+import { AppDataProvider, useAppData } from './contexts/AppDataContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { loadData } from './services/storage';
-import { applyTheme, applyAccentOverride, applyFontFamily } from './styles/applyTheme';
+import { applyTheme, applyAccentOverride, clearAccentOverride, applyFontFamily } from './styles/applyTheme';
 import { restoreMoodLayer } from './styles/moodLayer';
 import { applyAppIcon } from './styles/appIcons';
+
+/**
+ * SettingsWatcher — lives inside AppDataProvider, reactively applies visual
+ * settings when they change from ANY source (local toggle, Firestore sync
+ * from another device, AI action, etc.). Skips the initial render since
+ * App's startup useEffect handles that.
+ */
+function SettingsWatcher() {
+  const { data } = useAppData();
+  const settings = data.settings;
+  const isFirstRender = useRef(true);
+
+  useEffect(() => {
+    // Skip initial render — App's startup useEffect handles that
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    // Re-apply all visual settings
+    const root = document.documentElement;
+
+    // Font size
+    switch (settings?.fontSize) {
+      case 'large': root.style.fontSize = '18px'; break;
+      case 'extra-large': root.style.fontSize = '20px'; break;
+      default: root.style.fontSize = '16px';
+    }
+
+    // Dark mode
+    if (settings?.darkMode) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+
+    // Theme
+    applyTheme(settings?.themeId || 'stone', root.classList.contains('dark'));
+
+    // Accent color (after theme so it wins)
+    if (settings?.customAccentColor) {
+      applyAccentOverride(settings.customAccentColor);
+    } else {
+      clearAccentOverride();
+    }
+
+    // Font family
+    applyFontFamily(settings?.fontFamily || 'editorial');
+
+    // App icon
+    applyAppIcon(settings?.appIconId || 'ink-gold');
+  }, [
+    settings?.fontSize, settings?.darkMode, settings?.themeId,
+    settings?.customAccentColor, settings?.fontFamily, settings?.appIconId,
+  ]);
+
+  return null;
+}
 
 // Lazy-loaded routes (not needed on initial load)
 const ClassDetail = lazy(() => import('./pages/ClassDetail').then(m => ({ default: m.ClassDetail })));
@@ -171,6 +229,7 @@ function App() {
         <SyncProvider>
           <BrowserRouter>
             <AppDataProvider>
+            <SettingsWatcher />
             <div className="min-h-screen bg-[var(--surface-primary)] transition-colors">
               <a href="#main-content" className="skip-link">
                 Skip to main content
