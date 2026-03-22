@@ -11,7 +11,7 @@ import { SyncProvider } from './contexts/SyncContext';
 import { AppDataProvider } from './contexts/AppDataContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { loadData } from './services/storage';
-import { applyTheme, applyAccentOverride } from './styles/applyTheme';
+import { applyTheme, applyAccentOverride, applyFontFamily } from './styles/applyTheme';
 import { restoreMoodLayer } from './styles/moodLayer';
 import { applyAppIcon } from './styles/appIcons';
 
@@ -120,6 +120,11 @@ function App() {
     // Apply custom accent color override (after theme, so it wins)
     if (settings?.customAccentColor) {
       applyAccentOverride(settings.customAccentColor);
+    }
+
+    // Apply font family
+    if (settings?.fontFamily) {
+      applyFontFamily(settings.fontFamily);
     }
 
     // Apply selected app icon (favicon + manifest)

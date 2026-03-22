@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, Check, RotateCcw } from 'lucide-react';
 import { useAppData } from '../../contexts/AppDataContext';
 import { themes } from '../../styles/themes';
-import { applyTheme, applyAccentOverride, clearAccentOverride } from '../../styles/applyTheme';
+import { applyTheme, applyAccentOverride, clearAccentOverride, applyFontFamily, FONT_FAMILIES } from '../../styles/applyTheme';
 import { appIcons, applyAppIcon } from '../../styles/appIcons';
 
 const THEME_GROUPS: { label: string; ids: string[] }[] = [
@@ -64,6 +64,7 @@ export function DisplaySettings() {
   const currentFontSize = settings.fontSize || 'normal';
   const darkMode = settings.darkMode ?? false;
   const customAccent = settings.customAccentColor;
+  const currentFontFamily = settings.fontFamily || 'editorial';
 
   const handleThemeSelect = (id: string) => {
     updateSettings({ themeId: id });
@@ -106,6 +107,11 @@ export function DisplaySettings() {
     clearAccentOverride();
     // Re-apply current theme so its defaults fill back in
     applyTheme(currentThemeId, darkMode);
+  };
+
+  const handleFontFamily = (id: string) => {
+    updateSettings({ fontFamily: id });
+    applyFontFamily(id);
   };
 
   return (
@@ -177,9 +183,9 @@ export function DisplaySettings() {
         ))}
       </section>
 
-      {/* Accent Color */}
+      {/* Font Color */}
       <section className="mb-6">
-        <h2 className="type-caption font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3 px-1">Accent Color</h2>
+        <h2 className="type-caption font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3 px-1">Font Color</h2>
         <div className="flex flex-wrap gap-2 mb-3 px-1">
           {ACCENT_PRESETS.map(preset => {
             const isSelected = customAccent === preset.hex;
@@ -239,6 +245,26 @@ export function DisplaySettings() {
             >
               <IconPreview iconId={icon.id} size={56} selected={currentIconId === icon.id} />
               <span className="text-[10px] text-[var(--text-tertiary)]">{icon.name}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Font Family */}
+      <section className="mb-6">
+        <h2 className="type-caption font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3 px-1">Font</h2>
+        <div className="grid grid-cols-3 gap-2">
+          {Object.entries(FONT_FAMILIES).map(([id, combo]) => (
+            <button
+              key={id}
+              onClick={() => handleFontFamily(id)}
+              className={`py-3 px-2 rounded-xl text-center transition-colors ${
+                currentFontFamily === id
+                  ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)]'
+                  : 'bg-[var(--surface-card)] text-[var(--text-secondary)] border border-[var(--border-subtle)]'
+              }`}
+            >
+              <span className="block text-base font-semibold leading-tight" style={{ fontFamily: combo.display }}>{combo.label}</span>
             </button>
           ))}
         </div>

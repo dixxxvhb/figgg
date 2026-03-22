@@ -34,13 +34,12 @@ export function applyTheme(themeId: string, isDark: boolean = false): void {
   }
 }
 
-// ── Custom accent color overrides ──────────────────────────────
+// ── Custom font/accent color overrides ──────────────────────────
 
 const ACCENT_PROPS = [
+  '--text-primary',
   '--accent-primary',
   '--accent-primary-hover',
-  '--accent-muted',
-  '--surface-highlight',
   '--border-strong',
 ] as const;
 
@@ -54,10 +53,9 @@ function lighten(hex: string, percent: number): string {
 
 export function applyAccentOverride(hex: string): void {
   const root = document.documentElement;
+  root.style.setProperty('--text-primary', hex);
   root.style.setProperty('--accent-primary', hex);
   root.style.setProperty('--accent-primary-hover', lighten(hex, 15));
-  root.style.setProperty('--accent-muted', `${hex}1a`);
-  root.style.setProperty('--surface-highlight', `${hex}20`);
   root.style.setProperty('--border-strong', hex);
 }
 
@@ -66,4 +64,22 @@ export function clearAccentOverride(): void {
   for (const prop of ACCENT_PROPS) {
     root.style.removeProperty(prop);
   }
+}
+
+// ── Font family overrides ──────────────────────────────────────
+
+export const FONT_FAMILIES: Record<string, { display: string; body: string; label: string }> = {
+  editorial: { display: "'Fraunces', Georgia, serif", body: "'Inter', system-ui, sans-serif", label: 'Editorial' },
+  modern: { display: "'Outfit', system-ui, sans-serif", body: "'Inter', system-ui, sans-serif", label: 'Modern' },
+  classic: { display: "'Playfair Display', Georgia, serif", body: "'Lora', Georgia, serif", label: 'Classic' },
+  clean: { display: "'Inter', system-ui, sans-serif", body: "'Inter', system-ui, sans-serif", label: 'Clean' },
+  dramatic: { display: "'Bebas Neue', Impact, sans-serif", body: "'Outfit', system-ui, sans-serif", label: 'Dramatic' },
+  handwritten: { display: "'Caveat', cursive", body: "'Inter', system-ui, sans-serif", label: 'Handwritten' },
+};
+
+export function applyFontFamily(id: string): void {
+  const combo = FONT_FAMILIES[id] || FONT_FAMILIES.editorial;
+  const root = document.documentElement;
+  root.style.setProperty('--font-display', combo.display);
+  root.style.setProperty('--font-body', combo.body);
 }

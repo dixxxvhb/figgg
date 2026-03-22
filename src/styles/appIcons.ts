@@ -269,6 +269,223 @@ export const appIcons: AppIconDef[] = [
       ctx.fillRect(size * 0.3, size * 0.66, size * 0.4, 2 * s);
     },
   },
+
+  // ── 9. Spotlight ──────────────────────────────────────────────
+  {
+    id: 'spotlight',
+    name: 'Spotlight',
+    render: (ctx, size) => {
+      const s = size / 512;
+      // Dark stage background
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(0, 0, size, size);
+      // Spotlight cone from top center
+      const grad = ctx.createLinearGradient(size / 2, 0, size / 2, size);
+      grad.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
+      grad.addColorStop(0.7, 'rgba(255, 255, 255, 0.08)');
+      grad.addColorStop(1, 'rgba(255, 255, 255, 0.02)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(size * 0.42, 0);
+      ctx.lineTo(size * 0.58, 0);
+      ctx.lineTo(size * 0.85, size);
+      ctx.lineTo(size * 0.15, size);
+      ctx.closePath();
+      ctx.fill();
+      // Subtle floor glow
+      const floorGrad = ctx.createRadialGradient(size / 2, size * 0.9, 0, size / 2, size * 0.9, size * 0.35);
+      floorGrad.addColorStop(0, 'rgba(255, 255, 255, 0.12)');
+      floorGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = floorGrad;
+      ctx.fillRect(0, size * 0.6, size, size * 0.4);
+      // "fig" text in the light
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.font = `${44 * s}px Georgia, serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('fig', size / 2, size * 0.92);
+    },
+  },
+
+  // ── 10. Wave ──────────────────────────────────────────────────
+  {
+    id: 'wave',
+    name: 'Wave',
+    render: (ctx, size) => {
+      const s = size / 512;
+      // Ocean blue gradient background
+      const bg = ctx.createLinearGradient(0, 0, size, size);
+      bg.addColorStop(0, '#0369a1');
+      bg.addColorStop(1, '#0c4a6e');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, size, size);
+      // Wave 1
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.lineWidth = 5 * s;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(0, size * 0.35);
+      ctx.bezierCurveTo(size * 0.2, size * 0.2, size * 0.35, size * 0.5, size * 0.5, size * 0.35);
+      ctx.bezierCurveTo(size * 0.65, size * 0.2, size * 0.8, size * 0.5, size, size * 0.35);
+      ctx.stroke();
+      // Wave 2
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.lineWidth = 4 * s;
+      ctx.beginPath();
+      ctx.moveTo(0, size * 0.52);
+      ctx.bezierCurveTo(size * 0.25, size * 0.4, size * 0.3, size * 0.65, size * 0.55, size * 0.52);
+      ctx.bezierCurveTo(size * 0.75, size * 0.42, size * 0.85, size * 0.65, size, size * 0.52);
+      ctx.stroke();
+      // Wave 3
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+      ctx.lineWidth = 3 * s;
+      ctx.beginPath();
+      ctx.moveTo(0, size * 0.68);
+      ctx.bezierCurveTo(size * 0.2, size * 0.58, size * 0.4, size * 0.78, size * 0.6, size * 0.68);
+      ctx.bezierCurveTo(size * 0.8, size * 0.58, size * 0.9, size * 0.78, size, size * 0.68);
+      ctx.stroke();
+    },
+  },
+
+  // ── 11. Constellation ─────────────────────────────────────────
+  {
+    id: 'constellation',
+    name: 'Constellation',
+    render: (ctx, size) => {
+      const s = size / 512;
+      // Deep navy background
+      ctx.fillStyle = '#0d1b2a';
+      ctx.fillRect(0, 0, size, size);
+      // Star positions (x, y as fractions of size)
+      const stars: [number, number][] = [
+        [0.2, 0.15], [0.5, 0.1], [0.8, 0.2],
+        [0.15, 0.45], [0.45, 0.4], [0.75, 0.5],
+        [0.3, 0.7], [0.6, 0.65], [0.85, 0.75],
+        [0.5, 0.88],
+      ];
+      // Draw connecting lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+      ctx.lineWidth = 1.5 * s;
+      const connections: [number, number][] = [
+        [0, 1], [1, 2], [1, 4], [3, 4], [4, 5],
+        [3, 6], [6, 7], [7, 5], [7, 8], [7, 9],
+      ];
+      for (const [a, b] of connections) {
+        ctx.beginPath();
+        ctx.moveTo(stars[a][0] * size, stars[a][1] * size);
+        ctx.lineTo(stars[b][0] * size, stars[b][1] * size);
+        ctx.stroke();
+      }
+      // Draw stars
+      ctx.fillStyle = '#ffffff';
+      for (const [x, y] of stars) {
+        ctx.beginPath();
+        ctx.arc(x * size, y * size, 4 * s, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Subtle glow on brighter stars
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+      for (const idx of [1, 4, 7]) {
+        ctx.beginPath();
+        ctx.arc(stars[idx][0] * size, stars[idx][1] * size, 10 * s, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    },
+  },
+
+  // ── 12. Prism ─────────────────────────────────────────────────
+  {
+    id: 'prism',
+    name: 'Prism',
+    render: (ctx, size) => {
+      const s = size / 512;
+      // White background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, size, size);
+      // Prism triangle (outline)
+      ctx.strokeStyle = '#1a1a1a';
+      ctx.lineWidth = 3 * s;
+      ctx.beginPath();
+      ctx.moveTo(size * 0.35, size * 0.2);   // top
+      ctx.lineTo(size * 0.15, size * 0.75);  // bottom-left
+      ctx.lineTo(size * 0.55, size * 0.75);  // bottom-right
+      ctx.closePath();
+      ctx.stroke();
+      // Rainbow band emerging from right side of prism
+      const colors = ['#e40303', '#ff8c00', '#ffed00', '#008026', '#004dff', '#750787'];
+      const bandWidth = 5 * s;
+      const startX = size * 0.48;
+      const startY = size * 0.42;
+      const endX = size * 0.92;
+      for (let i = 0; i < colors.length; i++) {
+        ctx.strokeStyle = colors[i];
+        ctx.lineWidth = bandWidth;
+        ctx.beginPath();
+        const offsetY = (i - 2.5) * bandWidth * 1.4;
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, startY + offsetY + (i - 2.5) * 12 * s);
+        ctx.stroke();
+      }
+      // Incoming white beam
+      ctx.strokeStyle = '#aaaaaa';
+      ctx.lineWidth = 3 * s;
+      ctx.beginPath();
+      ctx.moveTo(0, size * 0.42);
+      ctx.lineTo(size * 0.28, size * 0.42);
+      ctx.stroke();
+    },
+  },
+
+  // ── 13. Heartbeat ─────────────────────────────────────────────
+  {
+    id: 'heartbeat',
+    name: 'Heartbeat',
+    render: (ctx, size) => {
+      const s = size / 512;
+      // Dark background
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(0, 0, size, size);
+      // EKG line
+      ctx.strokeStyle = '#22c55e';
+      ctx.lineWidth = 4 * s;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      const cy = size * 0.5;
+      ctx.beginPath();
+      // Flat start
+      ctx.moveTo(20 * s, cy);
+      ctx.lineTo(120 * s, cy);
+      // First small bump
+      ctx.lineTo(140 * s, cy - 20 * s);
+      ctx.lineTo(155 * s, cy);
+      // Flat segment
+      ctx.lineTo(180 * s, cy);
+      // Main spike (QRS complex)
+      ctx.lineTo(195 * s, cy + 30 * s);
+      ctx.lineTo(215 * s, cy - 100 * s);
+      ctx.lineTo(235 * s, cy + 40 * s);
+      ctx.lineTo(255 * s, cy);
+      // Flat segment
+      ctx.lineTo(300 * s, cy);
+      // Second smaller spike
+      ctx.lineTo(315 * s, cy - 35 * s);
+      ctx.lineTo(335 * s, cy);
+      // Flat
+      ctx.lineTo(380 * s, cy);
+      // Third spike
+      ctx.lineTo(395 * s, cy + 25 * s);
+      ctx.lineTo(415 * s, cy - 80 * s);
+      ctx.lineTo(435 * s, cy + 30 * s);
+      ctx.lineTo(455 * s, cy);
+      // Flat end
+      ctx.lineTo(492 * s, cy);
+      ctx.stroke();
+      // Subtle glow effect
+      ctx.strokeStyle = 'rgba(34, 197, 94, 0.15)';
+      ctx.lineWidth = 12 * s;
+      ctx.stroke();
+    },
+  },
 ];
 
 /**

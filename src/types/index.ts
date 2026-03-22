@@ -342,6 +342,7 @@ export interface AppSettings {
   calendarSyncMinutes?: number; // 5, 10, 15, 30 (default 15)
   imageQuality?: number; // 0.5, 0.7, 0.9 (default 0.7)
   customAccentColor?: string; // hex color, e.g. '#ec4899'
+  fontFamily?: string; // 'editorial' | 'modern' | 'classic' | 'clean' | 'dramatic' | 'handwritten'
 }
 
 // ===== STUDENT MANAGEMENT =====
