@@ -10,17 +10,17 @@ import {
   WifiOff,
   ListChecks,
   Heart,
-  Sparkles,
+  Rocket,
 } from 'lucide-react';
 import { useSyncStatus } from '../../contexts/SyncContext';
 
-// 6-tab navigation: Home, Schedule, Tasks, Wellness, AI, More
+// 6-tab navigation: Home, Schedule, Tasks, Wellness, Launch, More
 const navItems = [
   { path: '/', icon: Home, label: 'Home' },
   { path: '/schedule', icon: Calendar, label: 'Schedule' },
   { path: '/tasks', icon: ListChecks, label: 'Tasks' },
   { path: '/me', icon: Heart, label: 'Wellness' },
-  { path: '/ai', icon: Sparkles, label: 'AI' },
+  { path: '/launch', icon: Rocket, label: 'Launch' },
   { path: '/settings', icon: MoreHorizontal, label: 'More' },
 ];
 
@@ -145,14 +145,13 @@ export function MobileNav() {
     }
     if (path === '/tasks') return location.pathname === '/tasks';
     if (path === '/me') return location.pathname === '/me';
-    if (path === '/ai') return location.pathname === '/ai';
+    if (path === '/launch') return location.pathname.startsWith('/launch');
     if (path === '/settings') {
       return location.pathname.startsWith('/settings') ||
              location.pathname.startsWith('/students') ||
              location.pathname.startsWith('/library') ||
              location.pathname.startsWith('/choreography') ||
-             location.pathname.startsWith('/launch') ||
-             location.pathname.startsWith('/students') ||
+             location.pathname.startsWith('/ai') ||
              location.pathname.startsWith('/dance');
     }
     return location.pathname === path;

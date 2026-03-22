@@ -284,6 +284,7 @@ export function Settings() {
           {([
             { to: '/students', icon: Users, label: 'Students', sub: `${(data.students || []).length} enrolled` },
             { to: '/library', icon: BookOpen, label: 'Library', sub: 'Glossary & exercises' },
+            { to: '/ai', icon: Sparkles, label: 'AI Chat', sub: 'Check-ins, planning, help' },
             { to: '/launch', icon: Rocket, label: 'DWD Launch Plan', sub: 'Business tasks & milestones' },
           ] as const).map((item) => (
             <Link key={item.to} to={item.to} className="block">
