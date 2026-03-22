@@ -4,7 +4,7 @@ import { ArrowLeft, Check, RotateCcw } from 'lucide-react';
 import { useAppData } from '../../contexts/AppDataContext';
 import { themes } from '../../styles/themes';
 import { applyTheme, applyAccentOverride, clearAccentOverride, applyFontFamily, FONT_FAMILIES } from '../../styles/applyTheme';
-import { appIcons, applyAppIcon } from '../../styles/appIcons';
+import { appIcons, applyAppIcon, renderIconToDataUrl } from '../../styles/appIcons';
 
 const THEME_GROUPS: { label: string; ids: string[] }[] = [
   { label: 'Classic', ids: ['stone', 'ocean', 'dwd', 'emerald'] },
@@ -74,21 +74,32 @@ export function DisplaySettings() {
   };
 
   const [iconNotice, setIconNotice] = useState('');
+  const [showUpdateGuide, setShowUpdateGuide] = useState(false);
+
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
   const handleIconSelect = (id: string) => {
     updateSettings({ appIconId: id });
     applyAppIcon(id);
-    // Show platform-specific notice
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     if (isStandalone && isIOS) {
-      setIconNotice('Home screen icon won\u2019t update until you remove and re-add the app.');
+      setShowUpdateGuide(true);
     } else if (isStandalone) {
-      setIconNotice('Icon updated. May take a moment to appear on home screen.');
+      setIconNotice('Icon updated. Android refreshes it within 24 hours.');
+      setTimeout(() => setIconNotice(''), 5000);
     } else {
-      setIconNotice('Icon updated in browser tab. Syncs to other devices on next load.');
+      setIconNotice('Icon updated. Syncs to other devices on next load.');
+      setTimeout(() => setIconNotice(''), 5000);
     }
-    setTimeout(() => setIconNotice(''), 5000);
+  };
+
+  const handleSaveIcon = async () => {
+    // Render the current icon as a downloadable PNG
+    const dataUrl = renderIconToDataUrl(currentIconId, 512);
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = `figgg-icon-${currentIconId}.png`;
+    link.click();
   };
 
   const handleFontSize = (value: typeof currentFontSize) => {
@@ -264,7 +275,67 @@ export function DisplaySettings() {
         {iconNotice && (
           <p className="text-xs text-[var(--text-secondary)] mt-2 px-1">{iconNotice}</p>
         )}
+        {isIOS && isStandalone && (
+          <button
+            onClick={() => setShowUpdateGuide(true)}
+            className="text-xs text-[var(--accent-primary)] mt-2 px-1 underline"
+          >
+            How to update home screen icon
+          </button>
+        )}
       </section>
+
+      {/* iOS Icon Update Guide Modal */}
+      {showUpdateGuide && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center" onClick={() => setShowUpdateGuide(false)}>
+          <div className="bg-[var(--surface-elevated)] rounded-t-2xl sm:rounded-2xl w-full max-w-md p-6 space-y-5" onClick={e => e.stopPropagation()}>
+            <div className="text-center">
+              <IconPreview iconId={currentIconId} size={72} selected={false} />
+              <h3 className="type-h1 mt-3">Update Home Screen Icon</h3>
+              <p className="type-caption text-[var(--text-secondary)] mt-1">iOS caches PWA icons. Quick 3-step refresh:</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex gap-3 items-start">
+                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-[var(--accent-primary)] text-[var(--text-on-accent)] flex items-center justify-center text-sm font-bold">1</span>
+                <div>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">Remove from Home Screen</p>
+                  <p className="text-xs text-[var(--text-secondary)]">Long-press the Figgg icon, tap "Remove Bookmark"</p>
+                </div>
+              </div>
+              <div className="flex gap-3 items-start">
+                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-[var(--accent-primary)] text-[var(--text-on-accent)] flex items-center justify-center text-sm font-bold">2</span>
+                <div>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">Open in Safari</p>
+                  <p className="text-xs text-[var(--text-secondary)]">Go to figgg-c2c8f.web.app in Safari</p>
+                </div>
+              </div>
+              <div className="flex gap-3 items-start">
+                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-[var(--accent-primary)] text-[var(--text-on-accent)] flex items-center justify-center text-sm font-bold">3</span>
+                <div>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">Add to Home Screen</p>
+                  <p className="text-xs text-[var(--text-secondary)]">Tap Share (box with arrow), then "Add to Home Screen"</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleSaveIcon}
+                className="flex-1 py-3 rounded-xl border border-[var(--border-subtle)] text-sm font-medium text-[var(--text-primary)]"
+              >
+                Save Icon to Photos
+              </button>
+              <button
+                onClick={() => setShowUpdateGuide(false)}
+                className="flex-1 py-3 rounded-xl bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-medium"
+              >
+                Got It
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Font Family */}
       <section className="mb-6">
