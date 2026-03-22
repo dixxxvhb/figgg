@@ -11,7 +11,7 @@ import { SyncProvider } from './contexts/SyncContext';
 import { AppDataProvider } from './contexts/AppDataContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { loadData } from './services/storage';
-import { applyTheme } from './styles/applyTheme';
+import { applyTheme, applyAccentOverride } from './styles/applyTheme';
 import { restoreMoodLayer } from './styles/moodLayer';
 import { applyAppIcon } from './styles/appIcons';
 
@@ -115,6 +115,11 @@ function App() {
     // Apply color theme
     if (settings?.themeId) {
       applyTheme(settings.themeId, document.documentElement.classList.contains('dark'));
+    }
+
+    // Apply custom accent color override (after theme, so it wins)
+    if (settings?.customAccentColor) {
+      applyAccentOverride(settings.customAccentColor);
     }
 
     // Apply selected app icon (favicon + manifest)

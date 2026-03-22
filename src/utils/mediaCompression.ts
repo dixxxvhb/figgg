@@ -3,9 +3,10 @@
 
 const MAX_IMAGE_WIDTH = 1200;
 const MAX_IMAGE_HEIGHT = 1200;
-const IMAGE_QUALITY = 0.7;
+const DEFAULT_IMAGE_QUALITY = 0.7;
 
-export async function compressImage(file: File): Promise<string> {
+export async function compressImage(file: File, quality?: number): Promise<string> {
+  const IMAGE_QUALITY = quality ?? DEFAULT_IMAGE_QUALITY;
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {

@@ -24,3 +24,37 @@ export function applyTheme(themeId: string, isDark: boolean = false): void {
     root.style.setProperty(key, value);
   }
 }
+
+// ── Custom accent color overrides ──────────────────────────────
+
+const ACCENT_PROPS = [
+  '--accent-primary',
+  '--accent-primary-hover',
+  '--accent-muted',
+  '--surface-highlight',
+  '--border-strong',
+] as const;
+
+function lighten(hex: string, percent: number): string {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const r = Math.min(255, (num >> 16) + Math.round(255 * percent / 100));
+  const g = Math.min(255, ((num >> 8) & 0x00ff) + Math.round(255 * percent / 100));
+  const b = Math.min(255, (num & 0x0000ff) + Math.round(255 * percent / 100));
+  return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
+}
+
+export function applyAccentOverride(hex: string): void {
+  const root = document.documentElement;
+  root.style.setProperty('--accent-primary', hex);
+  root.style.setProperty('--accent-primary-hover', lighten(hex, 15));
+  root.style.setProperty('--accent-muted', `${hex}1a`);
+  root.style.setProperty('--surface-highlight', `${hex}20`);
+  root.style.setProperty('--border-strong', hex);
+}
+
+export function clearAccentOverride(): void {
+  const root = document.documentElement;
+  for (const prop of ACCENT_PROPS) {
+    root.style.removeProperty(prop);
+  }
+}

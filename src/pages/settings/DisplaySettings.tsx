@@ -1,9 +1,9 @@
 import { useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Check } from 'lucide-react';
+import { ArrowLeft, Check, RotateCcw } from 'lucide-react';
 import { useAppData } from '../../contexts/AppDataContext';
 import { themes } from '../../styles/themes';
-import { applyTheme } from '../../styles/applyTheme';
+import { applyTheme, applyAccentOverride, clearAccentOverride } from '../../styles/applyTheme';
 import { appIcons, applyAppIcon } from '../../styles/appIcons';
 
 const THEME_GROUPS: { label: string; ids: string[] }[] = [
@@ -36,6 +36,21 @@ function IconPreview({ iconId, size, selected }: { iconId: string; size: number;
   );
 }
 
+const ACCENT_PRESETS = [
+  { label: 'Red', hex: '#ef4444' },
+  { label: 'Orange', hex: '#f97316' },
+  { label: 'Amber', hex: '#f59e0b' },
+  { label: 'Yellow', hex: '#eab308' },
+  { label: 'Lime', hex: '#84cc16' },
+  { label: 'Green', hex: '#22c55e' },
+  { label: 'Teal', hex: '#14b8a6' },
+  { label: 'Cyan', hex: '#06b6d4' },
+  { label: 'Blue', hex: '#3b82f6' },
+  { label: 'Indigo', hex: '#6366f1' },
+  { label: 'Purple', hex: '#a855f7' },
+  { label: 'Pink', hex: '#ec4899' },
+];
+
 const FONT_SIZES = [
   { value: 'normal' as const, label: 'Normal', rootSize: '16px' },
   { value: 'large' as const, label: 'Large', rootSize: '18px' },
@@ -49,10 +64,13 @@ export function DisplaySettings() {
   const currentIconId = settings.appIconId || 'ink-gold';
   const currentFontSize = settings.fontSize || 'normal';
   const darkMode = settings.darkMode ?? false;
+  const customAccent = settings.customAccentColor;
 
   const handleThemeSelect = (id: string) => {
     updateSettings({ themeId: id });
     applyTheme(id, darkMode);
+    // Re-apply accent override on top of new theme
+    if (customAccent) applyAccentOverride(customAccent);
   };
 
   const handleIconSelect = (id: string) => {
@@ -75,6 +93,20 @@ export function DisplaySettings() {
     } else {
       document.documentElement.classList.remove('dark');
     }
+    // Re-apply accent override on top of new mode
+    if (customAccent) applyAccentOverride(customAccent);
+  };
+
+  const handleAccentSelect = (hex: string) => {
+    updateSettings({ customAccentColor: hex });
+    applyAccentOverride(hex);
+  };
+
+  const handleAccentReset = () => {
+    updateSettings({ customAccentColor: undefined });
+    clearAccentOverride();
+    // Re-apply current theme so its defaults fill back in
+    applyTheme(currentThemeId, darkMode);
   };
 
   return (
@@ -144,6 +176,56 @@ export function DisplaySettings() {
             </div>
           </div>
         ))}
+      </section>
+
+      {/* Accent Color */}
+      <section className="mb-6">
+        <h2 className="type-caption font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3 px-1">Accent Color</h2>
+        <div className="flex flex-wrap gap-2 mb-3 px-1">
+          {ACCENT_PRESETS.map(preset => {
+            const isSelected = customAccent === preset.hex;
+            return (
+              <button
+                key={preset.hex}
+                onClick={() => handleAccentSelect(preset.hex)}
+                title={preset.label}
+                className={`w-7 h-7 rounded-full flex-shrink-0 transition-shadow ${isSelected ? 'ring-2 ring-[var(--text-primary)] ring-offset-2' : ''}`}
+                style={{ backgroundColor: preset.hex }}
+              />
+            );
+          })}
+          {/* Custom color picker */}
+          <label
+            title="Custom color"
+            className={`w-7 h-7 rounded-full flex-shrink-0 border-2 border-dashed border-[var(--border-subtle)] flex items-center justify-center cursor-pointer overflow-hidden transition-shadow ${
+              customAccent && !ACCENT_PRESETS.some(p => p.hex === customAccent)
+                ? 'ring-2 ring-[var(--text-primary)] ring-offset-2'
+                : ''
+            }`}
+            style={
+              customAccent && !ACCENT_PRESETS.some(p => p.hex === customAccent)
+                ? { backgroundColor: customAccent, borderStyle: 'solid', borderColor: customAccent }
+                : undefined
+            }
+          >
+            <span className="text-[10px] text-[var(--text-tertiary)]">+</span>
+            <input
+              type="color"
+              value={customAccent || '#6366f1'}
+              onChange={(e) => handleAccentSelect(e.target.value)}
+              className="sr-only"
+            />
+          </label>
+        </div>
+        {customAccent && (
+          <button
+            onClick={handleAccentReset}
+            className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-1"
+          >
+            <RotateCcw size={12} />
+            Reset to theme default
+          </button>
+        )}
       </section>
 
       {/* App Icon */}
