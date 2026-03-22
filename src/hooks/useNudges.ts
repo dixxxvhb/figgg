@@ -75,13 +75,26 @@ export function useNudges(
     const todayStr = toDateStr(now);
     const result: Nudge[] = [];
 
+    // Master nudge toggle
+    if (data.settings?.nudgesEnabled === false) return result;
+
+    // Sensitivity presets
+    const sensitivity = data.settings?.nudgeSensitivity || 'balanced';
+    const thresholds = {
+      aggressive: { overdue: 3, medsGap: 1, launchStale: 3, wellness: 0.2 },
+      balanced: { overdue: 5, medsGap: 2, launchStale: 7, wellness: 0.3 },
+      quiet: { overdue: 10, medsGap: 5, launchStale: 14, wellness: 0.15 },
+    }[sensitivity];
+    const snoozeDuration = data.settings?.nudgeSnoozeDurationHours ?? 24;
+    const maxNudges = data.settings?.nudgeMaxVisible ?? 3;
+
     // Helper to check if nudge is dismissed/snoozed
     const isActive = (id: string): boolean => {
       if (nudgeState.dismissed[id]) return false;
       if (nudgeState.snoozed[id]) {
         const snoozedAt = new Date(nudgeState.snoozed[id]);
         const hoursSince = (now.getTime() - snoozedAt.getTime()) / (1000 * 60 * 60);
-        if (hoursSince < 24) return false;
+        if (hoursSince < snoozeDuration) return false;
       }
       return true;
     };
@@ -89,9 +102,9 @@ export function useNudges(
     const sc = data.selfCare;
     const reminders = sc?.reminders || [];
 
-    // Rule 1: Overdue tasks > 5
+    // Rule 1: Overdue tasks
     const overdueCount = reminders.filter(r => !r.completed && r.dueDate && r.dueDate < todayStr).length;
-    if (overdueCount > 5 && isActive('overdue-tasks')) {
+    if (overdueCount > thresholds.overdue && isActive('overdue-tasks')) {
       result.push({
         id: 'overdue-tasks',
         type: 'overdue',
@@ -108,7 +121,7 @@ export function useNudges(
     const lastDoseDate = sc?.dose1Date;
     if (lastDoseDate) {
       const daysSince = differenceInCalendarDays(now, parseISO(lastDoseDate));
-      if (daysSince >= 2 && isActive('meds-gap')) {
+      if (daysSince >= thresholds.medsGap && isActive('meds-gap')) {
         result.push({
           id: 'meds-gap',
           type: 'meds',
@@ -156,7 +169,7 @@ export function useNudges(
         [0];
       if (lastCompleted?.completedAt) {
         const daysSince = differenceInCalendarDays(now, new Date(lastCompleted.completedAt));
-        if (daysSince >= 7 && isActive('launch-stale')) {
+        if (daysSince >= thresholds.launchStale && isActive('launch-stale')) {
           result.push({
             id: 'launch-stale',
             type: 'launch',
@@ -202,7 +215,7 @@ export function useNudges(
       const doneCount = Object.values(states).filter(Boolean).length;
       const percentage = doneCount / enabledCount;
       // Simple heuristic: if it's afternoon and below 30%, nudge
-      if (now.getHours() >= 14 && percentage < 0.3 && isActive('wellness-low')) {
+      if (now.getHours() >= 14 && percentage < thresholds.wellness && isActive('wellness-low')) {
         result.push({
           id: 'wellness-low',
           type: 'wellness',
@@ -246,7 +259,7 @@ export function useNudges(
     const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
     return result
       .sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])
-      .slice(0, 3);
+      .slice(0, maxNudges);
   }, [data, nudgeState]);
 
   return { nudges, dismissNudge, snoozeNudge };

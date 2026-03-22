@@ -322,13 +322,25 @@ export interface AppSettings {
   password?: string;
   fontSize?: 'normal' | 'large' | 'extra-large';
   darkMode?: boolean;
-  themeId?: string; // Color theme: 'stone' | 'ocean' | 'plum' | 'midnight' | 'clay' | 'dusk'
+  themeId?: string; // Color theme ID
   dashboardWidgetOrder?: string[]; // Widget IDs in display order
   medConfig?: MedConfig;
   wellnessItems?: WellnessItemConfig[];
   aiConfig?: AIConfig;
   hiddenCalendarEventIds?: string[]; // Event IDs hidden by user (persists across syncs)
   appIconId?: string; // Selected app icon variant (default: 'ink-gold')
+  // Dashboard & nudge settings
+  hiddenWidgets?: string[]; // Widget IDs to hide from dashboard
+  nudgesEnabled?: boolean; // Master toggle (default true)
+  enabledNudgeTypes?: string[]; // Which nudge types are active
+  nudgeSensitivity?: 'aggressive' | 'balanced' | 'quiet'; // Preset thresholds
+  nudgeSnoozeDurationHours?: number; // 12, 24, or 48 (default 24)
+  nudgeMaxVisible?: number; // 1-5 (default 3)
+  // Behavior settings
+  focusStackSize?: number; // 2, 3, or 5 (default 3)
+  launchDefaultView?: 'today' | 'roadmap' | 'pulse';
+  calendarSyncMinutes?: number; // 5, 10, 15, 30 (default 15)
+  imageQuality?: number; // 0.5, 0.7, 0.9 (default 0.7)
 }
 
 // ===== STUDENT MANAGEMENT =====

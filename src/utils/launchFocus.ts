@@ -72,6 +72,7 @@ export function computeFocusStack(
   phases: LaunchPhase[],
   wellnessMode: WellnessMode = 'okay',
   now: Date = new Date(),
+  maxTasks: number = 3,
 ): LaunchTask[] {
   const today = now.toISOString().split('T')[0];
   const hour = now.getHours();
@@ -97,9 +98,9 @@ export function computeFocusStack(
     return { task: t, score };
   });
 
-  // Sort by score descending, take top 3
+  // Sort by score descending, take top N
   scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, 3).map(s => s.task);
+  return scored.slice(0, maxTasks).map(s => s.task);
 }
 
 /** Get phase progress stats */

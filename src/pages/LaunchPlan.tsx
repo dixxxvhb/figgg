@@ -298,7 +298,7 @@ function PhaseBanner({ phases, tasks }: { phases: LaunchPhase[]; tasks: LaunchTa
 
 function TodayView({
   tasks, phases, wellnessMode, expandedId, setExpandedId,
-  onComplete, onSkip, onDefer, onNoteChange, onDecide,
+  onComplete, onSkip, onDefer, onNoteChange, onDecide, focusStackSize = 3,
 }: {
   tasks: LaunchTask[];
   phases: LaunchPhase[];
@@ -310,8 +310,9 @@ function TodayView({
   onDefer: (id: string) => void;
   onNoteChange: (id: string, note: string) => void;
   onDecide: (id: string, decision: string) => void;
+  focusStackSize?: number;
 }) {
-  const focusStack = useMemo(() => computeFocusStack(tasks, phases, wellnessMode), [tasks, phases, wellnessMode]);
+  const focusStack = useMemo(() => computeFocusStack(tasks, phases, wellnessMode, new Date(), focusStackSize), [tasks, phases, wellnessMode, focusStackSize]);
   const today = new Date().toISOString().split('T')[0];
 
   const quickWins = useMemo(() =>
@@ -687,7 +688,7 @@ function DecisionCard({ decision, onAnswer }: { decision: LaunchDecision; onAnsw
 
 export function LaunchPlan() {
   const { data, updateLaunchPlan } = useAppData();
-  const [activeView, setActiveView] = useState<ViewId>('today');
+  const [activeView, setActiveView] = useState<ViewId>((data.settings?.launchDefaultView as ViewId) || 'today');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Ensure we have plan data — auto-upgrade if version is old
@@ -798,6 +799,7 @@ export function LaunchPlan() {
           onDefer={deferTask}
           onNoteChange={updateNote}
           onDecide={decideTask}
+          focusStackSize={data.settings?.focusStackSize ?? 3}
         />
       )}
       {activeView === 'roadmap' && (

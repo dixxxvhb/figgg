@@ -29,7 +29,14 @@ const Students = lazy(() => import('./pages/Students').then(m => ({ default: m.S
 const Library = lazy(() => import('./pages/Library').then(m => ({ default: m.Library })));
 const Me = lazy(() => import('./pages/Me').then(m => ({ default: m.Me })));
 const TasksPage = lazy(() => import('./pages/TasksPage').then(m => ({ default: m.TasksPage })));
-const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
+const Settings = lazy(() => import('./pages/settings/SettingsHub').then(m => ({ default: m.SettingsHub })));
+const DisplaySettings = lazy(() => import('./pages/settings/DisplaySettings').then(m => ({ default: m.DisplaySettings })));
+const DashboardSettings = lazy(() => import('./pages/settings/DashboardSettings').then(m => ({ default: m.DashboardSettings })));
+const WellnessSettings = lazy(() => import('./pages/settings/WellnessSettings').then(m => ({ default: m.WellnessSettings })));
+const AISettings = lazy(() => import('./pages/settings/AISettings').then(m => ({ default: m.AISettings })));
+const SyncSettings = lazy(() => import('./pages/settings/SyncSettings').then(m => ({ default: m.SyncSettings })));
+const DataSettings = lazy(() => import('./pages/settings/DataSettings').then(m => ({ default: m.DataSettings })));
+const AdvancedSettings = lazy(() => import('./pages/settings/AdvancedSettings').then(m => ({ default: m.AdvancedSettings })));
 const LaunchPlan = lazy(() => import('./pages/LaunchPlan').then(m => ({ default: m.LaunchPlan })));
 const AIChat = lazy(() => import('./pages/AIChat').then(m => ({ default: m.AIChat })));
 
@@ -66,6 +73,13 @@ function AnimatedRoutes() {
         <Route path="/launch" element={<LaunchPlan />} />
         <Route path="/ai" element={<AIChat />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/settings/display" element={<DisplaySettings />} />
+        <Route path="/settings/dashboard" element={<DashboardSettings />} />
+        <Route path="/settings/wellness" element={<WellnessSettings />} />
+        <Route path="/settings/ai" element={<AISettings />} />
+        <Route path="/settings/sync" element={<SyncSettings />} />
+        <Route path="/settings/data" element={<DataSettings />} />
+        <Route path="/settings/advanced" element={<AdvancedSettings />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </div>

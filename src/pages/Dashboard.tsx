@@ -433,8 +433,11 @@ export function Dashboard() {
     const validIds = new Set<string>(DEFAULT_WIDGET_ORDER);
     const existing = saved.filter((id: string) => validIds.has(id));
     const missing = DEFAULT_WIDGET_ORDER.filter(id => !existing.includes(id));
-    return [...existing, ...missing];
-  }, [data.settings?.dashboardWidgetOrder]);
+    const all = [...existing, ...missing];
+    // Filter out hidden widgets (from Dashboard settings)
+    const hidden = new Set(data.settings?.hiddenWidgets || []);
+    return all.filter(id => !hidden.has(id));
+  }, [data.settings?.dashboardWidgetOrder, data.settings?.hiddenWidgets]);
 
   // Drag sensors — pointer needs distance, touch needs delay
   const sensors = useSensors(

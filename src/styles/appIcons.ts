@@ -203,6 +203,125 @@ export const appIcons: AppIconDef[] = [
       ctx.fillRect(size * 0.3, size * 0.66, size * 0.4, 2 * s);
     },
   },
+  // ── 9. Crimson ──────────────────────────────────────────────────
+  {
+    id: 'crimson',
+    name: 'Crimson',
+    render: (ctx, size) => {
+      const s = size / 512;
+      ctx.fillStyle = '#9b1b30';
+      ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = '#d4a843';
+      ctx.font = `bold ${140 * s}px Georgia, serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('FIG', size / 2, size * 0.49);
+      ctx.fillRect(size * 0.3, size * 0.64, size * 0.4, 3 * s);
+    },
+  },
+  // ── 10. Candy ───────────────────────────────────────────────────
+  {
+    id: 'candy',
+    name: 'Candy',
+    render: (ctx, size) => {
+      const s = size / 512;
+      ctx.fillStyle = '#ec4899';
+      ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = '#06b6d4';
+      ctx.font = `bold ${140 * s}px Georgia, serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('FIG', size / 2, size * 0.49);
+      ctx.beginPath();
+      ctx.arc(size * 0.78, size * 0.22, 10 * s, 0, Math.PI * 2);
+      ctx.fill();
+    },
+  },
+  // ── 11. Vapor ───────────────────────────────────────────────────
+  {
+    id: 'vapor',
+    name: 'Vapor',
+    render: (ctx, size) => {
+      const s = size / 512;
+      const grad = ctx.createLinearGradient(0, 0, 0, size);
+      grad.addColorStop(0, '#4c1d95');
+      grad.addColorStop(1, '#ec4899');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, size, size);
+      ctx.font = `bold ${140 * s}px Georgia, serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = 'rgba(34, 211, 238, 0.3)';
+      ctx.fillText('FIG', size / 2, size * 0.49);
+      ctx.fillStyle = '#22d3ee';
+      ctx.fillText('FIG', size / 2, size * 0.49);
+    },
+  },
+  // ── 12. Arctic ──────────────────────────────────────────────────
+  {
+    id: 'arctic',
+    name: 'Arctic',
+    render: (ctx, size) => {
+      const s = size / 512;
+      const grad = ctx.createLinearGradient(0, 0, 0, size);
+      grad.addColorStop(0, '#bfdbfe');
+      grad.addColorStop(1, '#f0f9ff');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = '#60a5fa';
+      ctx.fillRect(size * 0.3, size * 0.32, size * 0.4, 3 * s);
+      ctx.fillStyle = '#1e3a5f';
+      ctx.font = `bold ${140 * s}px Georgia, serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('FIG', size / 2, size * 0.49);
+    },
+  },
+  // ── 13. Solar ───────────────────────────────────────────────────
+  {
+    id: 'solar',
+    name: 'Solar',
+    render: (ctx, size) => {
+      const s = size / 512;
+      const grad = ctx.createLinearGradient(0, 0, 0, size);
+      grad.addColorStop(0, '#ea580c');
+      grad.addColorStop(1, '#fbbf24');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = '#451a03';
+      ctx.font = `bold ${140 * s}px Georgia, serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('FIG', size / 2, size * 0.49);
+      ctx.strokeStyle = '#451a03';
+      ctx.lineWidth = 2 * s;
+      const cx = size * 0.88;
+      const cy = size * 0.88;
+      for (const deg of [-55, -35, -15, 5]) {
+        const rad = (deg * Math.PI) / 180;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(rad) * 20 * s, cy + Math.sin(rad) * 20 * s);
+        ctx.lineTo(cx + Math.cos(rad) * 50 * s, cy + Math.sin(rad) * 50 * s);
+        ctx.stroke();
+      }
+    },
+  },
+  // ── 14. Mono ────────────────────────────────────────────────────
+  {
+    id: 'mono',
+    name: 'Mono',
+    render: (ctx, size) => {
+      const s = size / 512;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = '#111827';
+      ctx.font = `bold ${140 * s}px Georgia, serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('FIG', size / 2, size * 0.49);
+      ctx.fillRect(size * 0.3, size * 0.64, size * 0.4, 3 * s);
+    },
+  },
 ];
 
 /**
