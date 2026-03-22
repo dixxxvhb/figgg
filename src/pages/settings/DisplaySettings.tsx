@@ -7,9 +7,8 @@ import { applyTheme, applyAccentOverride, clearAccentOverride } from '../../styl
 import { appIcons, applyAppIcon } from '../../styles/appIcons';
 
 const THEME_GROUPS: { label: string; ids: string[] }[] = [
-  { label: 'Classic', ids: ['stone', 'ocean', 'clay', 'dusk', 'dwd'] },
-  { label: 'Bold', ids: ['plum', 'midnight', 'neon', 'crimson', 'emerald'] },
-  { label: 'Vibe', ids: ['pride', 'candy', 'solar', 'arctic', 'vapor', 'noir', 'mono'] },
+  { label: 'Classic', ids: ['stone', 'ocean', 'dwd', 'emerald'] },
+  { label: 'Bold', ids: ['crimson', 'noir', 'candy', 'vapor'] },
 ];
 
 function IconPreview({ iconId, size, selected }: { iconId: string; size: number; selected: boolean }) {

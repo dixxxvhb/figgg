@@ -2,8 +2,17 @@ import { getTheme } from './themes';
 
 const THEME_MIGRATIONS: Record<string, string> = {
   forest: 'stone',
-  sunset: 'clay',
-  rose: 'dusk',
+  sunset: 'stone',
+  rose: 'stone',
+  clay: 'stone',
+  dusk: 'stone',
+  plum: 'vapor',
+  midnight: 'ocean',
+  neon: 'crimson',
+  solar: 'crimson',
+  arctic: 'ocean',
+  pride: 'candy',
+  mono: 'noir',
 };
 
 export function applyTheme(themeId: string, isDark: boolean = false): void {
