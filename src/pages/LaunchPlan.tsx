@@ -1,14 +1,20 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { format, parseISO, differenceInDays, startOfDay } from 'date-fns';
 import {
-  Check, SkipForward, ExternalLink, ChevronDown,
-  Pencil, Star, CircleDot, Clock,
-  Rocket, BarChart3, Target, AlertCircle,
-  Layers, Lock, Zap, Timer, Briefcase,
+  Check, SkipForward, ExternalLink, ChevronDown, ChevronRight,
+  Pencil, Star, CircleDot, Clock, MessageCircle,
+  Rocket, BarChart3, Target, AlertCircle, CalendarClock,
+  Layers, Lock, Zap, Timer, Briefcase, ArrowRight,
+  Map, Activity,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAppData } from '../contexts/AppDataContext';
 import { initialLaunchPlan } from '../data/launchPlan';
-import type { LaunchTask, LaunchDecision, LaunchCategory, LaunchEffort } from '../types';
+import type { LaunchTask, LaunchDecision, LaunchCategory, LaunchEffort, LaunchPhase } from '../types';
+import {
+  computeFocusStack, getCurrentPhases, getNextPhase, getPhaseById,
+  getPhaseProgress, isTaskReady, getBlockingDecisions, inferActionUrl,
+} from '../utils/launchFocus';
 
 // ─── Category colors (semantic tokens) ───
 const categoryColors: Record<LaunchCategory, { bg: string; text: string; dot: string }> = {
@@ -17,7 +23,7 @@ const categoryColors: Record<LaunchCategory, { bg: string; text: string; dot: st
   ADULT: { bg: 'bg-[var(--accent-muted)]', text: 'text-[var(--accent-secondary)]', dot: 'var(--accent-secondary)' },
   PRO: { bg: 'bg-[color-mix(in_srgb,#7c3aed_10%,transparent)]', text: 'text-[#7c3aed]', dot: '#7c3aed' },
   DECIDE: { bg: 'bg-[color-mix(in_srgb,var(--status-warning)_10%,transparent)]', text: 'text-[var(--status-warning)]', dot: 'var(--status-warning)' },
-  PREP: { bg: 'bg-[color-mix(in_srgb,#0d9488_10%,transparent)]', text: 'text-[#0d9488]', dot: '#0d9488' },
+  SPACE: { bg: 'bg-[color-mix(in_srgb,#2563eb_10%,transparent)]', text: 'text-[#2563eb]', dot: '#2563eb' },
 };
 
 const effortConfig: Record<LaunchEffort, { label: string; icon: typeof Zap; color: string }> = {
@@ -26,24 +32,24 @@ const effortConfig: Record<LaunchEffort, { label: string; icon: typeof Zap; colo
   deep: { label: '1h+', icon: Briefcase, color: 'var(--accent-primary)' },
 };
 
-type TabId = 'backlog' | 'progress' | 'decisions' | 'milestones';
+type ViewId = 'today' | 'roadmap' | 'pulse';
 
-const tabs: { id: TabId; label: string; icon: typeof Layers }[] = [
-  { id: 'backlog', label: 'Backlog', icon: Layers },
-  { id: 'progress', label: 'Progress', icon: BarChart3 },
-  { id: 'decisions', label: 'Decisions', icon: CircleDot },
-  { id: 'milestones', label: 'Milestones', icon: Target },
+const views: { id: ViewId; label: string; icon: typeof Layers }[] = [
+  { id: 'today', label: 'Today', icon: Target },
+  { id: 'roadmap', label: 'Roadmap', icon: Map },
+  { id: 'pulse', label: 'Pulse', icon: Activity },
 ];
 
-// ─── Category display names & badge ───
 const categoryLabels: Record<LaunchCategory, string> = {
   BIZ: 'Business',
   CONTENT: 'Content',
   ADULT: 'Adult Co.',
   PRO: 'ProSeries',
   DECIDE: 'Decision',
-  PREP: 'Prep',
+  SPACE: 'Space',
 };
+
+// ─── Shared components ───
 
 function CategoryBadge({ category }: { category: LaunchCategory }) {
   const c = categoryColors[category];
@@ -62,799 +68,784 @@ function EffortBadge({ effort }: { effort: LaunchEffort }) {
       className="text-[10px] font-semibold px-1.5 py-0.5 rounded-[var(--radius-full)] flex items-center gap-0.5"
       style={{ backgroundColor: `color-mix(in srgb, ${cfg.color} 10%, transparent)`, color: cfg.color }}
     >
-      <Icon size={10} />
-      {cfg.label}
+      <Icon size={10} /> {cfg.label}
     </span>
   );
 }
 
-// ─── Milestone badge ───
-function MilestoneBadge({ label }: { label: string }) {
-  return (
-    <span className="text-[11px] font-bold px-2 py-0.5 rounded-[var(--radius-full)] bg-[color-mix(in_srgb,var(--status-warning)_10%,transparent)] text-[var(--status-warning)] flex items-center gap-1">
-      <Star size={10} className="fill-current" />
-      {label}
-    </span>
-  );
-}
+// ─── Task Card (shared between Today and Roadmap) ───
 
-// ─── Check if a task is blocked ───
-function isTaskBlocked(task: LaunchTask, tasks: LaunchTask[]): boolean {
-  if (!task.blockedBy || task.blockedBy.length === 0) return false;
-  return task.blockedBy.some(depId => {
-    const dep = tasks.find(t => t.id === depId);
-    return dep && !dep.completed && !dep.skipped;
-  });
-}
-
-// ─── Check if task is too early to surface ───
-function isTooEarly(task: LaunchTask, todayStr: string): boolean {
-  return !!task.suggestedAfter && task.suggestedAfter > todayStr;
-}
-
-// ─── Task Card (expandable detail) ───
-function TaskCard({
-  task, blocked, tooEarly, onComplete, onSkip, onUpdateNotes,
-}: {
+interface TaskCardProps {
   task: LaunchTask;
-  blocked: boolean;
-  tooEarly: boolean;
+  allTasks: LaunchTask[];
+  expanded: boolean;
+  onToggle: () => void;
   onComplete: (id: string) => void;
   onSkip: (id: string) => void;
-  onUpdateNotes: (id: string, notes: string) => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const [localNotes, setLocalNotes] = useState(task.notes || '');
-  const notesRef = useRef<HTMLTextAreaElement>(null);
+  onDefer: (id: string) => void;
+  onNoteChange: (id: string, note: string) => void;
+  onDecide: (id: string, decision: string) => void;
+  compact?: boolean;
+}
 
-  useEffect(() => { setLocalNotes(task.notes || ''); }, [task.notes]);
-
-  const handleBlur = () => {
-    if (localNotes !== (task.notes || '')) {
-      onUpdateNotes(task.id, localNotes);
-    }
-  };
-
+function TaskCard({ task, allTasks, expanded, onToggle, onComplete, onSkip, onDefer, onNoteChange, onDecide, compact }: TaskCardProps) {
+  const navigate = useNavigate();
+  const noteRef = useRef<HTMLTextAreaElement>(null);
+  const actionUrl = inferActionUrl(task);
+  const blockingDecisions = getBlockingDecisions(task.id, allTasks);
+  const isBlocked = task.blockedBy?.some(bid => {
+    const b = allTasks.find(t => t.id === bid);
+    return b && !b.completed && !b.skipped;
+  });
   const isDone = task.completed || task.skipped;
 
   return (
-    <div className={`bg-[var(--surface-card)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] overflow-hidden ${isDone ? 'opacity-50' : blocked ? 'opacity-60' : ''}`}>
-      {/* Compact row */}
+    <div className={`rounded-[var(--radius-lg)] border transition-all ${isDone ? 'opacity-50 border-[var(--border-subtle)]' : isBlocked ? 'opacity-60 border-[var(--border-subtle)]' : 'border-[var(--border-default)] shadow-sm'}`}>
+      {/* Blocking decision inline */}
+      {!isDone && blockingDecisions.length > 0 && (
+        <div className="px-4 py-2 border-b border-dashed border-[var(--status-warning)] bg-[color-mix(in_srgb,var(--status-warning)_5%,transparent)]">
+          {blockingDecisions.map(d => (
+            <InlineDecision key={d.id} task={d} onDecide={onDecide} />
+          ))}
+        </div>
+      )}
+
+      {/* Main card content */}
       <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full text-left flex items-start gap-3 px-4 py-3"
+        onClick={onToggle}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left"
       >
-        <div className={`w-5 h-5 mt-0.5 rounded-full flex-shrink-0 flex items-center justify-center border-2 ${isDone ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)]' : 'border-[var(--border-subtle)]'}`}>
-          {isDone && <Check size={12} className="text-[var(--text-on-accent)]" />}
+        {/* Status circle */}
+        <div
+          className={`w-6 h-6 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
+            task.completed ? 'bg-[var(--status-success)] border-[var(--status-success)]' :
+            task.skipped ? 'bg-[var(--text-muted)] border-[var(--text-muted)]' :
+            isBlocked ? 'border-[var(--border-subtle)]' :
+            'border-[var(--border-default)]'
+          }`}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!isDone && !isBlocked) onComplete(task.id);
+          }}
+        >
+          {task.completed && <Check size={14} className="text-white" />}
+          {task.skipped && <SkipForward size={12} className="text-white" />}
+          {isBlocked && !isDone && <Lock size={10} className="text-[var(--text-muted)]" />}
         </div>
+
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className={`type-body font-medium ${isDone ? 'line-through text-[var(--text-tertiary)]' : ''}`}>
-              {task.title}
-            </span>
-            {blocked && !isDone && <Lock size={12} className="text-[var(--text-tertiary)]" />}
-          </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <CategoryBadge category={task.category} />
-            <EffortBadge effort={task.effort} />
-            {task.milestone && task.milestoneLabel && <MilestoneBadge label={task.milestoneLabel} />}
-            {tooEarly && !isDone && (
-              <span className="text-[10px] text-[var(--text-tertiary)]">
-                after {task.suggestedAfter ? format(parseISO(task.suggestedAfter), 'MMM d') : ''}
-              </span>
-            )}
-          </div>
+          <p className={`type-body font-medium ${isDone ? 'line-through text-[var(--text-muted)]' : 'text-[var(--text-primary)]'}`}>
+            {task.title}
+          </p>
+          {!compact && (
+            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+              <CategoryBadge category={task.category} />
+              <EffortBadge effort={task.effort} />
+              {task.milestone && (
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-[var(--radius-full)] bg-[color-mix(in_srgb,var(--status-warning)_10%,transparent)] text-[var(--status-warning)] flex items-center gap-0.5">
+                  <Star size={10} /> {task.milestoneLabel}
+                </span>
+              )}
+            </div>
+          )}
         </div>
-        <ChevronDown size={16} className={`text-[var(--text-tertiary)] flex-shrink-0 mt-1 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+
+        <ChevronDown size={16} className={`text-[var(--text-muted)] transition-transform ${expanded ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Expanded detail */}
       {expanded && (
-        <div className="border-t border-[var(--border-subtle)]">
-          <div className="px-4 py-3">
-            <p className="type-body whitespace-pre-line leading-relaxed text-[var(--text-secondary)]">
-              {task.instructions}
-            </p>
-          </div>
+        <div className="px-4 pb-4 space-y-3 border-t border-[var(--border-subtle)]">
+          <p className="type-caption text-[var(--text-secondary)] mt-3 leading-relaxed">
+            {task.instructions}
+          </p>
 
-          {task.actionUrl && (
-            <div className="px-4 pb-3">
+          {/* Action URL + AI help */}
+          <div className="flex gap-2 flex-wrap">
+            {actionUrl && (
               <a
-                href={task.actionUrl}
+                href={actionUrl.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--accent-primary)] hover:underline"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-md)] bg-[var(--accent-primary)] text-white text-[13px] font-medium hover:opacity-90 transition-opacity"
               >
-                <ExternalLink size={14} />
-                {task.actionLabel || 'Open link'}
+                <ExternalLink size={14} /> {actionUrl.label}
               </a>
-            </div>
-          )}
+            )}
+            <button
+              onClick={() => navigate(`/ai?preload=${encodeURIComponent(`I need to work on: "${task.title}". ${task.instructions}. Help me break this down or get started.`)}`)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-md)] border border-[var(--border-default)] text-[var(--text-secondary)] text-[13px] font-medium hover:bg-[var(--bg-secondary)] transition-colors"
+            >
+              <MessageCircle size={14} /> Talk through this
+            </button>
+          </div>
 
           {/* Notes */}
-          <div className="px-4 pb-3">
-            <textarea
-              ref={notesRef}
-              value={localNotes}
-              onChange={e => setLocalNotes(e.target.value)}
-              onBlur={handleBlur}
-              placeholder="Add notes..."
-              rows={2}
-              className="w-full text-sm bg-[var(--surface-inset)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-tertiary)] resize-none focus:ring-1 focus:ring-[var(--accent-primary)] focus:border-[var(--accent-primary)]"
-            />
-          </div>
+          <textarea
+            ref={noteRef}
+            placeholder="Add a note..."
+            defaultValue={task.notes || ''}
+            onBlur={() => {
+              if (noteRef.current) onNoteChange(task.id, noteRef.current.value);
+            }}
+            className="w-full px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-primary)] text-[var(--text-primary)] type-caption resize-none"
+            rows={2}
+          />
 
           {/* Actions */}
           {!isDone && (
-            <div className="px-4 pb-4 flex gap-2">
+            <div className="flex gap-2">
               <button
-                onClick={(e) => { e.stopPropagation(); onComplete(task.id); }}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-[var(--radius-md)] bg-[var(--accent-primary)] text-[var(--text-on-accent)] font-medium text-sm hover:bg-[var(--accent-primary-hover)] active:scale-[0.98] min-h-[44px]"
+                onClick={() => onComplete(task.id)}
+                disabled={!!isBlocked}
+                className="flex-1 py-2 rounded-[var(--radius-md)] bg-[var(--status-success)] text-white font-medium text-[13px] disabled:opacity-40 hover:opacity-90 transition-opacity"
               >
-                <Check size={16} />
                 Done
               </button>
               <button
-                onClick={(e) => { e.stopPropagation(); onSkip(task.id); }}
-                className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-[var(--radius-md)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] font-medium text-sm min-h-[44px]"
+                onClick={() => onSkip(task.id)}
+                className="px-4 py-2 rounded-[var(--radius-md)] border border-[var(--border-default)] text-[var(--text-muted)] text-[13px] hover:bg-[var(--bg-secondary)]"
               >
-                <SkipForward size={16} />
                 Skip
+              </button>
+              <button
+                onClick={() => onDefer(task.id)}
+                className="px-4 py-2 rounded-[var(--radius-md)] border border-[var(--border-default)] text-[var(--text-muted)] text-[13px] hover:bg-[var(--bg-secondary)]"
+              >
+                Not today
               </button>
             </div>
           )}
 
-          {isDone && (
-            <div className="px-4 pb-3">
-              <span className={`text-xs font-medium ${task.completed ? 'text-[var(--status-success)]' : 'text-[var(--text-tertiary)]'}`}>
-                {task.completed ? `Completed ${task.completedAt ? format(parseISO(task.completedAt), 'MMM d') : ''}` : 'Skipped'}
-              </span>
+          {isDone && task.completedAt && (
+            <p className="type-caption text-[var(--text-muted)]">
+              {task.completed ? 'Completed' : 'Skipped'} {format(parseISO(task.completedAt || task.skippedAt || ''), 'MMM d')}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Inline Decision (appears above blocked tasks) ───
+
+function InlineDecision({ task, onDecide }: { task: LaunchTask; onDecide: (id: string, decision: string) => void }) {
+  const [value, setValue] = useState('');
+  return (
+    <div className="flex items-center gap-2">
+      <AlertCircle size={14} className="text-[var(--status-warning)] flex-shrink-0" />
+      <span className="type-caption text-[var(--text-secondary)] flex-1">{task.title}</span>
+      <input
+        type="text"
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        placeholder="Decide..."
+        className="px-2 py-1 rounded border border-[var(--border-default)] bg-[var(--bg-primary)] text-[13px] w-28"
+      />
+      <button
+        onClick={() => { if (value.trim()) onDecide(task.id, value.trim()); }}
+        disabled={!value.trim()}
+        className="px-2 py-1 rounded bg-[var(--status-warning)] text-white text-[12px] font-medium disabled:opacity-40"
+      >
+        Decide
+      </button>
+    </div>
+  );
+}
+
+// ─── Phase Banner ───
+
+function PhaseBanner({ phases, tasks }: { phases: LaunchPhase[]; tasks: LaunchTask[] }) {
+  const today = new Date().toISOString().split('T')[0];
+  const current = getCurrentPhases(phases, today);
+  const next = getNextPhase(phases, today);
+  const display = current.length > 0 ? current[0] : next;
+  if (!display) return null;
+
+  const progress = getPhaseProgress(tasks, display.id);
+  const isCurrent = current.some(p => p.id === display.id);
+
+  return (
+    <div className="rounded-[var(--radius-lg)] border border-[var(--border-default)] p-4 bg-[var(--bg-secondary)]">
+      <div className="flex items-center justify-between mb-1">
+        <p className="type-caption font-semibold text-[var(--text-primary)] uppercase tracking-wide">
+          {isCurrent ? `Phase ${display.id}` : `Next: Phase ${display.id}`}
+        </p>
+        <p className="type-caption text-[var(--text-muted)]">
+          {progress.done}/{progress.total}
+        </p>
+      </div>
+      <p className="type-body font-medium text-[var(--text-primary)] mb-1">{display.name}</p>
+      <p className="type-caption text-[var(--text-muted)] mb-2">
+        {format(parseISO(display.startDate), 'MMM d')} – {format(parseISO(display.endDate), 'MMM d')}
+      </p>
+      <div className="h-1.5 bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
+        <div
+          className="h-full bg-[var(--accent-primary)] rounded-full transition-all duration-500"
+          style={{ width: `${progress.pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════
+// TODAY VIEW — Daily action surface
+// ═══════════════════════════════════════════════════
+
+function TodayView({
+  tasks, phases, wellnessMode, expandedId, setExpandedId,
+  onComplete, onSkip, onDefer, onNoteChange, onDecide,
+}: {
+  tasks: LaunchTask[];
+  phases: LaunchPhase[];
+  wellnessMode: 'okay' | 'rough' | 'survival';
+  expandedId: string | null;
+  setExpandedId: (id: string | null) => void;
+  onComplete: (id: string) => void;
+  onSkip: (id: string) => void;
+  onDefer: (id: string) => void;
+  onNoteChange: (id: string, note: string) => void;
+  onDecide: (id: string, decision: string) => void;
+}) {
+  const focusStack = useMemo(() => computeFocusStack(tasks, phases, wellnessMode), [tasks, phases, wellnessMode]);
+  const today = new Date().toISOString().split('T')[0];
+
+  const quickWins = useMemo(() =>
+    tasks.filter(t => isTaskReady(t, tasks, today) && t.effort === 'quick' && !focusStack.some(f => f.id === t.id)),
+    [tasks, today, focusStack]
+  );
+  const [showQuickWins, setShowQuickWins] = useState(false);
+
+  // Auto-expand the first focus task
+  useEffect(() => {
+    if (focusStack.length > 0 && !expandedId) {
+      setExpandedId(focusStack[0].id);
+    }
+  }, [focusStack, expandedId, setExpandedId]);
+
+  return (
+    <div className="space-y-4">
+      <PhaseBanner phases={phases} tasks={tasks} />
+
+      {focusStack.length === 0 ? (
+        <div className="text-center py-8">
+          <p className="type-body text-[var(--text-muted)]">Nothing to focus on right now.</p>
+          <p className="type-caption text-[var(--text-muted)] mt-1">Check the Roadmap for upcoming tasks.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="type-caption font-semibold text-[var(--text-muted)] uppercase tracking-wide">Focus</p>
+          {focusStack.map((task, i) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              allTasks={tasks}
+              expanded={expandedId === task.id}
+              onToggle={() => setExpandedId(expandedId === task.id ? null : task.id)}
+              onComplete={onComplete}
+              onSkip={onSkip}
+              onDefer={onDefer}
+              onNoteChange={onNoteChange}
+              onDecide={onDecide}
+              compact={i > 0 && expandedId !== task.id}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Quick Wins */}
+      {quickWins.length > 0 && (
+        <div>
+          <button
+            onClick={() => setShowQuickWins(!showQuickWins)}
+            className="w-full flex items-center gap-2 px-4 py-2 rounded-[var(--radius-md)] bg-[color-mix(in_srgb,var(--status-success)_8%,transparent)] text-[var(--status-success)] type-caption font-semibold"
+          >
+            <Zap size={14} />
+            <span>{quickWins.length} quick win{quickWins.length !== 1 ? 's' : ''} available</span>
+            <ChevronDown size={14} className={`ml-auto transition-transform ${showQuickWins ? 'rotate-180' : ''}`} />
+          </button>
+          {showQuickWins && (
+            <div className="mt-2 space-y-2">
+              {quickWins.slice(0, 5).map(task => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  allTasks={tasks}
+                  expanded={expandedId === task.id}
+                  onToggle={() => setExpandedId(expandedId === task.id ? null : task.id)}
+                  onComplete={onComplete}
+                  onSkip={onSkip}
+                  onDefer={onDefer}
+                  onNoteChange={onNoteChange}
+                  onDecide={onDecide}
+                  compact
+                />
+              ))}
             </div>
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════
+// ROADMAP VIEW — Phase-based accordion
+// ═══════════════════════════════════════════════════
+
+function RoadmapView({
+  tasks, phases, expandedId, setExpandedId,
+  onComplete, onSkip, onDefer, onNoteChange, onDecide,
+}: {
+  tasks: LaunchTask[];
+  phases: LaunchPhase[];
+  expandedId: string | null;
+  setExpandedId: (id: string | null) => void;
+  onComplete: (id: string) => void;
+  onSkip: (id: string) => void;
+  onDefer: (id: string) => void;
+  onNoteChange: (id: string, note: string) => void;
+  onDecide: (id: string, decision: string) => void;
+}) {
+  const today = new Date().toISOString().split('T')[0];
+  const currentPhases = getCurrentPhases(phases, today);
+  const currentPhaseIds = new Set(currentPhases.map(p => p.id));
+  const [expandedPhases, setExpandedPhases] = useState<Set<number>>(() => {
+    // Auto-expand current phases
+    return new Set(currentPhases.map(p => p.id));
+  });
+
+  const togglePhase = (id: number) => {
+    setExpandedPhases(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  return (
+    <div className="space-y-3">
+      {phases.map(phase => {
+        const progress = getPhaseProgress(tasks, phase.id);
+        const phaseTasks = tasks.filter(t => t.phase === phase.id);
+        const isExpanded = expandedPhases.has(phase.id);
+        const isCurrent = currentPhaseIds.has(phase.id);
+        const isPast = today > phase.endDate;
+        const isFuture = today < phase.startDate;
+
+        return (
+          <div key={phase.id} className={`rounded-[var(--radius-lg)] border ${isCurrent ? 'border-[var(--accent-primary)]' : 'border-[var(--border-subtle)]'} overflow-hidden`}>
+            {/* Phase header */}
+            <button
+              onClick={() => togglePhase(phase.id)}
+              className={`w-full flex items-center gap-3 px-4 py-3 ${isCurrent ? 'bg-[var(--accent-muted)]' : 'bg-[var(--bg-secondary)]'}`}
+            >
+              {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              <div className="flex-1 text-left">
+                <div className="flex items-center gap-2">
+                  <p className={`type-body font-semibold ${isFuture ? 'text-[var(--text-muted)]' : 'text-[var(--text-primary)]'}`}>
+                    Phase {phase.id}: {phase.name}
+                  </p>
+                  {isCurrent && (
+                    <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-[var(--radius-full)] bg-[var(--accent-primary)] text-white">
+                      Now
+                    </span>
+                  )}
+                </div>
+                <p className="type-caption text-[var(--text-muted)]">
+                  {format(parseISO(phase.startDate), 'MMM d')} – {format(parseISO(phase.endDate), 'MMM d')}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="type-caption font-semibold text-[var(--text-secondary)]">{progress.done}/{progress.total}</p>
+                <div className="w-16 h-1 bg-[var(--bg-tertiary)] rounded-full overflow-hidden mt-1">
+                  <div
+                    className={`h-full rounded-full ${isPast && progress.pct < 100 ? 'bg-[var(--status-warning)]' : 'bg-[var(--accent-primary)]'}`}
+                    style={{ width: `${progress.pct}%` }}
+                  />
+                </div>
+              </div>
+            </button>
+
+            {/* Phase tasks */}
+            {isExpanded && (
+              <div className="px-3 pb-3 space-y-2 mt-1">
+                {/* Milestones first */}
+                {phaseTasks.filter(t => t.milestone).map(task => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    allTasks={tasks}
+                    expanded={expandedId === task.id}
+                    onToggle={() => setExpandedId(expandedId === task.id ? null : task.id)}
+                    onComplete={onComplete}
+                    onSkip={onSkip}
+                    onDefer={onDefer}
+                    onNoteChange={onNoteChange}
+                    onDecide={onDecide}
+                  />
+                ))}
+                {/* Then regular tasks */}
+                {phaseTasks.filter(t => !t.milestone).map(task => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    allTasks={tasks}
+                    expanded={expandedId === task.id}
+                    onToggle={() => setExpandedId(expandedId === task.id ? null : task.id)}
+                    onComplete={onComplete}
+                    onSkip={onSkip}
+                    onDefer={onDefer}
+                    onNoteChange={onNoteChange}
+                    onDecide={onDecide}
+                    compact={expandedId !== task.id}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════
+// PULSE VIEW — Overview + stats
+// ═══════════════════════════════════════════════════
+
+function PulseView({
+  tasks, decisions, contacts, phases, onDecisionAnswer,
+}: {
+  tasks: LaunchTask[];
+  decisions: LaunchDecision[];
+  contacts: { id: string; name: string; role: string; email?: string; nextStep?: string }[];
+  phases: LaunchPhase[];
+  onDecisionAnswer: (id: string, answer: string) => void;
+}) {
+  const totalDone = tasks.filter(t => t.completed || t.skipped).length;
+  const totalTasks = tasks.length;
+  const pct = totalTasks > 0 ? Math.round((totalDone / totalTasks) * 100) : 0;
+  const pendingDecisions = decisions.filter(d => d.status === 'pending');
+
+  // Category stats
+  const cats: LaunchCategory[] = ['BIZ', 'CONTENT', 'ADULT', 'PRO', 'DECIDE', 'SPACE'];
+  const catStats = cats.map(cat => {
+    const catTasks = tasks.filter(t => t.category === cat);
+    const done = catTasks.filter(t => t.completed || t.skipped).length;
+    return { category: cat, done, total: catTasks.length, pct: catTasks.length > 0 ? Math.round((done / catTasks.length) * 100) : 0 };
+  }).filter(s => s.total > 0);
+
+  // Velocity — tasks completed in last 7 days vs prior 7
+  const now = Date.now();
+  const weekAgo = now - 7 * 86400000;
+  const twoWeeksAgo = now - 14 * 86400000;
+  const thisWeek = tasks.filter(t => t.completedAt && new Date(t.completedAt).getTime() > weekAgo).length;
+  const lastWeek = tasks.filter(t => t.completedAt && new Date(t.completedAt).getTime() > twoWeeksAgo && new Date(t.completedAt).getTime() <= weekAgo).length;
+
+  return (
+    <div className="space-y-6">
+      {/* Progress ring */}
+      <div className="text-center">
+        <div className="relative w-28 h-28 mx-auto">
+          <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="var(--bg-tertiary)" strokeWidth="8" />
+            <circle
+              cx="50" cy="50" r="42" fill="none" stroke="var(--accent-primary)" strokeWidth="8"
+              strokeDasharray={`${pct * 2.64} 264`} strokeLinecap="round"
+              className="transition-all duration-700"
+            />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-2xl font-bold text-[var(--text-primary)]">{pct}%</span>
+          </div>
+        </div>
+        <p className="type-caption text-[var(--text-muted)] mt-2">{totalDone} of {totalTasks} tasks</p>
+        <div className="flex justify-center gap-4 mt-2">
+          <span className="type-caption text-[var(--text-secondary)]">This week: {thisWeek}</span>
+          <span className="type-caption text-[var(--text-muted)]">Last week: {lastWeek}</span>
+        </div>
+      </div>
+
+      {/* Phase progress */}
+      <div>
+        <p className="type-caption font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3">Phases</p>
+        <div className="space-y-2">
+          {phases.map(phase => {
+            const p = getPhaseProgress(tasks, phase.id);
+            return (
+              <div key={phase.id} className="flex items-center gap-3">
+                <span className="type-caption text-[var(--text-secondary)] w-8 text-right font-semibold">P{phase.id}</span>
+                <div className="flex-1 h-2 bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
+                  <div className="h-full bg-[var(--accent-primary)] rounded-full transition-all" style={{ width: `${p.pct}%` }} />
+                </div>
+                <span className="type-caption text-[var(--text-muted)] w-12 text-right">{p.done}/{p.total}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Category breakdown */}
+      <div>
+        <p className="type-caption font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3">Categories</p>
+        <div className="grid grid-cols-2 gap-2">
+          {catStats.map(stat => {
+            const c = categoryColors[stat.category];
+            return (
+              <div key={stat.category} className={`px-3 py-2 rounded-[var(--radius-md)] ${c.bg}`}>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: c.dot }} />
+                  <p className="type-caption font-semibold">{categoryLabels[stat.category]}</p>
+                </div>
+                <p className="type-caption text-[var(--text-muted)]">{stat.done}/{stat.total} ({stat.pct}%)</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Pending decisions */}
+      {pendingDecisions.length > 0 && (
+        <div>
+          <p className="type-caption font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3">
+            Pending Decisions ({pendingDecisions.length})
+          </p>
+          <div className="space-y-2">
+            {pendingDecisions.map(d => (
+              <DecisionCard key={d.id} decision={d} onAnswer={onDecisionAnswer} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Contacts */}
+      <div>
+        <p className="type-caption font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3">Your Team</p>
+        <div className="space-y-2">
+          {contacts.map(c => (
+            <div key={c.id} className="px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+              <div className="flex items-center justify-between">
+                <p className="type-body font-medium text-[var(--text-primary)]">{c.name}</p>
+                <p className="type-caption text-[var(--text-muted)]">{c.role}</p>
+              </div>
+              {c.nextStep && <p className="type-caption text-[var(--text-secondary)] mt-0.5">{c.nextStep}</p>}
+              {c.email && (
+                <a href={`mailto:${c.email}`} className="type-caption text-[var(--accent-primary)] mt-0.5 block">{c.email}</a>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
 // ─── Decision Card ───
-function DecisionCard({
-  decision, onDecide, justSaved,
-}: {
-  decision: LaunchDecision;
-  onDecide: (id: string, text: string) => void;
-  justSaved?: boolean;
-}) {
-  const [text, setText] = useState(decision.decision || '');
-  const isDecided = decision.status === 'decided';
 
+function DecisionCard({ decision, onAnswer }: { decision: LaunchDecision; onAnswer: (id: string, answer: string) => void }) {
+  const [value, setValue] = useState('');
   return (
-    <div className={`bg-[var(--surface-card)] rounded-[var(--radius-md)] border border-dashed shadow-[var(--shadow-card)] p-4 transition-colors duration-500 ${
-      justSaved ? 'border-[var(--status-success)] bg-[color-mix(in_srgb,var(--status-success)_5%,transparent)]' : 'border-[var(--border-subtle)]'
-    }`}>
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <h4 className="type-h2 text-sm">{decision.question}</h4>
-        <span className={`text-[11px] font-semibold uppercase tracking-[0.04em] px-2 py-0.5 rounded-[var(--radius-full)] flex-shrink-0 ${
-          isDecided
-            ? 'bg-[color-mix(in_srgb,var(--status-success)_10%,transparent)] text-[var(--status-success)]'
-            : 'bg-[color-mix(in_srgb,var(--status-warning)_10%,transparent)] text-[var(--status-warning)]'
-        }`}>
-          {isDecided ? 'Decided' : 'Pending'}
-        </span>
-      </div>
-      {decision.context && (
-        <p className="type-caption mb-3">{decision.context}</p>
-      )}
-      {isDecided ? (
-        <div className="bg-[color-mix(in_srgb,var(--status-success)_5%,transparent)] rounded-[var(--radius-sm)] p-3">
-          <p className="text-sm text-[var(--status-success)] font-medium">{decision.decision}</p>
-          {decision.decidedAt && (
-            <p className="text-xs text-[var(--status-success)] opacity-70 mt-1">
-              Decided {format(parseISO(decision.decidedAt), 'MMM d, yyyy')}
-            </p>
-          )}
-        </div>
-      ) : (
-        <div className="flex gap-2">
+    <div className="px-3 py-2 rounded-[var(--radius-md)] border border-[var(--border-subtle)]">
+      <p className="type-body font-medium text-[var(--text-primary)]">{decision.question}</p>
+      {decision.context && <p className="type-caption text-[var(--text-muted)] mt-0.5">{decision.context}</p>}
+      {decision.status === 'pending' ? (
+        <div className="flex gap-2 mt-2">
           <input
-            value={text}
-            onChange={e => setText(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && text.trim() && onDecide(decision.id, text.trim())}
-            placeholder="Record your decision..."
-            className="flex-1 text-sm bg-[var(--surface-inset)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-tertiary)]"
+            type="text"
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            placeholder="Your decision..."
+            className="flex-1 px-2 py-1 rounded border border-[var(--border-default)] bg-[var(--bg-primary)] text-[13px]"
           />
           <button
-            onClick={() => text.trim() && onDecide(decision.id, text.trim())}
-            disabled={!text.trim()}
-            className="px-4 py-2 rounded-[var(--radius-md)] bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-medium hover:bg-[var(--accent-primary-hover)] disabled:opacity-40 disabled:cursor-not-allowed min-h-[44px]"
+            onClick={() => { if (value.trim()) { onAnswer(decision.id, value.trim()); setValue(''); } }}
+            disabled={!value.trim()}
+            className="px-3 py-1 rounded bg-[var(--accent-primary)] text-white text-[12px] font-medium disabled:opacity-40"
           >
             Decide
           </button>
+        </div>
+      ) : (
+        <div className="mt-2 px-2 py-1 rounded bg-[color-mix(in_srgb,var(--status-success)_8%,transparent)]">
+          <p className="type-caption text-[var(--status-success)] font-medium">{decision.decision}</p>
+          {decision.decidedAt && <p className="type-caption text-[var(--text-muted)]">{format(parseISO(decision.decidedAt), 'MMM d')}</p>}
         </div>
       )}
     </div>
   );
 }
 
-// ─── Progress Ring ───
-function ProgressRing({ pct, size = 48, stroke = 4, color }: { pct: number; size?: number; stroke?: number; color: string }) {
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (pct / 100) * circumference;
-  return (
-    <svg width={size} height={size} className="-rotate-90">
-      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--surface-inset)" strokeWidth={stroke} />
-      <circle
-        cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeWidth={stroke}
-        strokeDasharray={circumference} strokeDashoffset={offset}
-        strokeLinecap="round" className="transition-all duration-500"
-      />
-    </svg>
-  );
-}
-
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 // MAIN PAGE
-// ════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
 
 export function LaunchPlan() {
-  const { data, updateLaunchPlan, saveDayPlan } = useAppData();
-  const [activeTab, setActiveTab] = useState<TabId>('backlog');
-  const [categoryFilter, setCategoryFilter] = useState<LaunchCategory | 'ALL'>('ALL');
-  const [effortFilter, setEffortFilter] = useState<LaunchEffort | 'ALL'>('ALL');
-  const [showCompleted, setShowCompleted] = useState(false);
+  const { data, updateLaunchPlan } = useAppData();
+  const [activeView, setActiveView] = useState<ViewId>('today');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  // Seed on first load
+  // Ensure we have plan data — auto-upgrade if version is old
+  const [showUpgrade, setShowUpgrade] = useState(false);
   useEffect(() => {
     if (!data.launchPlan) {
       updateLaunchPlan(initialLaunchPlan);
+    } else if ((data.launchPlan.version || 0) < initialLaunchPlan.version) {
+      setShowUpgrade(true);
     }
   }, [data.launchPlan, updateLaunchPlan]);
 
   const plan = data.launchPlan || initialLaunchPlan;
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const planPhases = plan.phases?.length ? plan.phases : (initialLaunchPlan.phases || []);
+  const wellnessMode = data.selfCare?.wellnessMode || 'okay';
 
-  // ─── Task operations ───
+  // ─── Task actions ───
   const completeTask = useCallback((id: string) => {
-    const tasks = plan.tasks.map(t =>
+    const tasks = (plan.tasks || []).map(t =>
       t.id === id ? { ...t, completed: true, completedAt: new Date().toISOString() } : t
     );
     updateLaunchPlan({ tasks });
-
-    // Sync to Day Plan
-    if (data.dayPlan) {
-      const dayItem = data.dayPlan.items.find(i => i.category === 'launch' && i.sourceId === id);
-      if (dayItem && !dayItem.completed) {
-        const updated = {
-          ...data.dayPlan,
-          items: data.dayPlan.items.map(i =>
-            i.id === dayItem.id ? { ...i, completed: true } : i
-          ),
-          lastModified: new Date().toISOString(),
-        };
-        saveDayPlan(updated);
-      }
-    }
-  }, [plan.tasks, updateLaunchPlan, data.dayPlan, saveDayPlan]);
+  }, [plan.tasks, updateLaunchPlan]);
 
   const skipTask = useCallback((id: string) => {
-    const tasks = plan.tasks.map(t =>
+    const tasks = (plan.tasks || []).map(t =>
       t.id === id ? { ...t, skipped: true, skippedAt: new Date().toISOString() } : t
     );
     updateLaunchPlan({ tasks });
   }, [plan.tasks, updateLaunchPlan]);
 
-  const updateTaskNotes = useCallback((id: string, notes: string) => {
-    const tasks = plan.tasks.map(t =>
-      t.id === id ? { ...t, notes } : t
+  const deferTask = useCallback((id: string) => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tasks = (plan.tasks || []).map(t =>
+      t.id === id ? { ...t, suggestedAfter: tomorrow.toISOString().split('T')[0] } : t
     );
     updateLaunchPlan({ tasks });
   }, [plan.tasks, updateLaunchPlan]);
 
-  // ─── Decision operations ───
-  const [justDecided, setJustDecided] = useState<string | null>(null);
-  const decideDecision = useCallback((id: string, text: string) => {
-    const decisions = plan.decisions.map(d =>
-      d.id === id ? { ...d, status: 'decided' as const, decision: text, decidedAt: new Date().toISOString() } : d
+  const updateNote = useCallback((id: string, note: string) => {
+    const tasks = (plan.tasks || []).map(t =>
+      t.id === id ? { ...t, notes: note } : t
+    );
+    updateLaunchPlan({ tasks });
+  }, [plan.tasks, updateLaunchPlan]);
+
+  // Decides a DECIDE-category task (marks as completed with the decision as notes)
+  const decideTask = useCallback((id: string, decision: string) => {
+    const tasks = (plan.tasks || []).map(t =>
+      t.id === id ? { ...t, completed: true, completedAt: new Date().toISOString(), notes: decision } : t
+    );
+    updateLaunchPlan({ tasks });
+  }, [plan.tasks, updateLaunchPlan]);
+
+  // Decides a LaunchDecision
+  const decideDecision = useCallback((id: string, answer: string) => {
+    const decisions = (plan.decisions || []).map(d =>
+      d.id === id ? { ...d, status: 'decided' as const, decision: answer, decidedAt: new Date().toISOString() } : d
     );
     updateLaunchPlan({ decisions });
-    setJustDecided(id);
-    setTimeout(() => setJustDecided(null), 2000);
   }, [plan.decisions, updateLaunchPlan]);
 
-  // ─── Computed: smart backlog (sorted by actionability) ───
-  const backlogTasks = useMemo(() => {
-    let filtered = plan.tasks;
-
-    // Category filter
-    if (categoryFilter !== 'ALL') {
-      filtered = filtered.filter(t => t.category === categoryFilter);
-    }
-    // Effort filter
-    if (effortFilter !== 'ALL') {
-      filtered = filtered.filter(t => t.effort === effortFilter);
-    }
-
-    // Split into sections
-    const done = filtered.filter(t => t.completed || t.skipped);
-    const active = filtered.filter(t => !t.completed && !t.skipped);
-
-    // Sort active tasks: ready first (by priority), then blocked, then too-early
-    const ready = active.filter(t => !isTaskBlocked(t, plan.tasks) && !isTooEarly(t, todayStr));
-    const blocked = active.filter(t => isTaskBlocked(t, plan.tasks));
-    const tooEarly = active.filter(t => !isTaskBlocked(t, plan.tasks) && isTooEarly(t, todayStr));
-
-    ready.sort((a, b) => a.priority - b.priority);
-    blocked.sort((a, b) => a.priority - b.priority);
-    tooEarly.sort((a, b) => (a.suggestedAfter || '').localeCompare(b.suggestedAfter || ''));
-
-    return { ready, blocked, tooEarly, done };
-  }, [plan.tasks, categoryFilter, effortFilter, todayStr]);
-
-  // ─── Computed: overall progress ───
-  const progress = useMemo(() => {
-    const done = plan.tasks.filter(t => t.completed || t.skipped).length;
-    const total = plan.tasks.length;
-    return { done, total, pct: total > 0 ? Math.round((done / total) * 100) : 0 };
-  }, [plan.tasks]);
-
-  const pendingDecisions = plan.decisions.filter(d => d.status === 'pending').length;
-
-  // Category stats for Progress tab
-  const categoryStats = useMemo(() => {
-    const cats: LaunchCategory[] = ['BIZ', 'CONTENT', 'ADULT', 'PRO', 'DECIDE', 'PREP'];
-    return cats.map(cat => {
-      const tasks = plan.tasks.filter(t => t.category === cat);
-      const done = tasks.filter(t => t.completed || t.skipped).length;
-      return { category: cat, done, total: tasks.length, pct: tasks.length > 0 ? Math.round((done / tasks.length) * 100) : 0 };
-    }).filter(s => s.total > 0);
-  }, [plan.tasks]);
-
-  // Effort stats
-  const effortStats = useMemo(() => {
-    const efforts: LaunchEffort[] = ['quick', 'medium', 'deep'];
-    return efforts.map(eff => {
-      const tasks = plan.tasks.filter(t => t.effort === eff && !t.completed && !t.skipped);
-      return { effort: eff, remaining: tasks.length };
-    });
-  }, [plan.tasks]);
-
-  // All milestones
-  const allMilestones = useMemo(() => {
-    return plan.tasks
-      .filter(t => t.milestone)
-      .sort((a, b) => (a.suggestedAfter || a.scheduledDate || '').localeCompare(b.suggestedAfter || b.scheduledDate || ''))
-      .map(t => {
-        const dateStr = t.suggestedAfter || t.scheduledDate;
-        const days = dateStr ? differenceInDays(parseISO(dateStr), startOfDay(new Date())) : 0;
-        return { ...t, daysAway: days, dateStr };
-      });
-  }, [plan.tasks]);
-
-  // Next milestone
-  const nextMilestone = useMemo(() => {
-    const future = allMilestones.filter(m => !m.completed && !m.skipped && m.daysAway >= 0);
-    return future[0] || null;
-  }, [allMilestones]);
-
-  // Group decisions by month
-  const decisionsByMonth = useMemo(() => {
-    const months = ['february', 'march', 'april', 'may'] as const;
-    const grouped = months.map(m => ({
-      month: m.charAt(0).toUpperCase() + m.slice(1),
-      decisions: plan.decisions.filter(d => d.month === m),
-    })).filter(g => g.decisions.length > 0);
-    if (grouped.length === 0 && plan.decisions.length > 0) {
-      return [{ month: 'Decisions', decisions: plan.decisions }];
-    }
-    return grouped;
-  }, [plan.decisions]);
-
-  // Quick wins — ready tasks that are quick effort
-  const quickWins = useMemo(() => {
-    return backlogTasks.ready.filter(t => t.effort === 'quick').slice(0, 3);
-  }, [backlogTasks.ready]);
-
-  // Active categories for filter
-  const activeCategories = useMemo(() => {
-    const cats = new Set(plan.tasks.filter(t => !t.completed && !t.skipped).map(t => t.category));
-    return Array.from(cats);
-  }, [plan.tasks]);
+  // Overall progress
+  const totalDone = plan.tasks.filter(t => t.completed || t.skipped).length;
+  const totalTasks = plan.tasks.length;
+  const overallPct = totalTasks > 0 ? Math.round((totalDone / totalTasks) * 100) : 0;
 
   return (
-    <div className="page-w px-4 py-4 pb-24">
+    <div className="page-container pb-24">
       {/* Header */}
-      <div className="flex items-center justify-between mb-1">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Rocket size={20} className="text-[var(--accent-primary)]" />
-          <h1 className="type-h1">DWDC Launch</h1>
+          <Rocket size={22} className="text-[var(--accent-primary)]" />
+          <h1 className="type-display text-[var(--text-primary)]">DWD Launch</h1>
         </div>
-        <div className="text-right">
-          <p className="type-caption font-semibold">{progress.pct}% · {progress.done}/{progress.total}</p>
-          <div className="w-28 h-2 bg-[var(--surface-inset)] rounded-full mt-1 overflow-hidden">
-            <div className="h-full bg-[var(--accent-primary)] rounded-full transition-all" style={{ width: `${progress.pct}%` }} />
-          </div>
-        </div>
+        <span className="type-caption text-[var(--text-muted)]">{overallPct}% · {totalDone}/{totalTasks}</span>
       </div>
 
-      {/* Milestone countdown */}
-      {nextMilestone && (
-        <div
-          className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] border-l-[3px] px-3 py-2 mb-4 flex items-center justify-between bg-[var(--surface-card)]"
-          style={{ borderLeftColor: 'var(--accent-primary)' }}
-        >
-          <div className="flex items-center gap-2">
-            <Star size={14} className="text-[var(--status-warning)]" style={{ fill: 'var(--status-warning)' }} />
-            <span className="type-h3 normal-case tracking-normal text-[var(--text-primary)]">
-              {nextMilestone.milestoneLabel}
-            </span>
-          </div>
-          <span className="font-[var(--font-display)] text-lg font-bold text-[var(--accent-primary)]">
-            {nextMilestone.daysAway === 0 ? 'TODAY' : `${nextMilestone.daysAway}d away`}
-          </span>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div className="flex gap-2 mb-4 overflow-x-auto">
-        {tabs.map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
+      {/* View switcher */}
+      <div className="flex gap-1 p-1 bg-[var(--bg-secondary)] rounded-[var(--radius-lg)] mb-4">
+        {views.map(v => {
+          const Icon = v.icon;
           return (
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-full text-sm font-semibold transition-colors min-h-[44px] whitespace-nowrap ${
-                isActive
-                  ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)] shadow-[var(--shadow-card)]'
-                  : 'bg-[var(--surface-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)] active:bg-[var(--surface-inset)]'
+              key={v.id}
+              onClick={() => setActiveView(v.id)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[var(--radius-md)] text-[13px] font-medium transition-all ${
+                activeView === v.id
+                  ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm'
+                  : 'text-[var(--text-muted)]'
               }`}
             >
-              <Icon size={15} />
-              {tab.label}
-              {tab.id === 'decisions' && pendingDecisions > 0 && (
-                <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
-                  isActive ? 'bg-white/20 text-[var(--text-on-accent)]' : 'bg-[color-mix(in_srgb,var(--status-danger)_10%,transparent)] text-[var(--status-danger)]'
-                }`}>
-                  {pendingDecisions}
-                </span>
-              )}
+              <Icon size={14} />
+              {v.label}
             </button>
           );
         })}
       </div>
 
-      {/* ─── BACKLOG VIEW ─── */}
-      {activeTab === 'backlog' && (
-        <div className="space-y-4">
-          {/* Quick wins banner */}
-          {quickWins.length > 0 && (
-            <div className="bg-[color-mix(in_srgb,var(--status-success)_5%,transparent)] border border-[color-mix(in_srgb,var(--status-success)_20%,transparent)] rounded-[var(--radius-md)] p-3">
-              <p className="text-xs font-semibold text-[var(--status-success)] mb-1.5 flex items-center gap-1">
-                <Zap size={12} />
-                Quick wins — knock these out in minutes
-              </p>
-              <div className="space-y-1">
-                {quickWins.map(t => (
-                  <div key={t.id} className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: categoryColors[t.category].dot }} />
-                    <span className="text-sm text-[var(--text-primary)] line-clamp-1">{t.title}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Filters */}
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {/* Category filter */}
-            <select
-              value={categoryFilter}
-              onChange={e => setCategoryFilter(e.target.value as LaunchCategory | 'ALL')}
-              className="text-xs bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] px-2.5 py-2 text-[var(--text-secondary)] min-h-[36px]"
+      {/* Upgrade banner */}
+      {showUpgrade && (
+        <div className="mb-4 p-4 rounded-[var(--radius-lg)] border border-[var(--status-warning)] bg-[color-mix(in_srgb,var(--status-warning)_8%,transparent)]">
+          <p className="type-body font-medium text-[var(--text-primary)] mb-1">New launch plan available</p>
+          <p className="type-caption text-[var(--text-secondary)] mb-3">
+            The master plan was updated March 21. Load the new 6-phase plan? Your notes and completed tasks from the old plan will be replaced.
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { updateLaunchPlan(initialLaunchPlan); setShowUpgrade(false); }}
+              className="px-4 py-2 rounded-[var(--radius-md)] bg-[var(--accent-primary)] text-white text-[13px] font-medium"
             >
-              <option value="ALL">All categories</option>
-              {activeCategories.map(cat => (
-                <option key={cat} value={cat}>{categoryLabels[cat]}</option>
-              ))}
-            </select>
-
-            {/* Effort filter */}
-            <select
-              value={effortFilter}
-              onChange={e => setEffortFilter(e.target.value as LaunchEffort | 'ALL')}
-              className="text-xs bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-[var(--radius-md)] px-2.5 py-2 text-[var(--text-secondary)] min-h-[36px]"
+              Load new plan
+            </button>
+            <button
+              onClick={() => setShowUpgrade(false)}
+              className="px-4 py-2 rounded-[var(--radius-md)] border border-[var(--border-default)] text-[var(--text-muted)] text-[13px]"
             >
-              <option value="ALL">All effort</option>
-              <option value="quick">Quick (&lt;15m)</option>
-              <option value="medium">Medium (15-60m)</option>
-              <option value="deep">Deep (1h+)</option>
-            </select>
+              Keep current
+            </button>
           </div>
-
-          {/* Ready tasks */}
-          {backlogTasks.ready.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <h3 className="type-label text-[var(--status-success)]">
-                  Ready ({backlogTasks.ready.length})
-                </h3>
-              </div>
-              <div className="space-y-2">
-                {backlogTasks.ready.map(task => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    blocked={false}
-                    tooEarly={false}
-                    onComplete={completeTask}
-                    onSkip={skipTask}
-                    onUpdateNotes={updateTaskNotes}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Upcoming (too early) tasks */}
-          {backlogTasks.tooEarly.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Clock size={14} className="text-[var(--text-tertiary)]" />
-                <h3 className="type-label text-[var(--text-tertiary)]">
-                  Upcoming ({backlogTasks.tooEarly.length})
-                </h3>
-              </div>
-              <div className="space-y-2">
-                {backlogTasks.tooEarly.map(task => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    blocked={false}
-                    tooEarly={true}
-                    onComplete={completeTask}
-                    onSkip={skipTask}
-                    onUpdateNotes={updateTaskNotes}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Blocked tasks */}
-          {backlogTasks.blocked.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Lock size={14} className="text-[var(--text-tertiary)]" />
-                <h3 className="type-label text-[var(--text-tertiary)]">
-                  Blocked ({backlogTasks.blocked.length})
-                </h3>
-              </div>
-              <div className="space-y-2">
-                {backlogTasks.blocked.map(task => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    blocked={true}
-                    tooEarly={false}
-                    onComplete={completeTask}
-                    onSkip={skipTask}
-                    onUpdateNotes={updateTaskNotes}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Completed toggle */}
-          {backlogTasks.done.length > 0 && (
-            <div>
-              <button
-                onClick={() => setShowCompleted(!showCompleted)}
-                className="flex items-center gap-2 type-label text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
-              >
-                <ChevronDown size={14} className={`transition-transform ${showCompleted ? 'rotate-180' : ''}`} />
-                Completed ({backlogTasks.done.length})
-              </button>
-              {showCompleted && (
-                <div className="space-y-2 mt-2">
-                  {backlogTasks.done.map(task => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      blocked={false}
-                      tooEarly={false}
-                      onComplete={completeTask}
-                      onSkip={skipTask}
-                      onUpdateNotes={updateTaskNotes}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Empty state */}
-          {backlogTasks.ready.length === 0 && backlogTasks.blocked.length === 0 && backlogTasks.tooEarly.length === 0 && backlogTasks.done.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-[var(--text-secondary)]">No tasks match your filters.</p>
-            </div>
-          )}
         </div>
       )}
 
-      {/* ─── PROGRESS VIEW ─── */}
-      {activeTab === 'progress' && (
-        <div className="space-y-4">
-          {/* Overall progress */}
-          <div className="bg-[var(--surface-card)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="type-h2">Overall Progress</h2>
-              <span className="font-[family-name:var(--font-display)] text-2xl font-bold text-[var(--accent-primary)]">{progress.pct}%</span>
-            </div>
-            <div className="w-full h-3 bg-[var(--surface-inset)] rounded-full overflow-hidden mb-2">
-              <div
-                className="h-full bg-[var(--accent-primary)] rounded-full transition-all"
-                style={{ width: `${progress.pct}%` }}
-              />
-            </div>
-            <div className="flex justify-between type-caption">
-              <span>{progress.done} completed</span>
-              <span>{plan.tasks.filter(t => t.skipped).length} skipped</span>
-              <span>{progress.total - progress.done} remaining</span>
-            </div>
-          </div>
-
-          {/* Category breakdown with rings */}
-          <div className="bg-[var(--surface-card)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] p-4">
-            <h3 className="type-label mb-3">By Category</h3>
-            <div className="grid grid-cols-3 gap-3">
-              {categoryStats.map(stat => {
-                const c = categoryColors[stat.category];
-                return (
-                  <div key={stat.category} className="text-center">
-                    <div className="relative inline-block mb-1">
-                      <ProgressRing pct={stat.pct} color={c.dot} />
-                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-[var(--text-primary)]">
-                        {stat.pct}%
-                      </span>
-                    </div>
-                    <p className="type-caption">{categoryLabels[stat.category]}</p>
-                    <p className="text-[10px] text-[var(--text-tertiary)]">{stat.done}/{stat.total}</p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Effort breakdown */}
-          <div className="bg-[var(--surface-card)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] p-4">
-            <h3 className="type-label mb-3">Remaining by Effort</h3>
-            <div className="flex gap-4">
-              {effortStats.map(stat => {
-                const cfg = effortConfig[stat.effort];
-                const Icon = cfg.icon;
-                return (
-                  <div key={stat.effort} className="flex items-center gap-2">
-                    <Icon size={14} style={{ color: cfg.color }} />
-                    <span className="text-sm text-[var(--text-primary)] font-medium">{stat.remaining}</span>
-                    <span className="type-caption">{stat.effort}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Decisions status */}
-          <div className="bg-[var(--surface-card)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] p-4">
-            <div className="flex items-center justify-between">
-              <h3 className="type-label">Decisions</h3>
-              <span className="type-caption">
-                {plan.decisions.filter(d => d.status === 'decided').length}/{plan.decisions.length} decided
-              </span>
-            </div>
-            {pendingDecisions > 0 && (
-              <p className="text-sm text-[var(--status-warning)] mt-2 flex items-center gap-1">
-                <CircleDot size={14} />
-                {pendingDecisions} pending decision{pendingDecisions > 1 ? 's' : ''}
-              </p>
-            )}
-          </div>
-
-          {/* Recent completions */}
-          {(() => {
-            const recent = plan.tasks
-              .filter(t => t.completed && t.completedAt)
-              .sort((a, b) => (b.completedAt || '').localeCompare(a.completedAt || ''))
-              .slice(0, 5);
-            if (recent.length === 0) return null;
-            return (
-              <div className="bg-[var(--surface-card)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] p-4">
-                <h3 className="type-label mb-3">Recently Completed</h3>
-                <div className="space-y-2">
-                  {recent.map(t => (
-                    <div key={t.id} className="flex items-center gap-2">
-                      <Check size={14} className="text-[var(--status-success)] flex-shrink-0" />
-                      <span className="text-sm text-[var(--text-secondary)] line-clamp-1">{t.title}</span>
-                      <span className="type-caption flex-shrink-0 ml-auto">{t.completedAt ? format(parseISO(t.completedAt), 'MMM d') : ''}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })()}
-        </div>
+      {/* Active view */}
+      {activeView === 'today' && (
+        <TodayView
+          tasks={plan.tasks}
+          phases={planPhases}
+          wellnessMode={wellnessMode}
+          expandedId={expandedId}
+          setExpandedId={setExpandedId}
+          onComplete={completeTask}
+          onSkip={skipTask}
+          onDefer={deferTask}
+          onNoteChange={updateNote}
+          onDecide={decideTask}
+        />
       )}
-
-      {/* ─── DECISIONS VIEW ─── */}
-      {activeTab === 'decisions' && (
-        <div className="space-y-6">
-          {decisionsByMonth.map(group => (
-            <div key={group.month}>
-              <h2 className="type-label mb-3">
-                {group.month}
-              </h2>
-              <div className="space-y-3">
-                {group.decisions.map(d => (
-                  <DecisionCard key={d.id} decision={d} onDecide={decideDecision} justSaved={justDecided === d.id} />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+      {activeView === 'roadmap' && (
+        <RoadmapView
+          tasks={plan.tasks}
+          phases={planPhases}
+          expandedId={expandedId}
+          setExpandedId={setExpandedId}
+          onComplete={completeTask}
+          onSkip={skipTask}
+          onDefer={deferTask}
+          onNoteChange={updateNote}
+          onDecide={decideTask}
+        />
       )}
-
-      {/* ─── MILESTONES VIEW ─── */}
-      {activeTab === 'milestones' && (
-        <div className="bg-[var(--surface-card)] rounded-[var(--radius-md)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] overflow-hidden">
-          <div className="p-4 border-b border-[var(--border-subtle)]">
-            <h3 className="type-label flex items-center gap-2">
-              <Target size={14} />
-              Milestones
-            </h3>
-          </div>
-          <div className="divide-y divide-[var(--border-subtle)]">
-            {allMilestones.map(m => {
-              const isDone = m.completed || m.skipped;
-              const isPast = m.daysAway < 0;
-              return (
-                <div key={m.id} className={`px-4 py-3 flex items-center gap-3 ${isDone ? 'opacity-50' : ''}`}>
-                  <div className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center border-2 ${
-                    isDone
-                      ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)]'
-                      : isPast
-                      ? 'border-[var(--status-danger)]'
-                      : 'border-[var(--status-warning)]'
-                  }`}>
-                    {isDone && <Check size={12} className="text-[var(--text-on-accent)]" />}
-                    {!isDone && <Star size={10} className={`fill-current ${isPast ? 'text-[var(--status-danger)]' : 'text-[var(--status-warning)]'}`} />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-semibold ${isDone ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--text-primary)]'}`}>
-                      {m.milestoneLabel}
-                    </p>
-                    {m.dateStr && (
-                      <p className="type-caption">
-                        {format(parseISO(m.dateStr), 'EEE, MMM d')}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    {isDone ? (
-                      <span className="text-xs text-[var(--status-success)] font-medium">Done</span>
-                    ) : m.daysAway === 0 ? (
-                      <span className="text-sm font-bold text-[var(--status-warning)]">TODAY</span>
-                    ) : isPast ? (
-                      <span className="text-xs font-bold text-[var(--status-danger)]">{Math.abs(m.daysAway)}d ago</span>
-                    ) : (
-                      <span className="text-sm font-bold text-[var(--status-warning)]">{m.daysAway}d</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+      {activeView === 'pulse' && (
+        <PulseView
+          tasks={plan.tasks}
+          decisions={plan.decisions}
+          contacts={plan.contacts}
+          phases={planPhases}
+          onDecisionAnswer={decideDecision}
+        />
       )}
     </div>
   );

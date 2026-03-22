@@ -357,6 +357,18 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
         callbacks.updateLaunchPlan({ tasks: noteTasks });
         break;
       }
+      case 'deferLaunchTask': {
+        if (!action.taskId || !callbacks.getData().launchPlan) break;
+        const deferUntil = action.deferUntil || (() => {
+          const d = new Date(); d.setDate(d.getDate() + 1);
+          return d.toISOString().split('T')[0];
+        })();
+        const deferTasks = callbacks.getData().launchPlan!.tasks.map(t =>
+          t.id === action.taskId ? { ...t, suggestedAfter: deferUntil } : t
+        );
+        callbacks.updateLaunchPlan({ tasks: deferTasks });
+        break;
+      }
 
       // ── Rehearsal Notes ─────────────────────────────────────────────────
       case 'addRehearsalNote': {

@@ -561,7 +561,7 @@ export interface AppData {
   selfCare?: SelfCareData;
   // Choreography system (replaces competitions)
   choreographies?: import('./choreography').Choreography[];
-  // DWDC Launch Plan
+  // DWD Launch Plan
   launchPlan?: LaunchPlanData;
   // Learning engine — pattern tracking
   learningData?: LearningData;
@@ -597,9 +597,9 @@ export interface NudgeDismissState {
   snoozed: Record<string, string>;    // nudgeId -> ISO date (snooze expires after 24h)
 }
 
-// ===== DWDC LAUNCH PLAN =====
+// ===== DWD LAUNCH PLAN =====
 
-export type LaunchCategory = 'BIZ' | 'CONTENT' | 'ADULT' | 'PRO' | 'DECIDE' | 'PREP';
+export type LaunchCategory = 'BIZ' | 'CONTENT' | 'ADULT' | 'PRO' | 'DECIDE' | 'SPACE';
 export type LaunchEffort = 'quick' | 'medium' | 'deep';
 
 export interface LaunchTask {
@@ -613,6 +613,7 @@ export interface LaunchTask {
   targetMilestone?: string;        // milestone task ID this contributes toward
   blockedBy?: string[];            // task IDs that must complete first
   suggestedAfter?: string;         // date — "don't surface before this date"
+  phase?: 1 | 2 | 3 | 4 | 5 | 6;  // which launch phase this task belongs to
   // Legacy scheduling (kept for backward compat with existing Firestore data)
   scheduledDate?: string;
   weekNumber?: number;
@@ -636,7 +637,7 @@ export interface LaunchDecision {
   status: 'pending' | 'decided';
   decision?: string;
   decidedAt?: string;
-  month: 'february' | 'march' | 'april' | 'may';
+  month: 'february' | 'march' | 'april' | 'may' | 'june';
   category: LaunchCategory;
 }
 
@@ -650,10 +651,18 @@ export interface LaunchContact {
   nextStep?: string;
 }
 
+export interface LaunchPhase {
+  id: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+}
+
 export interface LaunchPlanData {
   tasks: LaunchTask[];
   decisions: LaunchDecision[];
   contacts: LaunchContact[];
+  phases?: LaunchPhase[];
   planStartDate: string;
   planEndDate: string;
   lastModified: string;

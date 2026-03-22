@@ -161,13 +161,36 @@ export function useNudges(
             id: 'launch-stale',
             type: 'launch',
             priority: 'medium',
-            text: `No DWDC tasks completed in ${daysSince} days. ${activeLaunch.length} still active.`,
+            text: `No DWD tasks completed in ${daysSince} days. ${activeLaunch.length} still active.`,
             actionLabel: 'Review tasks',
-            aiPreload: 'Help me pick a DWDC launch task to work on today.',
+            aiPreload: 'Help me pick a DWD launch task to work on today.',
             dismissable: true,
             snoozeable: true,
           });
         }
+      }
+    }
+
+    // Rule 4b: Phase transition — all tasks in current phase complete
+    const launchPhases = data.launchPlan?.phases || [];
+    const todayStrNudge = todayStr;
+    const currentPhases = launchPhases.filter(p => todayStrNudge >= p.startDate && todayStrNudge <= p.endDate);
+    for (const phase of currentPhases) {
+      const phaseTasks = launchTasks.filter(t => t.phase === phase.id);
+      const phaseComplete = phaseTasks.length > 0 && phaseTasks.every(t => t.completed || t.skipped);
+      const nextPhase = launchPhases.find(p => p.id === phase.id + 1);
+      if (phaseComplete && nextPhase && isActive(`phase-done-${phase.id}`)) {
+        result.push({
+          id: `phase-done-${phase.id}`,
+          type: 'launch',
+          priority: 'medium',
+          text: `Phase ${phase.id} (${phase.name}) complete! Ready for ${nextPhase.name}?`,
+          actionLabel: 'View roadmap',
+          aiPreload: `Phase ${phase.id} is done! Help me plan my next steps for ${nextPhase.name}.`,
+          dismissable: true,
+          snoozeable: true,
+        });
+        break;
       }
     }
 

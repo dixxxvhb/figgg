@@ -11,7 +11,7 @@ const categoryDotColors: Record<LaunchCategory, string> = {
   ADULT: 'var(--status-success)',
   PRO: '#7c3aed',
   DECIDE: 'var(--status-warning)',
-  PREP: '#0d9488',
+  SPACE: '#2563eb',
 };
 
 interface LaunchPlanWidgetProps {
@@ -84,7 +84,7 @@ export function LaunchPlanWidget({ launchPlan }: LaunchPlanWidgetProps) {
       <div className="px-4 py-3 border-b border-[var(--border-subtle)] flex items-center justify-between">
         <h3 className="type-h1 text-[var(--text-primary)] flex items-center gap-2">
           <Rocket size={16} className="text-[var(--accent-primary)]" />
-          DWDC Launch
+          DWD Launch
         </h3>
         <div className="flex items-center gap-2">
           <span className="type-stat text-[var(--accent-primary)]">{progress.pct}%</span>
