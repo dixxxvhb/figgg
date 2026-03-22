@@ -86,8 +86,18 @@ async function syncAllCalendars(force = false) {
   }
 }
 
-// Calendar sync interval: 15 minutes
-const CALENDAR_SYNC_INTERVAL = 15 * 60 * 1000;
+// Calendar sync interval: configurable via settings, default 15 minutes
+function getCalendarSyncInterval(): number {
+  try {
+    const raw = localStorage.getItem('dance-teaching-app-data');
+    if (raw) {
+      const data = JSON.parse(raw);
+      const mins = data?.settings?.calendarSyncMinutes;
+      if (mins && [5, 10, 15, 30].includes(mins)) return mins * 60 * 1000;
+    }
+  } catch { /* fall through */ }
+  return 15 * 60 * 1000;
+}
 // Minimum time between calendar syncs (prevents rapid re-syncs on tab focus)
 const CALENDAR_SYNC_COOLDOWN = 5 * 60 * 1000;
 let lastCalendarSyncTime = 0;
@@ -157,7 +167,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
     calendarSyncIntervalRef.current = setInterval(() => {
       syncAllCalendars(true);
-    }, CALENDAR_SYNC_INTERVAL);
+    }, getCalendarSyncInterval());
 
     return () => {
       if (calendarSyncIntervalRef.current) clearInterval(calendarSyncIntervalRef.current);
