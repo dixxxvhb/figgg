@@ -134,6 +134,32 @@ function App() {
 
     // Restore mood layer from session (persists across navigations, resets daily)
     restoreMoodLayer();
+
+    // Global error tracking — catches errors outside React's tree
+    // (e.g. async callbacks, third-party scripts, service worker issues)
+    const handleError = (e: ErrorEvent) => {
+      console.error('[figgg:global]', {
+        message: e.message,
+        stack: e.error?.stack?.slice(0, 500),
+        url: window.location.href,
+        ts: new Date().toISOString(),
+      });
+    };
+    const handleRejection = (e: PromiseRejectionEvent) => {
+      const msg = e.reason?.message || String(e.reason);
+      console.error('[figgg:unhandled]', {
+        message: msg,
+        stack: e.reason?.stack?.slice(0, 500),
+        url: window.location.href,
+        ts: new Date().toISOString(),
+      });
+    };
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
   }, []);
 
   // Cloud sync and calendar sync are now handled entirely by SyncProvider
