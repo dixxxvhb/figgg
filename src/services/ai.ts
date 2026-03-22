@@ -25,8 +25,28 @@ interface GeneratePlanOptions {
   expandedSummary?: string;
 }
 
-export async function generatePlan(options: GeneratePlanOptions): Promise<string> {
+export async function generatePlan(options: GeneratePlanOptions & { context?: AIContextPayload }): Promise<string> {
   try {
+    if (options.context) {
+      // Unified AI: route through aiChat with full context
+      const contextWithClass = {
+        ...options.context,
+        classData: {
+          classInfo: options.classInfo,
+          notes: options.notes,
+          previousPlans: options.previousPlans,
+          progressionHints: options.progressionHints,
+          repetitionFlags: options.repetitionFlags,
+          attendanceNote: options.attendanceNote,
+          expandedSummary: options.expandedSummary,
+        },
+      };
+      const fn = httpsCallable(requireFunctions(), 'aiChat');
+      const result = await fn({ mode: 'generate-plan', context: contextWithClass });
+      const data = result.data as { plan?: string };
+      return data.plan || '';
+    }
+    // Fallback: standalone function (backward compat)
     const fn = httpsCallable<GeneratePlanOptions, { plan: string }>(requireFunctions(), 'generatePlan');
     const result = await fn(options);
     return result.data.plan;
@@ -39,8 +59,23 @@ export async function generatePlan(options: GeneratePlanOptions): Promise<string
 export async function detectReminders(
   className: string,
   notes: LiveNote[],
+  context?: AIContextPayload,
 ): Promise<Array<{ noteId: string; title: string }>> {
   try {
+    if (context) {
+      const contextWithClass = {
+        ...context,
+        classData: {
+          classInfo: { id: '', name: className, day: '', startTime: '', endTime: '' },
+          notes,
+        },
+      };
+      const fn = httpsCallable(requireFunctions(), 'aiChat');
+      const result = await fn({ mode: 'detect-reminders', context: contextWithClass });
+      const data = result.data as { reminders?: Array<{ noteId: string; title: string }> };
+      return data.reminders || [];
+    }
+    // Fallback: standalone function (backward compat)
     const fn = httpsCallable<{ className: string; notes: LiveNote[] }, { reminders: Array<{ noteId: string; title: string }> }>(requireFunctions(), 'detectReminders');
     const result = await fn({ className, notes });
     return result.data.reminders || [];
@@ -163,8 +198,24 @@ export async function expandNotes(
   className: string,
   date: string,
   notes: LiveNote[],
+  context?: AIContextPayload,
 ): Promise<string> {
   try {
+    if (context) {
+      const contextWithClass = {
+        ...context,
+        classData: {
+          classInfo: { id: '', name: className, day: '', startTime: '', endTime: '' },
+          notes,
+          date,
+        },
+      };
+      const fn = httpsCallable(requireFunctions(), 'aiChat');
+      const result = await fn({ mode: 'expand-notes', context: contextWithClass });
+      const data = result.data as { expanded?: string };
+      return data.expanded || '';
+    }
+    // Fallback: standalone function (backward compat)
     const fn = httpsCallable<{ className: string; date: string; notes: LiveNote[] }, { expanded: string }>(requireFunctions(), 'expandNotes');
     const result = await fn({ className, date, notes });
     return result.data.expanded;

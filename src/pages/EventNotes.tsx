@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, X, Trash2, FileText, ChevronDown, ChevronUp, ClipboardList, RotateCcw, History, Bell, StickyNote } from 'lucide-react';
 import { format, parseISO, addWeeks } from 'date-fns';
@@ -10,6 +10,7 @@ import { v4 as uuid } from 'uuid';
 import { findMatchingPastSessions, getCarryForwardText, PastSession } from '../utils/smartNotes';
 import { PreviousSessionsPanel } from '../components/events/PreviousSessionsPanel';
 import { generatePlan as aiGeneratePlan, detectReminders as aiDetectReminders } from '../services/ai';
+import { buildAIContext } from '../services/aiContext';
 import { saveWeekNotes as saveWeekNotesToStorage, getWeekNotes as getWeekNotesFromStorage } from '../services/storage';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
 import { EmptyState } from '../components/common/EmptyState';
@@ -26,6 +27,15 @@ export function EventNotes() {
   const navigate = useNavigate();
   const { data, getCurrentWeekNotes, saveWeekNotes, updateSelfCare } = useAppData();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
+
+  // Build AI context once for all AI calls during this event session
+  const aiContext = useMemo(() => {
+    return buildAIContext(data, new Date().getHours() < 12 ? 'morning' : 'afternoon', '');
+  }, [
+    data.selfCare?.dose1Time, data.selfCare?.dose2Time, data.selfCare?.dose3Time,
+    data.selfCare?.skippedDoseDate, data.selfCare?.dayMode,
+    data.competitions?.length, data.calendarEvents?.length,
+  ]);
 
   const event = data.calendarEvents?.find(e => e.id === eventId);
 
@@ -53,7 +63,7 @@ export function EventNotes() {
     const eventDate = event.date ? parseISO(event.date) : new Date();
     const nextDate = format(addWeeks(eventDate, 1), 'yyyy-MM-dd');
 
-    aiDetectReminders(eventName, [note]).then(detected => {
+    aiDetectReminders(eventName, [note], aiContext).then(detected => {
       if (detected.length === 0) return;
 
       const existingReminders = data.selfCare?.reminders || [];
@@ -326,6 +336,7 @@ export function EventNotes() {
         classInfo: classInfoForAI,
         notes: notesToProcess,
         previousPlans: previousPlans.length > 0 ? previousPlans : undefined,
+        context: aiContext,
       }).then(plan => {
         const nextWeekStart = addWeeks(getWeekStart(), 1);
         const nextWeekOf = formatWeekOf(nextWeekStart);
@@ -405,7 +416,7 @@ export function EventNotes() {
         const eventDate = event.date ? parseISO(event.date) : new Date();
         const nextDate = format(addWeeks(eventDate, 1), 'yyyy-MM-dd');
 
-        aiDetectReminders(event.title, notesForReminderScan).then(detected => {
+        aiDetectReminders(event.title, notesForReminderScan, aiContext).then(detected => {
           if (detected.length === 0) return;
 
           const existingReminders = data.selfCare?.reminders || [];

@@ -103,6 +103,26 @@ export interface AIContextPayload {
   briefingProjects?: Array<{ name: string; health: string; note?: string }>;
   briefingMessages?: Array<{ contact: string; lastMessage: string; youReplied: boolean; priority: string }>;
   briefingNotes?: Array<{ title: string; snippet: string }>;
+  // Class-specific data (for generate-plan, expand-notes, detect-reminders, organize-notes modes)
+  classData?: {
+    classInfo?: {
+      id: string;
+      name: string;
+      day: string;
+      startTime: string;
+      endTime: string;
+      level?: string;
+      recitalSong?: string;
+      choreographyNotes?: string;
+    };
+    notes?: Array<{ id: string; timestamp: string; text: string; category?: string }>;
+    previousPlans?: string[];
+    progressionHints?: string[];
+    repetitionFlags?: string[];
+    attendanceNote?: string;
+    expandedSummary?: string;
+    date?: string;
+  };
   // Preferences
   tone: 'supportive' | 'direct' | 'minimal';
   // Check-in context (for briefing and day-plan generation)

@@ -15,6 +15,7 @@ import { searchTerminology } from '../data/terminology';
 import { getProgressionSuggestions, getRepetitionFlags } from '../data/progressions';
 import { TerminologyEntry } from '../types';
 import { generatePlan as aiGeneratePlan, detectReminders as aiDetectReminders, expandNotes as aiExpandNotes } from '../services/ai';
+import { buildAIContext } from '../services/aiContext';
 
 const QUICK_TAGS = [
   { id: 'worked-on', label: 'Worked On', icon: CheckCircle, color: 'bg-forest-100 dark:bg-forest-900/40 text-forest-700 dark:text-forest-300' },
@@ -57,6 +58,15 @@ export function LiveNotes() {
   // Keep a ref to latest selfCare for use in async callbacks (avoid stale closures)
   const selfCareRef = useRef(data.selfCare);
   selfCareRef.current = data.selfCare;
+
+  // Build AI context once for all AI calls during this class session
+  const aiContext = useMemo(() => {
+    return buildAIContext(data, new Date().getHours() < 12 ? 'morning' : 'afternoon', '');
+  }, [
+    data.selfCare?.dose1Time, data.selfCare?.dose2Time, data.selfCare?.dose3Time,
+    data.selfCare?.skippedDoseDate, data.selfCare?.dayMode,
+    data.competitions?.length, data.calendarEvents?.length,
+  ]);
 
   const cls = data.classes.find(c => c.id === classId);
   const studio = cls ? data.studios.find(s => s.id === cls.studioId) : null;
@@ -224,7 +234,7 @@ export function LiveNotes() {
     const classNameForAI = cls.name;
     const nextClassDate = format(addWeeks(classDate, 1), 'yyyy-MM-dd');
 
-    aiDetectReminders(classNameForAI, [note]).then(detected => {
+    aiDetectReminders(classNameForAI, [note], aiContext).then(detected => {
       if (detected.length === 0) return;
 
       // Use ref to get latest selfCare (avoid stale closure from render time)
@@ -676,6 +686,7 @@ export function LiveNotes() {
         progressionHints: progressionHints.length > 0 ? progressionHints : undefined,
         repetitionFlags: repetitionFlags.length > 0 ? repetitionFlags : undefined,
         attendanceNote,
+        context: aiContext,
       }).then(plan => {
         const nextWeekStart = addWeeks(getWeekStart(), 1);
         const nextWeekOf = formatWeekOf(nextWeekStart);
@@ -755,7 +766,7 @@ export function LiveNotes() {
       const classNameForAI = cls.name;
       const nextClassDateForReminders = format(addWeeks(classDate, 1), 'yyyy-MM-dd');
       const notesForReminderScan = notesToProcess.filter(n => !reminderNoteIds.has(n.id));
-      aiDetectReminders(classNameForAI, notesForReminderScan).then(detectedReminders => {
+      aiDetectReminders(classNameForAI, notesForReminderScan, aiContext).then(detectedReminders => {
         if (detectedReminders.length === 0) return;
 
         // Use ref to get latest selfCare (avoid stale closure from render time)
@@ -854,7 +865,7 @@ export function LiveNotes() {
     setAiError(null);
     try {
       const dateStr = classDate ? format(classDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
-      const summary = await aiExpandNotes(cls.name, dateStr, classNotes.liveNotes);
+      const summary = await aiExpandNotes(cls.name, dateStr, classNotes.liveNotes, aiContext);
       setExpandedSummary(summary);
     } catch (err) {
       setAiError(err instanceof Error ? err.message : 'Failed to expand notes');
@@ -916,6 +927,7 @@ export function LiveNotes() {
         progressionHints: progressionHints.length > 0 ? progressionHints : undefined,
         repetitionFlags: repetitionFlags.length > 0 ? repetitionFlags : undefined,
         expandedSummary: expandedSummary || undefined,
+        context: aiContext,
       });
 
       // Save the AI plan to next week (replaces any existing plan)

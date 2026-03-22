@@ -3,7 +3,7 @@
  * These are sacred — do not modify content without good reason.
  */
 
-export type Mode = "check-in" | "chat" | "briefing" | "day-plan" | "prep" | "capture" | "reflection";
+export type Mode = "check-in" | "chat" | "briefing" | "day-plan" | "prep" | "capture" | "reflection" | "generate-plan" | "expand-notes" | "detect-reminders" | "organize-notes";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function buildContextString(payload: any, mode: Mode): string {
@@ -375,6 +375,40 @@ export function buildContextString(payload: any, mode: Mode): string {
     contextLines.push(`Class: ${cc.className}\nPlanned content: ${cc.plannedContent || "none"}\nRaw notes: ${cc.rawDump}`);
   }
 
+  // Class-specific context (for generate-plan, expand-notes, detect-reminders, organize-notes modes)
+  const classData = ctx.classData;
+  if (classData) {
+    if (classData.classInfo) {
+      const ci = classData.classInfo;
+      contextLines.push(`Class being taught: ${ci.name} (${ci.day} ${ci.startTime}-${ci.endTime}${ci.level ? `, ${ci.level}` : ""}${ci.recitalSong ? `, piece: "${ci.recitalSong}"` : ""})`);
+    }
+    if (classData.notes && classData.notes.length > 0) {
+      contextLines.push(`Class notes (${classData.notes.length}):`);
+      for (const note of classData.notes) {
+        const cat = note.category ? ` [${note.category}]` : "";
+        contextLines.push(`  - [${note.id}] ${note.text}${cat}`);
+      }
+    }
+    if (classData.previousPlans && classData.previousPlans.length > 0) {
+      contextLines.push(`Previous plan: ${classData.previousPlans[0].substring(0, 400)}`);
+    }
+    if (classData.progressionHints && classData.progressionHints.length > 0) {
+      contextLines.push(`Progression suggestions: ${classData.progressionHints.join("; ")}`);
+    }
+    if (classData.repetitionFlags && classData.repetitionFlags.length > 0) {
+      contextLines.push(`Patterns noticed: ${classData.repetitionFlags.join("; ")}`);
+    }
+    if (classData.expandedSummary) {
+      contextLines.push(`Organized summary: ${classData.expandedSummary.substring(0, 400)}`);
+    }
+    if (classData.attendanceNote) {
+      contextLines.push(`Attendance: ${classData.attendanceNote}`);
+    }
+    if (classData.date) {
+      contextLines.push(`Class date: ${classData.date}`);
+    }
+  }
+
   return contextLines.join("\n");
 }
 
@@ -621,6 +655,113 @@ RETURN JSON: { "response": "reflection prompt or response", "actions": [...] }
 (Use addWeekReflection action when you have enough for a reflection:
   { "type": "addWeekReflection", "wentWell": "...", "challenges": "...", "nextWeekFocus": "...", "aiSummary": "1-sentence week summary" })`;
 
+    case "generate-plan": {
+      const classInfo = payload.context?.classData?.classInfo || payload.classData?.classInfo || {};
+      const isBalletClass = (classInfo.name || "").toLowerCase().includes("ballet");
+      const hasRecitalPiece = !!classInfo.recitalSong;
+      const levelLabel = classInfo.level || "class";
+
+      return `You're a dance teacher writing your own quick prep notes for next week's class. You'll glance at these on your phone walking into the studio. Not a lesson plan — your personal cheat sheet.
+
+You have full context about the teacher's day, mood, meds, schedule, and competitions. Use this to calibrate:
+- If a competition is close, prioritize run-throughs and cleaning over new material
+- If the teacher is having a rough day or meds are wearing off, suggest a lighter plan
+- If momentum is high, be more ambitious
+
+WRITE YOUR PREP NOTES FOR NEXT WEEK. Follow these rules EXACTLY:
+
+FORMAT:
+- PLAIN TEXT ONLY. NEVER use: # ## ### ** * \` --- or any markdown syntax.
+- Short bullet points with a dash (-)
+- Group with simple ALL-CAPS labels: PRIORITY, ${isBalletClass ? "BARRE" : "WARMUP"}, CENTER, ACROSS THE FLOOR, CHOREO${hasRecitalPiece ? `, PIECE ("${classInfo.recitalSong}")` : ""}
+- Skip any section with nothing to say.
+
+CONTENT PRIORITIES:
+1. PRIORITY section FIRST — anything flagged for next week or needing more work.
+2. For each section, write what to DO — not what you did.
+3. If a progression hint makes sense for this ${levelLabel} level, include it naturally.
+4. If a pattern was flagged (e.g., "3 weeks on X"), mention it as a nudge.${hasRecitalPiece ? `\n5. Always include a PIECE section for "${classInfo.recitalSong}".` : ""}
+
+TONE:
+- You ARE the teacher. Write like you're scribbling on a Post-it.
+- Specific. Every bullet traces back to this week's notes.
+- Terse. 8-12 bullets total. No preamble, no sign-off.
+
+Return ONLY the plan text. No JSON wrapper.`;
+    }
+
+    case "expand-notes": {
+      const classInfo2 = payload.context?.classData?.classInfo || payload.classData?.classInfo || {};
+      const isBalletClass2 = (classInfo2.name || "").toLowerCase().includes("ballet");
+      const warmupLabel = isBalletClass2 ? "Barre" : "Warm-Up";
+
+      return `You're a dance teacher reading back your own quick class notes. Clean them up into a tight summary you can scan in 10 seconds.
+
+You have full context about the teacher's day. Use class context and student awareness to expand shorthand accurately.
+
+Expand shorthand into clear but brief phrases. Group by: ${warmupLabel}, Center, Across the Floor, Choreo (only if present), Needs Work, Next Week. Skip any section with nothing to say.
+
+RULES:
+- PLAIN TEXT ONLY. No markdown (no # * ** \` ---).
+- Use ALL-CAPS labels on their own line.
+- One bullet per thought. Terse. Specific.
+- Don't add advice, context, or anything not in the notes.
+- If a note is already clear, keep it as-is.
+- Max 12 bullets total.
+
+Return ONLY the expanded notes text. No JSON wrapper.`;
+    }
+
+    case "detect-reminders":
+      return `You are helping a dance teacher identify action items from their class notes.
+
+You have full context about the teacher's day, schedule, and existing tasks. Use this to:
+- Avoid creating duplicate reminders for things already on the task list
+- Flag urgency if a competition is close
+- Be aware of what the teacher already has going on
+
+Given the class notes in the context, identify which ones are ACTIONABLE TO-DOs that the teacher needs to complete OUTSIDE of class before next week.
+
+ACTIONABLE (these ARE reminders):
+- Bring equipment/props/supplies to class
+- Email/text/call a parent, student, or studio
+- Download, find, or cut music
+- Buy or order something
+- Print materials, schedule/book something
+- Look up or research something, fix/replace equipment
+
+NOT ACTIONABLE (these are teaching notes, NOT reminders):
+- Work on a skill or technique next week
+- Review choreography, run a combination
+- Add or change class content
+- Observations, ideas, notes about progress
+
+Return ONLY a JSON array: [{"noteId": "the-note-id", "title": "cleaned up reminder text"}]
+If no notes are actionable, return an empty array [].
+No explanation, no markdown. ONLY the JSON array.`;
+
+    case "organize-notes": {
+      const classInfo3 = payload.context?.classData?.classInfo || payload.classData?.classInfo || {};
+      const classLevel = classInfo3.level || "";
+
+      return `Based on notes from today's ${classLevel ? classLevel + " " : ""}class, write a concise plan for next week.
+
+You have full context about the teacher's current state. Use this to calibrate difficulty and priorities.
+
+SECTION HEADERS: TO DO, WARM-UP, CENTER, ACROSS THE FLOOR, COMBO/CHOREO, STUDENT NOTES
+
+Rules:
+- Notes flagged as REMINDER → TO DO section
+- Notes flagged as OBSERVATION → STUDENT NOTES section
+- Notes flagged as CHOREOGRAPHY → COMBO/CHOREO section
+- Notes flagged as COVERED → infer the appropriate section
+- Use bullet points with "  - " prefix
+- Keep concise. No intros, explanations, or sign-offs
+- Suggest logical progressions based on what was covered
+
+Return ONLY the organized text. No JSON wrapper.`;
+    }
+
     default:
       return "";
   }
@@ -757,6 +898,14 @@ export function getMaxTokens(mode: Mode): number {
     case "chat":
     case "reflection":
       return 1200;
+    case "generate-plan":
+      return 800;
+    case "expand-notes":
+      return 1024;
+    case "detect-reminders":
+      return 512;
+    case "organize-notes":
+      return 600;
     default:
       return 800;
   }
@@ -778,6 +927,14 @@ export function getFallbackResponse(mode: Mode): any {
       return { response: "Couldn't process notes.", structuredNotes: [] };
     case "reflection":
       return { response: "Couldn't generate reflection.", actions: [] };
+    case "generate-plan":
+      return { plan: "", success: false };
+    case "expand-notes":
+      return { expanded: "", success: false };
+    case "detect-reminders":
+      return { reminders: [] };
+    case "organize-notes":
+      return { plan: "", success: false };
     default:
       return { response: "" };
   }

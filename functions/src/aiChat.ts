@@ -12,7 +12,7 @@ import {
 
 const anthropicKey = defineSecret("ANTHROPIC_API_KEY");
 
-const VALID_MODES: Mode[] = ["check-in", "chat", "briefing", "day-plan", "prep", "capture", "reflection"];
+const VALID_MODES: Mode[] = ["check-in", "chat", "briefing", "day-plan", "prep", "capture", "reflection", "generate-plan", "expand-notes", "detect-reminders", "organize-notes"];
 
 export const aiChat = onCall(
   { timeoutSeconds: 60, memory: "256MiB", secrets: [anthropicKey] },
@@ -55,6 +55,18 @@ export const aiChat = onCall(
         messages.push({
           role: "user",
           content: `Generate today's plan.\n\n${contextString}`,
+        });
+      } else if (mode === "generate-plan" || mode === "expand-notes" || mode === "organize-notes") {
+        // Class-tool modes: context + class data, expect text output
+        messages.push({
+          role: "user",
+          content: `${contextString}\n\nProcess the class notes above and generate the requested output.`,
+        });
+      } else if (mode === "detect-reminders") {
+        // Reminder detection: context + notes, expect JSON output
+        messages.push({
+          role: "user",
+          content: `${contextString}\n\nAnalyze the class notes above and identify actionable reminders. Return ONLY a JSON array.`,
         });
       } else {
         // Single-turn modes
@@ -103,6 +115,44 @@ export const aiChat = onCall(
       }
       if (mode === "day-plan") {
         if (!Array.isArray(parsed.items)) parsed.items = [];
+      }
+
+      // Class-tool modes: return structured responses
+      if (mode === "generate-plan") {
+        // Plain text response — strip markdown artifacts
+        let planText = text
+          .replace(/^#{1,6}\s*/gm, '')
+          .replace(/\*\*([^*]+)\*\*/g, '$1')
+          .replace(/\*([^*]+)\*/g, '$1')
+          .replace(/`([^`]+)`/g, '$1')
+          .replace(/^---+$/gm, '')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
+        return { success: true, plan: planText, generatedAt: new Date().toISOString() };
+      }
+      if (mode === "expand-notes") {
+        return { success: true, expanded: text.trim(), generatedAt: new Date().toISOString() };
+      }
+      if (mode === "detect-reminders") {
+        // Parse JSON array from response
+        let reminders: Array<{ noteId: string; title: string }> = [];
+        try {
+          const jsonMatch = text.match(/\[[\s\S]*\]/);
+          if (jsonMatch) {
+            const arr = JSON.parse(jsonMatch[0]);
+            if (Array.isArray(arr)) {
+              reminders = arr.filter(
+                (r: unknown) => r && typeof r === "object" && "noteId" in (r as Record<string, unknown>) && "title" in (r as Record<string, unknown>)
+              );
+            }
+          }
+        } catch {
+          console.error("Failed to parse detect-reminders response:", text.substring(0, 200));
+        }
+        return { reminders };
+      }
+      if (mode === "organize-notes") {
+        return { success: true, plan: text.trim() };
       }
 
       return parsed;
