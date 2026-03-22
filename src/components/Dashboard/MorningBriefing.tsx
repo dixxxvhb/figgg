@@ -99,6 +99,8 @@ export function MorningBriefing({
       const best = activeDoses.reduce((a, b) =>
         (statusPriority[b.status || ''] || 0) >= (statusPriority[a.status || ''] || 0) ? b : a
       );
+      // Show dash instead of "Expired" to avoid duplicating the meds widget below
+      if (best.status === 'Expired') return { text: '—', color: 'text-[var(--text-tertiary)]' };
       return { text: best.status || '—', color: getDoseColor(best.status) };
     }
     return { text: 'None', color: 'text-[var(--status-warning)]' };

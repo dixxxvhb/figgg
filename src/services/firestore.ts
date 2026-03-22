@@ -351,6 +351,15 @@ export async function updateProfile(userId: string, updates: { settings?: AppSet
   await setDoc(userDoc(userId, 'singletons', 'profile'), updates, { merge: true });
 }
 
+export function onProfileSnapshot(
+  userId: string,
+  callback: (data: { settings: AppSettings; lastModified?: string } | undefined) => void
+): Unsubscribe {
+  return onSnapshot(userDoc(userId, 'singletons', 'profile'), (snap) => {
+    callback(snap.exists() ? (snap.data() as { settings: AppSettings; lastModified?: string }) : undefined);
+  }, (error) => { console.error('profile snapshot error:', error); });
+}
+
 // ============================================================
 // SINGLE DOCUMENT: THERAPIST DATA
 // ============================================================

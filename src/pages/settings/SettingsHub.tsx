@@ -83,7 +83,7 @@ export function SettingsHub() {
   ];
 
   return (
-    <div className="page-container pb-24">
+    <div className="page-container px-4 pb-24">
       <h1 className="type-display text-[var(--text-primary)] mb-6">Settings</h1>
 
       {/* App */}

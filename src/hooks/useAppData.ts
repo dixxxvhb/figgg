@@ -49,6 +49,7 @@ import {
   onGriefSnapshot,
   updateLearningDataDoc,
   onNudgeStateSnapshot,
+  onProfileSnapshot,
   updateNudgeStateDoc,
   onFixItemsSnapshot,
   saveFixItemDoc,
@@ -209,6 +210,13 @@ export function useAppData() {
       listenerUnsubs.push(onNudgeStateSnapshot(user.uid, (nudgeState) => {
         snapshotUpdateRef.current++;
         setData(prev => ({ ...prev, nudgeState: nudgeState || { dismissed: {}, snoozed: {} } }));
+      }));
+
+      listenerUnsubs.push(onProfileSnapshot(user.uid, (profile) => {
+        if (profile?.settings) {
+          snapshotUpdateRef.current++;
+          setData(prev => ({ ...prev, settings: { ...prev.settings, ...profile.settings } }));
+        }
       }));
 
       listenerUnsubs.push(onFixItemsSnapshot(user.uid, (fixItems) => {

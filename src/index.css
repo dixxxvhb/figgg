@@ -90,8 +90,10 @@
 
   /* ── Semantic Text ── */
   --text-primary: #121108;
+  --text-heading: var(--text-primary); /* headings — overridden by accent color picker */
   --text-secondary: #64615c;
   --text-tertiary: #9c9891;
+  --text-muted: #9c9891; /* alias for tertiary, used in settings headers */
   --text-on-accent: #ffffff;
 
   /* ── Accent ── */
@@ -375,8 +377,10 @@ html.dark {
   --surface-highlight: rgba(164, 120, 44, 0.1);
 
   --text-primary: #e8e4df;
+  --text-heading: var(--text-primary);
   --text-secondary: #9c9891;
   --text-tertiary: #64615c;
+  --text-muted: #64615c;
 
   --accent-primary: #d4a843;
   --accent-primary-hover: #e4be5e;
@@ -424,7 +428,7 @@ html.dark {
   font-size: 2.25rem;
   line-height: 1.15;
   letter-spacing: -0.03em;
-  color: var(--text-primary);
+  color: var(--text-heading);
 }
 
 .type-h1 {
@@ -433,7 +437,7 @@ html.dark {
   font-size: 1.5rem;
   line-height: 1.25;
   letter-spacing: -0.02em;
-  color: var(--text-primary);
+  color: var(--text-heading);
 }
 
 .type-h2 {
@@ -442,7 +446,7 @@ html.dark {
   font-size: 1.0625rem;
   line-height: 1.35;
   letter-spacing: -0.01em;
-  color: var(--text-primary);
+  color: var(--text-heading);
 }
 
 .type-h3 {
@@ -490,7 +494,7 @@ html.dark {
   line-height: 1.05;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
+  color: var(--text-heading);
 }
 
 /* iOS/Safari specific optimizations */
@@ -644,7 +648,7 @@ html.dark {
   font-size: 0.9375rem;
   line-height: 1.3;
   letter-spacing: -0.01em;
-  color: var(--text-primary);
+  color: var(--text-heading);
 }
 
 /* ── Widget stagger-in animation ── */

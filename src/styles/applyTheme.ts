@@ -37,7 +37,7 @@ export function applyTheme(themeId: string, isDark: boolean = false): void {
 // ── Custom font/accent color overrides ──────────────────────────
 
 const ACCENT_PROPS = [
-  '--text-primary',
+  '--text-heading',
   '--accent-primary',
   '--accent-primary-hover',
   '--border-strong',
@@ -53,7 +53,7 @@ function lighten(hex: string, percent: number): string {
 
 export function applyAccentOverride(hex: string): void {
   const root = document.documentElement;
-  root.style.setProperty('--text-primary', hex);
+  root.style.setProperty('--text-heading', hex);
   root.style.setProperty('--accent-primary', hex);
   root.style.setProperty('--accent-primary-hover', lighten(hex, 15));
   root.style.setProperty('--border-strong', hex);

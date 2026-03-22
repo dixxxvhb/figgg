@@ -451,7 +451,7 @@ export function AIChat() {
       </div>
 
       {/* Input bar */}
-      <div className="border-t border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 py-3 pb-safe">
+      <div className="border-t border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 pt-3 pb-20">
         <div className="flex gap-2">
           <input
             ref={inputRef}

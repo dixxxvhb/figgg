@@ -161,7 +161,7 @@ export function Library() {
             <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
               <button
                 onClick={() => setSelectedCategory('all')}
-                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 active:scale-95 min-h-[36px] ${
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 active:scale-95 whitespace-nowrap min-h-[36px] ${
                   selectedCategory === 'all'
                     ? 'bg-forest-600 text-white'
                     : 'bg-forest-100 dark:bg-blush-800 text-forest-600 dark:text-forest-400'
