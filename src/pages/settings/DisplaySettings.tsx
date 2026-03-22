@@ -290,49 +290,46 @@ export function DisplaySettings() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center" onClick={() => setShowUpdateGuide(false)}>
           <div className="bg-[var(--surface-elevated)] rounded-t-2xl sm:rounded-2xl w-full max-w-md p-6 space-y-5" onClick={e => e.stopPropagation()}>
             <div className="text-center">
-              <IconPreview iconId={currentIconId} size={72} selected={false} />
+              <div className="flex justify-center"><IconPreview iconId={currentIconId} size={72} selected={false} /></div>
               <h3 className="type-h1 mt-3">Update Home Screen Icon</h3>
-              <p className="type-caption text-[var(--text-secondary)] mt-1">iOS caches PWA icons. Quick 3-step refresh:</p>
+              <p className="type-caption text-[var(--text-secondary)] mt-1">2 quick steps to refresh your icon</p>
             </div>
 
             <div className="space-y-4">
+              {/* Step 1: Remove (manual — can't automate on iOS) */}
               <div className="flex gap-3 items-start">
                 <span className="flex-shrink-0 w-7 h-7 rounded-full bg-[var(--accent-primary)] text-[var(--text-on-accent)] flex items-center justify-center text-sm font-bold">1</span>
                 <div>
-                  <p className="text-sm font-medium text-[var(--text-primary)]">Remove from Home Screen</p>
-                  <p className="text-xs text-[var(--text-secondary)]">Long-press the Figgg icon, tap "Remove Bookmark"</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">Remove old icon</p>
+                  <p className="text-xs text-[var(--text-secondary)]">Long-press Figgg on your home screen, tap "Remove Bookmark"</p>
                 </div>
               </div>
+
+              {/* Step 2: Re-install (opens Safari with install banner) */}
               <div className="flex gap-3 items-start">
                 <span className="flex-shrink-0 w-7 h-7 rounded-full bg-[var(--accent-primary)] text-[var(--text-on-accent)] flex items-center justify-center text-sm font-bold">2</span>
-                <div>
-                  <p className="text-sm font-medium text-[var(--text-primary)]">Open in Safari</p>
-                  <p className="text-xs text-[var(--text-secondary)]">Go to figgg-c2c8f.web.app in Safari</p>
-                </div>
-              </div>
-              <div className="flex gap-3 items-start">
-                <span className="flex-shrink-0 w-7 h-7 rounded-full bg-[var(--accent-primary)] text-[var(--text-on-accent)] flex items-center justify-center text-sm font-bold">3</span>
-                <div>
-                  <p className="text-sm font-medium text-[var(--text-primary)]">Add to Home Screen</p>
-                  <p className="text-xs text-[var(--text-secondary)]">Tap Share (box with arrow), then "Add to Home Screen"</p>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-[var(--text-primary)]">Re-add with new icon</p>
+                  <p className="text-xs text-[var(--text-secondary)] mb-2">Opens Safari — tap the Share button, then "Add to Home Screen"</p>
+                  <a
+                    href={`${window.location.origin}?reinstall=1`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    Open in Safari
+                  </a>
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={handleSaveIcon}
-                className="flex-1 py-3 rounded-xl border border-[var(--border-subtle)] text-sm font-medium text-[var(--text-primary)]"
-              >
-                Save Icon to Photos
-              </button>
-              <button
-                onClick={() => setShowUpdateGuide(false)}
-                className="flex-1 py-3 rounded-xl bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-medium"
-              >
-                Got It
-              </button>
-            </div>
+            <button
+              onClick={() => setShowUpdateGuide(false)}
+              className="w-full py-3 rounded-xl border border-[var(--border-subtle)] text-sm font-medium text-[var(--text-secondary)]"
+            >
+              Done
+            </button>
           </div>
         </div>
       )}

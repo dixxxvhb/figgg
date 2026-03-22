@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Header, MobileNav } from './components/common/Header';
 import { PullToRefresh } from './components/common/PullToRefresh';
@@ -13,7 +13,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { loadData } from './services/storage';
 import { applyTheme, applyAccentOverride, clearAccentOverride, applyFontFamily } from './styles/applyTheme';
 import { restoreMoodLayer } from './styles/moodLayer';
-import { applyAppIcon } from './styles/appIcons';
+import { applyAppIcon, renderIconToDataUrl } from './styles/appIcons';
 
 /**
  * SettingsWatcher — lives inside AppDataProvider, reactively applies visual
@@ -71,6 +71,68 @@ function SettingsWatcher() {
   ]);
 
   return null;
+}
+
+/**
+ * InstallBanner — shown when app is opened in Safari via ?reinstall=1
+ * from the icon update flow. Guides user to Add to Home Screen.
+ */
+function InstallBanner() {
+  const [show, setShow] = useState(false);
+  const { data } = useAppData();
+  const iconId = data.settings?.appIconId || 'ink-gold';
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+    if (params.get('reinstall') === '1' && !isStandalone && isIOS) {
+      setShow(true);
+      // Clean the URL param without reload
+      const url = new URL(window.location.href);
+      url.searchParams.delete('reinstall');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, []);
+
+  if (!show) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60" onClick={() => setShow(false)}>
+      <div className="bg-[var(--surface-elevated)] rounded-2xl mx-4 p-6 max-w-sm text-center space-y-4" onClick={e => e.stopPropagation()}>
+        <img
+          src={renderIconToDataUrl(iconId, 160)}
+          width={80}
+          height={80}
+          alt="New app icon"
+          className="mx-auto rounded-2xl"
+        />
+        <h2 className="type-h1 text-[var(--text-primary)]">Almost there!</h2>
+        <div className="space-y-2">
+          <p className="text-sm text-[var(--text-secondary)]">
+            Tap the <strong>Share</strong> button below
+          </p>
+          <div className="flex justify-center">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+              <polyline points="16 6 12 2 8 6"/>
+              <line x1="12" y1="2" x2="12" y2="15"/>
+            </svg>
+          </div>
+          <p className="text-sm text-[var(--text-secondary)]">
+            Then tap <strong>"Add to Home Screen"</strong>
+          </p>
+        </div>
+        <button
+          onClick={() => setShow(false)}
+          className="w-full py-2.5 rounded-xl border border-[var(--border-subtle)] text-sm text-[var(--text-secondary)]"
+        >
+          Dismiss
+        </button>
+      </div>
+    </div>
+  );
 }
 
 // Lazy-loaded routes (not needed on initial load)
@@ -230,6 +292,7 @@ function App() {
           <BrowserRouter>
             <AppDataProvider>
             <SettingsWatcher />
+            <InstallBanner />
             <div className="min-h-screen bg-[var(--surface-primary)] transition-colors">
               <a href="#main-content" className="skip-link">
                 Skip to main content
