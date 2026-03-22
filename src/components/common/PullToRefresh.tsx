@@ -30,8 +30,10 @@ export function PullToRefresh({ children, onRefresh }: PullToRefreshProps) {
   }, [isRefreshing]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (containerRef.current && containerRef.current.scrollTop <= 0) {
+    if (containerRef.current) {
       // Check if touch started inside a nested scrollable element
+      // If the scroller is NOT at the top, bail — user is scrolling content
+      // If the scroller IS at the top, allow pull-to-refresh to activate
       let target = e.target as HTMLElement | null;
       while (target && target !== containerRef.current) {
         const isTextarea = target.tagName === 'TEXTAREA';
@@ -44,7 +46,8 @@ export function PullToRefresh({ children, onRefresh }: PullToRefreshProps) {
           (style.overflowY === 'auto' || style.overflowY === 'scroll') &&
           target.scrollHeight > target.clientHeight
         );
-        if (isScrollable) {
+        if (isScrollable && target.scrollTop > 0) {
+          // Nested scroller exists AND is scrolled down — don't intercept
           isPullingRef.current = false;
           return;
         }
