@@ -26,6 +26,16 @@ interface EmailSummary {
   isUnread: boolean;
 }
 
+interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string;
+  startTime: string;
+  endTime?: string;
+  location?: string;
+  description?: string;
+}
+
 interface BriefingData {
   date: string;
   classes: Array<{ name: string; startTime: string; endTime: string; day: string }>;
@@ -35,6 +45,342 @@ interface BriefingData {
   launchPlan: Record<string, unknown> | undefined;
   reminders: Array<{ title: string; dueDate?: string; flagged: boolean; completed: boolean }>;
   emails: EmailSummary[];
+}
+
+// ============================================================
+// ICS PARSING LOGIC (ported from client calendar.ts)
+// ============================================================
+
+interface RawEvent {
+  title?: string;
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  location?: string;
+  description?: string;
+  rrule?: string;
+  exdates?: string[];
+  dtStartKey?: string;
+  dtStartValue?: string;
+  durationMinutes?: number;
+}
+
+const RECURRENCE_WINDOW_DAYS = 90;
+const PAST_EVENT_WINDOW_DAYS = 7;
+
+function generateStableId(title: string, date: string, startTime: string, endTime = '', location = ''): string {
+  const str = `${title}-${date}-${startTime}-${endTime}-${location}`;
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return `cal-${Math.abs(hash).toString(36)}`;
+}
+
+function formatDateStr(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatTimeStr(d: Date): string {
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+function parseICS(icsText: string): CalendarEvent[] {
+  const events: CalendarEvent[] = [];
+  const lines = icsText.split(/\r?\n/);
+  const rawEvents: RawEvent[] = [];
+
+  let currentEvent: RawEvent | null = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+
+    while (i + 1 < lines.length && (lines[i + 1].startsWith(' ') || lines[i + 1].startsWith('\t'))) {
+      line += lines[++i].slice(1);
+    }
+
+    if (line.startsWith('BEGIN:VEVENT')) {
+      currentEvent = { exdates: [] };
+    } else if (line.startsWith('END:VEVENT') && currentEvent) {
+      if (currentEvent.title && currentEvent.date) {
+        rawEvents.push(currentEvent);
+      }
+      currentEvent = null;
+    } else if (currentEvent) {
+      const [key, ...valueParts] = line.split(':');
+      const value = valueParts.join(':');
+
+      if (key.startsWith('SUMMARY')) {
+        currentEvent.title = value.replace(/\\n/g, '\n').replace(/\\,/g, ',').replace(/\\;/g, ';').trim();
+      } else if (key.startsWith('DTSTART')) {
+        currentEvent.dtStartKey = key;
+        currentEvent.dtStartValue = value;
+        const { date, time } = parseDTValue(key, value);
+        currentEvent.date = date;
+        currentEvent.startTime = time;
+      } else if (key.startsWith('DTEND')) {
+        const { date: endDate, time } = parseDTValue(key, value);
+        currentEvent.endTime = time;
+        if (currentEvent.date && currentEvent.startTime) {
+          const startDt = new Date(`${currentEvent.date}T${currentEvent.startTime}:00`);
+          const endDt = new Date(`${endDate}T${time}:00`);
+          currentEvent.durationMinutes = Math.round((endDt.getTime() - startDt.getTime()) / 60000);
+        }
+      } else if (key.startsWith('RRULE')) {
+        currentEvent.rrule = value;
+      } else if (key.startsWith('EXDATE')) {
+        const { date: exDate } = parseDTValue(key, value);
+        currentEvent.exdates!.push(exDate);
+      } else if (key.startsWith('LOCATION')) {
+        currentEvent.location = value.replace(/\\n/g, '\n').replace(/\\,/g, ',').replace(/\\;/g, ';');
+      } else if (key.startsWith('DESCRIPTION')) {
+        currentEvent.description = value.replace(/\\n/g, '\n').replace(/\\,/g, ',');
+      }
+    }
+  }
+
+  const now = new Date();
+  const windowStart = new Date(now);
+  windowStart.setDate(windowStart.getDate() - PAST_EVENT_WINDOW_DAYS);
+  const windowEnd = new Date(now);
+  windowEnd.setDate(windowEnd.getDate() + RECURRENCE_WINDOW_DAYS);
+  const windowStartStr = formatDateStr(windowStart);
+  const windowEndStr = formatDateStr(windowEnd);
+
+  for (const raw of rawEvents) {
+    if (raw.rrule) {
+      const occurrences = expandRRule(raw, windowStartStr, windowEndStr);
+      for (const occ of occurrences) {
+        occ.id = generateStableId(occ.title!, occ.date!, occ.startTime || '00:00', occ.endTime || '', occ.location || '');
+        events.push(occ as CalendarEvent);
+      }
+    } else {
+      if (raw.date! >= windowStartStr && raw.date! <= windowEndStr) {
+        const event: CalendarEvent = {
+          id: generateStableId(raw.title!, raw.date!, raw.startTime || '00:00', raw.endTime || '', raw.location || ''),
+          title: raw.title!,
+          date: raw.date!,
+          startTime: raw.startTime || '00:00',
+          endTime: raw.endTime || '',
+          location: raw.location,
+          description: raw.description,
+        };
+        events.push(event);
+      }
+    }
+  }
+
+  return events;
+}
+
+function expandRRule(raw: RawEvent, windowStart: string, windowEnd: string): Partial<CalendarEvent>[] {
+  const results: Partial<CalendarEvent>[] = [];
+  const rrule = parseRRuleString(raw.rrule!);
+
+  if (!rrule.freq) return results;
+
+  const startDate = parseDate(raw.date!);
+  const exdateSet = new Set(raw.exdates || []);
+
+  let untilDate: Date | null = null;
+  if (rrule.until) {
+    const untilClean = rrule.until.replace(/Z$/, '');
+    const isUTC = rrule.until.endsWith('Z');
+    if (untilClean.length >= 8) {
+      const y = parseInt(untilClean.slice(0, 4));
+      const m = parseInt(untilClean.slice(4, 6)) - 1;
+      const d = parseInt(untilClean.slice(6, 8));
+      if (isUTC && untilClean.length >= 15) {
+        const h = parseInt(untilClean.slice(9, 11));
+        const min = parseInt(untilClean.slice(11, 13));
+        untilDate = new Date(Date.UTC(y, m, d, h, min, 59));
+      } else {
+        untilDate = new Date(y, m, d, 23, 59, 59);
+      }
+    }
+  }
+
+  const count = rrule.count || 1000;
+  const windowEndDate = parseDate(windowEnd);
+  let occurrences = 0;
+
+  if (rrule.freq === 'DAILY') {
+    const interval = rrule.interval || 1;
+    const current = new Date(startDate);
+    while (current <= windowEndDate && occurrences < count) {
+      if (untilDate && current > untilDate) break;
+      const dateStr = formatDateStr(current);
+      if (dateStr >= windowStart && !exdateSet.has(dateStr)) {
+        results.push(makeOccurrence(raw, dateStr));
+        occurrences++;
+      }
+      current.setDate(current.getDate() + interval);
+    }
+  } else if (rrule.freq === 'WEEKLY') {
+    const interval = rrule.interval || 1;
+    const current = new Date(startDate);
+    while (current <= windowEndDate && occurrences < count) {
+      if (untilDate && current > untilDate) break;
+      const dateStr = formatDateStr(current);
+      if (dateStr >= windowStart && !exdateSet.has(dateStr)) {
+        results.push(makeOccurrence(raw, dateStr));
+        occurrences++;
+      }
+      current.setDate(current.getDate() + 7 * interval);
+    }
+  } else if (rrule.freq === 'MONTHLY') {
+    if (rrule.byday && rrule.bysetpos !== undefined) {
+      const targetDayNum = dayNameToNum(rrule.byday);
+      const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+      const interval = rrule.interval || 1;
+
+      while (current <= windowEndDate && occurrences < count) {
+        if (untilDate && current > untilDate) break;
+        const matchDate = getNthWeekdayOfMonth(current.getFullYear(), current.getMonth(), targetDayNum, rrule.bysetpos);
+        if (matchDate) {
+          const dateStr = formatDateStr(matchDate);
+          if (dateStr >= windowStart && dateStr <= windowEnd && !exdateSet.has(dateStr)) {
+            results.push(makeOccurrence(raw, dateStr));
+            occurrences++;
+          }
+        }
+        current.setMonth(current.getMonth() + interval);
+      }
+    } else {
+      const interval = rrule.interval || 1;
+      const current = new Date(startDate);
+      while (current <= windowEndDate && occurrences < count) {
+        if (untilDate && current > untilDate) break;
+        const dateStr = formatDateStr(current);
+        if (dateStr >= windowStart && !exdateSet.has(dateStr)) {
+          results.push(makeOccurrence(raw, dateStr));
+          occurrences++;
+        }
+        current.setMonth(current.getMonth() + interval);
+      }
+    }
+  } else if (rrule.freq === 'YEARLY') {
+    const interval = rrule.interval || 1;
+    const current = new Date(startDate);
+    while (current <= windowEndDate && occurrences < count) {
+      if (untilDate && current > untilDate) break;
+      const dateStr = formatDateStr(current);
+      if (dateStr >= windowStart && !exdateSet.has(dateStr)) {
+        results.push(makeOccurrence(raw, dateStr));
+        occurrences++;
+      }
+      current.setFullYear(current.getFullYear() + interval);
+    }
+  }
+
+  return results;
+}
+
+function makeOccurrence(raw: RawEvent, dateStr: string): Partial<CalendarEvent> {
+  return {
+    title: raw.title,
+    date: dateStr,
+    startTime: raw.startTime || '00:00',
+    endTime: raw.endTime || '',
+    location: raw.location,
+    description: raw.description,
+  };
+}
+
+interface ParsedRRule {
+  freq?: string;
+  interval?: number;
+  until?: string;
+  count?: number;
+  byday?: string;
+  bysetpos?: number;
+  bymonth?: number;
+}
+
+function parseRRuleString(rrule: string): ParsedRRule {
+  const result: ParsedRRule = {};
+  const parts = rrule.split(';');
+  for (const part of parts) {
+    const [k, v] = part.split('=');
+    switch (k) {
+      case 'FREQ': result.freq = v; break;
+      case 'INTERVAL': result.interval = parseInt(v); break;
+      case 'UNTIL': result.until = v; break;
+      case 'COUNT': result.count = parseInt(v); break;
+      case 'BYDAY': result.byday = v; break;
+      case 'BYSETPOS': result.bysetpos = parseInt(v); break;
+      case 'BYMONTH': result.bymonth = parseInt(v); break;
+    }
+  }
+  return result;
+}
+
+function parseDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function dayNameToNum(byday: string): number {
+  const map: Record<string, number> = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
+  return map[byday] ?? 0;
+}
+
+function getNthWeekdayOfMonth(year: number, month: number, dayOfWeek: number, n: number): Date | null {
+  if (n > 0) {
+    let count = 0;
+    for (let d = 1; d <= 31; d++) {
+      const date = new Date(year, month, d);
+      if (date.getMonth() !== month) break;
+      if (date.getDay() === dayOfWeek) {
+        count++;
+        if (count === n) return date;
+      }
+    }
+  } else if (n === -1) {
+    for (let d = 31; d >= 1; d--) {
+      const date = new Date(year, month, d);
+      if (date.getMonth() !== month) continue;
+      if (date.getDay() === dayOfWeek) return date;
+    }
+  }
+  return null;
+}
+
+function parseDTValue(key: string, value: string): { date: string; time: string } {
+  const isDateOnly = key.includes('VALUE=DATE');
+  const isUTC = value.endsWith('Z');
+  const cleanValue = value.replace(/Z$/, '');
+
+  if (isDateOnly || cleanValue.length === 8) {
+    const year = cleanValue.slice(0, 4);
+    const month = cleanValue.slice(4, 6);
+    const day = cleanValue.slice(6, 8);
+    return {
+      date: `${year}-${month}-${day}`,
+      time: '00:00',
+    };
+  } else {
+    const year = parseInt(cleanValue.slice(0, 4));
+    const month = parseInt(cleanValue.slice(4, 6)) - 1;
+    const day = parseInt(cleanValue.slice(6, 8));
+    const hour = parseInt(cleanValue.slice(9, 11));
+    const minute = parseInt(cleanValue.slice(11, 13));
+
+    if (isUTC) {
+      const utcDate = new Date(Date.UTC(year, month, day, hour, minute));
+      return { date: formatDateStr(utcDate), time: formatTimeStr(utcDate) };
+    }
+
+    const localDate = new Date(year, month, day, hour, minute);
+    return { date: formatDateStr(localDate), time: formatTimeStr(localDate) };
+  }
 }
 
 async function fetchRecentEmails(): Promise<EmailSummary[]> {
@@ -53,7 +399,6 @@ async function fetchRecentEmails(): Promise<EmailSummary[]> {
 
     const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
-    // Fetch last 24 hours of emails (unread + important)
     const oneDayAgo = Math.floor((Date.now() - 24 * 60 * 60 * 1000) / 1000);
     const res = await gmail.users.messages.list({
       userId: "me",
@@ -64,7 +409,6 @@ async function fetchRecentEmails(): Promise<EmailSummary[]> {
     const messageIds = res.data.messages || [];
     if (messageIds.length === 0) return [];
 
-    // Fetch message details in parallel (batch of up to 20)
     const emails: EmailSummary[] = [];
     const batchSize = 10;
     for (let i = 0; i < messageIds.length; i += batchSize) {
@@ -87,7 +431,6 @@ async function fetchRecentEmails(): Promise<EmailSummary[]> {
         const date = headers.find(h => h.name === "Date")?.value || "";
         const isUnread = (msg.data.labelIds || []).includes("UNREAD");
 
-        // Extract sender name from "Name <email>" format
         const fromName = from.replace(/<[^>]+>/, "").trim().replace(/"/g, "");
 
         emails.push({
@@ -105,6 +448,57 @@ async function fetchRecentEmails(): Promise<EmailSummary[]> {
     console.error("Gmail fetch failed:", error);
     return [];
   }
+}
+
+// ============================================================
+// FETCH AND PARSE ICS (new server-side)
+// ============================================================
+
+async function fetchAndParseICS(calendarUrl: string): Promise<CalendarEvent[]> {
+  try {
+    const response = await fetch(calendarUrl);
+    if (!response.ok) {
+      console.error(`Failed to fetch ICS feed: ${response.status} ${response.statusText}`);
+      return [];
+    }
+    const icsText = await response.text();
+    return parseICS(icsText);
+  } catch (error) {
+    console.error('Failed to fetch/parse ICS feed:', error);
+    return [];
+  }
+}
+
+// ============================================================
+// WRITE EVENTS TO FIRESTORE
+// ============================================================
+
+async function writeCalendarEventsToFirestore(userId: string, events: CalendarEvent[]): Promise<void> {
+  if (events.length === 0) {
+    console.log(`No calendar events to write for user ${userId}`);
+    return;
+  }
+
+  const batch = db.batch();
+  const collectionRef = db.collection(`users/${userId}/calendarEvents`);
+
+  for (const event of events) {
+    const docRef = collectionRef.doc(event.id);
+    batch.set(docRef, {
+      id: event.id,
+      title: event.title,
+      date: event.date,
+      startTime: event.startTime,
+      endTime: event.endTime || '',
+      location: event.location || null,
+      description: event.description || null,
+      source: 'ics',
+      syncedAt: new Date().toISOString(),
+    });
+  }
+
+  await batch.commit();
+  console.log(`Wrote ${events.length} calendar events to Firestore for user ${userId}`);
 }
 
 async function generateBriefingCore(): Promise<void> {
@@ -125,16 +519,33 @@ async function generateBriefingCore(): Promise<void> {
   const days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
   const todayDay = days[now.getDay()];
 
-  // 2. Read Firestore data
+  // 2. Read Firestore data + fetch ICS
   const userRoot = `users/${userId}`;
 
-  const [classesSnap, eventsSnap, selfCareSnap, dayPlanSnap, launchPlanSnap] = await Promise.all([
+  const [classesSnap, selfCareSnap, dayPlanSnap, launchPlanSnap, profileSnap] = await Promise.all([
     db.collection(`${userRoot}/classes`).get(),
-    db.collection(`${userRoot}/calendarEvents`).get(),
     db.doc(`${userRoot}/singletons/selfCare`).get(),
     db.doc(`${userRoot}/singletons/dayPlan`).get(),
     db.doc(`${userRoot}/singletons/launchPlan`).get(),
+    db.doc(`${userRoot}/singletons/profile`).get(),
   ]);
+
+  // 2a. Fetch and parse ICS feed (server-side)
+  let icsEvents: CalendarEvent[] = [];
+  if (profileSnap.exists) {
+    const profile = profileSnap.data() as any;
+    const calendarUrl = profile?.settings?.calendarUrl;
+    if (calendarUrl) {
+      console.log(`Fetching ICS feed from: ${calendarUrl}`);
+      icsEvents = await fetchAndParseICS(calendarUrl);
+      if (icsEvents.length > 0) {
+        // Write to Firestore for client use
+        await writeCalendarEventsToFirestore(userId, icsEvents);
+      }
+    } else {
+      console.log("No calendarUrl found in user profile settings");
+    }
+  }
 
   // Filter classes to today's day
   const allClasses = classesSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Array<Record<string, unknown>>;
@@ -148,24 +559,23 @@ async function generateBriefingCore(): Promise<void> {
     }))
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-  // Filter calendar events to today
-  const allEvents = eventsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Array<Record<string, unknown>>;
-  const todayEvents = allEvents
+  // Filter calendar events to today (use ICS events, not Firestore)
+  const todayEvents = icsEvents
     .filter(e => e.date === todayStr)
     .map(e => ({
-      title: e.title as string,
-      date: e.date as string,
-      startTime: (e.startTime as string) || "",
-      endTime: e.endTime as string | undefined,
+      title: e.title,
+      date: e.date,
+      startTime: e.startTime || "",
+      endTime: e.endTime,
     }));
 
   // Upcoming 7 days events
   const sevenDaysOut = new Date(now);
   sevenDaysOut.setDate(sevenDaysOut.getDate() + 7);
   const sevenDaysStr = `${sevenDaysOut.getFullYear()}-${String(sevenDaysOut.getMonth() + 1).padStart(2, "0")}-${String(sevenDaysOut.getDate()).padStart(2, "0")}`;
-  const upcoming7Days = allEvents
-    .filter(e => (e.date as string) > todayStr && (e.date as string) <= sevenDaysStr)
-    .map(e => ({ date: e.date as string, title: e.title as string, calendarName: "" }))
+  const upcoming7Days = icsEvents
+    .filter(e => e.date > todayStr && e.date <= sevenDaysStr)
+    .map(e => ({ date: e.date, title: e.title, calendarName: "" }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const selfCare = selfCareSnap.exists ? selfCareSnap.data() : undefined;

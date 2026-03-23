@@ -379,6 +379,13 @@ export function AIChat() {
         </div>
       </div>
 
+      {/* Auth warning */}
+      {!auth?.currentUser && (
+        <div className="mx-4 mt-3 px-3 py-2.5 rounded-xl bg-[var(--status-warning)]/10 border border-[var(--status-warning)]/30 text-sm text-[var(--status-warning)]">
+          Sign in from Settings to use AI chat.
+        </div>
+      )}
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {messages.length === 0 && (

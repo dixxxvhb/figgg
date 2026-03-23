@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Search, Plus, User, Phone, Mail, ChevronRight, X, Trash2, Award, AlertTriangle, TrendingUp, MessageSquare, Calendar, Music, Camera, BarChart3, UserCheck, Clock3, UserX, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
-import { Student, SkillNote, Class, CompetitionDance, WeekNotes } from '../types';
+import { Student, SkillNote, Class, Studio, CompetitionDance, WeekNotes } from '../types';
 import { Button } from '../components/common/Button';
 import { Card } from '../components/common/Card';
 import { EmptyState } from '../components/common/EmptyState';
@@ -372,6 +372,7 @@ export function Students() {
         <StudentModal
           student={editingStudent}
           classes={data.classes}
+          studios={data.studios}
           onSave={handleSaveStudent}
           onClose={() => {
             setShowAddModal(false);
@@ -459,11 +460,13 @@ function StudentCard({ student, classes, onClick }: { student: Student; classes:
 function StudentModal({
   student,
   classes,
+  studios,
   onSave,
   onClose,
 }: {
   student: Student | null;
   classes: Class[];
+  studios: Studio[];
   onSave: (data: Omit<Student, 'id' | 'createdAt' | 'skillNotes'>) => void;
   onClose: () => void;
 }) {
@@ -518,8 +521,8 @@ function StudentModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center">
-      <div className="bg-[var(--surface-elevated)] w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-[var(--radius-lg)] sm:rounded-[var(--radius-lg)] shadow-[var(--shadow-elevated)]">
-        <div className="sticky top-0 bg-[var(--surface-elevated)] border-b border-[var(--border-subtle)] px-4 py-3 flex items-center justify-between">
+      <div className="bg-[var(--surface-elevated)] w-full max-w-lg max-h-[90vh] flex flex-col rounded-t-[var(--radius-lg)] sm:rounded-[var(--radius-lg)] shadow-[var(--shadow-elevated)]">
+        <div className="flex-shrink-0 bg-[var(--surface-elevated)] border-b border-[var(--border-subtle)] px-4 py-3 flex items-center justify-between">
           <h2 className="type-h1">
             {student ? 'Edit Student' : 'Add Student'}
           </h2>
@@ -528,7 +531,8 @@ function StudentModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {/* Photo Upload */}
           <div className="flex justify-center">
             <input
@@ -629,24 +633,59 @@ function StudentModal({
             </div>
           </div>
 
-          {/* Classes */}
+          {/* Classes — grouped by studio with day/time */}
           <div className="border-t border-[var(--border-subtle)] pt-4">
             <div className="type-caption mb-3">Enrolled Classes</div>
-            <div className="flex flex-wrap gap-2">
-              {classes.map(cls => (
-                <button
-                  key={cls.id}
-                  type="button"
-                  onClick={() => toggleClass(cls.id)}
-                  className={`px-3 py-1.5 rounded-[var(--radius-full)] text-sm font-medium transition-colors ${
-                    selectedClasses.includes(cls.id)
-                      ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)]'
-                      : 'bg-[var(--accent-muted)] text-[var(--accent-primary)]'
-                  }`}
-                >
-                  {cls.name}
-                </button>
-              ))}
+            <div className="space-y-3">
+              {(() => {
+                const studioMap = new Map<string, Studio>();
+                studios.forEach(s => studioMap.set(s.id, s));
+                const grouped = new Map<string, Class[]>();
+                classes.forEach(cls => {
+                  const key = cls.studioId || 'other';
+                  if (!grouped.has(key)) grouped.set(key, []);
+                  grouped.get(key)!.push(cls);
+                });
+                const dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+                const dayAbbr: Record<string, string> = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri', saturday: 'Sat', sunday: 'Sun' };
+                const formatTime = (t: string) => {
+                  const [h, m] = t.split(':').map(Number);
+                  const ampm = h >= 12 ? 'pm' : 'am';
+                  const hour = h > 12 ? h - 12 : h === 0 ? 12 : h;
+                  return `${hour}:${m.toString().padStart(2, '0')}${ampm}`;
+                };
+                return Array.from(grouped.entries()).map(([studioId, studioClasses]) => {
+                  const studio = studioMap.get(studioId);
+                  const sorted = studioClasses.sort((a, b) => dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day) || a.startTime.localeCompare(b.startTime));
+                  return (
+                    <div key={studioId}>
+                      <div className="flex items-center gap-2 mb-2">
+                        {studio?.color && <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: studio.color }} />}
+                        <span className="text-xs font-semibold text-[var(--text-secondary)]">{studio?.shortName || studio?.name || 'Other'}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {sorted.map(cls => (
+                          <button
+                            key={cls.id}
+                            type="button"
+                            onClick={() => toggleClass(cls.id)}
+                            className={`px-2.5 py-1.5 rounded-[var(--radius-md)] text-xs font-medium transition-colors text-left leading-tight ${
+                              selectedClasses.includes(cls.id)
+                                ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)]'
+                                : 'bg-[var(--accent-muted)] text-[var(--accent-primary)]'
+                            }`}
+                          >
+                            <span className="block">{cls.name}</span>
+                            <span className={`block text-[10px] mt-0.5 ${selectedClasses.includes(cls.id) ? 'opacity-80' : 'opacity-60'}`}>
+                              {dayAbbr[cls.day] || cls.day} {formatTime(cls.startTime)}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
 
@@ -661,9 +700,10 @@ function StudentModal({
               placeholder="Any notes about this student..."
             />
           </div>
+        </div>
 
-          {/* Submit */}
-          <div className="flex gap-3 pt-2">
+          {/* Submit — sticky at bottom, always visible on mobile */}
+          <div className="flex-shrink-0 border-t border-[var(--border-subtle)] bg-[var(--surface-elevated)] p-4 flex gap-3">
             <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
               Cancel
             </Button>

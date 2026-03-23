@@ -38,6 +38,7 @@ export function AICheckInWidget({ greeting, checkInType, onSubmit, onSkip, onDon
   const [aiResponse, setAiResponse] = useState('');
   const [adjustments, setAdjustments] = useState<string[]>([]);
   const [actionsApplied, setActionsApplied] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("Couldn't connect. Try again?");
   const lastSubmittedRef = useRef<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
   const autoDismissRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -82,6 +83,19 @@ export function AICheckInWidget({ greeting, checkInType, onSubmit, onSkip, onDon
       setState('response');
     } catch (err) {
       console.error('[AICheckInWidget] caught error, showing error state', err);
+      // Extract specific error for better messaging
+      let msg = "Couldn't connect. Try again?";
+      if (err && typeof err === 'object') {
+        const e = err as { code?: string; message?: string };
+        if (e.code === 'functions/unauthenticated' || e.message?.includes('unauthenticated')) {
+          msg = 'Sign in from Settings to use AI features.';
+        } else if (e.code === 'functions/resource-exhausted' || e.message?.includes('rate limit')) {
+          msg = 'Rate limited — try again in a moment.';
+        } else if (e.message?.includes('API key')) {
+          msg = 'AI key needs updating. Let Dixon know!';
+        }
+      }
+      setErrorMessage(msg);
       setState('error');
     }
   };
@@ -252,7 +266,7 @@ export function AICheckInWidget({ greeting, checkInType, onSubmit, onSkip, onDon
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-start gap-2">
               <AlertCircle size={16} className="text-[var(--status-danger)] flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-[var(--status-danger)]">Couldn't connect. Try again?</p>
+              <p className="text-sm text-[var(--status-danger)]">{errorMessage}</p>
             </div>
             <button onClick={handleDismiss} className="flex-shrink-0 p-1 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">
               <X size={14} />
