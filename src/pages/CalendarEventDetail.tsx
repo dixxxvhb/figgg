@@ -17,11 +17,44 @@ import { normalizeNoteCategory } from '../types';
 
 export function CalendarEventDetail() {
   const { eventId } = useParams<{ eventId: string }>();
-  const { data, getCurrentWeekNotes, saveWeekNotes, updateCalendarEvent, hideCalendarEvent } = useAppData();
+  const { data, getCurrentWeekNotes, saveWeekNotes, updateCalendarEvent, hideCalendarEvent, addClass } = useAppData();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const navigate = useNavigate();
 
   const event = data.calendarEvents?.find(e => e.id === eventId);
+
+  // Check if this calendar event matches an existing Figgg class (by name + day of week)
+  const DAY_NAMES: Record<number, import('../types').DayOfWeek> = {
+    0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday', 4: 'thursday', 5: 'friday', 6: 'saturday',
+  };
+  const eventDayOfWeek = event ? DAY_NAMES[new Date(event.date + 'T12:00:00').getDay()] : undefined;
+  const matchingClass = event && eventDayOfWeek
+    ? data.classes.find(c => c.name.toLowerCase() === event.title.toLowerCase() && c.day === eventDayOfWeek)
+    : undefined;
+
+  // Auto-create a class from this calendar event and navigate to its LiveNotes
+  const handleStartClassNotes = () => {
+    if (!event || !eventDayOfWeek) return;
+    if (matchingClass) {
+      navigate(`/class/${matchingClass.id}/notes`);
+      return;
+    }
+    // Derive studioId from location
+    const loc = (event.location || '').toLowerCase();
+    const studioId = loc.includes('lake alfred') ? 'ladc' : loc.includes('holiday inn') || loc.includes('seaworld') ? 'awh' : loc.includes('caa') || loc.includes('celebration') ? 'caa' : 'other';
+    const newClass = addClass({
+      name: event.title,
+      day: eventDayOfWeek,
+      startTime: event.startTime,
+      endTime: event.endTime,
+      studioId,
+      musicLinks: [],
+      isRecitalSong: false,
+      recitalSong: '',
+      choreographyNotes: '',
+    });
+    navigate(`/class/${newClass.id}/notes`);
+  };
 
   const [showRoster, setShowRoster] = useState(false);
   const [showLinkDances, setShowLinkDances] = useState(false);
@@ -404,13 +437,27 @@ export function CalendarEventDetail() {
         )}
       </div>
 
-      {/* Start Notes Button */}
-      <Link to={`/event/${event.id}/notes`} className="block mb-6">
-        <Button className="w-full" size="lg">
-          <Play size={18} className="mr-2" />
-          Start Event Notes
-        </Button>
-      </Link>
+      {/* Start Notes Button — if this event matches a class, go to class LiveNotes */}
+      {event.startTime && event.startTime !== '00:00' ? (
+        <div className="mb-6 space-y-2">
+          <Button className="w-full" size="lg" onClick={handleStartClassNotes}>
+            <Play size={18} className="mr-2" />
+            {matchingClass ? 'Start Class Notes' : 'Start Class Notes'}
+          </Button>
+          {!matchingClass && (
+            <p className="text-xs text-center text-[var(--text-tertiary)]">
+              Creates a class for {event.title} ({eventDayOfWeek}s) with full notes, attendance, and planning
+            </p>
+          )}
+        </div>
+      ) : (
+        <Link to={`/event/${event.id}/notes`} className="block mb-6">
+          <Button className="w-full" size="lg">
+            <Play size={18} className="mr-2" />
+            Start Event Notes
+          </Button>
+        </Link>
+      )}
 
       {/* Roster & Attendance Section */}
       <EventRoster

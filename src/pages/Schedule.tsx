@@ -100,20 +100,24 @@ export function Schedule() {
   const mergedSchedule = useMemo(() => {
     const items: ScheduleItem[] = [];
 
-    // Build a set of hardcoded class start times to deduplicate calendar events
+    // Build class lookup for deduplication (by time and name)
     const classTimeSet = new Set(
       dayClasses.map(cls => timeToMinutes(cls.startTime))
+    );
+    const classNameSet = new Set(
+      dayClasses.map(cls => cls.name.toLowerCase())
     );
 
     dayClasses.forEach(cls => {
       items.push({ type: 'class', data: cls, time: timeToMinutes(cls.startTime) });
     });
 
-    // Only add calendar events that don't overlap with a hardcoded class (within 10 min)
+    // Only add calendar events that don't overlap with a class (by time within 10 min OR matching name)
     calendarEventsForDay.forEach(event => {
       const eventTime = timeToMinutes(event.startTime || '00:00');
-      const isDuplicate = Array.from(classTimeSet).some(ct => Math.abs(ct - eventTime) <= 10);
-      if (!isDuplicate) {
+      const isDuplicateByTime = Array.from(classTimeSet).some(ct => Math.abs(ct - eventTime) <= 10);
+      const isDuplicateByName = classNameSet.has(event.title.toLowerCase());
+      if (!isDuplicateByTime && !isDuplicateByName) {
         items.push({ type: 'event', data: event, time: eventTime });
       }
     });
