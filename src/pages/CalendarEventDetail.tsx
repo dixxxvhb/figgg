@@ -32,6 +32,20 @@ export function CalendarEventDetail() {
     ? data.classes.find(c => c.name.toLowerCase() === event.title.toLowerCase() && c.day === eventDayOfWeek)
     : undefined;
 
+  // Determine if this event looks like a teaching class (vs a flight, therapy, etc.)
+  // A class either already matches a Figgg class, OR it recurs on the same title multiple times in the calendar
+  const isLikelyClass = (() => {
+    if (matchingClass) return true;
+    if (!event) return false;
+    const title = event.title.toLowerCase();
+    // Exclude obvious non-class events
+    const nonClassPatterns = /flight|therapy|doctor|dentist|appointment|meeting|lunch|dinner|travel|pickup|drop.?off|rehearsal|recital|competition|show|performance|audition/i;
+    if (nonClassPatterns.test(event.title)) return false;
+    // Check if the same title appears more than once in calendar (recurring = likely a class)
+    const sameTitle = (data.calendarEvents || []).filter(e => e.title.toLowerCase() === title);
+    return sameTitle.length >= 2;
+  })();
+
   // Auto-create a class from this calendar event and navigate to its LiveNotes
   const handleStartClassNotes = () => {
     if (!event || !eventDayOfWeek) return;
@@ -437,12 +451,12 @@ export function CalendarEventDetail() {
         )}
       </div>
 
-      {/* Start Notes Button — if this event matches a class, go to class LiveNotes */}
-      {event.startTime && event.startTime !== '00:00' ? (
+      {/* Start Notes Button — class-like events get class features, others get simple event notes */}
+      {isLikelyClass ? (
         <div className="mb-6 space-y-2">
           <Button className="w-full" size="lg" onClick={handleStartClassNotes}>
             <Play size={18} className="mr-2" />
-            {matchingClass ? 'Start Class Notes' : 'Start Class Notes'}
+            Start Class Notes
           </Button>
           {!matchingClass && (
             <p className="text-xs text-center text-[var(--text-tertiary)]">
