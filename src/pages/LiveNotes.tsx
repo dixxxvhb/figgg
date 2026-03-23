@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, X, FileText, Users, UserCheck, UserX, Clock3, ChevronDown, ChevronUp, ClipboardList, Pencil, BookOpen, Wand2, Loader2, Check, Trash2, StickyNote } from 'lucide-react';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, X, FileText, Users, UserCheck, UserX, UserPlus, Clock3, ChevronDown, ChevronUp, ClipboardList, Pencil, BookOpen, Wand2, Loader2, Check, Trash2, StickyNote } from 'lucide-react';
 import { format, addWeeks, addDays } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
 import { PlanDisplay } from '../components/common/PlanDisplay';
@@ -51,7 +51,9 @@ const SHORT_CATEGORY_LABELS: Record<string, string> = {
 export function LiveNotes() {
   const { classId } = useParams<{ classId: string }>();
   const navigate = useNavigate();
-  const { data, getCurrentWeekNotes, saveWeekNotes, getWeekNotes, updateSelfCare, updateStudent } = useAppData();
+  const [searchParams] = useSearchParams();
+  const weekOffset = parseInt(searchParams.get('week') || '0', 10);
+  const { data, getCurrentWeekNotes, saveWeekNotes, getWeekNotes, updateSelfCare, updateStudent, addStudent } = useAppData();
   const inputWrapperRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
@@ -71,11 +73,12 @@ export function LiveNotes() {
   const cls = data.classes.find(c => c.id === classId);
   const studio = cls ? data.studios.find(s => s.id === cls.studioId) : null;
 
-  // Compute class date for the current week
+  // Compute class date for the viewed week (respects ?week= param)
   const DAY_OFFSETS: Record<string, number> = {
     monday: 0, tuesday: 1, wednesday: 2, thursday: 3, friday: 4, saturday: 5, sunday: 6,
   };
-  const classDate = cls ? addDays(getWeekStart(), DAY_OFFSETS[cls.day] ?? 0) : new Date();
+  const viewingWeekStart = addWeeks(getWeekStart(), weekOffset);
+  const classDate = cls ? addDays(viewingWeekStart, DAY_OFFSETS[cls.day] ?? 0) : new Date();
   const classDateLabel = cls ? format(classDate, 'EEE, MMM d') : '';
 
   // Get enrolled students for this class (computed after classNotes/attendance below)
@@ -85,11 +88,18 @@ export function LiveNotes() {
   const [selectedTag, setSelectedTag] = useState<string | undefined>();
   const [suggestions, setSuggestions] = useState<TerminologyEntry[]>([]);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
-  const [weekNotes, setWeekNotes] = useState(() => getCurrentWeekNotes());
+  const [weekNotes, setWeekNotes] = useState(() => {
+    if (weekOffset === 0) return getCurrentWeekNotes();
+    const weekOf = formatWeekOf(viewingWeekStart);
+    const existing = getWeekNotes(weekOf);
+    if (existing) return existing;
+    return { id: uuid(), weekOf, classNotes: {} };
+  });
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   // Auto-expand attendance if students exist but none are marked yet
   const [showAttendance, setShowAttendance] = useState(() => {
-    const notes = getCurrentWeekNotes().classNotes[classId || ''];
+    const wn = weekOffset === 0 ? getCurrentWeekNotes() : (getWeekNotes(formatWeekOf(viewingWeekStart)) || { classNotes: {} as Record<string, ClassWeekNotes> });
+    const notes = wn.classNotes[classId || ''];
     const att = notes?.attendance;
     const hasMarked = att && (att.present.length > 0 || att.absent.length > 0 || att.late.length > 0);
     const hasStudents = (data.students || []).some(s => s.classIds?.includes(classId || ''));
@@ -100,6 +110,8 @@ export function LiveNotes() {
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [isEndingClass, setIsEndingClass] = useState(false);
+  const [showQuickAddStudent, setShowQuickAddStudent] = useState(false);
+  const [quickAddName, setQuickAddName] = useState('');
   const endClassLockRef = useRef(false);
   const [alreadySaved, setAlreadySaved] = useState(() => {
     // Check if this class was already ended/saved this week
@@ -118,7 +130,13 @@ export function LiveNotes() {
 
   // Sync weekNotes when data changes (e.g., from cloud sync)
   useEffect(() => {
-    setWeekNotes(getCurrentWeekNotes());
+    if (weekOffset === 0) {
+      setWeekNotes(getCurrentWeekNotes());
+    } else {
+      const weekOf = formatWeekOf(viewingWeekStart);
+      const existing = getWeekNotes(weekOf);
+      if (existing) setWeekNotes(existing);
+    }
   }, [data.weekNotes]);
 
   // Get or create class notes for this week
@@ -812,10 +830,10 @@ export function LiveNotes() {
       });
     }
 
-    // Force immediate cloud save before navigation
-
     setAlreadySaved(true);
-    navigate('/schedule');
+    setShowSavedNotes(true);
+    setIsEndingClass(false);
+    endClassLockRef.current = false;
   };
 
   const clearAllNotes = async () => {
@@ -1290,6 +1308,62 @@ export function LiveNotes() {
                     );
                   })}
                 </div>
+
+                {/* Quick-add student */}
+                <div className="p-2 border-t border-forest-100 dark:border-blush-700">
+                  {showQuickAddStudent ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        autoFocus
+                        value={quickAddName}
+                        onChange={(e) => setQuickAddName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && quickAddName.trim()) {
+                            const newStudent = addStudent({ name: quickAddName.trim(), classIds: [classId || ''], parentName: '', parentEmail: '', parentPhone: '', notes: '' });
+                            markAttendance(newStudent.id, 'present');
+                            setQuickAddName('');
+                            setShowQuickAddStudent(false);
+                          }
+                          if (e.key === 'Escape') {
+                            setQuickAddName('');
+                            setShowQuickAddStudent(false);
+                          }
+                        }}
+                        placeholder="Student name..."
+                        className="flex-1 text-sm px-3 py-2 bg-[var(--surface-inset)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-tertiary)]"
+                      />
+                      <button
+                        onClick={() => {
+                          if (quickAddName.trim()) {
+                            const newStudent = addStudent({ name: quickAddName.trim(), classIds: [classId || ''], parentName: '', parentEmail: '', parentPhone: '', notes: '' });
+                            markAttendance(newStudent.id, 'present');
+                            setQuickAddName('');
+                            setShowQuickAddStudent(false);
+                          }
+                        }}
+                        disabled={!quickAddName.trim()}
+                        className="p-2 rounded-lg bg-[var(--accent-primary)] text-[var(--text-on-accent)] disabled:opacity-40"
+                      >
+                        <Check size={16} />
+                      </button>
+                      <button
+                        onClick={() => { setQuickAddName(''); setShowQuickAddStudent(false); }}
+                        className="p-2 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--surface-inset)]"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowQuickAddStudent(true)}
+                      className="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium text-[var(--accent-primary)] hover:bg-[var(--accent-muted)] rounded-lg transition-colors"
+                    >
+                      <UserPlus size={16} />
+                      Add Student
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -1443,13 +1517,18 @@ export function LiveNotes() {
         {!alreadySaved && (
           <div className="mt-3 flex items-center gap-2 px-1">
             <span className="text-xs text-blue-500 dark:text-blue-400 whitespace-nowrap font-medium">Next week goal:</span>
-            <input
-              type="text"
-              value={classNotes.nextWeekGoal || ''}
-              onChange={(e) => saveNextWeekGoal(e.target.value)}
-              placeholder="What's the focus for next week?"
-              className="flex-1 text-sm px-3 py-1.5 bg-blush-50 dark:bg-blush-700 border border-blue-200 dark:border-blue-700 rounded-lg text-forest-700 dark:text-blush-200 placeholder-blush-400 dark:placeholder-blush-500 focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-            />
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={classNotes.nextWeekGoal || ''}
+                onChange={(e) => saveNextWeekGoal(e.target.value)}
+                placeholder="What's the focus for next week?"
+                className="w-full text-sm px-3 py-1.5 pr-8 bg-blush-50 dark:bg-blush-700 border border-blue-200 dark:border-blue-700 rounded-lg text-forest-700 dark:text-blush-200 placeholder-blush-400 dark:placeholder-blush-500 focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+              />
+              {classNotes.nextWeekGoal && (
+                <Check size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--status-success)]" />
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -1582,9 +1661,17 @@ export function LiveNotes() {
 
           {/* End Class Button */}
           {alreadySaved ? (
-            <div className="w-full mt-3 py-3 text-forest-500 font-medium flex items-center justify-center gap-2 bg-forest-50 dark:bg-forest-900/20 rounded-xl">
-              <CheckCircle size={18} />
-              Class already saved — notes sent to next week's plan
+            <div className="w-full mt-3 space-y-2">
+              <div className="py-3 text-[var(--status-success)] font-medium flex items-center justify-center gap-2 bg-[color-mix(in_srgb,var(--status-success)_10%,transparent)] rounded-xl">
+                <CheckCircle size={18} />
+                Class saved — AI is generating next week's plan
+              </div>
+              <button
+                onClick={() => navigate('/schedule')}
+                className="w-full py-3 rounded-xl border border-[var(--border-subtle)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] transition-colors"
+              >
+                Back to Schedule
+              </button>
             </div>
           ) : (
             <button

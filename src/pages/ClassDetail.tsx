@@ -740,7 +740,7 @@ export function ClassDetail() {
             <CheckCircle size={18} />
             <span className="font-medium">Class Notes Saved</span>
           </div>
-          <Link to={`/class/${cls.id}/notes`} className="block">
+          <Link to={`/class/${cls.id}/notes${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`} className="block">
             <Button variant="secondary" className="w-full" size="sm">
               <BookOpen size={16} className="mr-2" />
               Review / Add More Notes
@@ -748,7 +748,7 @@ export function ClassDetail() {
           </Link>
         </div>
       ) : (
-        <Link to={`/class/${cls.id}/notes`} className="block mb-4">
+        <Link to={`/class/${cls.id}/notes${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`} className="block mb-4">
           <Button className="w-full" size="lg">
             <Play size={18} className="mr-2" />
             {classNotes?.liveNotes?.length ? 'Continue Class Notes' : 'Start Class Notes'}

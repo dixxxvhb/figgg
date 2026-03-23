@@ -14,6 +14,7 @@ import {
   MessageSquare,
   Pencil,
   Check,
+  Loader2,
 } from 'lucide-react';
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
@@ -953,15 +954,35 @@ export function Dashboard() {
           );
         })()}
 
-        {/* ── Day Plan Widget — hide when all items done ── */}
-        {todayPlan && todayPlan.items.some(i => !i.completed) && (
+        {/* ── Day Plan Widget ── */}
+        {todayPlan && todayPlan.items.some(i => !i.completed) ? (
           <DayPlanWidget
             plan={todayPlan}
             onToggleItem={handleTogglePlanItem}
             onReplan={() => generateDayPlan()}
             isReplanning={isReplanning}
           />
-        )}
+        ) : !todayPlan ? (
+          <div className="bg-[var(--surface-card)] rounded-2xl border border-[var(--border-subtle)] p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="type-h3 text-[var(--text-primary)]">Today's Plan</h3>
+                <p className="type-caption text-[var(--text-secondary)] mt-0.5">AI-powered schedule based on your day</p>
+              </div>
+              <button
+                onClick={() => generateDayPlan()}
+                disabled={isReplanning}
+                className="px-4 py-2 bg-[var(--accent-primary)] text-[var(--text-on-accent)] rounded-xl text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
+              >
+                {isReplanning ? (
+                  <><Loader2 size={14} className="animate-spin" /> Generating...</>
+                ) : (
+                  'Generate Plan'
+                )}
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {/* ── Reorderable Widgets ── */}
         <DndContext

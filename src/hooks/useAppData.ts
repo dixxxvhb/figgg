@@ -253,6 +253,23 @@ export function useAppData() {
         snapshotUpdateRef.current++;
         setData(prev => ({ ...prev, competitionDances }));
       }));
+
+      listenerUnsubs.push(onStudiosSnapshot(user.uid, (studios) => {
+        if (studios.length > 0) {
+          snapshotUpdateRef.current++;
+          setData(prev => ({ ...prev, studios }));
+        }
+      }));
+
+      listenerUnsubs.push(onCalendarEventsSnapshot(user.uid, (calendarEvents) => {
+        snapshotUpdateRef.current++;
+        setData(prev => ({ ...prev, calendarEvents }));
+      }));
+
+      listenerUnsubs.push(onChoreographiesSnapshot(user.uid, (choreographies) => {
+        snapshotUpdateRef.current++;
+        setData(prev => ({ ...prev, choreographies }));
+      }));
     });
 
     return () => {

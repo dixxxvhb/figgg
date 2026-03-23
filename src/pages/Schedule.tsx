@@ -191,6 +191,13 @@ export function Schedule() {
         >
           Week Review
         </Link>
+        <Link
+          to="/students"
+          className="px-4 py-2 bg-[var(--surface-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)] rounded-full text-sm font-medium hover:text-[var(--text-primary)] transition-colors shadow-sm min-h-[44px] flex items-center gap-1.5"
+        >
+          <Users size={14} />
+          Students
+        </Link>
       </div>
 
       {/* Day Tabs */}
