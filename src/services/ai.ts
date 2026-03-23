@@ -275,3 +275,8 @@ export async function callAIChat(
   const result = await fn(request);
   return result.data as AIChatResponse;
 }
+
+export async function regenerateBriefing(): Promise<void> {
+  const fn = httpsCallable<void, { success: boolean }>(requireFunctions(), 'triggerDailyBriefing');
+  await fn();
+}

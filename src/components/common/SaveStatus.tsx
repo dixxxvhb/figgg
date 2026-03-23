@@ -29,9 +29,17 @@ export function SaveStatus() {
     };
     window.addEventListener('calendar-sync-failed', handleCalendarFailed);
 
+    const handleSyncWarning = (e: Event) => {
+      setStatus('warning');
+      setMessage((e as CustomEvent).detail || 'Cloud sync issues');
+      setVisible(true);
+    };
+    window.addEventListener('figgg-sync-warning', handleSyncWarning);
+
     return () => {
       unsubscribe();
       window.removeEventListener('calendar-sync-failed', handleCalendarFailed);
+      window.removeEventListener('figgg-sync-warning', handleSyncWarning);
     };
   }, []);
 

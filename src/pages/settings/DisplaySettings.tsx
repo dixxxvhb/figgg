@@ -11,6 +11,43 @@ const THEME_GROUPS: { label: string; ids: string[] }[] = [
   { label: 'Bold', ids: ['crimson', 'noir', 'candy', 'vapor'] },
 ];
 
+function SafariButton() {
+  const [copied, setCopied] = useState(false);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
+
+  return (
+    <>
+      <button
+        onClick={() => {
+          const url = `${window.location.origin}?reinstall=1`;
+          if (isStandalone) {
+            navigator.clipboard.writeText(url).then(() => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 8000);
+            }).catch(() => {
+              window.open(url, '_blank');
+            });
+          } else {
+            window.open(url, '_blank', 'noopener,noreferrer');
+          }
+        }}
+        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold"
+      >
+        {copied ? (
+          <><Check size={16} /> Link Copied</>
+        ) : (
+          <><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> {isStandalone ? 'Copy Link for Safari' : 'Open in Safari'}</>
+        )}
+      </button>
+      {copied && (
+        <p className="text-xs text-[var(--accent-primary)] mt-2 font-medium">
+          Open Safari, paste the link, then tap Share &gt; Add to Home Screen
+        </p>
+      )}
+    </>
+  );
+}
+
 function IconPreview({ iconId, size, selected }: { iconId: string; size: number; selected: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -311,28 +348,7 @@ export function DisplaySettings() {
                 <div className="flex-1">
                   <p className="text-sm font-medium text-[var(--text-primary)]">Re-add with new icon</p>
                   <p className="text-xs text-[var(--text-secondary)] mb-2">Opens Safari — tap the Share button, then "Add to Home Screen"</p>
-                  <button
-                    onClick={() => {
-                      const url = `${window.location.origin}?reinstall=1`;
-                      // In standalone PWA, target="_blank" doesn't escape to Safari.
-                      // Copy the URL and instruct user to paste in Safari instead.
-                      if (window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone) {
-                        navigator.clipboard.writeText(url).then(() => {
-                          alert('Link copied! Open Safari and paste it in the address bar, then tap Share > Add to Home Screen.');
-                        }).catch(() => {
-                          // Fallback: try window.open which works on some iOS versions
-                          window.open(url, '_blank');
-                        });
-                      } else {
-                        // Not in standalone mode (regular browser) — just open normally
-                        window.open(url, '_blank', 'noopener,noreferrer');
-                      }
-                    }}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-semibold"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                    Open in Safari
-                  </button>
+                  <SafariButton />
                 </div>
               </div>
             </div>

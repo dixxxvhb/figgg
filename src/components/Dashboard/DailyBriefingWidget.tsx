@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import {
   FileText, ChevronDown, ChevronUp, Calendar, Heart, AlertTriangle,
-  Clock, Mail, MessageCircle, FolderGit2, StickyNote, Circle, Plus, Check
+  Clock, Mail, MessageCircle, FolderGit2, StickyNote, Circle, Plus, Check, RefreshCw, Loader2
 } from 'lucide-react';
 import type { DailyBriefing, Reminder, CalendarEvent } from '../../types';
+import { regenerateBriefing } from '../../services/ai';
 
 const COLLAPSE_STORAGE_KEY = 'figgg-briefing-collapsed';
 
@@ -37,6 +38,8 @@ export function DailyBriefingWidget({ briefing, onCreateTask, calendarEvents = [
   const [collapsed, setCollapsed] = useState(getInitialCollapsed);
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [addedItems, setAddedItems] = useState<Set<string>>(new Set());
+  const [regenerating, setRegenerating] = useState(false);
+  const [regenError, setRegenError] = useState<string | null>(null);
 
   if (!briefing) return null;
 
@@ -114,7 +117,33 @@ export function DailyBriefingWidget({ briefing, onCreateTask, calendarEvents = [
             <span className="type-caption text-[var(--text-tertiary)]">{dateDisplay} · {generatedTime}</span>
           </div>
         </div>
-        <div className="flex items-center shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (regenerating) return;
+              setRegenerating(true);
+              setRegenError(null);
+              regenerateBriefing()
+                .then(() => setRegenerating(false))
+                .catch((err) => {
+                  setRegenerating(false);
+                  setRegenError(err?.message || 'Failed to regenerate');
+                  setTimeout(() => setRegenError(null), 5000);
+                });
+            }}
+            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLElement).click(); }}
+            className="p-1.5 rounded-lg hover:bg-[var(--surface-secondary)] transition-colors"
+            title="Regenerate briefing"
+          >
+            {regenerating ? (
+              <Loader2 size={14} className="text-[var(--accent-primary)] animate-spin" />
+            ) : (
+              <RefreshCw size={14} className="text-[var(--text-tertiary)]" />
+            )}
+          </span>
           {collapsed ? (
             <ChevronDown size={14} className="text-[var(--text-tertiary)]" />
           ) : (
@@ -122,6 +151,9 @@ export function DailyBriefingWidget({ briefing, onCreateTask, calendarEvents = [
           )}
         </div>
       </button>
+      {regenError && (
+        <p className="px-4 py-1 text-xs text-red-600 bg-red-50">{regenError}</p>
+      )}
 
       {/* Animated wrapper for entire briefing body */}
       <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${collapsed ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>
