@@ -25,6 +25,9 @@ const DEFAULT_CALENDAR_URLS: string[] = (import.meta.env.VITE_CALENDAR_URLS || '
   .map((u: string) => u.trim())
   .filter(Boolean);
 
+// Prevent concurrent sync calls from writing conflicting data
+let syncInProgress = false;
+
 // Sync all calendar URLs and write directly to Firestore as individual docs.
 // The onCalendarEventsSnapshot listener in useAppData picks up changes automatically.
 async function syncAllCalendars(force = false): Promise<string[]> {
@@ -32,9 +35,13 @@ async function syncAllCalendars(force = false): Promise<string[]> {
   const uid = auth?.currentUser?.uid;
   if (!uid) return results;
 
+  // Skip if another sync is already running
+  if (syncInProgress) return results;
+
   // Cooldown: skip if synced recently (unless forced)
   const now = Date.now();
   if (!force && now - lastCalendarSyncTime < CALENDAR_SYNC_COOLDOWN) return results;
+  syncInProgress = true;
   lastCalendarSyncTime = now;
 
   const data = loadData();
@@ -92,6 +99,7 @@ async function syncAllCalendars(force = false): Promise<string[]> {
   const newFeedEvents = [...taggedIcsEvents, ...googleCalEvents];
 
   if (newFeedEvents.length === 0 && icsResults.every(r => r.length === 0) && googleEvents.length === 0) {
+    syncInProgress = false;
     if (urls.size > 0) {
       console.warn('Calendar sync: no events from any source');
       window.dispatchEvent(new CustomEvent('calendar-sync-failed'));
@@ -173,6 +181,8 @@ async function syncAllCalendars(force = false): Promise<string[]> {
   } catch (e) {
     console.error('Calendar Firestore write failed:', e);
     window.dispatchEvent(new CustomEvent('calendar-sync-failed'));
+  } finally {
+    syncInProgress = false;
   }
 
   return results;
