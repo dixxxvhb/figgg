@@ -245,6 +245,15 @@ export function saveWeekNotes(weekNotes: WeekNotes): void {
   saveEvents.emit('saving');
 }
 
+// Save calendar events to localStorage only (Firestore sync handled by SyncContext batch writes)
+export function saveCalendarEventsToStorage(events: import('../types').CalendarEvent[]): void {
+  const data = loadData();
+  data.calendarEvents = events;
+  saveDataLocalOnly(data);
+  saveEvents.emit('saving');
+  window.dispatchEvent(new CustomEvent('local-data-saved'));
+}
+
 export function updateSettings(settings: Partial<AppSettings>): void {
   const data = loadData();
   data.settings = { ...data.settings, ...settings };
