@@ -209,16 +209,16 @@ export function WeekPlanner() {
       <div className="flex items-center justify-between mb-4">
         <button
           onClick={() => setWeekOffset(w => w - 1)}
-          className="p-2 hover:bg-blush-100 dark:hover:bg-blush-800 active:bg-blush-200 dark:active:bg-blush-700 rounded-lg text-forest-700 dark:text-white min-h-[44px] min-w-[44px] flex items-center justify-center"
+          className="p-2 hover:bg-[var(--accent-muted)] active:bg-[var(--surface-inset)] rounded-lg text-[var(--text-primary)] min-h-[44px] min-w-[44px] flex items-center justify-center"
         >
           <ChevronLeft size={20} />
         </button>
         <div className="text-center">
-          <div className="font-semibold text-forest-900 dark:text-white">{weekLabel}</div>
+          <div className="font-semibold text-[var(--text-primary)]">{weekLabel}</div>
         </div>
         <button
           onClick={() => setWeekOffset(w => w + 1)}
-          className="p-2 hover:bg-blush-100 dark:hover:bg-blush-800 active:bg-blush-200 dark:active:bg-blush-700 rounded-lg text-forest-700 dark:text-white min-h-[44px] min-w-[44px] flex items-center justify-center"
+          className="p-2 hover:bg-[var(--accent-muted)] active:bg-[var(--surface-inset)] rounded-lg text-[var(--text-primary)] min-h-[44px] min-w-[44px] flex items-center justify-center"
         >
           <ChevronRight size={20} />
         </button>
@@ -228,7 +228,7 @@ export function WeekPlanner() {
       <div className="flex justify-center mb-6">
         <button
           onClick={() => setWeekOffset(0)}
-          className="px-4 py-2 bg-forest-600 text-white rounded-full text-sm font-medium hover:bg-forest-700 active:scale-[0.98] transition-colors shadow-sm"
+          className="px-4 py-2 bg-[var(--accent-primary)] text-[var(--text-on-accent)] rounded-full text-sm font-medium hover:opacity-90 active:scale-[0.98] transition-colors shadow-sm"
         >
           Today
         </button>
@@ -254,8 +254,8 @@ export function WeekPlanner() {
 
       {/* Last Week Reference */}
       {showLastWeek && lastWeekNotes && (
-        <div className="bg-blush-50 dark:bg-blush-800 rounded-xl p-4 mb-6">
-          <div className="text-sm font-medium text-blush-500 dark:text-blush-400 mb-3">{lastWeekLabel}</div>
+        <div className="bg-[var(--surface-inset)] rounded-xl p-4 mb-6">
+          <div className="text-sm font-medium text-[var(--text-secondary)] mb-3">{lastWeekLabel}</div>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {Object.entries(lastWeekNotes.classNotes).map(([itemId, notes]) => {
               if (!notes.plan) return null;
@@ -265,8 +265,8 @@ export function WeekPlanner() {
               if (!label) return null;
               return (
                 <div key={itemId} className="text-sm">
-                  <span className="font-medium text-forest-700 dark:text-white">{label}:</span>{' '}
-                  <span className="text-blush-600 dark:text-blush-300">{notes.plan}</span>
+                  <span className="font-medium text-[var(--text-primary)]">{label}:</span>{' '}
+                  <span className="text-[var(--text-secondary)]">{notes.plan}</span>
                 </div>
               );
             })}
@@ -295,7 +295,7 @@ export function WeekPlanner() {
 
           return (
             <div key={day}>
-              <h3 className="font-semibold text-forest-900 dark:text-white mb-3">{dayLabel}</h3>
+              <h3 className="font-semibold text-[var(--text-primary)] mb-3">{dayLabel}</h3>
               <div className="space-y-3">
                 {/* Scheduled Classes */}
                 {classes.map(cls => {
@@ -306,7 +306,7 @@ export function WeekPlanner() {
                   return (
                     <div
                       key={cls.id}
-                      className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 overflow-hidden"
+                      className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] overflow-hidden"
                     >
                       <div
                         className="px-4 py-3 flex items-center gap-3"
@@ -315,11 +315,11 @@ export function WeekPlanner() {
                         <div className="flex-1 min-w-0">
                           <Link
                             to={`/class/${cls.id}`}
-                            className="font-medium text-forest-900 dark:text-white hover:text-forest-600 dark:hover:text-forest-400"
+                            className="font-medium text-[var(--text-primary)] hover:text-[var(--accent-primary)]"
                           >
                             {cls.name}
                           </Link>
-                          <div className="text-sm text-blush-500 dark:text-blush-400">
+                          <div className="text-sm text-[var(--text-secondary)]">
                             {formatTimeDisplay(cls.startTime)} · {studio?.shortName}
                           </div>
                         </div>
@@ -328,9 +328,9 @@ export function WeekPlanner() {
                         )}
                       </div>
 
-                      <div className="px-4 py-3 bg-blush-50 dark:bg-blush-900/50">
+                      <div className="px-4 py-3 bg-[var(--surface-inset)]">
                         {showLastWeek && lastWeekClassNotes?.plan && (
-                          <div className="text-sm text-blush-500 dark:text-blush-400 mb-2">
+                          <div className="text-sm text-[var(--text-secondary)] mb-2">
                             <span className="font-medium">Last week:</span> {lastWeekClassNotes.plan}
                           </div>
                         )}
@@ -339,10 +339,10 @@ export function WeekPlanner() {
                           onChange={(e) => updatePlan(cls.id, e.target.value)}
                           placeholder="Plan for this class..."
                           rows={2}
-                          className="w-full px-3 py-2 text-sm border border-blush-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent resize-none bg-white dark:bg-blush-800 text-forest-700 dark:text-white placeholder-blush-400"
+                          className="w-full px-3 py-2 text-sm border border-[var(--border-subtle)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent resize-none bg-[var(--surface-card)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)]"
                         />
                         <div className="flex items-center justify-between mt-1.5">
-                          <div className="text-xs text-forest-600 dark:text-forest-400">
+                          <div className="text-xs text-[var(--accent-primary)]">
                             {classNotes?.liveNotes && classNotes.liveNotes.length > 0
                               ? `${classNotes.liveNotes.length} note${classNotes.liveNotes.length !== 1 ? 's' : ''} from class`
                               : ''}
@@ -350,7 +350,7 @@ export function WeekPlanner() {
                           <button
                             onClick={() => handleAIPlan(cls.id)}
                             disabled={generatingId === cls.id}
-                            className="flex items-center gap-1 px-2 py-1 text-[11px] text-forest-500 dark:text-forest-400 hover:bg-forest-50 dark:hover:bg-forest-900/30 rounded-md transition-colors disabled:opacity-50"
+                            className="flex items-center gap-1 px-2 py-1 text-[11px] text-[var(--accent-primary)] hover:bg-[var(--accent-muted)] rounded-md transition-colors disabled:opacity-50"
                           >
                             {generatingId === cls.id ? (
                               <Loader2 size={12} className="animate-spin" />
@@ -379,17 +379,17 @@ export function WeekPlanner() {
                   return (
                     <div
                       key={event.id}
-                      className="bg-white dark:bg-blush-800 rounded-xl border border-amber-200 dark:border-amber-800 overflow-hidden"
+                      className="bg-[var(--surface-card)] rounded-xl border border-amber-200 dark:border-amber-800 overflow-hidden"
                     >
                       <div className="px-4 py-3 flex items-center gap-3 border-l-4 border-amber-400">
                         <div className="flex-1 min-w-0">
                           <Link
                             to={`/event/${event.id}`}
-                            className="font-medium text-forest-900 dark:text-white hover:text-forest-600 dark:hover:text-forest-400"
+                            className="font-medium text-[var(--text-primary)] hover:text-[var(--accent-primary)]"
                           >
                             {event.title}
                           </Link>
-                          <div className="text-sm text-blush-500 dark:text-blush-400 flex items-center gap-1">
+                          <div className="text-sm text-[var(--text-secondary)] flex items-center gap-1">
                             <Calendar size={12} />
                             {event.startTime && event.startTime !== '00:00'
                               ? formatTimeDisplay(event.startTime)
@@ -398,9 +398,9 @@ export function WeekPlanner() {
                         </div>
                       </div>
 
-                      <div className="px-4 py-3 bg-blush-50 dark:bg-blush-900/50">
+                      <div className="px-4 py-3 bg-[var(--surface-inset)]">
                         {showLastWeek && lastWeekEventNotes?.plan && (
-                          <div className="text-sm text-blush-500 dark:text-blush-400 mb-2">
+                          <div className="text-sm text-[var(--text-secondary)] mb-2">
                             <span className="font-medium">Last session:</span> {lastWeekEventNotes.plan}
                           </div>
                         )}
@@ -409,7 +409,7 @@ export function WeekPlanner() {
                           onChange={(e) => updatePlan(event.id, e.target.value, event.title)}
                           placeholder="Plan / prep notes for this event..."
                           rows={2}
-                          className="w-full px-3 py-2 text-sm border border-amber-200 dark:border-amber-700 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none bg-white dark:bg-blush-800 text-forest-700 dark:text-white placeholder-blush-400"
+                          className="w-full px-3 py-2 text-sm border border-amber-200 dark:border-amber-700 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent resize-none bg-[var(--surface-card)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)]"
                         />
                         {eventNotes?.liveNotes && eventNotes.liveNotes.length > 0 && (
                           <div className="mt-2 text-xs text-amber-600 dark:text-amber-400">
@@ -432,44 +432,44 @@ export function WeekPlanner() {
       {weekOffset <= 0 && (
         <div className="mt-8">
           <div className="flex items-center gap-2 mb-3">
-            <MessageSquare size={16} className="text-forest-500" />
-            <h3 className="font-semibold text-forest-900 dark:text-white">Week Reflection</h3>
+            <MessageSquare size={16} className="text-[var(--accent-primary)]" />
+            <h3 className="font-semibold text-[var(--text-primary)]">Week Reflection</h3>
           </div>
-          <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4 space-y-4">
+          <div className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 space-y-4">
             <div>
-              <label className="text-xs font-medium text-blush-500 dark:text-blush-400 mb-1 block">What went well?</label>
+              <label className="text-xs font-medium text-[var(--text-secondary)] mb-1 block">What went well?</label>
               <textarea
                 value={currentWeekNotes.reflection?.wentWell || ''}
                 onChange={e => updateReflection('wentWell', e.target.value)}
                 placeholder="Wins, breakthroughs, good moments..."
                 rows={2}
-                className="w-full px-3 py-2 text-sm border border-blush-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent resize-none bg-blush-50 dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400"
+                className="w-full px-3 py-2 text-sm border border-[var(--border-subtle)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent resize-none bg-[var(--surface-inset)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)]"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-blush-500 dark:text-blush-400 mb-1 block">What was challenging?</label>
+              <label className="text-xs font-medium text-[var(--text-secondary)] mb-1 block">What was challenging?</label>
               <textarea
                 value={currentWeekNotes.reflection?.challenges || ''}
                 onChange={e => updateReflection('challenges', e.target.value)}
                 placeholder="Hard moments, things that didn't go as planned..."
                 rows={2}
-                className="w-full px-3 py-2 text-sm border border-blush-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent resize-none bg-blush-50 dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400"
+                className="w-full px-3 py-2 text-sm border border-[var(--border-subtle)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent resize-none bg-[var(--surface-inset)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)]"
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-blush-500 dark:text-blush-400 mb-1 block">Focus for next week</label>
+              <label className="text-xs font-medium text-[var(--text-secondary)] mb-1 block">Focus for next week</label>
               <textarea
                 value={currentWeekNotes.reflection?.nextWeekFocus || ''}
                 onChange={e => updateReflection('nextWeekFocus', e.target.value)}
                 placeholder="What to carry forward, adjust, or try..."
                 rows={2}
-                className="w-full px-3 py-2 text-sm border border-blush-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent resize-none bg-blush-50 dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400"
+                className="w-full px-3 py-2 text-sm border border-[var(--border-subtle)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent resize-none bg-[var(--surface-inset)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)]"
               />
             </div>
             {currentWeekNotes.reflection?.aiSummary && (
-              <div className="pt-2 border-t border-blush-100 dark:border-blush-700">
-                <p className="text-xs font-medium text-forest-500 dark:text-forest-400 mb-1">AI Summary</p>
-                <p className="text-sm text-forest-700 dark:text-blush-200 leading-relaxed">{currentWeekNotes.reflection.aiSummary}</p>
+              <div className="pt-2 border-t border-[var(--border-subtle)]">
+                <p className="text-xs font-medium text-[var(--accent-primary)] mb-1">AI Summary</p>
+                <p className="text-sm text-[var(--text-primary)] leading-relaxed">{currentWeekNotes.reflection.aiSummary}</p>
               </div>
             )}
           </div>

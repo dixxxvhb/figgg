@@ -101,6 +101,15 @@ export function useAppData() {
       }));
     }
   }
+  function trackWriteSuccess() {
+    if (writeFailCountRef.current > 0) {
+      writeFailCountRef.current = 0;
+      if (writeFailTimerRef.current) {
+        clearTimeout(writeFailTimerRef.current);
+        writeFailTimerRef.current = null;
+      }
+    }
+  }
 
   // Track active snapshot updates. Uses boolean + queueMicrotask instead of counter
   // to avoid React 18 batching issue where N snapshot callbacks increment by N but
@@ -134,7 +143,8 @@ export function useAppData() {
         || firestoreData.selfCare
         || firestoreData.launchPlan
         || firestoreData.dayPlan
-        || (firestoreData.students && firestoreData.students.length > 0);
+        || (firestoreData.students && firestoreData.students.length > 0)
+        || firestoreData.weekNotes.length > 0;
       if (hasFirestoreData) {
         // Preserve seed/localStorage data for collections not yet migrated to Firestore.
         // Without this, Firestore's empty arrays wipe out seed studios, classes, etc.
@@ -149,6 +159,7 @@ export function useAppData() {
             competitionDances: firestoreData.competitionDances.length > 0 ? firestoreData.competitionDances : localData.competitionDances,
             terminology: firestoreData.terminology.length > 0 ? firestoreData.terminology : localData.terminology,
             students: (firestoreData.students?.length ?? 0) > 0 ? firestoreData.students : localData.students,
+            weekNotes: firestoreData.weekNotes.length > 0 ? firestoreData.weekNotes : localData.weekNotes,
           };
           // Also update localStorage cache for offline use
           try {
@@ -393,7 +404,7 @@ export function useAppData() {
     }));
     // Firestore write (fire-and-forget)
     const uid = getUserId();
-    if (uid) firestoreSaveClass(uid, updatedClass).catch(e => { console.warn(e); trackWriteFail(); });
+    if (uid) firestoreSaveClass(uid, updatedClass).then(trackWriteSuccess).catch(e => { console.warn(e); trackWriteFail(); });
   }, []);
 
   const addClass = useCallback((newClass: Omit<Class, 'id'>) => {
@@ -466,7 +477,7 @@ export function useAppData() {
 
     // Firestore write
     const uid = getUserId();
-    if (uid) saveWeekNotesDoc(uid, weekNotes).catch(e => { console.warn(e); trackWriteFail(); });
+    if (uid) saveWeekNotesDoc(uid, weekNotes).then(trackWriteSuccess).catch(e => { console.warn(e); trackWriteFail(); });
   }, []);
 
   const updateCompetition = useCallback((competition: Competition) => {
@@ -638,7 +649,7 @@ export function useAppData() {
       students: [...(prev.students || []), newStudent],
     }));
     const uid = getUserId();
-    if (uid) firestoreSaveStudent(uid, newStudent).catch(e => { console.warn(e); trackWriteFail(); });
+    if (uid) firestoreSaveStudent(uid, newStudent).then(trackWriteSuccess).catch(e => { console.warn(e); trackWriteFail(); });
     return newStudent;
   }, []);
 
@@ -654,7 +665,7 @@ export function useAppData() {
       return { ...prev, students: [...students, student] };
     });
     const uid = getUserId();
-    if (uid) firestoreSaveStudent(uid, student).catch(e => { console.warn(e); trackWriteFail(); });
+    if (uid) firestoreSaveStudent(uid, student).then(trackWriteSuccess).catch(e => { console.warn(e); trackWriteFail(); });
   }, []);
 
   const deleteStudent = useCallback((studentId: string) => {
@@ -852,12 +863,30 @@ export function useAppData() {
   }, []);
 
   const deleteCalendarEvent = useCallback((eventId: string) => {
-    setData(prev => ({
-      ...prev,
-      calendarEvents: (prev.calendarEvents || []).filter(e => e.id !== eventId),
-    }));
-    const uid = getUserId();
-    if (uid) deleteCalendarEventDoc(uid, eventId).catch(console.warn);
+    setData(prev => {
+      const event = (prev.calendarEvents || []).find(e => e.id === eventId);
+      const isFeedEvent = event?.source === 'ics' || event?.source === 'google';
+
+      // Feed-sourced events must be hidden (not just deleted) to prevent re-sync
+      const hidden = prev.settings?.hiddenCalendarEventIds || [];
+      const newSettings = isFeedEvent && !hidden.includes(eventId)
+        ? { ...prev.settings, hiddenCalendarEventIds: [...hidden, eventId] }
+        : prev.settings;
+
+      const uid = getUserId();
+      if (uid) {
+        deleteCalendarEventDoc(uid, eventId).catch(console.warn);
+        if (isFeedEvent && newSettings !== prev.settings) {
+          updateProfile(uid, { settings: newSettings }).catch(console.warn);
+        }
+      }
+
+      return {
+        ...prev,
+        calendarEvents: (prev.calendarEvents || []).filter(e => e.id !== eventId),
+        settings: newSettings,
+      };
+    });
   }, []);
 
   // Hide a calendar event (persists across syncs — event won't reappear)
@@ -869,12 +898,20 @@ export function useAppData() {
         ...prev.settings,
         hiddenCalendarEventIds: [...hidden, eventId],
       };
-      // Persist to Firestore inside the updater so we have the correct settings
+
+      // Persist both operations — if profile update fails, the event will reappear
+      // on next sync, so we retry the profile update on the next sync cycle too
       const uid = getUserId();
       if (uid) {
-        deleteCalendarEventDoc(uid, eventId).catch(console.warn);
-        updateProfile(uid, { settings: newSettings }).catch(console.warn);
+        const profileUpdate = updateProfile(uid, { settings: newSettings });
+        // Only delete from Firestore after profile update succeeds to avoid orphaned state
+        profileUpdate
+          .then(() => deleteCalendarEventDoc(uid, eventId))
+          .catch((err) => {
+            console.warn('Failed to persist hidden event — will retry on next sync:', err);
+          });
       }
+
       return {
         ...prev,
         calendarEvents: (prev.calendarEvents || []).filter(e => e.id !== eventId),

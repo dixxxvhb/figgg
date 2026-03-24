@@ -120,7 +120,7 @@ export function Library() {
 
   return (
     <div className="page-w px-4 py-6 pb-24">
-      <h1 className="text-2xl font-bold text-forest-700 dark:text-white mb-6">Library</h1>
+      <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-6">Library</h1>
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6">
@@ -130,8 +130,8 @@ export function Library() {
             onClick={() => setActiveTab(tab.id)}
             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-all duration-150 active:scale-[0.97] min-h-[48px] ${
               activeTab === tab.id
-                ? 'bg-forest-600 text-white'
-                : 'bg-forest-100 dark:bg-blush-800 text-forest-600 dark:text-forest-400 hover:bg-forest-200 dark:hover:bg-blush-700'
+                ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)]'
+                : 'bg-[var(--accent-muted)] text-[var(--accent-primary)] hover:bg-[var(--surface-card-hover)]'
             }`}
           >
             <tab.icon size={18} />
@@ -145,14 +145,14 @@ export function Library() {
         <>
           {/* Search */}
           <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-blush-400 dark:text-blush-500" size={20} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" size={20} />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search terms, choreographers, works..."
               aria-label="Search library"
-              className="w-full pl-10 pr-4 py-3 border border-blush-200 dark:border-blush-700 rounded-xl focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-white dark:bg-blush-800 text-blush-900 dark:text-blush-100 placeholder-blush-400 dark:placeholder-blush-500"
+              className="w-full pl-10 pr-4 py-3 border border-[var(--border-subtle)] rounded-xl focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent bg-[var(--surface-card)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)]"
             />
           </div>
 
@@ -163,8 +163,8 @@ export function Library() {
                 onClick={() => setSelectedCategory('all')}
                 className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 active:scale-95 whitespace-nowrap min-h-[36px] ${
                   selectedCategory === 'all'
-                    ? 'bg-forest-600 text-white'
-                    : 'bg-forest-100 dark:bg-blush-800 text-forest-600 dark:text-forest-400'
+                    ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)]'
+                    : 'bg-[var(--accent-muted)] text-[var(--accent-primary)]'
                 }`}
               >
                 All ({terminology.length})
@@ -177,8 +177,8 @@ export function Library() {
                     onClick={() => setSelectedCategory(cat)}
                     className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 active:scale-95 whitespace-nowrap min-h-[36px] ${
                       selectedCategory === cat
-                        ? 'bg-forest-600 text-white'
-                        : 'bg-forest-100 dark:bg-blush-800 text-forest-600 dark:text-forest-400'
+                        ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)]'
+                        : 'bg-[var(--accent-muted)] text-[var(--accent-primary)]'
                     }`}
                   >
                     {categoryLabels[cat].replace('Ballet: ', '').replace(' Dance', '')} ({count})
@@ -193,14 +193,14 @@ export function Library() {
             <div className="flex gap-2 mb-4">
               <button
                 onClick={expandAll}
-                className="text-sm text-forest-600 dark:text-forest-400 hover:text-forest-700 dark:hover:text-forest-300 min-h-[44px] px-2"
+                className="text-sm text-[var(--accent-primary)] hover:opacity-80 min-h-[44px] px-2"
               >
                 Expand All
               </button>
-              <span className="text-blush-300 dark:text-blush-600 flex items-center">|</span>
+              <span className="text-[var(--border-subtle)] flex items-center">|</span>
               <button
                 onClick={collapseAll}
-                className="text-sm text-forest-600 dark:text-forest-400 hover:text-forest-700 dark:hover:text-forest-300 min-h-[44px] px-2"
+                className="text-sm text-[var(--accent-primary)] hover:opacity-80 min-h-[44px] px-2"
               >
                 Collapse All
               </button>
@@ -209,7 +209,7 @@ export function Library() {
 
           {/* Results count */}
           {searchQuery && (
-            <div className="mb-4 text-sm text-forest-500 dark:text-forest-400">
+            <div className="mb-4 text-sm text-[var(--text-secondary)]">
               {filteredTerms.length} result{filteredTerms.length !== 1 ? 's' : ''} for "{searchQuery}"
             </div>
           )}
@@ -219,7 +219,7 @@ export function Library() {
             // Flat list when searching or filtered
             <div className="space-y-3">
               {filteredTerms.length === 0 ? (
-                <div className="text-center py-12 text-blush-500 dark:text-blush-400">
+                <div className="text-center py-12 text-[var(--text-secondary)]">
                   No terms found
                 </div>
               ) : (
@@ -238,25 +238,25 @@ export function Library() {
                 const isExpanded = expandedCategories.has(category);
 
                 return (
-                  <div key={category} className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 overflow-hidden">
+                  <div key={category} className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] overflow-hidden">
                     <button
                       onClick={() => toggleCategory(category)}
                       aria-expanded={isExpanded}
-                      className="w-full flex items-center justify-between p-4 hover:bg-blush-50 dark:hover:bg-blush-700 active:bg-blush-100 dark:active:bg-blush-600 transition-colors min-h-[56px]"
+                      className="w-full flex items-center justify-between p-4 hover:bg-[var(--surface-card-hover)] active:bg-[var(--surface-inset)] transition-colors min-h-[56px]"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-forest-700 dark:text-white">{categoryLabels[category]}</span>
-                        <span className="text-sm text-blush-400 dark:text-blush-500">({terms.length})</span>
+                        <span className="font-semibold text-[var(--text-primary)]">{categoryLabels[category]}</span>
+                        <span className="text-sm text-[var(--text-tertiary)]">({terms.length})</span>
                       </div>
-                      <ChevronDown size={20} className={`text-blush-400 dark:text-blush-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                      <ChevronDown size={20} className={`text-[var(--text-tertiary)] transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                     </button>
 
                     {isExpanded && (
-                      <div className="border-t border-blush-100 dark:border-blush-700">
+                      <div className="border-t border-[var(--border-subtle)]">
                         {terms.map((term, idx) => (
                           <div
                             key={term.id}
-                            className={`p-4 ${idx !== terms.length - 1 ? 'border-b border-blush-100 dark:border-blush-700' : ''}`}
+                            className={`p-4 ${idx !== terms.length - 1 ? 'border-b border-[var(--border-subtle)]' : ''}`}
                           >
                             <TermCardContent term={term} />
                           </div>
@@ -275,7 +275,7 @@ export function Library() {
       {activeTab === 'competitions' && (
         <div className="space-y-3">
           {data.competitions.length === 0 ? (
-            <div className="text-center py-12 text-blush-500 dark:text-blush-400">
+            <div className="text-center py-12 text-[var(--text-secondary)]">
               No competitions scheduled
             </div>
           ) : (
@@ -283,21 +283,21 @@ export function Library() {
               const compDate = parseISO(comp.date);
               const isUpcoming = compDate >= new Date();
               return (
-                <div key={comp.id} className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4">
+                <div key={comp.id} className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4">
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="font-medium text-blush-900 dark:text-white">{comp.name}</div>
-                      <div className="text-sm text-blush-500 dark:text-blush-400">
+                      <div className="font-medium text-[var(--text-primary)]">{comp.name}</div>
+                      <div className="text-sm text-[var(--text-secondary)]">
                         {format(compDate, 'EEEE, MMMM d, yyyy')}
                       </div>
-                      <div className="text-sm text-blush-500 dark:text-blush-400">{comp.location}</div>
+                      <div className="text-sm text-[var(--text-secondary)]">{comp.location}</div>
                     </div>
                     <Link
                       to="/choreography"
                       className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium transition-colors min-h-[36px] ${
                         isUpcoming
-                          ? 'bg-forest-100 dark:bg-forest-900/30 text-forest-700 dark:text-forest-400 hover:bg-forest-200 dark:hover:bg-forest-900/50'
-                          : 'bg-blush-100 dark:bg-blush-700 text-blush-600 dark:text-blush-300 hover:bg-blush-200 dark:hover:bg-blush-600'
+                          ? 'bg-[var(--accent-muted)] text-[var(--accent-primary)] hover:opacity-80'
+                          : 'bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:opacity-80'
                       }`}
                     >
                       <ClipboardList size={14} />
@@ -334,21 +334,21 @@ export function Library() {
             />
           ) : (
             allSongs.map((song, i) => (
-              <div key={`${song.name}-${i}`} className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-3 flex items-center gap-3">
+              <div key={`${song.name}-${i}`} className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-3 flex items-center gap-3">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
                   song.type === 'comp' ? 'bg-purple-100 dark:bg-purple-900/30' :
                   song.type === 'recital' ? 'bg-amber-100 dark:bg-amber-900/30' :
-                  'bg-forest-100 dark:bg-forest-900/30'
+                  'bg-[var(--accent-muted)]'
                 }`}>
                   <Music size={14} className={
                     song.type === 'comp' ? 'text-purple-500' :
                     song.type === 'recital' ? 'text-amber-500' :
-                    'text-forest-500'
+                    'text-[var(--accent-primary)]'
                   } />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-forest-900 dark:text-white text-sm truncate">{song.name}</div>
-                  <div className="text-xs text-blush-500 dark:text-blush-400 truncate">
+                  <div className="font-medium text-[var(--text-primary)] text-sm truncate">{song.name}</div>
+                  <div className="text-xs text-[var(--text-secondary)] truncate">
                     {song.source}
                     {song.type === 'recital' && ' · Recital'}
                     {song.type === 'comp' && ' · Competition'}
@@ -359,7 +359,7 @@ export function Library() {
                     href={song.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2 text-blush-400 hover:text-forest-500 transition-colors"
+                    className="p-2 text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] transition-colors"
                   >
                     <ExternalLink size={14} />
                   </a>
@@ -376,7 +376,7 @@ export function Library() {
 // Term card component for flat list
 function TermCard({ term }: { term: typeof terminology[0] }) {
   return (
-    <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4">
+    <div className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4">
       <TermCardContent term={term} />
     </div>
   );
@@ -391,40 +391,40 @@ function TermCardContent({ term }: { term: typeof terminology[0] }) {
       <div className="flex items-start justify-between gap-2">
         <div>
           <div className="flex items-baseline gap-2 flex-wrap">
-            <span className="font-semibold text-blush-900 dark:text-white">{term.term}</span>
+            <span className="font-semibold text-[var(--text-primary)]">{term.term}</span>
             {term.pronunciation && (
-              <span className="text-sm text-forest-500 dark:text-forest-400 flex items-center gap-1">
+              <span className="text-sm text-[var(--accent-primary)] flex items-center gap-1">
                 <Volume2 size={12} />
                 {term.pronunciation}
               </span>
             )}
           </div>
           {term.alternateSpellings && term.alternateSpellings.length > 0 && (
-            <div className="text-xs text-blush-400 dark:text-blush-500 mt-0.5">
+            <div className="text-xs text-[var(--text-tertiary)] mt-0.5">
               Also: {term.alternateSpellings.join(', ')}
             </div>
           )}
         </div>
         {isChoreographer && term.style && (
-          <span className="text-xs bg-blush-100 dark:bg-blush-700 text-blush-600 dark:text-blush-300 px-2 py-0.5 rounded-full whitespace-nowrap">
+          <span className="text-xs bg-[var(--surface-inset)] text-[var(--text-secondary)] px-2 py-0.5 rounded-full whitespace-nowrap">
             {term.style}
           </span>
         )}
       </div>
 
-      <p className="text-sm text-blush-600 dark:text-blush-300 mt-2">{term.definition}</p>
+      <p className="text-sm text-[var(--text-secondary)] mt-2">{term.definition}</p>
 
       {/* Choreographer-specific info */}
       {isChoreographer && (
         <div className="mt-3 space-y-2">
           {term.era && (
-            <div className="text-xs text-blush-500 dark:text-blush-400">
+            <div className="text-xs text-[var(--text-secondary)]">
               <span className="font-medium">Era:</span> {term.era}
             </div>
           )}
           {term.notableWorks && term.notableWorks.length > 0 && (
             <div>
-              <div className="text-xs font-medium text-blush-500 dark:text-blush-400 mb-1 flex items-center gap-1">
+              <div className="text-xs font-medium text-[var(--text-secondary)] mb-1 flex items-center gap-1">
                 <Star size={12} />
                 Notable Works:
               </div>
@@ -432,7 +432,7 @@ function TermCardContent({ term }: { term: typeof terminology[0] }) {
                 {term.notableWorks.map((work, i) => (
                   <span
                     key={i}
-                    className="text-xs bg-blush-100 dark:bg-blush-700 text-blush-600 dark:text-blush-300 px-2 py-0.5 rounded"
+                    className="text-xs bg-[var(--surface-inset)] text-[var(--text-secondary)] px-2 py-0.5 rounded"
                   >
                     {work}
                   </span>

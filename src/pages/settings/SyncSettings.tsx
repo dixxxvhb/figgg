@@ -94,6 +94,8 @@ export function SyncSettings() {
 
   const handleSyncIntervalChange = (minutes: number) => {
     updateSettings({ calendarSyncMinutes: minutes });
+    // Notify SyncContext to reconfigure the interval immediately
+    window.dispatchEvent(new CustomEvent('calendar-sync-interval-changed'));
   };
 
   return (

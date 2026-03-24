@@ -320,7 +320,7 @@ export function onFixItemsSnapshot(
 ): Unsubscribe {
   return onSnapshot(userCollection(userId, 'fixItems'), (snap) => {
     callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as FixItem)));
-  });
+  }, (error) => { console.error('fixItems snapshot error:', error); });
 }
 
 // ============================================================
@@ -553,7 +553,7 @@ export function onStudiosSnapshot(
 ): Unsubscribe {
   return onSnapshot(userCollection(userId, 'studios'), (snap) => {
     callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as Studio)));
-  });
+  }, (error) => { console.error('studios snapshot error:', error); });
 }
 
 export function onClassesSnapshot(
@@ -562,7 +562,7 @@ export function onClassesSnapshot(
 ): Unsubscribe {
   return onSnapshot(userCollection(userId, 'classes'), (snap) => {
     callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as Class)));
-  });
+  }, (error) => { console.error('classes snapshot error:', error); });
 }
 
 export function onStudentsSnapshot(
@@ -571,7 +571,7 @@ export function onStudentsSnapshot(
 ): Unsubscribe {
   return onSnapshot(userCollection(userId, 'students'), (snap) => {
     callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as Student)));
-  });
+  }, (error) => { console.error('students snapshot error:', error); });
 }
 
 export function onWeekNotesSnapshot(
@@ -580,7 +580,7 @@ export function onWeekNotesSnapshot(
 ): Unsubscribe {
   return onSnapshot(userCollection(userId, 'weekNotes'), (snap) => {
     callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as unknown as WeekNotes)));
-  });
+  }, (error) => { console.error('weekNotes snapshot error:', error); });
 }
 
 export function onCompetitionsSnapshot(
@@ -589,7 +589,7 @@ export function onCompetitionsSnapshot(
 ): Unsubscribe {
   return onSnapshot(userCollection(userId, 'competitions'), (snap) => {
     callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as Competition)));
-  });
+  }, (error) => { console.error('competitions snapshot error:', error); });
 }
 
 export function onCompetitionDancesSnapshot(
@@ -598,7 +598,7 @@ export function onCompetitionDancesSnapshot(
 ): Unsubscribe {
   return onSnapshot(userCollection(userId, 'competitionDances'), (snap) => {
     callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as CompetitionDance)));
-  });
+  }, (error) => { console.error('competitionDances snapshot error:', error); });
 }
 
 export function onChoreographiesSnapshot(
@@ -607,7 +607,7 @@ export function onChoreographiesSnapshot(
 ): Unsubscribe {
   return onSnapshot(userCollection(userId, 'choreographies'), (snap) => {
     callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as unknown as Choreography)));
-  });
+  }, (error) => { console.error('choreographies snapshot error:', error); });
 }
 
 export function onCalendarEventsSnapshot(
@@ -616,7 +616,7 @@ export function onCalendarEventsSnapshot(
 ): Unsubscribe {
   return onSnapshot(userCollection(userId, 'calendarEvents'), (snap) => {
     callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as CalendarEvent)));
-  });
+  }, (error) => { console.error('calendarEvents snapshot error:', error); });
 }
 
 // ============================================================

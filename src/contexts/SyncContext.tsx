@@ -100,22 +100,29 @@ async function syncAllCalendars(force = false): Promise<string[]> {
   }
 
   // Read current events to preserve user modifications (linkedDanceIds, etc.)
-  // Try Firestore first, fall back to localStorage
+  // Merge from both Firestore and localStorage to catch recent local changes
+  // that may not have synced to Firestore yet (e.g., offline edits)
   const hiddenIds = new Set(data.settings?.hiddenCalendarEventIds || []);
-  let existingEvents: CalendarEvent[] = [];
+  let firestoreEvents: CalendarEvent[] = [];
   try {
-    existingEvents = await getCalendarEvents(uid);
+    firestoreEvents = await getCalendarEvents(uid);
   } catch (e) {
     console.warn('Failed to read calendar events from Firestore, using localStorage:', e);
   }
-  if (existingEvents.length === 0) {
-    existingEvents = data.calendarEvents || [];
-  }
-
+  const localEvents = data.calendarEvents || [];
+  // Build a merged map: Firestore is source of truth, but localStorage may have
+  // more recent linkedDanceIds edits from this device
   const existingMap = new Map<string, CalendarEvent>();
-  for (const event of existingEvents) {
+  for (const event of firestoreEvents) {
     existingMap.set(event.id, event);
   }
+  // Overlay localStorage events — preserves local edits not yet in Firestore
+  for (const event of localEvents) {
+    if (!existingMap.has(event.id)) {
+      existingMap.set(event.id, event);
+    }
+  }
+  const existingEvents = Array.from(existingMap.values());
 
   // Merge: new feed data + preserved user modifications
   const mergedEvents: CalendarEvent[] = [];
@@ -247,16 +254,29 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Calendar sync: on mount + every 15 minutes
+  // Calendar sync: on mount + recurring interval (reacts to settings changes)
   useEffect(() => {
     syncAllCalendars(true);
 
-    calendarSyncIntervalRef.current = setInterval(() => {
-      syncAllCalendars(true);
-    }, getCalendarSyncInterval());
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    function startInterval() {
+      if (intervalId) clearInterval(intervalId);
+      intervalId = setInterval(() => {
+        syncAllCalendars(true);
+      }, getCalendarSyncInterval());
+    }
+    startInterval();
+
+    // Re-create interval when sync settings change
+    const handleSettingsChange = () => {
+      startInterval();
+    };
+    window.addEventListener('calendar-sync-interval-changed', handleSettingsChange);
 
     return () => {
-      if (calendarSyncIntervalRef.current) clearInterval(calendarSyncIntervalRef.current);
+      if (intervalId) clearInterval(intervalId);
+      window.removeEventListener('calendar-sync-interval-changed', handleSettingsChange);
     };
   }, []);
 
