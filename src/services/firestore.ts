@@ -246,8 +246,10 @@ export async function deleteCalendarEventDoc(userId: string, eventId: string): P
   await deleteDoc(userDoc(userId, 'calendarEvents', eventId));
 }
 
-export async function batchSaveCalendarEvents(userId: string, events: CalendarEvent[]): Promise<void> {
-  if (events.length === 0) return;
+export async function batchSaveCalendarEvents(userId: string, events: CalendarEvent[], deleteIds?: string[]): Promise<void> {
+  if (events.length === 0 && (!deleteIds || deleteIds.length === 0)) return;
+  // Combine saves and deletes into single batches so the snapshot fires once
+  // with the final state, preventing UI flicker between save and delete
   const batches: Array<ReturnType<typeof writeBatch>> = [];
   let currentBatch = writeBatch(requireDb());
   let opCount = 0;
@@ -259,6 +261,17 @@ export async function batchSaveCalendarEvents(userId: string, events: CalendarEv
     }
     currentBatch.set(userDoc(userId, 'calendarEvents', event.id), event);
     opCount++;
+  }
+  if (deleteIds) {
+    for (const id of deleteIds) {
+      if (opCount >= 450) {
+        batches.push(currentBatch);
+        currentBatch = writeBatch(requireDb());
+        opCount = 0;
+      }
+      currentBatch.delete(userDoc(userId, 'calendarEvents', id));
+      opCount++;
+    }
   }
   batches.push(currentBatch);
   for (const batch of batches) {

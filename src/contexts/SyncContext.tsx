@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { loadData, saveCalendarEventsToStorage } from '../services/storage';
 import { fetchCalendarEvents } from '../services/calendar';
 import { fetchGoogleCalendarEvents } from '../services/googleCalendar';
-import { getCalendarEvents, batchSaveCalendarEvents, batchDeleteCalendarEvents } from '../services/firestore';
+import { getCalendarEvents, batchSaveCalendarEvents } from '../services/firestore';
 import { auth } from '../services/firebase';
 import type { CalendarEvent } from '../types';
 
@@ -164,12 +164,11 @@ async function syncAllCalendars(force = false): Promise<string[]> {
   // Update localStorage immediately for instant UI responsiveness
   saveCalendarEventsToStorage(mergedEvents);
 
-  // Write to Firestore for cross-device sync — snapshot listener keeps state in sync
+  // Write to Firestore for cross-device sync — snapshot listener keeps state in sync.
+  // Saves and deletes are combined into one atomic batch so the snapshot fires once
+  // with the final state, preventing UI flicker between save and delete.
   try {
-    await batchSaveCalendarEvents(uid, mergedEvents);
-    if (staleIds.length > 0) {
-      await batchDeleteCalendarEvents(uid, staleIds);
-    }
+    await batchSaveCalendarEvents(uid, mergedEvents, staleIds.length > 0 ? staleIds : undefined);
     window.dispatchEvent(new CustomEvent('calendar-sync-complete'));
   } catch (e) {
     console.error('Calendar Firestore write failed:', e);
