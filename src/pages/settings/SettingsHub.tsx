@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Palette, LayoutDashboard, Heart, Sparkles,
-  Cloud, Database, Wrench, ChevronRight, ChevronDown,
+  Cloud, Database, Wrench, ChevronRight, ChevronDown, Users,
 } from 'lucide-react';
 import { useAppData } from '../../contexts/AppDataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -73,8 +73,14 @@ export function SettingsHub() {
     { to: '/settings/ai', icon: Sparkles, label: 'AI Assistant', subtitle: `${toneLabel}, ${checkInLabel}`, color: '#f59e0b' },
   ];
 
+  const studentCount = (data.students || []).length;
+
+  const teachingRows: SettingRow[] = [
+    { to: '/settings/students', icon: Users, label: 'Students', subtitle: `${studentCount} student${studentCount !== 1 ? 's' : ''}`, color: '#06b6d4' },
+  ];
+
   const dataRows: SettingRow[] = [
-    { to: '/settings/sync', icon: Cloud, label: 'Sync', subtitle: `${syncLabel}${calCount > 0 ? `, ${calCount} calendar${calCount !== 1 ? 's' : ''}` : ''}`, color: '#06b6d4' },
+    { to: '/settings/sync', icon: Cloud, label: 'Sync', subtitle: `${syncLabel}${calCount > 0 ? `, ${calCount} calendar${calCount !== 1 ? 's' : ''}` : ''}`, color: '#0ea5e9' },
     { to: '/settings/data', icon: Database, label: 'Data', subtitle: `${classCount} classes, ${noteCount} week notes`, color: '#64748b' },
   ];
 
@@ -99,6 +105,14 @@ export function SettingsHub() {
         <h2 className="type-caption font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-2 px-1">You</h2>
         <div className="space-y-2">
           {youRows.map(r => <SettingCard key={r.to} row={r} />)}
+        </div>
+      </section>
+
+      {/* Teaching */}
+      <section className="mb-5">
+        <h2 className="type-caption font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-2 px-1">Teaching</h2>
+        <div className="space-y-2">
+          {teachingRows.map(r => <SettingCard key={r.to} row={r} />)}
         </div>
       </section>
 

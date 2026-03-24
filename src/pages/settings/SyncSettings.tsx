@@ -85,21 +85,24 @@ export function SyncSettings() {
     setSyncResult(null);
     try {
       let allEvents: Awaited<ReturnType<typeof fetchCalendarEvents>> = [];
+      const results: string[] = [];
       for (const url of calendarUrls) {
+        const shortUrl = url.length > 40 ? url.slice(0, 37) + '...' : url;
         try {
           const events = await fetchCalendarEvents(url);
           allEvents = allEvents.concat(events);
-        } catch (e) {
+          results.push(`${shortUrl}: ${events.length} events`);
+        } catch (e: any) {
+          const msg = e?.message || 'failed';
+          results.push(`${shortUrl}: FAILED (${msg})`);
           console.warn(`Calendar fetch failed for URL: ${url}`, e);
         }
       }
-      if (allEvents.length === 0) {
-        setSyncResult('No events found. Check your URLs.');
-      } else {
+      if (allEvents.length > 0) {
         updateCalendarEvents(allEvents);
         refreshData();
-        setSyncResult(`Synced ${allEvents.length} events`);
       }
+      setSyncResult(results.join('\n'));
     } catch {
       setSyncResult('Sync failed');
     }
@@ -216,7 +219,7 @@ export function SyncSettings() {
             </Button>
           </div>
 
-          <div className="mt-3 flex items-center gap-3">
+          <div className="mt-3">
             <Button
               variant="primary"
               size="sm"
@@ -227,7 +230,7 @@ export function SyncSettings() {
               Sync Now
             </Button>
             {syncResult && (
-              <span className="text-sm text-[var(--text-secondary)]">{syncResult}</span>
+              <div className="mt-2 text-sm text-[var(--text-secondary)] whitespace-pre-line bg-[var(--surface-inset)] rounded-lg p-3">{syncResult}</div>
             )}
           </div>
         </Card>

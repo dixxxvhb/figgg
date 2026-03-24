@@ -157,6 +157,7 @@ const AISettings = lazy(() => import('./pages/settings/AISettings').then(m => ({
 const SyncSettings = lazy(() => import('./pages/settings/SyncSettings').then(m => ({ default: m.SyncSettings })));
 const DataSettings = lazy(() => import('./pages/settings/DataSettings').then(m => ({ default: m.DataSettings })));
 const AdvancedSettings = lazy(() => import('./pages/settings/AdvancedSettings').then(m => ({ default: m.AdvancedSettings })));
+const StudentsSettings = lazy(() => import('./pages/settings/StudentsSettings').then(m => ({ default: m.StudentsSettings })));
 const LaunchPlan = lazy(() => import('./pages/LaunchPlan').then(m => ({ default: m.LaunchPlan })));
 const AIChat = lazy(() => import('./pages/AIChat').then(m => ({ default: m.AIChat })));
 
@@ -199,6 +200,7 @@ function AnimatedRoutes() {
         <Route path="/settings/ai" element={<AISettings />} />
         <Route path="/settings/sync" element={<SyncSettings />} />
         <Route path="/settings/data" element={<DataSettings />} />
+        <Route path="/settings/students" element={<StudentsSettings />} />
         <Route path="/settings/advanced" element={<AdvancedSettings />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
