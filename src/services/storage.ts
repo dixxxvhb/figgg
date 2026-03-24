@@ -251,7 +251,7 @@ export function saveCalendarEventsToStorage(events: import('../types').CalendarE
   data.calendarEvents = events;
   saveDataLocalOnly(data);
   saveEvents.emit('saving');
-  window.dispatchEvent(new CustomEvent('local-data-saved'));
+  window.dispatchEvent(new CustomEvent('calendar-events-saved'));
 }
 
 export function updateSettings(settings: Partial<AppSettings>): void {

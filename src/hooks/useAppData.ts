@@ -79,6 +79,9 @@ export function useAppData() {
   const therapistOnlyRef = useRef(false);
   const meditationOnlyRef = useRef(false);
   const griefOnlyRef = useRef(false);
+  // Track calendar sync updates — SyncContext already handles Firestore batch writes,
+  // so the save effect should skip to avoid racing partial snapshot data
+  const calendarSyncOnlyRef = useRef(false);
   // Track Firestore write failures — warn user after repeated failures
   const writeFailCountRef = useRef(0);
   const writeFailTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -368,6 +371,11 @@ export function useAppData() {
       griefOnlyRef.current = false;
       return;
     }
+    // Same for calendar sync — SyncContext batch writes to Firestore directly
+    if (calendarSyncOnlyRef.current) {
+      calendarSyncOnlyRef.current = false;
+      return;
+    }
 
     // Immediate local save, debounced cloud save happens inside saveData
     isSavingRef.current = true;
@@ -601,12 +609,19 @@ export function useAppData() {
       }
     };
 
+    const handleCalendarEventsSaved = () => {
+      calendarSyncOnlyRef.current = true;
+      setData(prev => ({ ...prev, calendarEvents: loadData().calendarEvents }));
+    };
+
     window.addEventListener('cloud-sync-complete', handleCloudSync);
     window.addEventListener('local-data-saved', handleLocalSave);
+    window.addEventListener('calendar-events-saved', handleCalendarEventsSaved);
 
     return () => {
       window.removeEventListener('cloud-sync-complete', handleCloudSync);
       window.removeEventListener('local-data-saved', handleLocalSave);
+      window.removeEventListener('calendar-events-saved', handleCalendarEventsSaved);
     };
   }, []);
 

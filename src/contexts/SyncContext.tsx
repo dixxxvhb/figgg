@@ -99,13 +99,17 @@ async function syncAllCalendars(force = false): Promise<string[]> {
     return results;
   }
 
-  // Read current Firestore events to preserve user modifications
+  // Read current events to preserve user modifications (linkedDanceIds, etc.)
+  // Try Firestore first, fall back to localStorage
   const hiddenIds = new Set(data.settings?.hiddenCalendarEventIds || []);
   let existingEvents: CalendarEvent[] = [];
   try {
     existingEvents = await getCalendarEvents(uid);
   } catch (e) {
-    console.warn('Failed to read existing calendar events from Firestore:', e);
+    console.warn('Failed to read calendar events from Firestore, using localStorage:', e);
+  }
+  if (existingEvents.length === 0) {
+    existingEvents = data.calendarEvents || [];
   }
 
   const existingMap = new Map<string, CalendarEvent>();
@@ -136,13 +140,16 @@ async function syncAllCalendars(force = false): Promise<string[]> {
     }
   }
 
-  // Find stale events: in Firestore but no longer in any feed (and not hidden)
+  // Handle existing events not in the new feed
   const staleIds: string[] = [];
   for (const existing of existingEvents) {
     if (!newEventIds.has(existing.id) && !hiddenIds.has(existing.id)) {
-      // Only remove ICS/Google-sourced events. Manually created events should persist.
       if (existing.source === 'ics' || existing.source === 'google') {
+        // Stale feed events: remove from Firestore
         staleIds.push(existing.id);
+      } else {
+        // Manually created events: keep them in the merged set
+        mergedEvents.push(existing);
       }
     }
   }
