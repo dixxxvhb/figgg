@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { loadData } from '../services/storage';
+import { loadData, saveData } from '../services/storage';
 import { fetchCalendarEvents } from '../services/calendar';
 import { fetchGoogleCalendarEvents } from '../services/googleCalendar';
 import { getCalendarEvents, batchSaveCalendarEvents, batchDeleteCalendarEvents } from '../services/firestore';
@@ -147,7 +147,12 @@ async function syncAllCalendars(force = false): Promise<string[]> {
     }
   }
 
-  // Write to Firestore — snapshot listener handles local state updates
+  // Update localStorage immediately for instant UI responsiveness
+  const currentData = loadData();
+  currentData.calendarEvents = mergedEvents;
+  saveData(currentData);
+
+  // Write to Firestore for cross-device sync — snapshot listener keeps state in sync
   try {
     await batchSaveCalendarEvents(uid, mergedEvents);
     if (staleIds.length > 0) {
