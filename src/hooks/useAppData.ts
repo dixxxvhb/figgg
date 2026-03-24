@@ -601,18 +601,12 @@ export function useAppData() {
       }
     };
 
-    const handleCalendarSync = () => {
-      setData(prev => ({ ...prev, ...loadData() }));
-    };
-
     window.addEventListener('cloud-sync-complete', handleCloudSync);
     window.addEventListener('local-data-saved', handleLocalSave);
-    window.addEventListener('calendar-sync-complete', handleCalendarSync);
 
     return () => {
       window.removeEventListener('cloud-sync-complete', handleCloudSync);
       window.removeEventListener('local-data-saved', handleLocalSave);
-      window.removeEventListener('calendar-sync-complete', handleCalendarSync);
     };
   }, []);
 

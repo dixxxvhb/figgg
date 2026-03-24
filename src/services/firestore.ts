@@ -246,6 +246,46 @@ export async function deleteCalendarEventDoc(userId: string, eventId: string): P
   await deleteDoc(userDoc(userId, 'calendarEvents', eventId));
 }
 
+export async function batchSaveCalendarEvents(userId: string, events: CalendarEvent[]): Promise<void> {
+  if (events.length === 0) return;
+  const batches: Array<ReturnType<typeof writeBatch>> = [];
+  let currentBatch = writeBatch(requireDb());
+  let opCount = 0;
+  for (const event of events) {
+    if (opCount >= 450) {
+      batches.push(currentBatch);
+      currentBatch = writeBatch(requireDb());
+      opCount = 0;
+    }
+    currentBatch.set(userDoc(userId, 'calendarEvents', event.id), event);
+    opCount++;
+  }
+  batches.push(currentBatch);
+  for (const batch of batches) {
+    await batch.commit();
+  }
+}
+
+export async function batchDeleteCalendarEvents(userId: string, eventIds: string[]): Promise<void> {
+  if (eventIds.length === 0) return;
+  const batches: Array<ReturnType<typeof writeBatch>> = [];
+  let currentBatch = writeBatch(requireDb());
+  let opCount = 0;
+  for (const id of eventIds) {
+    if (opCount >= 450) {
+      batches.push(currentBatch);
+      currentBatch = writeBatch(requireDb());
+      opCount = 0;
+    }
+    currentBatch.delete(userDoc(userId, 'calendarEvents', id));
+    opCount++;
+  }
+  batches.push(currentBatch);
+  for (const batch of batches) {
+    await batch.commit();
+  }
+}
+
 // ============================================================
 // AI CHECK-INS
 // ============================================================

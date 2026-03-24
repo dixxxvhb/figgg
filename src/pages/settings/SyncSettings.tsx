@@ -3,17 +3,17 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, Plus, Trash2, RefreshCw, Check, Cloud, LogIn, LogOut } from 'lucide-react';
 import { useAppData } from '../../contexts/AppDataContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSyncStatus } from '../../contexts/SyncContext';
 import { firebaseConfigured } from '../../services/firebase';
-import { updateCalendarEvents } from '../../services/storage';
-import { fetchCalendarEvents } from '../../services/calendar';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 
 const SYNC_INTERVALS = [5, 10, 15, 30] as const;
 
 export function SyncSettings() {
-  const { data, refreshData, updateSettings } = useAppData();
+  const { data, updateSettings } = useAppData();
   const { user, signIn, signOut } = useAuth();
+  const { syncCalendars } = useSyncStatus();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -84,25 +84,8 @@ export function SyncSettings() {
     setSyncing(true);
     setSyncResult(null);
     try {
-      let allEvents: Awaited<ReturnType<typeof fetchCalendarEvents>> = [];
-      const results: string[] = [];
-      for (const url of calendarUrls) {
-        const shortUrl = url.length > 40 ? url.slice(0, 37) + '...' : url;
-        try {
-          const events = await fetchCalendarEvents(url);
-          allEvents = allEvents.concat(events);
-          results.push(`${shortUrl}: ${events.length} events`);
-        } catch (e: any) {
-          const msg = e?.message || 'failed';
-          results.push(`${shortUrl}: FAILED (${msg})`);
-          console.warn(`Calendar fetch failed for URL: ${url}`, e);
-        }
-      }
-      if (allEvents.length > 0) {
-        updateCalendarEvents(allEvents);
-        refreshData();
-      }
-      setSyncResult(results.join('\n'));
+      const results = await syncCalendars();
+      setSyncResult(results.length > 0 ? results.join('\n') : 'Sync complete');
     } catch {
       setSyncResult('Sync failed');
     }
@@ -111,7 +94,6 @@ export function SyncSettings() {
 
   const handleSyncIntervalChange = (minutes: number) => {
     updateSettings({ calendarSyncMinutes: minutes });
-    refreshData();
   };
 
   return (

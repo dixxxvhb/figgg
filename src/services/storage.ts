@@ -1,4 +1,4 @@
-import { AppData, Class, WeekNotes, CalendarEvent, AppSettings, LaunchPlanData } from '../types';
+import { AppData, Class, WeekNotes, AppSettings, LaunchPlanData } from '../types';
 import { studios } from '../data/studios';
 import { initialClasses } from '../data/classes';
 import { terminology } from '../data/terminology';
@@ -243,42 +243,6 @@ export function saveWeekNotes(weekNotes: WeekNotes): void {
   }
   saveDataLocalOnly(data);
   saveEvents.emit('saving');
-}
-
-export function updateCalendarEvents(events: CalendarEvent[]): void {
-  const data = loadData();
-  const existingEvents = data.calendarEvents || [];
-  const hiddenIds = new Set(data.settings?.hiddenCalendarEventIds || []);
-
-  // Create a map of existing events to preserve user modifications (like linkedDanceIds)
-  const existingMap = new Map<string, CalendarEvent>();
-  for (const event of existingEvents) {
-    existingMap.set(event.id, event);
-  }
-
-  // Deduplicate new events by ID, merging with existing user modifications
-  const seen = new Map<string, CalendarEvent>();
-  for (const event of events) {
-    // Skip events the user has hidden — they won't reappear after sync
-    if (hiddenIds.has(event.id)) continue;
-
-    const existing = existingMap.get(event.id);
-    if (existing) {
-      // Merge: keep new calendar data but preserve user modifications
-      seen.set(event.id, {
-        ...event,
-        linkedDanceIds: existing.linkedDanceIds, // Preserve linked dances
-        googleCalendarEventId: event.googleCalendarEventId || existing.googleCalendarEventId,
-        source: event.source || existing.source,
-      });
-    } else {
-      seen.set(event.id, event);
-    }
-  }
-
-  // Replace all events - this removes events no longer in any calendar feed
-  data.calendarEvents = Array.from(seen.values());
-  saveData(data);
 }
 
 export function updateSettings(settings: Partial<AppSettings>): void {
