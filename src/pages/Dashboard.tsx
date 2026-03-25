@@ -59,6 +59,7 @@ import { executeAIActions as executeSharedAIActions } from '../services/aiAction
 import type { ActionCallbacks } from '../services/aiActions';
 import { applyMoodLayer } from '../styles/moodLayer';
 import type { MoodSignal, ActivityState } from '../styles/moodLayer';
+import { useDashboardMode } from '../hooks/useDashboardMode';
 
 const VALID_CATEGORIES = new Set(['task', 'wellness', 'class', 'launch', 'break', 'med']);
 const VALID_PRIORITIES = new Set(['high', 'medium', 'low']);
@@ -428,14 +429,13 @@ export function Dashboard() {
 
   const [isEditingLayout, setIsEditingLayout] = useState(false);
 
-  // Widget order — sanitize saved order (handle new/removed widgets)
-  const widgetOrder = useMemo(() => {
+  // All widget IDs in user's preferred order, minus user-hidden ones (from settings)
+  const allWidgetIds = useMemo(() => {
     const saved = data.settings?.dashboardWidgetOrder || [];
     const validIds = new Set<string>(DEFAULT_WIDGET_ORDER);
     const existing = saved.filter((id: string) => validIds.has(id));
     const missing = DEFAULT_WIDGET_ORDER.filter(id => !existing.includes(id));
     const all = [...existing, ...missing];
-    // Filter out hidden widgets (from Dashboard settings)
     const hidden = new Set(data.settings?.hiddenWidgets || []);
     return all.filter(id => !hidden.has(id));
   }, [data.settings?.dashboardWidgetOrder, data.settings?.hiddenWidgets]);
@@ -449,12 +449,12 @@ export function Dashboard() {
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = widgetOrder.indexOf(active.id as string);
-    const newIndex = widgetOrder.indexOf(over.id as string);
-    const newOrder = arrayMove(widgetOrder, oldIndex, newIndex);
+    const oldIndex = allWidgetIds.indexOf(active.id as string);
+    const newIndex = allWidgetIds.indexOf(over.id as string);
+    const newOrder = arrayMove(allWidgetIds, oldIndex, newIndex);
     updateSettings({ ...data.settings, dashboardWidgetOrder: newOrder });
     refreshData();
-  }, [widgetOrder, data.settings, refreshData]);
+  }, [allWidgetIds, data.settings, refreshData]);
 
   const currentTime = useMemo(() => {
     const now = new Date();
@@ -647,17 +647,33 @@ export function Dashboard() {
     return checkIns.length > 0 ? checkIns[checkIns.length - 1].mood : undefined;
   }, [data.aiCheckIns, todayStr2]);
 
-  // ── Mood-responsive theming layer ──
-  // Drives subtle visual shifts based on AI check-in mood, time of day, and activity
-  useEffect(() => {
-    const activityState: ActivityState =
-      classInfo.status === 'during' ? 'teaching' :
-      classTiming.upcomingClass ? 'prepping' :
-      activeTodayClasses.length > 0 && activeTodayClasses.every(c => timeToMinutes(c.endTime) < currentMinute) ? 'done' :
-      activeTodayClasses.length === 0 ? 'off' : 'idle';
+  // Activity state — used by mood layer AND smart dashboard modes
+  const activityState: ActivityState = useMemo(() =>
+    classInfo.status === 'during' ? 'teaching' :
+    classTiming.upcomingClass ? 'prepping' :
+    activeTodayClasses.length > 0 && activeTodayClasses.every(c => timeToMinutes(c.endTime) < currentMinute) ? 'done' :
+    activeTodayClasses.length === 0 ? 'off' : 'idle',
+  [classInfo.status, classTiming.upcomingClass, activeTodayClasses, currentMinute]);
 
+  // ── Mood-responsive theming layer ──
+  useEffect(() => {
     applyMoodLayer(todayMood as MoodSignal, hour, activityState);
-  }, [todayMood, hour, classInfo.status, classTiming.upcomingClass, activeTodayClasses, currentMinute]);
+  }, [todayMood, hour, activityState]);
+
+  // ── Smart Dashboard Mode ──
+  const wellnessMode = useMemo(() => {
+    const sc = data.selfCare;
+    return sc?.wellnessModeDate === todayStr2 ? sc?.wellnessMode : undefined;
+  }, [data.selfCare, todayStr2]);
+
+  const allClassesDoneForMode = activityState === 'done';
+  const hasJustEndedClass = !!classTiming.justEndedClass;
+
+  const dashboardMode = useDashboardMode(
+    activityState, hour, wellnessMode, hasJustEndedClass, allClassesDoneForMode, allWidgetIds,
+  );
+  // widgetOrder = mode-filtered list (respects both mode + user's hiddenWidgets from settings)
+  const widgetOrder = dashboardMode.visibleWidgets;
 
   const { greeting, greetingSub } = useMemo(() => {
     const base = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
@@ -720,6 +736,23 @@ export function Dashboard() {
               {isEditingLayout ? 'Done' : 'Edit'}
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* ── Smart Dashboard Mode ── */}
+      <div className="page-w px-4 pb-1">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-[var(--text-tertiary)]">
+            {dashboardMode.modeLabel} mode{dashboardMode.mode !== 'full' ? ` \u00b7 ${widgetOrder.length} widget${widgetOrder.length !== 1 ? 's' : ''}` : ''}
+          </span>
+          <button
+            onClick={() => dashboardMode.setManualMode(
+              dashboardMode.mode === 'full' ? null : 'full'
+            )}
+            className="text-xs font-medium text-[var(--accent-primary)] active:opacity-60 py-1"
+          >
+            {dashboardMode.mode === 'full' ? 'Smart View' : 'Show All'}
+          </button>
         </div>
       </div>
 

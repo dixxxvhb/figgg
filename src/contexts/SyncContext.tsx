@@ -100,8 +100,10 @@ async function syncAllCalendars(force = false): Promise<string[]> {
 
   if (newFeedEvents.length === 0 && icsResults.every(r => r.length === 0) && googleEvents.length === 0) {
     syncInProgress = false;
-    if (urls.size > 0) {
-      console.warn('Calendar sync: no events from any source');
+    // No events isn't a failure — calendars may just be empty.
+    // Only warn if every fetch actually failed (results contain "FAILED").
+    if (urls.size > 0 && results.every(r => r.includes('FAILED'))) {
+      console.warn('Calendar sync: all sources failed');
       window.dispatchEvent(new CustomEvent('calendar-sync-failed'));
     }
     return results;

@@ -6,6 +6,7 @@ import { useSyncStatus } from '../../contexts/SyncContext';
 export function SaveStatus() {
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error' | 'warning'>('idle');
   const [message, setMessage] = useState<string>('');
+  const [warningType, setWarningType] = useState<'storage' | 'sync' | 'calendar'>('storage');
   const [visible, setVisible] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const { triggerSync } = useSyncStatus();
@@ -15,6 +16,7 @@ export function SaveStatus() {
       if (newStatus === 'error' || newStatus === 'warning') {
         setStatus(newStatus);
         setMessage(msg || '');
+        setWarningType('storage');
         setVisible(true);
         setRetrying(false);
       } else {
@@ -25,6 +27,7 @@ export function SaveStatus() {
     const handleCalendarFailed = () => {
       setStatus('warning');
       setMessage('Calendar could not be synced — check your connection');
+      setWarningType('calendar');
       setVisible(true);
     };
     window.addEventListener('calendar-sync-failed', handleCalendarFailed);
@@ -32,14 +35,27 @@ export function SaveStatus() {
     const handleSyncWarning = (e: Event) => {
       setStatus('warning');
       setMessage((e as CustomEvent).detail || 'Cloud sync issues');
+      setWarningType('sync');
       setVisible(true);
     };
     window.addEventListener('figgg-sync-warning', handleSyncWarning);
+
+    const handleSyncRecovered = () => {
+      setVisible(false);
+    };
+    window.addEventListener('figgg-sync-recovered', handleSyncRecovered);
+
+    const handleCalendarComplete = () => {
+      setVisible(false);
+    };
+    window.addEventListener('calendar-sync-complete', handleCalendarComplete);
 
     return () => {
       unsubscribe();
       window.removeEventListener('calendar-sync-failed', handleCalendarFailed);
       window.removeEventListener('figgg-sync-warning', handleSyncWarning);
+      window.removeEventListener('figgg-sync-recovered', handleSyncRecovered);
+      window.removeEventListener('calendar-sync-complete', handleCalendarComplete);
     };
   }, []);
 
@@ -73,7 +89,9 @@ export function SaveStatus() {
         <div className="flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-[var(--status-warning)] flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <span className="text-[var(--text-primary)] text-sm font-medium">Storage Warning</span>
+            <span className="text-[var(--text-primary)] text-sm font-medium">
+              {warningType === 'sync' ? 'Sync Notice' : warningType === 'calendar' ? 'Calendar Sync' : 'Storage Warning'}
+            </span>
             {message && (
               <p className="text-[var(--text-secondary)] text-xs mt-1">{message}</p>
             )}

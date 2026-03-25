@@ -85,6 +85,7 @@ export function useAppData() {
   // Track Firestore write failures — warn user after repeated failures
   const writeFailCountRef = useRef(0);
   const writeFailTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const warnCooldownRef = useRef(false);
   // Plain function (not useCallback) — only uses refs, no deps needed.
   // Adding a useCallback here would change the hook count and break HMR.
   function trackWriteFail() {
@@ -95,10 +96,14 @@ export function useAppData() {
         writeFailTimerRef.current = null;
       }, 60_000);
     }
-    if (writeFailCountRef.current >= 3) {
+    // Threshold 5 (was 3) + 2-minute cooldown to avoid spamming during transient blips
+    if (writeFailCountRef.current >= 5 && !warnCooldownRef.current) {
       window.dispatchEvent(new CustomEvent('figgg-sync-warning', {
         detail: 'Cloud sync issues — changes saved locally',
       }));
+      writeFailCountRef.current = 0;
+      warnCooldownRef.current = true;
+      setTimeout(() => { warnCooldownRef.current = false; }, 120_000);
     }
   }
   function trackWriteSuccess() {
@@ -108,6 +113,8 @@ export function useAppData() {
         clearTimeout(writeFailTimerRef.current);
         writeFailTimerRef.current = null;
       }
+      // Dismiss any visible sync warning now that writes are succeeding again
+      window.dispatchEvent(new CustomEvent('figgg-sync-recovered'));
     }
   }
 
