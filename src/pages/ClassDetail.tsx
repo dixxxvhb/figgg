@@ -923,8 +923,8 @@ export function ClassDetail() {
                             };
                             return (
                               <div className="flex items-center gap-1.5 mt-0.5">
-                                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${catColors[latest.category] || 'bg-blush-400'}`} />
-                                <span className="text-[10px] text-blush-400 dark:text-blush-500 truncate">{latest.text}</span>
+                                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${catColors[latest.category] || 'bg-[var(--text-secondary)]'}`} />
+                                <span className="text-[10px] text-[var(--text-tertiary)] truncate">{latest.text}</span>
                               </div>
                             );
                           })()}
@@ -940,7 +940,7 @@ export function ClassDetail() {
                             className={`p-2 rounded-lg transition-colors ${
                               status === 'present'
                                 ? 'bg-green-500 text-white'
-                                : 'bg-blush-100 dark:bg-blush-700 text-blush-400 dark:text-blush-500 hover:bg-green-100 dark:hover:bg-green-900/50 hover:text-green-600 dark:hover:text-green-400'
+                                : 'bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:bg-green-100 dark:hover:bg-green-900/50 hover:text-green-600 dark:hover:text-green-400'
                             }`}
                             title="Present"
                           >
@@ -951,7 +951,7 @@ export function ClassDetail() {
                             className={`p-2 rounded-lg transition-colors ${
                               status === 'late'
                                 ? 'bg-amber-500 text-white'
-                                : 'bg-blush-100 dark:bg-blush-700 text-blush-400 dark:text-blush-500 hover:bg-amber-100 dark:hover:bg-amber-900/50 hover:text-amber-600 dark:hover:text-amber-400'
+                                : 'bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:bg-amber-100 dark:hover:bg-amber-900/50 hover:text-amber-600 dark:hover:text-amber-400'
                             }`}
                             title="Late"
                           >
@@ -962,7 +962,7 @@ export function ClassDetail() {
                             className={`p-2 rounded-lg transition-colors ${
                               status === 'absent'
                                 ? 'bg-red-500 text-white'
-                                : 'bg-blush-100 dark:bg-blush-700 text-blush-400 dark:text-blush-500 hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-600 dark:hover:text-red-400'
+                                : 'bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-600 dark:hover:text-red-400'
                             }`}
                             title="Absent"
                           >

@@ -23,7 +23,7 @@ const styleColors: Record<DanceStyle, string> = {
   'contemporary': 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
   'lyrical': 'bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400',
   'musical-theatre': 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400',
-  'tap': 'bg-blush-100 dark:bg-blush-900/30 text-blush-700 dark:text-blush-400',
+  'tap': 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400',
   'hip-hop': 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
   'acro': 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400',
   'open': 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400',
@@ -80,8 +80,8 @@ export function DanceDetail() {
   if (!dance) {
     return (
       <div className="page-w px-4 py-6">
-        <p className="text-forest-600">Dance not found</p>
-        <Link to="/choreography" className="text-forest-600 underline">Back to dances</Link>
+        <p className="text-[var(--text-secondary)]">Dance not found</p>
+        <Link to="/choreography" className="text-[var(--accent-primary)] underline">Back to dances</Link>
       </div>
     );
   }
@@ -406,7 +406,7 @@ export function DanceDetail() {
     <div className="page-w px-4 py-6 pb-24">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <Link to="/choreography" className="p-2 hover:bg-forest-100 rounded-lg text-forest-600">
+        <Link to="/choreography" className="p-2 hover:bg-[var(--surface-highlight)] rounded-lg text-[var(--accent-primary)]">
           <ArrowLeft size={20} />
         </Link>
         <div className="flex-1">
@@ -415,22 +415,22 @@ export function DanceDetail() {
         </div>
         {isEditing ? (
           <div className="flex gap-2">
-            <button onClick={handleCancel} className="p-2 hover:bg-forest-100 rounded-lg text-forest-600" aria-label="Cancel editing">
+            <button onClick={handleCancel} className="p-2 hover:bg-[var(--surface-highlight)] rounded-lg text-[var(--accent-primary)]" aria-label="Cancel editing">
               <X size={20} />
             </button>
-            <button onClick={handleSave} className="p-2 bg-forest-100 text-forest-700 rounded-lg" aria-label="Save changes">
+            <button onClick={handleSave} className="p-2 bg-[var(--surface-highlight)] text-[var(--text-primary)] rounded-lg" aria-label="Save changes">
               <Save size={20} />
             </button>
           </div>
         ) : (
-          <button onClick={() => setIsEditing(true)} className="p-2 hover:bg-forest-100 rounded-lg text-forest-600">
+          <button onClick={() => setIsEditing(true)} className="p-2 hover:bg-[var(--surface-highlight)] rounded-lg text-[var(--accent-primary)]">
             <Edit2 size={20} />
           </button>
         )}
       </div>
 
       {/* Quick Info Card */}
-      <div className="bg-forest-600 rounded-xl p-4 mb-6 text-white">
+      <div className="bg-[var(--accent-primary)] rounded-xl p-4 mb-6 text-[var(--text-on-accent)]">
         <div className="flex items-center gap-2 mb-3">
           <span className={`text-xs px-2 py-0.5 rounded-full ${styleColors[displayDance.style]}`}>
             {displayDance.style}
@@ -442,34 +442,34 @@ export function DanceDetail() {
 
         <div className="grid grid-cols-2 gap-3">
           <div className="flex items-center gap-2">
-            <Clock size={16} className="text-blush-200" />
+            <Clock size={16} className="text-[var(--text-on-accent)] opacity-70" />
             <span>{displayDance.duration}</span>
           </div>
           <div className="flex items-center gap-2">
             {displayDance.category === 'solo' ? (
-              <User size={16} className="text-blush-200" />
+              <User size={16} className="text-[var(--text-on-accent)] opacity-70" />
             ) : (
-              <Users size={16} className="text-blush-200" />
+              <Users size={16} className="text-[var(--text-on-accent)] opacity-70" />
             )}
             <span>{displayDance.dancers.length} dancer{displayDance.dancers.length !== 1 ? 's' : ''}</span>
           </div>
         </div>
 
-        <div className="mt-3 pt-3 border-t border-forest-500">
-          <div className="text-sm text-blush-200 mb-1">Start Position</div>
+        <div className="mt-3 pt-3 border-t border-[var(--text-on-accent)]/20">
+          <div className="text-sm text-[var(--text-on-accent)] opacity-70 mb-1">Start Position</div>
           <div>{displayDance.startPosition}</div>
         </div>
 
         {displayDance.props !== 'none' && (
-          <div className="mt-3 pt-3 border-t border-forest-500">
-            <div className="text-sm text-blush-200 mb-1">Props</div>
+          <div className="mt-3 pt-3 border-t border-[var(--text-on-accent)]/20">
+            <div className="text-sm text-[var(--text-on-accent)] opacity-70 mb-1">Props</div>
             <div>{displayDance.props}</div>
           </div>
         )}
       </div>
 
       {/* Competition Music Track */}
-      <div className="bg-white dark:bg-blush-800 rounded-xl border border-forest-200 dark:border-blush-700 p-4 mb-6">
+      <div className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 mb-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
             <Music size={18} />
@@ -501,13 +501,13 @@ export function DanceDetail() {
             <div className="flex items-center gap-3">
               <button
                 onClick={togglePlayPause}
-                className="w-14 h-14 bg-forest-600 hover:bg-forest-700 text-white rounded-full flex items-center justify-center transition-colors"
+                className="w-14 h-14 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-[var(--text-on-accent)] rounded-full flex items-center justify-center transition-colors"
               >
                 {isPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
               </button>
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-[var(--text-primary)] truncate">{dance.musicTrack.name}</div>
-                <div className="text-sm text-forest-500">
+                <div className="text-sm text-[var(--text-secondary)]">
                   {dance.musicTrack.duration || 'Unknown duration'}
                 </div>
               </div>
@@ -527,9 +527,9 @@ export function DanceDetail() {
                 max={audioDuration || 100}
                 value={audioProgress}
                 onChange={handleSeek}
-                className="w-full h-2 bg-forest-100 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-forest-600 [&::-webkit-slider-thumb]:rounded-full"
+                className="w-full h-2 bg-[var(--surface-highlight)] rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-[var(--accent-primary)] [&::-webkit-slider-thumb]:rounded-full"
               />
-              <div className="flex justify-between text-xs text-forest-500">
+              <div className="flex justify-between text-xs text-[var(--text-secondary)]">
                 <span>{formatTime(audioProgress)}</span>
                 <span>{formatTime(audioDuration)}</span>
               </div>
@@ -544,11 +544,11 @@ export function DanceDetail() {
             )}
             <button
               onClick={() => musicInputRef.current?.click()}
-              className="w-full py-6 border-2 border-dashed border-forest-300 rounded-xl text-forest-500 hover:border-forest-400 hover:text-forest-600 transition-colors flex flex-col items-center gap-2"
+              className="w-full py-6 border-2 border-dashed border-[var(--border-strong)] rounded-xl text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] transition-colors flex flex-col items-center gap-2"
             >
               <Upload size={24} />
               <span className="text-sm font-medium">Upload Competition Music</span>
-              <span className="text-xs text-forest-400">MP3 recommended (max 3MB)</span>
+              <span className="text-xs text-[var(--text-tertiary)]">MP3 recommended (max 3MB)</span>
             </button>
           </div>
         )}
@@ -556,8 +556,8 @@ export function DanceDetail() {
 
       {/* Costume & Hair Info */}
       {displayDance.costume && (
-        <div className="bg-white dark:bg-blush-800 rounded-xl border border-forest-200 dark:border-blush-700 p-4 mb-6">
-          <h2 className="font-semibold text-forest-700 mb-3 flex items-center gap-2">
+        <div className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 mb-6">
+          <h2 className="font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
             <Scissors size={18} />
             Costume & Hair
           </h2>
@@ -567,10 +567,10 @@ export function DanceDetail() {
                 <Scissors size={16} className="text-purple-600" />
               </div>
               <div>
-                <div className="text-xs text-forest-500 uppercase tracking-wide">Hair</div>
+                <div className="text-xs text-[var(--text-secondary)] uppercase tracking-wide">Hair</div>
                 <div className="text-[var(--text-primary)] font-medium">{displayDance.costume.hair}</div>
                 {displayDance.costume.hairAccessories && (
-                  <div className="text-sm text-forest-500">{displayDance.costume.hairAccessories}</div>
+                  <div className="text-sm text-[var(--text-secondary)]">{displayDance.costume.hairAccessories}</div>
                 )}
               </div>
             </div>
@@ -581,7 +581,7 @@ export function DanceDetail() {
                   <span className="text-pink-600 text-xs font-bold">T</span>
                 </div>
                 <div>
-                  <div className="text-xs text-forest-500 uppercase tracking-wide">Tights</div>
+                  <div className="text-xs text-[var(--text-secondary)] uppercase tracking-wide">Tights</div>
                   <div className="text-[var(--text-primary)] font-medium">{displayDance.costume.tights}</div>
                 </div>
               </div>
@@ -593,7 +593,7 @@ export function DanceDetail() {
                   <Footprints size={16} className="text-amber-600" />
                 </div>
                 <div>
-                  <div className="text-xs text-forest-500 uppercase tracking-wide">Shoes</div>
+                  <div className="text-xs text-[var(--text-secondary)] uppercase tracking-wide">Shoes</div>
                   <div className="text-[var(--text-primary)] font-medium">{displayDance.costume.shoes}</div>
                 </div>
               </div>
@@ -605,7 +605,7 @@ export function DanceDetail() {
                   <Plus size={16} className="text-blue-600" />
                 </div>
                 <div>
-                  <div className="text-xs text-forest-500 uppercase tracking-wide">Accessories</div>
+                  <div className="text-xs text-[var(--text-secondary)] uppercase tracking-wide">Accessories</div>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {displayDance.costume.accessories.map((acc, i) => (
                       <span key={i} className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-sm">
@@ -627,8 +627,8 @@ export function DanceDetail() {
       )}
 
       {/* Dancers */}
-      <div className="bg-white dark:bg-blush-800 rounded-xl border border-forest-200 dark:border-blush-700 p-4 mb-6">
-        <h2 className="font-semibold text-forest-700 mb-3 flex items-center gap-2">
+      <div className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 mb-6">
+        <h2 className="font-semibold text-[var(--text-primary)] mb-3 flex items-center gap-2">
           <Users size={18} />
           Dancers ({displayDance.dancerIds?.length || displayDance.dancers.length})
         </h2>
@@ -642,7 +642,7 @@ export function DanceDetail() {
                 <Link
                   key={studentId}
                   to={`/students?highlight=${studentId}`}
-                  className="bg-blush-100 text-forest-600 px-3 py-1 rounded-full text-sm hover:bg-blush-200 transition-colors"
+                  className="bg-[var(--surface-highlight)] text-[var(--accent-primary)] px-3 py-1 rounded-full text-sm hover:bg-[var(--surface-highlight)] transition-colors"
                 >
                   {student.nickname || student.name.split(' ')[0]}
                 </Link>
@@ -651,7 +651,7 @@ export function DanceDetail() {
           ) : (
             // Fallback to display names only
             displayDance.dancers.map((dancer, i) => (
-              <span key={i} className="bg-blush-100 text-forest-600 px-3 py-1 rounded-full text-sm">
+              <span key={i} className="bg-[var(--surface-highlight)] text-[var(--accent-primary)] px-3 py-1 rounded-full text-sm">
                 {dancer}
               </span>
             ))
@@ -660,11 +660,11 @@ export function DanceDetail() {
       </div>
 
       {/* Choreographers */}
-      <div className="bg-white dark:bg-blush-800 rounded-xl border border-forest-200 dark:border-blush-700 p-4 mb-6">
+      <div className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 mb-6">
         <h2 className="font-semibold text-[var(--text-primary)] mb-3">Choreographers</h2>
         <div className="flex flex-wrap gap-2">
           {displayDance.choreographers.map((choreo, i) => (
-            <span key={i} className="bg-forest-100 text-forest-600 px-3 py-1 rounded-full text-sm">
+            <span key={i} className="bg-[var(--surface-highlight)] text-[var(--accent-primary)] px-3 py-1 rounded-full text-sm">
               {choreo}
             </span>
           ))}
@@ -672,25 +672,25 @@ export function DanceDetail() {
       </div>
 
       {/* Notes */}
-      <div className="bg-white dark:bg-blush-800 rounded-xl border border-forest-200 dark:border-blush-700 p-4 mb-6">
-        <h2 className="font-semibold text-forest-700 dark:text-white mb-3">General Notes</h2>
+      <div className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 mb-6">
+        <h2 className="font-semibold text-[var(--text-primary)] mb-3">General Notes</h2>
         {isEditing ? (
           <textarea
             value={editedDance?.notes || ''}
             onChange={(e) => setEditedDance(prev => prev ? { ...prev, notes: e.target.value } : prev)}
             placeholder="Add notes about this dance..."
             rows={4}
-            className="w-full px-3 py-2 border border-forest-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-white dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400 dark:placeholder-blush-500"
+            className="w-full px-3 py-2 border border-[var(--border-subtle)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent bg-[var(--surface-card)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)]"
           />
         ) : (
-          <p className="text-forest-600 dark:text-blush-300 whitespace-pre-wrap">
+          <p className="text-[var(--text-secondary)] whitespace-pre-wrap">
             {displayDance.notes || 'No notes yet'}
           </p>
         )}
       </div>
 
       {/* Media */}
-      <div className="bg-white dark:bg-blush-800 rounded-xl border border-forest-200 dark:border-blush-700 p-4 mb-6">
+      <div className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 mb-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
             <Camera size={18} />
@@ -699,7 +699,7 @@ export function DanceDetail() {
           {isEditing && (
             <button
               onClick={() => mediaInputRef.current?.click()}
-              className="text-sm text-forest-600 flex items-center gap-1"
+              className="text-sm text-[var(--accent-primary)] flex items-center gap-1"
             >
               <Plus size={16} />
               Add
@@ -726,7 +726,7 @@ export function DanceDetail() {
         {displayDance.media && displayDance.media.length > 0 ? (
           <div className="grid grid-cols-3 gap-2">
             {displayDance.media.map(item => (
-              <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden bg-forest-100">
+              <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden bg-[var(--surface-highlight)]">
                 <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
                 {isEditing && (
                   <button
@@ -745,7 +745,7 @@ export function DanceDetail() {
       </div>
 
       {/* Rehearsal Notes Section */}
-      <div className="bg-white dark:bg-blush-800 rounded-xl border border-forest-200 dark:border-blush-700 p-4 mb-6">
+      <div className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-semibold text-[var(--text-primary)] flex items-center gap-2">
             <Music size={18} />
@@ -753,7 +753,7 @@ export function DanceDetail() {
           </h2>
           <button
             onClick={() => setShowAddRehearsal(!showAddRehearsal)}
-            className="text-sm bg-forest-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1"
+            className="text-sm bg-[var(--accent-primary)] text-[var(--text-on-accent)] px-3 py-1.5 rounded-lg flex items-center gap-1"
           >
             <Plus size={16} />
             Add Rehearsal
@@ -762,9 +762,9 @@ export function DanceDetail() {
 
         {/* Add New Rehearsal Form */}
         {showAddRehearsal && (
-          <div className="bg-forest-50 dark:bg-blush-800 rounded-lg p-4 mb-4">
+          <div className="bg-[var(--surface-highlight)] rounded-lg p-4 mb-4">
             <div className="mb-3">
-              <label className="block text-sm font-medium text-forest-600 dark:text-blush-300 mb-1">
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
                 What did you work on?
               </label>
               <textarea
@@ -772,12 +772,12 @@ export function DanceDetail() {
                 onChange={(e) => setNewRehearsalNotes(e.target.value)}
                 placeholder="Notes from today's rehearsal..."
                 rows={3}
-                className="w-full px-3 py-2 border border-forest-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-white dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400 dark:placeholder-blush-500"
+                className="w-full px-3 py-2 border border-[var(--border-subtle)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent bg-[var(--surface-card)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)]"
               />
             </div>
 
             <div className="mb-3">
-              <label className="block text-sm font-medium text-forest-600 dark:text-blush-300 mb-1">
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
                 Work on next week:
               </label>
               {newWorkOn.map((item, i) => (
@@ -791,7 +791,7 @@ export function DanceDetail() {
                       setNewWorkOn(updated);
                     }}
                     placeholder="Thing to work on..."
-                    className="flex-1 px-3 py-2 border border-forest-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-white dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400 dark:placeholder-blush-500"
+                    className="flex-1 px-3 py-2 border border-[var(--border-subtle)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent bg-[var(--surface-card)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)]"
                   />
                   {newWorkOn.length > 1 && (
                     <button
@@ -805,7 +805,7 @@ export function DanceDetail() {
               ))}
               <button
                 onClick={() => setNewWorkOn([...newWorkOn, ''])}
-                className="text-sm text-forest-600 flex items-center gap-1"
+                className="text-sm text-[var(--accent-primary)] flex items-center gap-1"
               >
                 <Plus size={14} />
                 Add item
@@ -822,7 +822,7 @@ export function DanceDetail() {
                   setNewRehearsalNotes('');
                   setNewWorkOn(['']);
                 }}
-                className="px-4 py-2 text-forest-600 hover:bg-forest-100 rounded-lg"
+                className="px-4 py-2 text-[var(--accent-primary)] hover:bg-[var(--surface-highlight)] rounded-lg"
               >
                 Cancel
               </button>
@@ -834,7 +834,7 @@ export function DanceDetail() {
         {dance.rehearsalNotes && dance.rehearsalNotes.length > 0 ? (
           <div className="space-y-3">
             {dance.rehearsalNotes.map(note => (
-              <div key={note.id} className="border border-forest-200 rounded-lg overflow-hidden">
+              <div key={note.id} className="border border-[var(--border-subtle)] rounded-lg overflow-hidden">
                 <button
                   onClick={() => toggleNoteExpanded(note.id)}
                   className="w-full flex items-center justify-between p-3 bg-[var(--surface-secondary)] hover:bg-[var(--surface-inset)]"
@@ -853,17 +853,17 @@ export function DanceDetail() {
                       /* Edit Mode */
                       <div className="space-y-3">
                         <div>
-                          <label className="block text-xs text-forest-500 dark:text-blush-400 mb-1">Notes</label>
+                          <label className="block text-xs text-[var(--text-secondary)] mb-1">Notes</label>
                           <textarea
                             value={editRehearsalNotes}
                             onChange={(e) => setEditRehearsalNotes(e.target.value)}
                             rows={3}
-                            className="w-full px-3 py-2 border border-forest-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent text-sm bg-white dark:bg-blush-700 text-forest-700 dark:text-white"
+                            className="w-full px-3 py-2 border border-[var(--border-subtle)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent text-sm bg-[var(--surface-card)] text-[var(--text-primary)]"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-xs text-forest-500 dark:text-blush-400 mb-1">Work on next week</label>
+                          <label className="block text-xs text-[var(--text-secondary)] mb-1">Work on next week</label>
                           {editWorkOn.map((item, i) => (
                             <div key={i} className="flex gap-2 mb-2">
                               <input
@@ -874,7 +874,7 @@ export function DanceDetail() {
                                   updated[i] = e.target.value;
                                   setEditWorkOn(updated);
                                 }}
-                                className="flex-1 px-3 py-2 border border-forest-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent text-sm bg-white dark:bg-blush-700 text-forest-700 dark:text-white"
+                                className="flex-1 px-3 py-2 border border-[var(--border-subtle)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent text-sm bg-[var(--surface-card)] text-[var(--text-primary)]"
                               />
                               {editWorkOn.length > 1 && (
                                 <button
@@ -888,7 +888,7 @@ export function DanceDetail() {
                           ))}
                           <button
                             onClick={() => setEditWorkOn([...editWorkOn, ''])}
-                            className="text-xs text-forest-600 flex items-center gap-1"
+                            className="text-xs text-[var(--accent-primary)] flex items-center gap-1"
                           >
                             <Plus size={12} />
                             Add item
@@ -898,14 +898,14 @@ export function DanceDetail() {
                         <div className="flex gap-2 pt-2">
                           <button
                             onClick={saveRehearsalEdit}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-forest-600 text-white rounded-lg text-sm"
+                            className="flex items-center gap-1 px-3 py-1.5 bg-[var(--accent-primary)] text-[var(--text-on-accent)] rounded-lg text-sm"
                           >
                             <Save size={14} />
                             Save
                           </button>
                           <button
                             onClick={cancelEditingRehearsal}
-                            className="flex items-center gap-1 px-3 py-1.5 text-forest-600 hover:bg-forest-100 rounded-lg text-sm"
+                            className="flex items-center gap-1 px-3 py-1.5 text-[var(--accent-primary)] hover:bg-[var(--surface-highlight)] rounded-lg text-sm"
                           >
                             Cancel
                           </button>
@@ -916,14 +916,14 @@ export function DanceDetail() {
                       <>
                         {note.notes && (
                           <div>
-                            <div className="text-xs text-forest-500 mb-1">Notes</div>
+                            <div className="text-xs text-[var(--text-secondary)] mb-1">Notes</div>
                             <p className="text-[var(--text-primary)] whitespace-pre-wrap">{note.notes}</p>
                           </div>
                         )}
 
                         {note.workOn && note.workOn.length > 0 && (
                           <div>
-                            <div className="text-xs text-forest-500 mb-1">Work on next week</div>
+                            <div className="text-xs text-[var(--text-secondary)] mb-1">Work on next week</div>
                             <ul className="space-y-1">
                               {note.workOn.map((item, i) => (
                                 <li key={i} className="flex items-start gap-2 text-[var(--text-primary)]">
@@ -938,13 +938,13 @@ export function DanceDetail() {
                         {/* Rehearsal Media */}
                         <div>
                           <div className="flex items-center justify-between mb-2">
-                            <div className="text-xs text-forest-500">Media</div>
+                            <div className="text-xs text-[var(--text-secondary)]">Media</div>
                             <button
                               onClick={() => {
                                 setActiveRehearsalId(note.id);
                                 rehearsalMediaInputRef.current?.click();
                               }}
-                              className="text-xs text-forest-600 flex items-center gap-1"
+                              className="text-xs text-[var(--accent-primary)] flex items-center gap-1"
                             >
                               <Camera size={12} />
                               Add
@@ -964,21 +964,21 @@ export function DanceDetail() {
                           {note.media && note.media.length > 0 ? (
                             <div className="grid grid-cols-4 gap-2">
                               {note.media.map(item => (
-                                <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden bg-forest-100">
+                                <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden bg-[var(--surface-highlight)]">
                                   <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
                                 </div>
                               ))}
                             </div>
                           ) : (
-                            <p className="text-forest-400 text-xs">No photos</p>
+                            <p className="text-[var(--text-tertiary)] text-xs">No photos</p>
                           )}
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex gap-4 pt-2 border-t border-forest-100">
+                        <div className="flex gap-4 pt-2 border-t border-[var(--border-subtle)]">
                           <button
                             onClick={() => startEditingRehearsal(note)}
-                            className="text-xs text-forest-600 flex items-center gap-1"
+                            className="text-xs text-[var(--accent-primary)] flex items-center gap-1"
                           >
                             <Edit2 size={12} />
                             Edit
@@ -1006,13 +1006,13 @@ export function DanceDetail() {
       {/* ── Competition Results ── */}
       <div className="mt-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold text-forest-700 dark:text-white flex items-center gap-2">
+          <h2 className="text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
             <Trophy size={18} />
             Results
           </h2>
           <button
             onClick={() => setShowAddResult(!showAddResult)}
-            className="flex items-center gap-1 px-3 py-1.5 bg-forest-600 text-white text-sm font-medium rounded-lg active:scale-95 transition-transform"
+            className="flex items-center gap-1 px-3 py-1.5 bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-medium rounded-lg active:scale-95 transition-transform"
           >
             <Plus size={14} />
             Add
@@ -1020,46 +1020,46 @@ export function DanceDetail() {
         </div>
 
         {showAddResult && (
-          <div className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4 mb-3 space-y-3">
+          <div className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 mb-3 space-y-3">
             <input
               value={newResult.competitionName}
               onChange={e => setNewResult(prev => ({ ...prev, competitionName: e.target.value }))}
               placeholder="Competition name"
-              className="w-full px-3 py-2 text-sm border border-blush-200 dark:border-blush-600 rounded-lg bg-white dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400 focus:ring-1 focus:ring-forest-500"
+              className="w-full px-3 py-2 text-sm border border-[var(--border-subtle)] rounded-lg bg-[var(--surface-card)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:ring-1 focus:ring-[var(--accent-primary)]"
             />
             <div className="flex gap-2">
               <input
                 value={newResult.placement}
                 onChange={e => setNewResult(prev => ({ ...prev, placement: e.target.value }))}
                 placeholder="Placement (1st, Gold, etc.)"
-                className="flex-1 px-3 py-2 text-sm border border-blush-200 dark:border-blush-600 rounded-lg bg-white dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400 focus:ring-1 focus:ring-forest-500"
+                className="flex-1 px-3 py-2 text-sm border border-[var(--border-subtle)] rounded-lg bg-[var(--surface-card)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:ring-1 focus:ring-[var(--accent-primary)]"
               />
               <input
                 value={newResult.score}
                 onChange={e => setNewResult(prev => ({ ...prev, score: e.target.value }))}
                 placeholder="Score"
                 type="number"
-                className="w-24 px-3 py-2 text-sm border border-blush-200 dark:border-blush-600 rounded-lg bg-white dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400 focus:ring-1 focus:ring-forest-500"
+                className="w-24 px-3 py-2 text-sm border border-[var(--border-subtle)] rounded-lg bg-[var(--surface-card)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:ring-1 focus:ring-[var(--accent-primary)]"
               />
             </div>
             <input
               value={newResult.specialAwards}
               onChange={e => setNewResult(prev => ({ ...prev, specialAwards: e.target.value }))}
               placeholder="Special awards (comma-separated)"
-              className="w-full px-3 py-2 text-sm border border-blush-200 dark:border-blush-600 rounded-lg bg-white dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400 focus:ring-1 focus:ring-forest-500"
+              className="w-full px-3 py-2 text-sm border border-[var(--border-subtle)] rounded-lg bg-[var(--surface-card)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:ring-1 focus:ring-[var(--accent-primary)]"
             />
             <textarea
               value={newResult.judgeNotes}
               onChange={e => setNewResult(prev => ({ ...prev, judgeNotes: e.target.value }))}
               placeholder="Judge notes / feedback..."
               rows={2}
-              className="w-full px-3 py-2 text-sm border border-blush-200 dark:border-blush-600 rounded-lg bg-white dark:bg-blush-700 text-forest-700 dark:text-white placeholder-blush-400 focus:ring-1 focus:ring-forest-500 resize-none"
+              className="w-full px-3 py-2 text-sm border border-[var(--border-subtle)] rounded-lg bg-[var(--surface-card)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:ring-1 focus:ring-[var(--accent-primary)] resize-none"
             />
             <div className="flex gap-2">
-              <button onClick={addResult} disabled={!newResult.competitionName.trim()} className="px-4 py-2 bg-forest-600 text-white text-sm font-medium rounded-lg disabled:opacity-40 active:scale-95 transition-transform">
+              <button onClick={addResult} disabled={!newResult.competitionName.trim()} className="px-4 py-2 bg-[var(--accent-primary)] text-[var(--text-on-accent)] text-sm font-medium rounded-lg disabled:opacity-40 active:scale-95 transition-transform">
                 Save Result
               </button>
-              <button onClick={() => setShowAddResult(false)} className="px-4 py-2 text-sm text-blush-500 hover:text-blush-700">
+              <button onClick={() => setShowAddResult(false)} className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                 Cancel
               </button>
             </div>
@@ -1069,10 +1069,10 @@ export function DanceDetail() {
         {displayDance.results && displayDance.results.length > 0 ? (
           <div className="space-y-2">
             {displayDance.results.map(result => (
-              <div key={result.id} className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-3">
+              <div key={result.id} className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-3">
                 <div className="flex items-start justify-between">
                   <div>
-                    <div className="font-medium text-forest-900 dark:text-white text-sm">{result.competitionName}</div>
+                    <div className="font-medium text-[var(--text-primary)] text-sm">{result.competitionName}</div>
                     <div className="flex items-center gap-2 mt-1">
                       {result.placement && (
                         <span className="text-xs px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full font-medium">
@@ -1080,11 +1080,11 @@ export function DanceDetail() {
                         </span>
                       )}
                       {result.score != null && (
-                        <span className="text-xs text-blush-500 dark:text-blush-400">{result.score} pts</span>
+                        <span className="text-xs text-[var(--text-secondary)]">{result.score} pts</span>
                       )}
                     </div>
                   </div>
-                  <button onClick={() => deleteResult(result.id)} className="p-1 text-blush-400 hover:text-red-500">
+                  <button onClick={() => deleteResult(result.id)} className="p-1 text-[var(--text-tertiary)] hover:text-red-500">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -1099,7 +1099,7 @@ export function DanceDetail() {
                   </div>
                 )}
                 {result.judgeNotes && (
-                  <p className="text-xs text-blush-500 dark:text-blush-400 mt-2 italic">{result.judgeNotes}</p>
+                  <p className="text-xs text-[var(--text-secondary)] mt-2 italic">{result.judgeNotes}</p>
                 )}
               </div>
             ))}

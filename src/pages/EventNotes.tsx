@@ -16,7 +16,7 @@ import { useConfirmDialog } from '../components/common/ConfirmDialog';
 import { EmptyState } from '../components/common/EmptyState';
 
 const QUICK_TAGS = [
-  { id: 'worked-on', label: 'Worked On', icon: CheckCircle, color: 'bg-forest-100 dark:bg-forest-900/30 text-forest-700 dark:text-forest-400' },
+  { id: 'worked-on', label: 'Worked On', icon: CheckCircle, color: 'bg-[var(--accent-muted)] text-[var(--accent-primary)]' },
   { id: 'needs-work', label: 'Needs More Work', icon: AlertCircle, color: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' },
   { id: 'next-week', label: 'Next Week', icon: Clock, color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' },
   { id: 'ideas', label: 'Ideas', icon: Lightbulb, color: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' },
@@ -170,7 +170,7 @@ export function EventNotes() {
     return (
       <div className="page-w px-4 py-6">
         <p>Event not found</p>
-        <Link to="/schedule" className="text-forest-600">Back to schedule</Link>
+        <Link to="/schedule" className="text-[var(--accent-primary)]">Back to schedule</Link>
       </div>
     );
   }
@@ -464,19 +464,19 @@ export function EventNotes() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-blush-100 dark:bg-blush-900">
+    <div className="flex flex-col h-full bg-[var(--surface-primary)]">
       {confirmDialog}
       {/* Header */}
-      <div className="px-4 py-3 bg-forest-600 text-white">
+      <div className="px-4 py-3 bg-[var(--accent-primary)] text-[var(--text-on-accent)]">
         <div className="flex items-center justify-between page-w">
           <div className="flex items-center gap-3">
-            <Link to={`/event/${eventId}`} className="p-1 hover:bg-forest-500 rounded-lg transition-colors">
+            <Link to={`/event/${eventId}`} className="p-1 hover:bg-[var(--accent-primary-hover)] rounded-lg transition-colors">
               <ArrowLeft size={20} />
             </Link>
             <div>
               <div className="font-semibold">{event.title}</div>
               {event.startTime && event.startTime !== '00:00' && (
-                <div className="text-sm text-blush-200">
+                <div className="text-sm text-[var(--text-on-accent)]/70">
                   {formatTimeDisplay(event.startTime)}
                   {event.endTime && event.endTime !== '00:00' && (
                     <> - {formatTimeDisplay(event.endTime)}</>
@@ -542,8 +542,8 @@ export function EventNotes() {
           </button>
           {showPlan && (
             <div className="px-4 pb-3 page-w max-h-[40vh] overflow-y-auto">
-              <div className="bg-white dark:bg-blush-800 rounded-xl border border-purple-200 dark:border-purple-800 p-3">
-                <div className="text-sm text-forest-700 dark:text-blush-300 whitespace-pre-wrap">
+              <div className="bg-[var(--surface-card)] rounded-xl border border-purple-200 dark:border-purple-800 p-3">
+                <div className="text-sm text-[var(--text-primary)] whitespace-pre-wrap">
                   {eventNotes.plan}
                 </div>
                 <Link
@@ -561,7 +561,7 @@ export function EventNotes() {
 
       {/* No Plan - Quick link to create one */}
       {!eventNotes.plan && (
-        <div className="px-4 py-2 border-b border-blush-200 dark:border-blush-700">
+        <div className="px-4 py-2 border-b border-[var(--border-subtle)]">
           <Link
             to={`/event/${eventId}`}
             className="flex items-center justify-between page-w bg-purple-50/50 dark:bg-purple-900/20 rounded-xl border border-dashed border-purple-200 dark:border-purple-800 p-3 hover:border-purple-300 transition-colors"
@@ -591,7 +591,7 @@ export function EventNotes() {
               return (
                 <div
                   key={note.id}
-                  className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-4 shadow-sm group relative"
+                  className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 shadow-sm group relative"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
@@ -601,7 +601,7 @@ export function EventNotes() {
                           {tag.label}
                         </span>
                       )}
-                      <p className="text-forest-700 dark:text-blush-200">{note.text}</p>
+                      <p className="text-[var(--text-primary)]">{note.text}</p>
                       {reminderNoteIds.has(note.id) && (
                         <span className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 mt-1">
                           <Bell size={10} /> Reminder created
@@ -609,12 +609,12 @@ export function EventNotes() {
                       )}
                     </div>
                     <div className="flex items-start gap-2">
-                      <div className="text-xs text-forest-400 dark:text-blush-500">
+                      <div className="text-xs text-[var(--text-tertiary)]">
                         {format(new Date(note.timestamp), 'h:mm a')}
                       </div>
                       <button
                         onClick={() => deleteNote(note.id)}
-                        className="p-1.5 text-blush-400 hover:text-red-500 active:text-red-600 transition-colors rounded-lg"
+                        className="p-1.5 text-[var(--text-tertiary)] hover:text-red-500 active:text-red-600 transition-colors rounded-lg"
                         title="Delete note"
                       >
                         <Trash2 size={14} />
@@ -638,7 +638,7 @@ export function EventNotes() {
             onChange={(e) => saveNextSessionGoal(e.target.value)}
             placeholder="What do you want to remember for next session?"
             rows={2}
-            className="w-full px-3 py-2 text-sm border border-blue-200 dark:border-blue-800 rounded-xl bg-blue-50/50 dark:bg-blue-900/20 text-forest-700 dark:text-blush-200 placeholder-blush-400 dark:placeholder-blush-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+            className="w-full px-3 py-2 text-sm border border-blue-200 dark:border-blue-800 rounded-xl bg-blue-50/50 dark:bg-blue-900/20 text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
           />
         </div>
 
@@ -649,7 +649,7 @@ export function EventNotes() {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-blush-200 dark:border-blush-700 bg-white dark:bg-blush-800 p-4 pb-safe">
+      <div className="border-t border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 pb-safe">
         <div className="page-w">
           {/* Quick Tags */}
           <div className="flex gap-2 mb-3 overflow-x-auto pb-2">
@@ -660,7 +660,7 @@ export function EventNotes() {
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-all ${
                   selectedTag === tag.id
                     ? tag.color + ' shadow-sm'
-                    : 'bg-blush-100 dark:bg-blush-700 text-forest-600 dark:text-blush-300 hover:bg-blush-200 dark:hover:bg-blush-600'
+                    : 'bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:bg-[var(--surface-highlight)]'
                 }`}
               >
                 <tag.icon size={14} />
@@ -678,13 +678,13 @@ export function EventNotes() {
               onKeyDown={handleKeyDown}
               placeholder="Add a note..."
               aria-label="Add a note"
-              className="flex-1 px-4 py-3 border border-blush-200 dark:border-blush-600 rounded-xl focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-blush-50 dark:bg-blush-800 text-blush-900 dark:text-white placeholder-blush-400 dark:placeholder-blush-500"
+              className="flex-1 px-4 py-3 border border-[var(--border-subtle)] rounded-xl focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent bg-[var(--surface-card)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)]"
             />
 
             <button
               onClick={addNote}
               disabled={!noteText.trim()}
-              className="px-4 py-3 bg-forest-600 text-white rounded-xl disabled:opacity-50 hover:bg-forest-500 transition-colors"
+              className="px-4 py-3 bg-[var(--accent-primary)] text-[var(--text-on-accent)] rounded-xl disabled:opacity-50 hover:bg-[var(--accent-primary-hover)] transition-colors"
             >
               <Send size={20} />
             </button>
@@ -692,7 +692,7 @@ export function EventNotes() {
 
           {/* End Event Button */}
           {alreadySaved ? (
-            <div className="w-full mt-3 py-3 text-forest-500 dark:text-forest-400 font-medium flex items-center justify-center gap-2 bg-forest-50 dark:bg-forest-900/20 rounded-xl">
+            <div className="w-full mt-3 py-3 text-[var(--accent-primary)] font-medium flex items-center justify-center gap-2 bg-[var(--accent-muted)] rounded-xl">
               <CheckCircle size={18} />
               Event saved — plan sent to next session
             </div>
@@ -700,11 +700,11 @@ export function EventNotes() {
             <button
               onClick={endEvent}
               disabled={isEndingEvent}
-              className="w-full mt-3 py-3 text-forest-600 dark:text-forest-400 font-medium hover:text-forest-700 hover:bg-blush-100 dark:hover:bg-blush-700 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full mt-3 py-3 text-[var(--accent-primary)] font-medium hover:text-[var(--accent-primary-hover)] hover:bg-[var(--surface-highlight)] rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isEndingEvent ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-forest-600 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
                   Saving & generating plan...
                 </>
               ) : (

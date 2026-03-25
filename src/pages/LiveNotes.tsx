@@ -18,7 +18,7 @@ import { generatePlan as aiGeneratePlan, detectReminders as aiDetectReminders, e
 import { buildAIContext } from '../services/aiContext';
 
 const QUICK_TAGS = [
-  { id: 'worked-on', label: 'Worked On', icon: CheckCircle, color: 'bg-forest-100 dark:bg-forest-900/40 text-forest-700 dark:text-forest-300' },
+  { id: 'worked-on', label: 'Worked On', icon: CheckCircle, color: 'bg-[var(--surface-highlight)] text-[var(--text-primary)]' },
   { id: 'needs-work', label: 'Needs More Work', icon: AlertCircle, color: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300' },
   { id: 'next-week', label: 'Next Week', icon: Clock, color: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' },
   { id: 'ideas', label: 'Ideas', icon: Lightbulb, color: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300' },
@@ -191,8 +191,8 @@ export function LiveNotes() {
   if (!cls) {
     return (
       <div className="page-w px-4 py-6">
-        <p className="text-forest-600">Class not found</p>
-        <Link to="/schedule" className="text-forest-500 hover:text-forest-600">Back to schedule</Link>
+        <p className="text-[var(--text-primary)]">Class not found</p>
+        <Link to="/schedule" className="text-[var(--accent-primary)] hover:text-[var(--accent-primary-hover)]">Back to schedule</Link>
       </div>
     );
   }
@@ -981,24 +981,24 @@ export function LiveNotes() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-blush-100 dark:bg-blush-900">
+    <div className="flex flex-col h-full bg-[var(--surface-primary)]">
       {confirmDialog}
       {/* Header */}
-      <div className="px-4 py-3 bg-forest-600 text-white">
+      <div className="px-4 py-3 bg-[var(--accent-primary)] text-[var(--text-on-accent)]">
         <div className="flex items-center justify-between page-w">
           <div className="flex items-center gap-3">
-            <Link to={`/class/${classId}`} className="p-1 hover:bg-forest-500 rounded-lg transition-colors">
+            <Link to={`/class/${classId}`} className="p-1 hover:bg-[var(--accent-secondary)] rounded-lg transition-colors">
               <ArrowLeft size={20} />
             </Link>
             <div>
               <div className="font-semibold">{cls.name}</div>
-              <div className="text-sm text-blush-200">
+              <div className="text-sm text-[var(--text-tertiary)]">
                 {classDateLabel} · {formatTimeDisplay(cls.startTime)} - {formatTimeDisplay(cls.endTime)}
               </div>
             </div>
           </div>
           {timeRemaining !== null && timeRemaining > 0 && (
-            <div className="flex items-center gap-1 bg-blush-200 text-forest-700 px-3 py-1 rounded-full">
+            <div className="flex items-center gap-1 bg-[var(--surface-highlight)] text-[var(--text-primary)] px-3 py-1 rounded-full">
               <Clock size={14} />
               <span className="text-sm font-medium">{timeRemaining}m left</span>
             </div>
@@ -1036,7 +1036,7 @@ export function LiveNotes() {
           </button>
           {showPlan && (
             <div className="px-4 pb-3 page-w max-h-[40vh] overflow-y-auto">
-              <div className="bg-white dark:bg-blush-800 rounded-xl border border-purple-200 dark:border-purple-800 p-3">
+              <div className="bg-[var(--surface-card)] rounded-xl border border-purple-200 dark:border-purple-800 p-3">
                 <PlanDisplay text={classNotes.plan} />
                 <Link
                   to="/plan"
@@ -1053,7 +1053,7 @@ export function LiveNotes() {
 
       {/* No Plan - Quick link to create one (hide when class already saved — plan was generated for next week) */}
       {!classNotes.plan && !alreadySaved && (
-        <div className="px-4 py-2 border-b border-blush-200 dark:border-blush-700">
+        <div className="px-4 py-2 border-b border-[var(--border-subtle)]">
           <Link
             to="/plan"
             className="flex items-center justify-between page-w bg-purple-50/50 dark:bg-purple-900/20 rounded-xl border border-dashed border-purple-200 dark:border-purple-800 p-3 hover:border-purple-300 transition-colors"
@@ -1109,7 +1109,7 @@ export function LiveNotes() {
                 <textarea
                   value={editedSummary}
                   onChange={e => setEditedSummary(e.target.value)}
-                  className="w-full text-sm text-forest-700 dark:text-blush-200 bg-white dark:bg-blush-800 border border-amber-200 dark:border-amber-700 rounded-lg p-2 leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  className="w-full text-sm text-[var(--text-primary)] bg-[var(--surface-card)] border border-amber-200 dark:border-amber-700 rounded-lg p-2 leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-amber-400"
                   rows={Math.max(6, editedSummary.split('\n').length + 1)}
                 />
                 <div className="flex gap-2">
@@ -1121,14 +1121,14 @@ export function LiveNotes() {
                   </button>
                   <button
                     onClick={() => setIsEditingSummary(false)}
-                    className="flex-1 py-1.5 text-xs font-medium bg-blush-100 dark:bg-blush-700 text-forest-600 dark:text-blush-200 rounded-lg hover:bg-blush-200 dark:hover:bg-blush-600 transition-colors"
+                    className="flex-1 py-1.5 text-xs font-medium bg-[var(--surface-inset)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--surface-highlight)] transition-colors"
                   >
                     Cancel
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="px-3 py-2 text-sm text-forest-700 dark:text-blush-200 whitespace-pre-wrap leading-relaxed">
+              <div className="px-3 py-2 text-sm text-[var(--text-primary)] whitespace-pre-wrap leading-relaxed">
                 {expandedSummary}
               </div>
             )}
@@ -1150,12 +1150,12 @@ export function LiveNotes() {
 
         {/* Already Saved Banner */}
         {alreadySaved && classNotes.liveNotes.length > 0 && (
-          <div className="mb-4 p-3 bg-forest-50 dark:bg-forest-900/20 border border-forest-200 dark:border-forest-800 rounded-xl">
-            <div className="flex items-center gap-2 text-forest-600 dark:text-forest-400 mb-1">
+          <div className="mb-4 p-3 bg-[var(--surface-highlight)] border border-[var(--border-subtle)] rounded-xl">
+            <div className="flex items-center gap-2 text-[var(--accent-primary)] mb-1">
               <CheckCircle size={16} />
               <span className="font-medium text-sm">Class session complete</span>
             </div>
-            <p className="text-xs text-forest-500 dark:text-forest-500">
+            <p className="text-xs text-[var(--text-secondary)]">
               {classNotes.liveNotes.length} notes saved. Plan generated for next week. You can still add notes below.
             </p>
           </div>
@@ -1166,17 +1166,17 @@ export function LiveNotes() {
           <div className="mb-4">
             <button
               onClick={() => setShowAttendance(!showAttendance)}
-              className="w-full flex items-center justify-between p-4 bg-white dark:bg-blush-800 rounded-xl border border-forest-200 dark:border-blush-700 hover:border-forest-300 dark:hover:border-blush-600 transition-colors"
+              className="w-full flex items-center justify-between p-4 bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-forest-100 dark:bg-forest-900/30 flex items-center justify-center">
-                  <Users size={20} className="text-forest-600 dark:text-forest-400" />
+                <div className="w-10 h-10 rounded-full bg-[var(--surface-highlight)] flex items-center justify-center">
+                  <Users size={20} className="text-[var(--accent-primary)]" />
                 </div>
                 <div className="text-left">
-                  <div className="font-medium text-forest-700 dark:text-white">
+                  <div className="font-medium text-[var(--text-primary)]">
                     Attendance ({enrolledStudents.length})
                   </div>
-                  <div className="text-sm text-forest-500 dark:text-blush-400">
+                  <div className="text-sm text-[var(--text-secondary)]">
                     {attendance.present.length} present
                     {attendance.late.length > 0 && `, ${attendance.late.length} late`}
                     {attendance.absent.length > 0 && `, ${attendance.absent.length} absent`}
@@ -1184,16 +1184,16 @@ export function LiveNotes() {
                 </div>
               </div>
               {showAttendance ? (
-                <ChevronUp size={20} className="text-forest-400 dark:text-blush-400" />
+                <ChevronUp size={20} className="text-[var(--text-secondary)]" />
               ) : (
-                <ChevronDown size={20} className="text-forest-400 dark:text-blush-400" />
+                <ChevronDown size={20} className="text-[var(--text-secondary)]" />
               )}
             </button>
 
             {showAttendance && (
-              <div className="mt-2 bg-white dark:bg-blush-800 rounded-xl border border-forest-200 dark:border-blush-700 overflow-hidden">
+              <div className="mt-2 bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] overflow-hidden">
                 {/* Stats bar */}
-                <div className="flex gap-1 border-b border-forest-100 dark:border-blush-700 p-2">
+                <div className="flex gap-1 border-b border-[var(--border-subtle)] p-2">
                   <div className="flex-1 text-center py-1 bg-green-50 dark:bg-green-900/30 rounded-lg">
                     <span className="text-green-600 dark:text-green-400 font-medium text-sm">{attendance.present.length}</span>
                     <span className="text-green-500 ml-1 text-xs">Here</span>
@@ -1209,7 +1209,7 @@ export function LiveNotes() {
                 </div>
 
                 {/* Roll action bar */}
-                <div className="border-b border-forest-100 dark:border-blush-700 p-2 flex items-center justify-between">
+                <div className="border-b border-[var(--border-subtle)] p-2 flex items-center justify-between">
                   {isRollCompleted ? (
                     <>
                       <div className="flex items-center gap-2 text-green-600 dark:text-green-400 text-sm font-medium">
@@ -1218,7 +1218,7 @@ export function LiveNotes() {
                       </div>
                       <button
                         onClick={reopenRoll}
-                        className="text-sm text-forest-600 dark:text-forest-400 font-medium hover:text-forest-700 dark:hover:text-forest-300 px-3 py-1 rounded-lg hover:bg-forest-50 dark:hover:bg-blush-700 transition-colors"
+                        className="text-sm text-[var(--accent-primary)] font-medium hover:text-[var(--accent-primary-hover)] px-3 py-1 rounded-lg hover:bg-[var(--surface-highlight)] transition-colors"
                       >
                         Edit
                       </button>
@@ -1227,7 +1227,7 @@ export function LiveNotes() {
                     <div className="flex gap-2 w-full">
                       <button
                         onClick={markAllPresent}
-                        className="flex-1 py-2 text-sm font-medium text-forest-600 dark:text-forest-400 hover:bg-forest-50 dark:hover:bg-forest-900/20 rounded-lg transition-colors flex items-center justify-center gap-2"
+                        className="flex-1 py-2 text-sm font-medium text-[var(--accent-primary)] hover:bg-[var(--surface-highlight)] rounded-lg transition-colors flex items-center justify-center gap-2"
                       >
                         <UserCheck size={16} />
                         All Present
@@ -1245,13 +1245,13 @@ export function LiveNotes() {
                 </div>
 
                 {/* Student list */}
-                <div className="divide-y divide-forest-100 dark:divide-blush-700">
+                <div className="divide-y divide-[var(--border-subtle)]">
                   {enrolledStudents.map(student => {
                     const status = getStudentStatus(student.id);
                     return (
                       <div key={student.id} className="p-3">
                         <div className="flex items-center gap-3">
-                          <span className="flex-1 font-medium text-forest-700 dark:text-white truncate">
+                          <span className="flex-1 font-medium text-[var(--text-primary)] truncate">
                             {student.nickname || student.name.split(' ')[0]}
                           </span>
                           <div className={`flex gap-1 ${isRollCompleted ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -1260,7 +1260,7 @@ export function LiveNotes() {
                               className={`p-2 rounded-lg transition-colors ${
                                 status === 'present'
                                   ? 'bg-green-500 text-white'
-                                  : 'bg-blush-100 dark:bg-blush-700 text-blush-400 dark:text-blush-500 hover:bg-green-100 dark:hover:bg-green-900/50 hover:text-green-600 dark:hover:text-green-400'
+                                  : 'bg-[var(--surface-inset)] text-[var(--text-tertiary)] hover:bg-green-100 dark:hover:bg-green-900/50 hover:text-green-600 dark:hover:text-green-400'
                               }`}
                               title="Present"
                             >
@@ -1271,7 +1271,7 @@ export function LiveNotes() {
                               className={`p-2 rounded-lg transition-colors ${
                                 status === 'late'
                                   ? 'bg-amber-500 text-white'
-                                  : 'bg-blush-100 dark:bg-blush-700 text-blush-400 dark:text-blush-500 hover:bg-amber-100 dark:hover:bg-amber-900/50 hover:text-amber-600 dark:hover:text-amber-400'
+                                  : 'bg-[var(--surface-inset)] text-[var(--text-tertiary)] hover:bg-amber-100 dark:hover:bg-amber-900/50 hover:text-amber-600 dark:hover:text-amber-400'
                               }`}
                               title="Late"
                             >
@@ -1282,7 +1282,7 @@ export function LiveNotes() {
                               className={`p-2 rounded-lg transition-colors ${
                                 status === 'absent'
                                   ? 'bg-red-500 text-white'
-                                  : 'bg-blush-100 dark:bg-blush-700 text-blush-400 dark:text-blush-500 hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-600 dark:hover:text-red-400'
+                                  : 'bg-[var(--surface-inset)] text-[var(--text-tertiary)] hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-600 dark:hover:text-red-400'
                               }`}
                               title="Absent"
                             >
@@ -1310,7 +1310,7 @@ export function LiveNotes() {
                 </div>
 
                 {/* Quick-add student */}
-                <div className="p-2 border-t border-forest-100 dark:border-blush-700">
+                <div className="p-2 border-t border-[var(--border-subtle)]">
                   {showQuickAddStudent ? (
                     <div className="flex items-center gap-2">
                       <input
@@ -1380,19 +1380,19 @@ export function LiveNotes() {
           <div>
             <button
               onClick={() => setShowSavedNotes(!showSavedNotes)}
-              className="w-full flex items-center justify-between p-3 bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 hover:bg-blush-50 dark:hover:bg-blush-700 transition-colors mb-3"
+              className="w-full flex items-center justify-between p-3 bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] hover:bg-[var(--surface-highlight)] transition-colors mb-3"
             >
-              <div className="flex items-center gap-2 text-forest-700 dark:text-blush-300">
+              <div className="flex items-center gap-2 text-[var(--text-primary)]">
                 <BookOpen size={16} />
                 <span className="font-medium text-sm">Saved Notes</span>
-                <span className="text-xs bg-blush-200 dark:bg-blush-600 text-forest-600 dark:text-blush-300 px-1.5 py-0.5 rounded-full">
+                <span className="text-xs bg-[var(--surface-highlight)] text-[var(--text-secondary)] px-1.5 py-0.5 rounded-full">
                   {classNotes.liveNotes.length}
                 </span>
               </div>
               {showSavedNotes ? (
-                <ChevronUp size={16} className="text-forest-500" />
+                <ChevronUp size={16} className="text-[var(--text-secondary)]" />
               ) : (
-                <ChevronDown size={16} className="text-forest-500" />
+                <ChevronDown size={16} className="text-[var(--text-secondary)]" />
               )}
             </button>
             {showSavedNotes && (
@@ -1402,7 +1402,7 @@ export function LiveNotes() {
                   return (
                     <div
                       key={note.id}
-                      className="bg-white dark:bg-blush-800 rounded-xl border border-blush-200 dark:border-blush-700 p-3 opacity-80"
+                      className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-3 opacity-80"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1">
@@ -1412,9 +1412,9 @@ export function LiveNotes() {
                               {tag.label}
                             </span>
                           )}
-                          <p className="text-sm text-forest-700 dark:text-blush-200">{note.text}</p>
+                          <p className="text-sm text-[var(--text-primary)]">{note.text}</p>
                         </div>
-                        <div className="text-xs text-forest-400 dark:text-blush-500">
+                        <div className="text-xs text-[var(--text-tertiary)]">
                           {format(new Date(note.timestamp), 'h:mm a')}
                         </div>
                       </div>
@@ -1432,10 +1432,10 @@ export function LiveNotes() {
               return (
                 <div
                   key={note.id}
-                  className={`bg-white dark:bg-blush-800 rounded-xl border p-4 shadow-sm group relative ${
+                  className={`bg-[var(--surface-card)] rounded-xl border p-4 shadow-sm group relative ${
                     isEditing
-                      ? 'border-forest-400 dark:border-forest-500 ring-1 ring-forest-300 dark:ring-forest-600'
-                      : 'border-blush-200 dark:border-blush-700'
+                      ? 'border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]'
+                      : 'border-[var(--border-subtle)]'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -1460,28 +1460,28 @@ export function LiveNotes() {
                             }
                           }}
                           autoFocus
-                          className="w-full px-3 py-2 border border-blush-200 dark:border-blush-600 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-blush-50 dark:bg-blush-700 text-forest-700 dark:text-blush-200 text-sm"
+                          className="w-full px-3 py-2 border border-[var(--border-subtle)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent bg-[var(--surface-inset)] text-[var(--text-primary)] text-sm"
                         />
                       ) : (
-                        <p className="text-forest-700 dark:text-blush-200">{note.text}</p>
+                        <p className="text-[var(--text-primary)]">{note.text}</p>
                       )}
                     </div>
                     <div className="flex items-start gap-2">
-                      <div className="text-xs text-forest-400 dark:text-blush-500">
+                      <div className="text-xs text-[var(--text-tertiary)]">
                         {format(new Date(note.timestamp), 'h:mm a')}
                       </div>
                       {isEditing ? (
                         <>
                           <button
                             onClick={saveEdit}
-                            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-forest-500 hover:text-forest-700 active:text-forest-800 transition-colors rounded-lg"
+                            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--accent-primary)] hover:text-[var(--accent-primary-hover)] active:text-[var(--accent-primary-hover)] transition-colors rounded-lg"
                             title="Save edit"
                           >
                             <Check size={16} />
                           </button>
                           <button
                             onClick={cancelEdit}
-                            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-blush-400 hover:text-red-500 active:text-red-600 transition-colors rounded-lg"
+                            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-red-500 active:text-red-600 transition-colors rounded-lg"
                             title="Cancel edit"
                           >
                             <X size={16} />
@@ -1491,14 +1491,14 @@ export function LiveNotes() {
                         <>
                           <button
                             onClick={() => editNote(note)}
-                            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-blush-400 hover:text-forest-500 active:text-forest-600 transition-colors rounded-lg"
+                            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] active:text-[var(--accent-primary-hover)] transition-colors rounded-lg"
                             title="Edit note"
                           >
                             <Pencil size={16} />
                           </button>
                           <button
                             onClick={() => deleteNote(note.id)}
-                            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-blush-400 hover:text-red-500 active:text-red-600 transition-colors rounded-lg"
+                            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-red-500 active:text-red-600 transition-colors rounded-lg"
                             title="Delete note"
                           >
                             <Trash2 size={16} />
@@ -1523,7 +1523,7 @@ export function LiveNotes() {
                 value={classNotes.nextWeekGoal || ''}
                 onChange={(e) => saveNextWeekGoal(e.target.value)}
                 placeholder="What's the focus for next week?"
-                className="w-full text-sm px-3 py-1.5 pr-8 bg-blush-50 dark:bg-blush-700 border border-blue-200 dark:border-blue-700 rounded-lg text-forest-700 dark:text-blush-200 placeholder-blush-400 dark:placeholder-blush-500 focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                className="w-full text-sm px-3 py-1.5 pr-8 bg-[var(--surface-inset)] border border-blue-200 dark:border-blue-700 rounded-lg text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:ring-1 focus:ring-blue-500 focus:border-transparent"
               />
               {classNotes.nextWeekGoal && (
                 <Check size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--status-success)]" />
@@ -1534,7 +1534,7 @@ export function LiveNotes() {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-blush-200 dark:border-blush-700 bg-white dark:bg-blush-800 p-4 pb-safe sticky bottom-0 z-10">
+      <div className="border-t border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 pb-safe sticky bottom-0 z-10">
         <div className="page-w">
           {/* Quick Tags */}
           <div className="flex gap-2 mb-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
@@ -1545,7 +1545,7 @@ export function LiveNotes() {
                 className={`flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-sm whitespace-nowrap transition-all ${
                   selectedTag === tag.id
                     ? tag.color + ' shadow-sm'
-                    : 'bg-blush-100 dark:bg-blush-700 text-forest-600 dark:text-blush-300 hover:bg-blush-200 dark:hover:bg-blush-600'
+                    : 'bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:bg-[var(--surface-highlight)]'
                 }`}
               >
                 <tag.icon size={14} />
@@ -1572,11 +1572,11 @@ export function LiveNotes() {
                 placeholder="Add a note..."
                 aria-label="Add a note"
                 autoComplete="off"
-                className="w-full px-4 py-3 border border-blush-200 dark:border-blush-600 rounded-xl focus:ring-2 focus:ring-forest-500 focus:border-transparent bg-blush-50 dark:bg-blush-800 text-blush-900 dark:text-white placeholder-blush-400 dark:placeholder-blush-500"
+                className="w-full px-4 py-3 border border-[var(--border-subtle)] rounded-xl focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent bg-[var(--surface-inset)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)]"
               />
               {/* Terminology autocomplete suggestions */}
               {suggestions.length > 0 && (
-                <div className="absolute bottom-full left-0 right-0 mb-1 bg-white dark:bg-blush-800 border border-blush-200 dark:border-blush-600 rounded-xl shadow-lg z-10 max-h-[300px] overflow-y-auto">
+                <div className="absolute bottom-full left-0 right-0 mb-1 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-lg z-10 max-h-[300px] overflow-y-auto">
                   {suggestions.map((entry, index) => (
                     <button
                       key={entry.id}
@@ -1587,25 +1587,21 @@ export function LiveNotes() {
                       }}
                       className={`w-full text-left px-4 py-3 min-h-[44px] transition-colors flex items-center justify-between ${
                         index === selectedSuggestionIndex
-                          ? 'bg-forest-100 dark:bg-forest-900/40'
-                          : 'hover:bg-blush-50 dark:hover:bg-blush-700'
+                          ? 'bg-[var(--surface-highlight)]'
+                          : 'hover:bg-[var(--surface-inset)]'
                       }`}
                     >
                       <div>
-                        <span className={`text-sm font-medium ${
-                          index === selectedSuggestionIndex
-                            ? 'text-forest-700 dark:text-forest-300'
-                            : 'text-forest-700 dark:text-blush-200'
-                        }`}>
+                        <span className="text-sm font-medium text-[var(--text-primary)]">
                           {entry.term}
                         </span>
                         {entry.pronunciation && (
-                          <span className="text-xs text-blush-400 dark:text-blush-500 ml-2">
+                          <span className="text-xs text-[var(--text-tertiary)] ml-2">
                             ({entry.pronunciation})
                           </span>
                         )}
                       </div>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blush-100 dark:bg-blush-700 text-blush-500 dark:text-blush-400 ml-2 flex-shrink-0">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--surface-inset)] text-[var(--text-tertiary)] ml-2 flex-shrink-0">
                         {SHORT_CATEGORY_LABELS[entry.category] || entry.category}
                       </span>
                     </button>
@@ -1617,7 +1613,7 @@ export function LiveNotes() {
             <button
               onClick={addNote}
               disabled={!noteText.trim()}
-              className="px-4 py-3 bg-forest-600 text-white rounded-xl disabled:opacity-50 hover:bg-forest-500 transition-colors"
+              className="px-4 py-3 bg-[var(--accent-primary)] text-[var(--text-on-accent)] rounded-xl disabled:opacity-50 hover:bg-[var(--accent-secondary)] transition-colors"
             >
               <Send size={20} />
             </button>
@@ -1646,7 +1642,7 @@ export function LiveNotes() {
                 </button>
               )}
               {aiPlanSaved && (
-                <div className="text-xs text-center text-forest-600 dark:text-forest-400">
+                <div className="text-xs text-center text-[var(--accent-primary)]">
                   Plan saved to next week
                 </div>
               )}
@@ -1677,11 +1673,11 @@ export function LiveNotes() {
             <button
               onClick={endClass}
               disabled={isEndingClass}
-              className="w-full mt-3 py-3 text-forest-600 font-medium hover:text-forest-700 hover:bg-blush-100 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full mt-3 py-3 text-[var(--accent-primary)] font-medium hover:text-[var(--accent-primary-hover)] hover:bg-[var(--surface-highlight)] rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isEndingClass ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-forest-600 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
                   Saving...
                 </>
               ) : (
