@@ -228,6 +228,10 @@ export function useAppData() {
         briefingUnsub = onDailyBriefingSnapshot(uid, dateStr, (dailyBriefing) => {
           isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
           setData(prev => ({ ...prev, dailyBriefing }));
+          // Cache roast for login screen (shown before auth)
+          if (dailyBriefing?.loginRoast) {
+            localStorage.setItem('figgg_login_roast', dailyBriefing.loginRoast);
+          }
         });
       }
       setupBriefingListener(user.uid, currentBriefingDate);

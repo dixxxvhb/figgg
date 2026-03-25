@@ -558,6 +558,9 @@ export interface DailyBriefing {
   }>;
 
   yesterdayYou?: string[];
+
+  // AI-generated login screen roast (Opus, daily)
+  loginRoast?: string;
 }
 
 export interface AppData {

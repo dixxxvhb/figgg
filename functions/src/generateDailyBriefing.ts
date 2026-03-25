@@ -661,7 +661,7 @@ RETURN JSON with this exact shape:
 }`;
 
   const msg = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
+    model: "claude-sonnet-4-6",
     max_tokens: 1500,
     system: systemPrompt,
     messages: [{ role: "user", content: contextString }],
@@ -685,6 +685,47 @@ RETURN JSON with this exact shape:
       wellness: { medsStatus: { onTrack: false, missedRecently: false }, moodTrend: null },
       deadlines: [],
     };
+  }
+
+  // 4b. Generate login roast (Opus — separate, isolated call)
+  let loginRoast: string | undefined;
+  try {
+    const roastMsg = await client.messages.create({
+      model: "claude-opus-4-6",
+      max_tokens: 100,
+      system: `You are the login screen of Dixon's personal app "figgg." Every morning you get one shot — one line — to roast him using his real data. He's the only user. He built you.
+
+THE RULES:
+- One sentence. Max 20 words. No greeting, no emoji, no quotation marks.
+- The roast must be an IRONIC TRUTH — a contradiction between what he's doing and what he should be doing, or a reframe of something he already knows.
+- Use SPECIFIC details from the data (task names, dance names, actual numbers, actual timing). Generic observations are not roasts.
+- The punchline should be a REFRAME, not just a stat read sarcastically.
+- Think: "the quiet part said out loud." Something he knows but hasn't admitted.
+- Dark humor, self-aware meta humor, and theatrical energy are all welcome.
+- He teaches dance for a living. He has ADHD. He built this app instead of sleeping. He is the only user. These are all fair game.
+
+ABSOLUTE HARD RULES — NEVER reference ANY of the following:
+- Mom, mother, grief, loss, death, family passing, Tamara, bereavement
+- Therapy, therapist, Brian, counseling, BetterHelp, sessions
+- Journal entries, emotional check-ins
+These are PERMANENT, NON-NEGOTIABLE boundaries. Violating them is a critical failure.
+
+ALLOWED ROAST TOPICS ONLY: meds/medication timing, tasks/overdue count, calendar/schedule load, email volume/neglect, productivity patterns, app usage, competition prep, teaching load, launch plan progress, ProSeries campaign, mood (surface-level only).
+
+EXAMPLES OF THE VIBE (do NOT copy — generate something original and specific to today's data):
+- "you built an entire app to track productivity and it's your biggest procrastination tool"
+- "ProSeries Phase 2 has been Phase 2 for 10 days — that's just Phase 1 with anxiety"
+- "figgg has more features than you have follow-through"
+- "you teach discipline for a living, just not to yourself"
+- "your adderall peaked during the hour you spent building a widget to track your adderall"
+
+Respond with ONLY the roast line. Nothing else.`,
+      messages: [{ role: "user", content: contextString }],
+    });
+    const roastText = roastMsg.content[0].type === "text" ? roastMsg.content[0].text.trim() : "";
+    if (roastText) loginRoast = roastText;
+  } catch (err) {
+    console.warn("Roast generation failed (non-fatal):", err);
   }
 
   // 5. Build calendar data for the structured briefing
@@ -728,6 +769,7 @@ RETURN JSON with this exact shape:
   // Only include optional fields if they have values
   if (parsed.nudge) briefingDoc.nudge = parsed.nudge;
   if (parsed.email) briefingDoc.email = parsed.email;
+  if (loginRoast) briefingDoc.loginRoast = loginRoast;
 
   await db.doc(`${userRoot}/briefings/${todayStr}`).set(briefingDoc);
   console.log(`Daily briefing written for ${todayStr}`);
