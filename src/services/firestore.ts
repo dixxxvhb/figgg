@@ -242,7 +242,12 @@ export async function batchSaveCalendarEvents(userId: string, events: CalendarEv
       currentBatch = writeBatch(requireDb());
       opCount = 0;
     }
-    currentBatch.set(userDoc(userId, 'calendarEvents', event.id), event);
+    // Strip undefined values — Firestore rejects them
+    const clean: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(event)) {
+      if (v !== undefined) clean[k] = v;
+    }
+    currentBatch.set(userDoc(userId, 'calendarEvents', event.id), clean);
     opCount++;
   }
   if (deleteIds) {
