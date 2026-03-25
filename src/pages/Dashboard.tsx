@@ -723,6 +723,11 @@ export function Dashboard() {
               {greetingSub && (
                 <p className="text-sm text-[var(--text-tertiary)] mt-1">{greetingSub}</p>
               )}
+              {data.dailyBriefing?.loginRoast && (
+                <p className="text-xs text-[var(--text-tertiary)] mt-2 italic opacity-70 max-w-[300px]">
+                  {data.dailyBriefing.loginRoast}
+                </p>
+              )}
             </div>
             <button
               onClick={() => setIsEditingLayout(!isEditingLayout)}
