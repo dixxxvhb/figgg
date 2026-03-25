@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppData, AppSettings, Class, WeekNotes, Competition, CompetitionDance, Student, CalendarEvent, SelfCareData, LaunchPlanData } from '../types';
 import type { AICheckIn, DayPlan, TherapistData, MeditationData, GriefData, DailyBriefing, NudgeDismissState, FixItem } from '../types';
-import type { Choreography } from '../types/choreography';
 import { loadData, saveData, saveWeekNotes as saveWeekNotesToStorage, saveSelfCareToStorage, saveLaunchPlanToStorage, saveDayPlanToStorage, saveTherapistToStorage, saveMeditationToStorage, saveGriefToStorage } from '../services/storage';
 import { runLearningEngine } from '../services/learningEngine';
 import { getWeekStart, formatWeekOf, toDateStr } from '../utils/time';
@@ -19,7 +18,6 @@ import {
   onWeekNotesSnapshot,
   onCompetitionsSnapshot,
   onCompetitionDancesSnapshot,
-  onChoreographiesSnapshot,
   onCalendarEventsSnapshot,
   onDailyBriefingSnapshot,
   saveClass as firestoreSaveClass,
@@ -35,8 +33,6 @@ import {
   saveCalendarEvent as firestoreSaveCalendarEvent,
   deleteCalendarEventDoc,
   saveAICheckInDoc,
-  saveChoreography as firestoreSaveChoreography,
-  deleteChoreographyDoc,
   updateSelfCareDoc,
   updateDayPlanDoc,
   updateLaunchPlanDoc,
@@ -327,10 +323,6 @@ export function useAppData() {
         setData(prev => ({ ...prev, calendarEvents }));
       }));
 
-      listenerUnsubs.push(onChoreographiesSnapshot(user.uid, (choreographies) => {
-        isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-        setData(prev => ({ ...prev, choreographies }));
-      }));
     });
 
     return () => {
@@ -734,27 +726,6 @@ export function useAppData() {
     if (uid) updateLaunchPlanDoc(uid, { ...updates, lastModified: now }).catch(console.warn);
   }, []);
 
-  // Choreographies
-  const updateChoreographies = useCallback((choreographies: Choreography[]) => {
-    setData(prev => ({ ...prev, choreographies }));
-    // Firestore write — save each choreography
-    const uid = getUserId();
-    if (uid) {
-      for (const choreo of choreographies) {
-        firestoreSaveChoreography(uid, choreo).catch(console.warn);
-      }
-    }
-  }, []);
-
-  const deleteChoreography = useCallback((choreoId: string) => {
-    setData(prev => ({
-      ...prev,
-      choreographies: (prev.choreographies || []).filter(c => c.id !== choreoId),
-    }));
-    const uid = getUserId();
-    if (uid) deleteChoreographyDoc(uid, choreoId).catch(console.warn);
-  }, []);
-
   // AI check-ins — append and prune entries older than 30 days
   const saveAICheckIn = useCallback((checkIn: AICheckIn) => {
     setData(prev => {
@@ -962,10 +933,8 @@ export function useAppData() {
     updateCalendarEvent,
     deleteCalendarEvent,
     hideCalendarEvent,
-    // Self-care & choreography
+    // Self-care
     updateSelfCare,
-    updateChoreographies,
-    deleteChoreography,
     // Launch plan
     updateLaunchPlan,
     // AI

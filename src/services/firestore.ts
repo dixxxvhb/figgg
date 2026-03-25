@@ -34,7 +34,6 @@ import type {
   NudgeDismissState,
   FixItem,
 } from '../types';
-import type { Choreography } from '../types/choreography';
 import { migrateMediaItems, migrateMusicTrack, migrateStudentPhoto, isBase64DataUrl } from './firebaseStorage';
 
 // ============================================================
@@ -212,22 +211,6 @@ export async function saveCompetitionDance(userId: string, dance: CompetitionDan
 
 export async function deleteCompetitionDanceDoc(userId: string, danceId: string): Promise<void> {
   await deleteDoc(userDoc(userId, 'competitionDances', danceId));
-}
-
-// ============================================================
-// CHOREOGRAPHIES
-// ============================================================
-export async function getChoreographies(userId: string): Promise<Choreography[]> {
-  const snapshot = await getDocs(userCollection(userId, 'choreographies'));
-  return snapshot.docs.map(d => ({ ...d.data(), id: d.id } as unknown as Choreography));
-}
-
-export async function saveChoreography(userId: string, choreo: Choreography): Promise<void> {
-  await setDoc(userDoc(userId, 'choreographies', choreo.id), choreo);
-}
-
-export async function deleteChoreographyDoc(userId: string, choreoId: string): Promise<void> {
-  await deleteDoc(userDoc(userId, 'choreographies', choreoId));
 }
 
 // ============================================================
@@ -614,15 +597,6 @@ export function onCompetitionDancesSnapshot(
   }, (error) => { console.error('competitionDances snapshot error:', error); });
 }
 
-export function onChoreographiesSnapshot(
-  userId: string,
-  callback: (data: Choreography[]) => void
-): Unsubscribe {
-  return onSnapshot(userCollection(userId, 'choreographies'), (snap) => {
-    callback(snap.docs.map(d => ({ ...d.data(), id: d.id } as unknown as Choreography)));
-  }, (error) => { console.error('choreographies snapshot error:', error); });
-}
-
 export function onCalendarEventsSnapshot(
   userId: string,
   callback: (data: CalendarEvent[]) => void
@@ -645,7 +619,6 @@ export async function loadAllData(userId: string): Promise<AppData> {
     competitionDances,
     calendarEvents,
     students,
-    choreographies,
     aiCheckIns,
     selfCare,
     dayPlan,
@@ -665,7 +638,6 @@ export async function loadAllData(userId: string): Promise<AppData> {
     getCompetitionDances(userId),
     getCalendarEvents(userId),
     getStudents(userId),
-    getChoreographies(userId),
     getAICheckIns(userId),
     getSelfCare(userId),
     getDayPlan(userId),
@@ -690,7 +662,6 @@ export async function loadAllData(userId: string): Promise<AppData> {
     lastModified: profile?.lastModified,
     students,
     selfCare,
-    choreographies,
     launchPlan,
     learningData,
     aiCheckIns,
@@ -762,11 +733,6 @@ export async function migrateDataToFirestore(data: AppData, userId: string): Pro
   // Competition Dances
   for (const dance of data.competitionDances || []) {
     addOp(b => b.set(userDoc(userId, 'competitionDances', dance.id), dance));
-  }
-
-  // Choreographies
-  for (const choreo of data.choreographies || []) {
-    addOp(b => b.set(userDoc(userId, 'choreographies', choreo.id), choreo));
   }
 
   // Calendar Events

@@ -493,7 +493,7 @@ export function ClassDetail() {
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="text-sm text-[var(--text-secondary)]">{classDateLabel}</span>
                 {weekOffset !== 0 && (
-                  <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-1.5 py-0.5 rounded-full font-medium">
+                  <span className="text-xs bg-[var(--status-info)]/10 text-[var(--status-info)] px-1.5 py-0.5 rounded-full font-medium">
                     {weekLabel}
                   </span>
                 )}
@@ -834,17 +834,17 @@ export function ClassDetail() {
           <div className="mt-3 bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] overflow-hidden">
             {/* Quick stats bar */}
             <div className="flex gap-1 border-b border-[var(--border-subtle)] p-2">
-              <div className="flex-1 text-center py-1 bg-green-50 dark:bg-green-900/30 rounded-lg">
-                <span className="text-green-600 dark:text-green-400 font-medium text-sm">{attendance.present.length}</span>
-                <span className="text-green-500 dark:text-green-500 ml-1 text-xs">Here</span>
+              <div className="flex-1 text-center py-1 bg-[var(--status-success)]/10 rounded-lg">
+                <span className="text-[var(--status-success)] font-medium text-sm">{attendance.present.length}</span>
+                <span className="text-[var(--status-success)] ml-1 text-xs">Here</span>
               </div>
-              <div className="flex-1 text-center py-1 bg-amber-50 dark:bg-amber-900/30 rounded-lg">
-                <span className="text-amber-600 dark:text-amber-400 font-medium text-sm">{attendance.late.length}</span>
-                <span className="text-amber-500 dark:text-amber-500 ml-1 text-xs">Late</span>
+              <div className="flex-1 text-center py-1 bg-[var(--status-warning)]/10 rounded-lg">
+                <span className="text-[var(--status-warning)] font-medium text-sm">{attendance.late.length}</span>
+                <span className="text-[var(--status-warning)] ml-1 text-xs">Late</span>
               </div>
-              <div className="flex-1 text-center py-1 bg-red-50 dark:bg-red-900/30 rounded-lg">
-                <span className="text-red-600 dark:text-red-400 font-medium text-sm">{attendance.absent.length}</span>
-                <span className="text-red-500 dark:text-red-500 ml-1 text-xs">Out</span>
+              <div className="flex-1 text-center py-1 bg-[var(--status-danger)]/10 rounded-lg">
+                <span className="text-[var(--status-danger)] font-medium text-sm">{attendance.absent.length}</span>
+                <span className="text-[var(--status-danger)] ml-1 text-xs">Out</span>
               </div>
             </div>
 
@@ -853,7 +853,7 @@ export function ClassDetail() {
               <div className="border-b border-[var(--border-subtle)] p-2 flex items-center justify-between">
                 {isRollCompleted ? (
                   <>
-                    <div className="flex items-center gap-2 text-green-600 dark:text-green-400 text-sm font-medium">
+                    <div className="flex items-center gap-2 text-[var(--status-success)] text-sm font-medium">
                       <CheckCircle size={16} />
                       Roll Complete
                     </div>
@@ -876,7 +876,7 @@ export function ClassDetail() {
                     <button
                       onClick={completeRoll}
                       disabled={attendance.present.length === 0 && attendance.late.length === 0 && attendance.absent.length === 0}
-                      className="flex-1 py-2 text-sm font-medium text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      className="flex-1 py-2 text-sm font-medium text-[var(--status-success)] hover:bg-[var(--status-success)]/10 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       <CheckCircle size={16} />
                       Complete Roll
@@ -929,7 +929,7 @@ export function ClassDetail() {
                             );
                           })()}
                           {absenceStreaks.has(student.id) && (
-                            <div className="text-[10px] text-red-500 dark:text-red-400 mt-0.5">
+                            <div className="text-[10px] text-[var(--status-danger)] mt-0.5">
                               Absent {absenceStreaks.get(student.id)} weeks in a row
                             </div>
                           )}
@@ -939,8 +939,8 @@ export function ClassDetail() {
                             onClick={() => updateAttendance(student.id, status === 'present' ? 'unmarked' : 'present')}
                             className={`p-2 rounded-lg transition-colors ${
                               status === 'present'
-                                ? 'bg-green-500 text-white'
-                                : 'bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:bg-green-100 dark:hover:bg-green-900/50 hover:text-green-600 dark:hover:text-green-400'
+                                ? 'bg-[var(--status-success)] text-[var(--text-on-accent)]'
+                                : 'bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:bg-[var(--status-success)]/15 hover:text-[var(--status-success)]'
                             }`}
                             title="Present"
                           >
@@ -950,8 +950,8 @@ export function ClassDetail() {
                             onClick={() => updateAttendance(student.id, status === 'late' ? 'unmarked' : 'late')}
                             className={`p-2 rounded-lg transition-colors ${
                               status === 'late'
-                                ? 'bg-amber-500 text-white'
-                                : 'bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:bg-amber-100 dark:hover:bg-amber-900/50 hover:text-amber-600 dark:hover:text-amber-400'
+                                ? 'bg-[var(--status-warning)] text-[var(--text-on-accent)]'
+                                : 'bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:bg-[var(--status-warning)]/15 hover:text-[var(--status-warning)]'
                             }`}
                             title="Late"
                           >
@@ -961,8 +961,8 @@ export function ClassDetail() {
                             onClick={() => updateAttendance(student.id, status === 'absent' ? 'unmarked' : 'absent')}
                             className={`p-2 rounded-lg transition-colors ${
                               status === 'absent'
-                                ? 'bg-red-500 text-white'
-                                : 'bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-600 dark:hover:text-red-400'
+                                ? 'bg-[var(--status-danger)] text-[var(--text-on-accent)]'
+                                : 'bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:bg-[var(--status-danger)]/15 hover:text-[var(--status-danger)]'
                             }`}
                             title="Absent"
                           >
@@ -977,11 +977,11 @@ export function ClassDetail() {
                           placeholder="Reason for absence..."
                           value={attendance.absenceReasons?.[student.id] || ''}
                           onChange={(e) => updateAbsenceReason(student.id, e.target.value)}
-                          className="w-full mt-2 text-xs px-3 py-1.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 placeholder-red-300 dark:placeholder-red-600"
+                          className="w-full mt-2 text-xs px-3 py-1.5 bg-[var(--status-danger)]/10 border border-[var(--status-danger)]/25 rounded-lg text-[var(--status-danger)] placeholder-[var(--status-danger)]/40"
                         />
                       )}
                       {status === 'absent' && isRollCompleted && attendance.absenceReasons?.[student.id] && (
-                        <div className="text-xs text-red-500 dark:text-red-400 mt-1.5 ml-13">
+                        <div className="text-xs text-[var(--status-danger)] mt-1.5 ml-13">
                           {attendance.absenceReasons[student.id]}
                         </div>
                       )}
@@ -1250,7 +1250,7 @@ function AddStudentToClassModal({
                 {enrolledStudents.map(student => (
                   <div
                     key={student.id}
-                    className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg"
+                    className="flex items-center justify-between p-3 bg-[var(--status-success)]/10 border border-[var(--status-success)]/25 rounded-lg"
                   >
                     <div>
                       <div className="font-medium text-[var(--text-primary)]">
@@ -1260,7 +1260,7 @@ function AddStudentToClassModal({
                     </div>
                     <button
                       onClick={() => onRemove(student.id)}
-                      className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg font-medium"
+                      className="px-3 py-1.5 text-sm text-[var(--status-danger)] hover:bg-[var(--status-danger)]/10 rounded-lg font-medium"
                     >
                       Remove
                     </button>

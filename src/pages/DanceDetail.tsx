@@ -513,7 +513,7 @@ export function DanceDetail() {
               </div>
               <button
                 onClick={removeMusicTrack}
-                className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                className="p-2 text-[var(--status-danger)] hover:bg-[var(--status-danger)]/10 rounded-lg"
               >
                 <Trash2 size={18} />
               </button>
@@ -538,7 +538,7 @@ export function DanceDetail() {
         ) : (
           <div className="space-y-2">
             {mediaUploadError && (
-              <div className="p-2 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+              <div className="p-2 bg-[var(--status-danger)]/10 border border-[var(--status-danger)]/30 rounded-lg text-[var(--status-danger)] text-sm">
                 {mediaUploadError}
               </div>
             )}
@@ -563,8 +563,8 @@ export function DanceDetail() {
           </h2>
           <div className="space-y-3">
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Scissors size={16} className="text-purple-600" />
+              <div className="w-8 h-8 bg-[var(--accent-primary)]/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Scissors size={16} className="text-[var(--accent-primary)]" />
               </div>
               <div>
                 <div className="text-xs text-[var(--text-secondary)] uppercase tracking-wide">Hair</div>
@@ -577,8 +577,8 @@ export function DanceDetail() {
 
             {displayDance.costume.tights && (
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-pink-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <span className="text-pink-600 text-xs font-bold">T</span>
+                <div className="w-8 h-8 bg-[var(--accent-primary)]/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <span className="text-[var(--accent-primary)] text-xs font-bold">T</span>
                 </div>
                 <div>
                   <div className="text-xs text-[var(--text-secondary)] uppercase tracking-wide">Tights</div>
@@ -589,8 +589,8 @@ export function DanceDetail() {
 
             {displayDance.costume.shoes && (
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Footprints size={16} className="text-amber-600" />
+                <div className="w-8 h-8 bg-[var(--status-warning)]/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Footprints size={16} className="text-[var(--status-warning)]" />
                 </div>
                 <div>
                   <div className="text-xs text-[var(--text-secondary)] uppercase tracking-wide">Shoes</div>
@@ -601,14 +601,14 @@ export function DanceDetail() {
 
             {displayDance.costume.accessories && displayDance.costume.accessories.length > 0 && (
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Plus size={16} className="text-blue-600" />
+                <div className="w-8 h-8 bg-[var(--accent-primary)]/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Plus size={16} className="text-[var(--accent-primary)]" />
                 </div>
                 <div>
                   <div className="text-xs text-[var(--text-secondary)] uppercase tracking-wide">Accessories</div>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {displayDance.costume.accessories.map((acc, i) => (
-                      <span key={i} className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-sm">
+                      <span key={i} className="bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] px-2 py-0.5 rounded text-sm">
                         {acc}
                       </span>
                     ))}
@@ -618,7 +618,7 @@ export function DanceDetail() {
             )}
 
             {displayDance.costume.notes && (
-              <div className="bg-amber-50 rounded-lg p-3 text-sm text-amber-800 border border-amber-200">
+              <div className="bg-[var(--status-warning)]/10 rounded-lg p-3 text-sm text-[var(--status-warning)] border border-[var(--status-warning)]/30">
                 <strong>Note:</strong> {displayDance.costume.notes}
               </div>
             )}
@@ -718,7 +718,7 @@ export function DanceDetail() {
         />
 
         {mediaUploadError && (
-          <div className="mb-3 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm">
+          <div className="mb-3 p-2 bg-[var(--status-danger)]/10 border border-[var(--status-danger)]/30 rounded-lg text-[var(--status-danger)] text-sm">
             {mediaUploadError}
           </div>
         )}
@@ -731,7 +731,7 @@ export function DanceDetail() {
                 {isEditing && (
                   <button
                     onClick={() => removeMedia(item.id)}
-                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full"
+                    className="absolute top-1 right-1 p-1 bg-[var(--status-danger)] text-[var(--text-on-accent)] rounded-full"
                   >
                     <X size={12} />
                   </button>
@@ -796,7 +796,7 @@ export function DanceDetail() {
                   {newWorkOn.length > 1 && (
                     <button
                       onClick={() => setNewWorkOn(newWorkOn.filter((_, idx) => idx !== i))}
-                      className="p-2 text-red-500"
+                      className="p-2 text-[var(--status-danger)]"
                     >
                       <X size={16} />
                     </button>
@@ -879,7 +879,7 @@ export function DanceDetail() {
                               {editWorkOn.length > 1 && (
                                 <button
                                   onClick={() => setEditWorkOn(editWorkOn.filter((_, idx) => idx !== i))}
-                                  className="p-2 text-red-500"
+                                  className="p-2 text-[var(--status-danger)]"
                                 >
                                   <X size={14} />
                                 </button>
@@ -985,7 +985,7 @@ export function DanceDetail() {
                           </button>
                           <button
                             onClick={() => deleteRehearsalNote(note.id)}
-                            className="text-xs text-red-500 flex items-center gap-1"
+                            className="text-xs text-[var(--status-danger)] flex items-center gap-1"
                           >
                             <Trash2 size={12} />
                             Delete
@@ -1075,7 +1075,7 @@ export function DanceDetail() {
                     <div className="font-medium text-[var(--text-primary)] text-sm">{result.competitionName}</div>
                     <div className="flex items-center gap-2 mt-1">
                       {result.placement && (
-                        <span className="text-xs px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full font-medium">
+                        <span className="text-xs px-2 py-0.5 bg-[var(--status-warning)]/10 text-[var(--status-warning)] rounded-full font-medium">
                           {result.placement}
                         </span>
                       )}
@@ -1084,14 +1084,14 @@ export function DanceDetail() {
                       )}
                     </div>
                   </div>
-                  <button onClick={() => deleteResult(result.id)} className="p-1 text-[var(--text-tertiary)] hover:text-red-500">
+                  <button onClick={() => deleteResult(result.id)} className="p-1 text-[var(--text-tertiary)] hover:text-[var(--status-danger)]">
                     <Trash2 size={14} />
                   </button>
                 </div>
                 {result.specialAwards && result.specialAwards.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {result.specialAwards.map((award, i) => (
-                      <span key={i} className="text-[10px] px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full flex items-center gap-1">
+                      <span key={i} className="text-[10px] px-2 py-0.5 bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] rounded-full flex items-center gap-1">
                         <Award size={10} />
                         {award}
                       </span>

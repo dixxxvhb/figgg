@@ -573,8 +573,6 @@ export interface AppData {
   students?: Student[];
   // Personal self-care tracking
   selfCare?: SelfCareData;
-  // Choreography system (replaces competitions)
-  choreographies?: import('./choreography').Choreography[];
   // DWD Launch Plan
   launchPlan?: LaunchPlanData;
   // Learning engine — pattern tracking

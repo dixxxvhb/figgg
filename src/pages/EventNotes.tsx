@@ -17,7 +17,7 @@ import { EmptyState } from '../components/common/EmptyState';
 
 const QUICK_TAGS = [
   { id: 'worked-on', label: 'Worked On', icon: CheckCircle, color: 'bg-[var(--accent-muted)] text-[var(--accent-primary)]' },
-  { id: 'needs-work', label: 'Needs More Work', icon: AlertCircle, color: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400' },
+  { id: 'needs-work', label: 'Needs More Work', icon: AlertCircle, color: 'bg-[var(--status-warning)]/10 text-[var(--status-warning)]' },
   { id: 'next-week', label: 'Next Week', icon: Clock, color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' },
   { id: 'ideas', label: 'Ideas', icon: Lightbulb, color: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' },
 ];
@@ -486,7 +486,7 @@ export function EventNotes() {
             </div>
           </div>
           <DropdownMenu
-            className="text-white"
+            className="text-[var(--text-on-accent)]"
             items={[
               {
                 label: 'Clear all notes',
@@ -501,20 +501,20 @@ export function EventNotes() {
 
       {/* Carry-Forward Banner */}
       {carryForward && (carryForwardApplied || eventNotes.plan === carryForward.text) && !eventNotes.carryForwardDismissed && (
-        <div className="px-4 py-2 border-b border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20">
+        <div className="px-4 py-2 border-b border-[var(--status-warning)]/20 bg-[var(--status-warning)]/5">
           <div className="page-w flex items-start gap-3">
-            <RotateCcw size={16} className="text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+            <RotateCcw size={16} className="text-[var(--status-warning)] mt-0.5 flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-amber-700 dark:text-amber-300">
+              <div className="text-sm font-medium text-[var(--status-warning)]">
                 Carried forward from {format(parseISO(carryForward.sourceWeekOf), 'MMM d')}
               </div>
-              <div className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+              <div className="text-xs text-[var(--status-warning)] mt-0.5">
                 {carryForward.sourceField === 'nextWeekGoal' ? 'From your next-session goal' : 'From your previous plan'}
               </div>
             </div>
             <button
               onClick={dismissCarryForward}
-              className="p-1 text-amber-400 hover:text-amber-600 dark:hover:text-amber-300 transition-colors"
+              className="p-1 text-[var(--status-warning)]/60 hover:text-[var(--status-warning)] transition-colors"
               title="Dismiss"
             >
               <X size={16} />

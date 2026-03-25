@@ -150,7 +150,6 @@ export function MobileNav() {
     if (path === '/settings') {
       return location.pathname.startsWith('/settings') ||
              location.pathname.startsWith('/library') ||
-             location.pathname.startsWith('/choreography') ||
              location.pathname.startsWith('/launch') ||
              location.pathname.startsWith('/dance');
     }

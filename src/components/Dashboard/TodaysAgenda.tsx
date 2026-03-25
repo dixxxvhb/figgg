@@ -439,7 +439,7 @@ export function TodaysAgenda({
         {/* Competition countdown if within 7 days */}
         {upcomingComp && daysUntilComp !== null && compPrepStatus && (
           <Link
-            to="/choreography"
+            to="/schedule"
             className="flex items-center gap-4 px-4 py-3.5 hover:bg-[var(--surface-card-hover)] transition-colors"
           >
             <div className="flex-shrink-0 w-14 text-right">

@@ -19,7 +19,7 @@ import { buildAIContext } from '../services/aiContext';
 
 const QUICK_TAGS = [
   { id: 'worked-on', label: 'Worked On', icon: CheckCircle, color: 'bg-[var(--surface-highlight)] text-[var(--text-primary)]' },
-  { id: 'needs-work', label: 'Needs More Work', icon: AlertCircle, color: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300' },
+  { id: 'needs-work', label: 'Needs More Work', icon: AlertCircle, color: 'bg-[var(--status-warning)]/10 text-[var(--status-warning)]' },
   { id: 'next-week', label: 'Next Week', icon: Clock, color: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' },
   { id: 'ideas', label: 'Ideas', icon: Lightbulb, color: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300' },
 ];
@@ -1004,7 +1004,7 @@ export function LiveNotes() {
             </div>
           )}
           <DropdownMenu
-            className="text-white"
+            className="text-[var(--text-on-accent)]"
             items={[
               {
                 label: 'Clear all notes',
@@ -1072,25 +1072,25 @@ export function LiveNotes() {
 
         {/* Expanded Summary */}
         {expandedSummary && (
-          <div className="mb-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl overflow-hidden">
-            <div className="flex items-center justify-between px-3 py-2 border-b border-amber-200 dark:border-amber-800">
+          <div className="mb-4 bg-[var(--status-warning)]/10 border border-[var(--status-warning)]/30 rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--status-warning)]/30">
               <div className="flex items-center gap-2">
-                <BookOpen size={14} className="text-amber-600 dark:text-amber-400" />
-                <span className="text-xs font-semibold text-amber-700 dark:text-amber-300 uppercase tracking-wide">Class Summary</span>
+                <BookOpen size={14} className="text-[var(--status-warning)]" />
+                <span className="text-xs font-semibold text-[var(--status-warning)] uppercase tracking-wide">Class Summary</span>
               </div>
               <div className="flex items-center gap-2">
                 {!isEditingSummary && (
                   <>
                     <button
                       onClick={() => { setEditedSummary(expandedSummary); setIsEditingSummary(true); }}
-                      className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 px-1.5 py-0.5 rounded"
+                      className="text-xs text-[var(--status-warning)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded"
                     >
                       Edit
                     </button>
                     <button
                       onClick={handleExpandNotes}
                       disabled={aiExpanding}
-                      className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 px-1.5 py-0.5 rounded disabled:opacity-50"
+                      className="text-xs text-[var(--status-warning)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded disabled:opacity-50"
                     >
                       {aiExpanding ? <Loader2 size={12} className="animate-spin" /> : 'Retry'}
                     </button>
@@ -1098,7 +1098,7 @@ export function LiveNotes() {
                 )}
                 <button
                   onClick={() => { setExpandedSummary(null); setIsEditingSummary(false); }}
-                  className="text-amber-400 hover:text-amber-600 dark:hover:text-amber-300"
+                  className="text-[var(--status-warning)] hover:text-[var(--text-primary)]"
                 >
                   <X size={14} />
                 </button>
@@ -1109,13 +1109,13 @@ export function LiveNotes() {
                 <textarea
                   value={editedSummary}
                   onChange={e => setEditedSummary(e.target.value)}
-                  className="w-full text-sm text-[var(--text-primary)] bg-[var(--surface-card)] border border-amber-200 dark:border-amber-700 rounded-lg p-2 leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-amber-400"
+                  className="w-full text-sm text-[var(--text-primary)] bg-[var(--surface-card)] border border-[var(--status-warning)]/30 rounded-lg p-2 leading-relaxed resize-none focus:outline-none focus:ring-1 focus:ring-[var(--status-warning)]"
                   rows={Math.max(6, editedSummary.split('\n').length + 1)}
                 />
                 <div className="flex gap-2">
                   <button
                     onClick={() => { setExpandedSummary(editedSummary); setIsEditingSummary(false); }}
-                    className="flex-1 py-1.5 text-xs font-medium bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
+                    className="flex-1 py-1.5 text-xs font-medium bg-[var(--status-warning)] text-[var(--text-on-accent)] rounded-lg hover:bg-[var(--status-warning)] transition-colors"
                   >
                     Save
                   </button>
@@ -1194,17 +1194,17 @@ export function LiveNotes() {
               <div className="mt-2 bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] overflow-hidden">
                 {/* Stats bar */}
                 <div className="flex gap-1 border-b border-[var(--border-subtle)] p-2">
-                  <div className="flex-1 text-center py-1 bg-green-50 dark:bg-green-900/30 rounded-lg">
-                    <span className="text-green-600 dark:text-green-400 font-medium text-sm">{attendance.present.length}</span>
-                    <span className="text-green-500 ml-1 text-xs">Here</span>
+                  <div className="flex-1 text-center py-1 bg-[var(--status-success)]/10 rounded-lg">
+                    <span className="text-[var(--status-success)] font-medium text-sm">{attendance.present.length}</span>
+                    <span className="text-[var(--status-success)] ml-1 text-xs">Here</span>
                   </div>
-                  <div className="flex-1 text-center py-1 bg-amber-50 dark:bg-amber-900/30 rounded-lg">
-                    <span className="text-amber-600 dark:text-amber-400 font-medium text-sm">{attendance.late.length}</span>
-                    <span className="text-amber-500 ml-1 text-xs">Late</span>
+                  <div className="flex-1 text-center py-1 bg-[var(--status-warning)]/10 rounded-lg">
+                    <span className="text-[var(--status-warning)] font-medium text-sm">{attendance.late.length}</span>
+                    <span className="text-[var(--status-warning)] ml-1 text-xs">Late</span>
                   </div>
-                  <div className="flex-1 text-center py-1 bg-red-50 dark:bg-red-900/30 rounded-lg">
-                    <span className="text-red-600 dark:text-red-400 font-medium text-sm">{attendance.absent.length}</span>
-                    <span className="text-red-500 ml-1 text-xs">Out</span>
+                  <div className="flex-1 text-center py-1 bg-[var(--status-danger)]/10 rounded-lg">
+                    <span className="text-[var(--status-danger)] font-medium text-sm">{attendance.absent.length}</span>
+                    <span className="text-[var(--status-danger)] ml-1 text-xs">Out</span>
                   </div>
                 </div>
 
@@ -1212,7 +1212,7 @@ export function LiveNotes() {
                 <div className="border-b border-[var(--border-subtle)] p-2 flex items-center justify-between">
                   {isRollCompleted ? (
                     <>
-                      <div className="flex items-center gap-2 text-green-600 dark:text-green-400 text-sm font-medium">
+                      <div className="flex items-center gap-2 text-[var(--status-success)] text-sm font-medium">
                         <CheckCircle size={16} />
                         Roll Complete
                       </div>
@@ -1235,7 +1235,7 @@ export function LiveNotes() {
                       <button
                         onClick={completeRoll}
                         disabled={attendance.present.length === 0 && attendance.late.length === 0 && attendance.absent.length === 0}
-                        className="flex-1 py-2 text-sm font-medium text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="flex-1 py-2 text-sm font-medium text-[var(--status-success)] hover:bg-[var(--status-success)]/10 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
                         <CheckCircle size={16} />
                         Complete Roll
@@ -1259,8 +1259,8 @@ export function LiveNotes() {
                               onClick={() => markAttendance(student.id, status === 'present' ? 'unmarked' : 'present')}
                               className={`p-2 rounded-lg transition-colors ${
                                 status === 'present'
-                                  ? 'bg-green-500 text-white'
-                                  : 'bg-[var(--surface-inset)] text-[var(--text-tertiary)] hover:bg-green-100 dark:hover:bg-green-900/50 hover:text-green-600 dark:hover:text-green-400'
+                                  ? 'bg-[var(--status-success)] text-[var(--text-on-accent)]'
+                                  : 'bg-[var(--surface-inset)] text-[var(--text-tertiary)] hover:bg-[var(--status-success)]/10 hover:text-[var(--status-success)]'
                               }`}
                               title="Present"
                             >
@@ -1270,8 +1270,8 @@ export function LiveNotes() {
                               onClick={() => markAttendance(student.id, status === 'late' ? 'unmarked' : 'late')}
                               className={`p-2 rounded-lg transition-colors ${
                                 status === 'late'
-                                  ? 'bg-amber-500 text-white'
-                                  : 'bg-[var(--surface-inset)] text-[var(--text-tertiary)] hover:bg-amber-100 dark:hover:bg-amber-900/50 hover:text-amber-600 dark:hover:text-amber-400'
+                                  ? 'bg-[var(--status-warning)] text-[var(--text-on-accent)]'
+                                  : 'bg-[var(--surface-inset)] text-[var(--text-tertiary)] hover:bg-[var(--status-warning)]/10 hover:text-[var(--status-warning)]'
                               }`}
                               title="Late"
                             >
@@ -1281,8 +1281,8 @@ export function LiveNotes() {
                               onClick={() => markAttendance(student.id, status === 'absent' ? 'unmarked' : 'absent')}
                               className={`p-2 rounded-lg transition-colors ${
                                 status === 'absent'
-                                  ? 'bg-red-500 text-white'
-                                  : 'bg-[var(--surface-inset)] text-[var(--text-tertiary)] hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-600 dark:hover:text-red-400'
+                                  ? 'bg-[var(--status-danger)] text-[var(--text-on-accent)]'
+                                  : 'bg-[var(--surface-inset)] text-[var(--text-tertiary)] hover:bg-[var(--status-danger)]/10 hover:text-[var(--status-danger)]'
                               }`}
                               title="Absent"
                             >
@@ -1296,11 +1296,11 @@ export function LiveNotes() {
                             placeholder="Reason for absence..."
                             value={attendance.absenceReasons?.[student.id] || ''}
                             onChange={(e) => updateAbsenceReason(student.id, e.target.value)}
-                            className="w-full mt-2 text-xs px-3 py-1.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 placeholder-red-300 dark:placeholder-red-600"
+                            className="w-full mt-2 text-xs px-3 py-1.5 bg-[var(--status-danger)]/10 border border-[var(--status-danger)]/30 rounded-lg text-[var(--status-danger)] placeholder-[var(--status-danger)]/40"
                           />
                         )}
                         {status === 'absent' && isRollCompleted && attendance.absenceReasons?.[student.id] && (
-                          <div className="text-xs text-red-500 dark:text-red-400 mt-1.5">
+                          <div className="text-xs text-[var(--status-danger)] mt-1.5">
                             {attendance.absenceReasons[student.id]}
                           </div>
                         )}
@@ -1481,7 +1481,7 @@ export function LiveNotes() {
                           </button>
                           <button
                             onClick={cancelEdit}
-                            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-red-500 active:text-red-600 transition-colors rounded-lg"
+                            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--status-danger)] active:text-[var(--status-danger)] transition-colors rounded-lg"
                             title="Cancel edit"
                           >
                             <X size={16} />
@@ -1498,7 +1498,7 @@ export function LiveNotes() {
                           </button>
                           <button
                             onClick={() => deleteNote(note.id)}
-                            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-red-500 active:text-red-600 transition-colors rounded-lg"
+                            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--status-danger)] active:text-[var(--status-danger)] transition-colors rounded-lg"
                             title="Delete note"
                           >
                             <Trash2 size={16} />
@@ -1626,7 +1626,7 @@ export function LiveNotes() {
                 <button
                   onClick={handleExpandNotes}
                   disabled={aiExpanding}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl text-amber-700 dark:text-amber-300 text-sm font-medium hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--status-warning)]/10 border border-[var(--status-warning)]/30 rounded-xl text-[var(--status-warning)] text-sm font-medium hover:bg-[var(--status-warning)]/20 transition-colors disabled:opacity-50"
                 >
                   {aiExpanding ? <Loader2 size={16} className="animate-spin" /> : <BookOpen size={16} />}
                   {aiExpanding ? 'Expanding...' : 'Expand Notes'}
@@ -1647,9 +1647,9 @@ export function LiveNotes() {
                 </div>
               )}
               {aiError && (
-                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-700 dark:text-red-300 text-sm">
+                <div className="p-3 bg-[var(--status-danger)]/10 border border-[var(--status-danger)]/30 rounded-xl text-[var(--status-danger)] text-sm">
                   {aiError}
-                  <button onClick={() => setAiError(null)} className="ml-2 text-red-500 hover:text-red-700">Dismiss</button>
+                  <button onClick={() => setAiError(null)} className="ml-2 text-[var(--status-danger)] hover:text-[var(--text-primary)]">Dismiss</button>
                 </div>
               )}
             </div>

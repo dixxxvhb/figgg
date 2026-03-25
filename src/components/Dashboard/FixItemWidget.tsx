@@ -3,7 +3,7 @@ import { Bug, Send, Check, Trash2, ChevronDown } from 'lucide-react';
 import type { FixItem } from '../../types';
 import { haptic } from '../../utils/haptics';
 
-const PAGES = ['Dashboard', 'Schedule', 'Calendar', 'Classes', 'Students', 'Choreography', 'Self-Care', 'Settings', 'AI Chat', 'Other'];
+const PAGES = ['Dashboard', 'Schedule', 'Calendar', 'Classes', 'Students', 'Self-Care', 'Settings', 'AI Chat', 'Other'];
 const PRIORITIES: { value: FixItem['priority']; label: string; color: string }[] = [
   { value: 'low', label: 'Low', color: 'bg-[var(--text-tertiary)]' },
   { value: 'medium', label: 'Med', color: 'bg-[var(--status-warning)]' },

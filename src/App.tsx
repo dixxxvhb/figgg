@@ -142,8 +142,6 @@ const CalendarEventDetail = lazy(() => import('./pages/CalendarEventDetail').the
 const EventNotes = lazy(() => import('./pages/EventNotes').then(m => ({ default: m.EventNotes })));
 const WeekPlanner = lazy(() => import('./pages/WeekPlanner').then(m => ({ default: m.WeekPlanner })));
 const WeekReview = lazy(() => import('./pages/WeekReview').then(m => ({ default: m.WeekReview })));
-const Choreography = lazy(() => import('./pages/Choreography').then(m => ({ default: m.Choreography })));
-const ChoreographyDetail = lazy(() => import('./pages/ChoreographyDetail').then(m => ({ default: m.ChoreographyDetail })));
 const DanceDetail = lazy(() => import('./pages/DanceDetail').then(m => ({ default: m.DanceDetail })));
 const Students = lazy(() => import('./pages/Students').then(m => ({ default: m.Students })));
 const Library = lazy(() => import('./pages/Library').then(m => ({ default: m.Library })));
@@ -184,8 +182,6 @@ function AnimatedRoutes() {
         <Route path="/event/:eventId/notes" element={<EventNotes />} />
         <Route path="/plan" element={<WeekPlanner />} />
         <Route path="/week-review" element={<WeekReview />} />
-        <Route path="/choreography" element={<Choreography />} />
-        <Route path="/choreography/:id" element={<ChoreographyDetail />} />
         <Route path="/dance/:danceId" element={<DanceDetail />} />
         <Route path="/students" element={<Students />} />
         <Route path="/library" element={<Library />} />
