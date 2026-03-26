@@ -3,6 +3,24 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 
+declare const __BUILD_TIME__: string;
+
+// Stale build detection: store build timestamp, force reload if mismatch
+// This catches cases where the service worker serves fresh HTML but the
+// browser still runs old JS bundles from its own cache.
+(() => {
+  const key = 'figgg-build-time';
+  const current = __BUILD_TIME__;
+  const stored = localStorage.getItem(key);
+  if (stored && stored !== current) {
+    // Build version changed — force a clean reload to get fresh JS
+    localStorage.setItem(key, current);
+    window.location.reload();
+    return;
+  }
+  localStorage.setItem(key, current);
+})();
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
@@ -31,11 +49,10 @@ if ('serviceWorker' in navigator) {
         }
       });
 
-      // Periodic update check — ensures PWA picks up new deploys
-      // Check every 15 minutes while the app is open
+      // Check for SW updates every 5 minutes (was 15 — too slow for critical fixes)
       setInterval(() => {
         registration.update();
-      }, 15 * 60 * 1000);
+      }, 5 * 60 * 1000);
 
       // Also check when user returns to the app (tab/PWA becomes visible)
       document.addEventListener('visibilitychange', () => {

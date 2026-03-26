@@ -1,7 +1,7 @@
 // Bump this version on each deploy to bust the SW cache.
 // Static assets are already content-hashed by Vite; this controls
 // the navigation/HTML cache and precached shell files.
-const CACHE_VERSION = 7;
+const CACHE_VERSION = 8;
 const CACHE_NAME = `figgg-v${CACHE_VERSION}`;
 
 // App shell files to precache (NOT index.html — navigation is network-first)
@@ -40,7 +40,7 @@ self.addEventListener('activate', (event) => {
 
 // Fetch strategy:
 // - API calls: network-only (localStorage is the offline fallback)
-// - Navigation (index.html): network-first (ensures latest Vite bundle hashes)
+// - Navigation (index.html): network-only with offline fallback
 // - Static assets (JS/CSS/images): stale-while-revalidate (content-hashed filenames)
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
@@ -55,24 +55,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-first for navigation requests (HTML pages / SPA routes)
-  // This ensures index.html always loads the latest Vite bundle references
-  // so PWA users get fresh code after deploys instead of stale cached bundles
+  // Network-only for navigation requests (HTML pages / SPA routes)
+  // NEVER serve cached HTML — stale index.html references old JS bundles
+  // which can contain broken code (e.g., missing Firestore save calls).
+  // Offline fallback only kicks in when network is completely unavailable.
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
-        .then((networkResponse) => {
-          // Cache the fresh response for offline fallback
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
-          return networkResponse;
-        })
         .catch(() => {
-          // Offline: serve cached index.html
+          // Truly offline: serve cached index.html as last resort
           return caches.match('/index.html')
-            .then((cached) => cached || caches.match(event.request));
+            .then((cached) => cached || new Response('Offline — please reconnect and refresh.', {
+              status: 503,
+              headers: { 'Content-Type': 'text/plain' },
+            }));
         })
     );
     return;

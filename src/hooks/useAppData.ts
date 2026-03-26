@@ -284,8 +284,10 @@ export function useAppData() {
       }));
 
       listenerUnsubs.push(onFixItemsSnapshot(user.uid, (fixItems) => {
-        isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-        setData(prev => ({ ...prev, fixItems }));
+        if (fixItems.length > 0) {
+          isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
+          setData(prev => ({ ...prev, fixItems }));
+        }
       }));
 
       // Collection listeners for cross-device sync
@@ -297,8 +299,10 @@ export function useAppData() {
       }));
 
       listenerUnsubs.push(onStudentsSnapshot(user.uid, (students) => {
-        isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-        setData(prev => ({ ...prev, students }));
+        if (students.length > 0) {
+          isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
+          setData(prev => ({ ...prev, students }));
+        }
       }));
 
       listenerUnsubs.push(onWeekNotesSnapshot(user.uid, (weekNotes) => {
