@@ -61,11 +61,21 @@ export function DailyBriefingWidget({ briefing, onCreateTask, calendarEvents = [
   };
 
   const latestTimestamp = briefing.enrichedAt || briefing.generatedAt;
-  const generatedTime = latestTimestamp
-    ? new Date(latestTimestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-    : '';
-  const dateDisplay = format(new Date(briefing.date + 'T12:00:00'), 'EEEE, MMMM d');
+  let generatedTime = '';
+  if (latestTimestamp) {
+    const ts = new Date(latestTimestamp);
+    if (!isNaN(ts.getTime())) {
+      generatedTime = ts.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    }
+  }
   const today = format(new Date(), 'yyyy-MM-dd');
+  let dateDisplay = format(new Date(), 'EEEE, MMMM d');
+  if (briefing.date && typeof briefing.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(briefing.date)) {
+    const parsed = new Date(briefing.date + 'T12:00:00');
+    if (!isNaN(parsed.getTime())) {
+      dateDisplay = format(parsed, 'EEEE, MMMM d');
+    }
+  }
 
   // Merge briefing calendar data with frontend-fetched calendar events
   const briefingToday = briefing.calendar?.today || [];
