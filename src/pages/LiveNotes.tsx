@@ -7,7 +7,7 @@ import { PlanDisplay } from '../components/common/PlanDisplay';
 import { DropdownMenu } from '../components/common/DropdownMenu';
 import { LiveNote, ClassWeekNotes, Reminder, ReminderList, TermCategory, normalizeNoteCategory } from '../types';
 import { formatTimeDisplay, getCurrentTimeMinutes, getMinutesRemaining, formatWeekOf, getWeekStart } from '../utils/time';
-import { saveWeekNotes as saveWeekNotesToStorage, getWeekNotes as getWeekNotesFromStorage } from '../services/storage';
+import { getWeekNotes as getWeekNotesFromStorage } from '../services/storage';
 import { v4 as uuid } from 'uuid';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
 import { EmptyState } from '../components/common/EmptyState';
@@ -603,8 +603,7 @@ export function LiveNotes() {
     };
 
     setWeekNotes(updatedWeekNotes);
-    // Use direct storage save (not hook) to prevent cloud merge from restoring deleted note
-    saveWeekNotesToStorage(updatedWeekNotes);
+    saveWeekNotes(updatedWeekNotes);
   };
 
   const endClass = async () => {
@@ -629,8 +628,8 @@ export function LiveNotes() {
       },
     };
 
-    // Use SYNCHRONOUS storage save (writes directly to localStorage + triggers cloud sync)
-    saveWeekNotesToStorage(updatedWeekNotes);
+    // Save current week (localStorage + Firestore)
+    saveWeekNotes(updatedWeekNotes);
 
     // Generate unified AI plan for next week (replaces old dual client+AI system)
     // Guard: skip if already organized (prevents duplicate plan generation on re-save)
@@ -733,7 +732,7 @@ export function LiveNotes() {
           },
         };
 
-        saveWeekNotesToStorage(updatedNextWeek);
+        saveWeekNotes(updatedNextWeek);
           }).catch(() => {
         // AI plan failed — fall back to a simple carry-forward of flagged notes
         const nextWeek = notesToProcess.filter(n => normalizeNoteCategory(n.category) === 'next-week');
@@ -776,7 +775,7 @@ export function LiveNotes() {
           },
         };
 
-        saveWeekNotesToStorage(updatedNextWeek);
+        saveWeekNotes(updatedNextWeek);
           });
 
       // AI-powered reminder detection — fire and forget (don't block navigation)
@@ -853,7 +852,7 @@ export function LiveNotes() {
     };
 
     setWeekNotes(updatedWeekNotes);
-    saveWeekNotesToStorage(updatedWeekNotes);
+    saveWeekNotes(updatedWeekNotes);
   };
 
   const clearAll = async () => {
@@ -873,7 +872,7 @@ export function LiveNotes() {
     };
 
     setWeekNotes(updatedWeekNotes);
-    saveWeekNotesToStorage(updatedWeekNotes);
+    saveWeekNotes(updatedWeekNotes);
   };
 
   // AI: Expand raw notes into an organized class summary
@@ -970,7 +969,7 @@ export function LiveNotes() {
           [cls.id]: { ...nextClassNotes, plan: plan },
         },
       };
-      saveWeekNotesToStorage(updatedNextWeek);
+      saveWeekNotes(updatedNextWeek);
       setAiError(null);
       setAiPlanSaved(true);
     } catch (err) {

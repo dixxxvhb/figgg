@@ -11,7 +11,7 @@ import { findMatchingPastSessions, getCarryForwardText, PastSession } from '../u
 import { PreviousSessionsPanel } from '../components/events/PreviousSessionsPanel';
 import { generatePlan as aiGeneratePlan, detectReminders as aiDetectReminders } from '../services/ai';
 import { buildAIContext } from '../services/aiContext';
-import { saveWeekNotes as saveWeekNotesToStorage, getWeekNotes as getWeekNotesFromStorage } from '../services/storage';
+import { getWeekNotes as getWeekNotesFromStorage } from '../services/storage';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
 import { EmptyState } from '../components/common/EmptyState';
 
@@ -306,8 +306,8 @@ export function EventNotes() {
       },
     };
 
-    // Atomic write direct to storage (same pattern as LiveNotes endClass)
-    saveWeekNotesToStorage(updatedWeekNotes);
+    // Save current week (localStorage + Firestore)
+    saveWeekNotes(updatedWeekNotes);
 
     // AI: generate plan for next session — fire and forget
     if (notesToProcess.length > 0 && !eventNotes.isOrganized && event) {
@@ -354,7 +354,7 @@ export function EventNotes() {
           eventTitle: event.title,
         };
 
-        saveWeekNotesToStorage({
+        saveWeekNotes({
           ...nextWeekNotes,
           classNotes: {
             ...nextWeekNotes.classNotes,
@@ -397,7 +397,7 @@ export function EventNotes() {
           eventTitle: event.title,
         };
 
-        saveWeekNotesToStorage({
+        saveWeekNotes({
           ...nextWeekNotes,
           classNotes: {
             ...nextWeekNotes.classNotes,

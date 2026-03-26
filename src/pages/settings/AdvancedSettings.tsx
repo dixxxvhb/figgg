@@ -97,7 +97,7 @@ export function AdvancedSettings() {
 
     if (merged > 0) {
       // Save via localStorage directly
-      localStorage.setItem('figgg-data', JSON.stringify(currentData));
+      localStorage.setItem('dance-teaching-app-data', JSON.stringify(currentData));
       refreshData();
     }
 
