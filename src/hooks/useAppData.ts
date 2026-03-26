@@ -306,13 +306,17 @@ export function useAppData() {
       }));
 
       listenerUnsubs.push(onCompetitionsSnapshot(user.uid, (competitions) => {
-        isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-        setData(prev => ({ ...prev, competitions }));
+        if (competitions.length > 0) {
+          isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
+          setData(prev => ({ ...prev, competitions }));
+        }
       }));
 
       listenerUnsubs.push(onCompetitionDancesSnapshot(user.uid, (competitionDances) => {
-        isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-        setData(prev => ({ ...prev, competitionDances }));
+        if (competitionDances.length > 0) {
+          isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
+          setData(prev => ({ ...prev, competitionDances }));
+        }
       }));
 
       listenerUnsubs.push(onStudiosSnapshot(user.uid, (studios) => {

@@ -37,6 +37,21 @@ import type {
 import { migrateMediaItems, migrateMusicTrack, migrateStudentPhoto, isBase64DataUrl } from './firebaseStorage';
 
 // ============================================================
+// Helper: strip undefined values (Firestore rejects them)
+// ============================================================
+function stripUndefined<T>(obj: T): T {
+  if (obj === null || obj === undefined || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(stripUndefined) as unknown as T;
+  const clean: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+    if (v !== undefined) {
+      clean[k] = typeof v === 'object' && v !== null ? stripUndefined(v) : v;
+    }
+  }
+  return clean as T;
+}
+
+// ============================================================
 // Helper: get user's root reference
 // ============================================================
 function requireDb() {
@@ -61,7 +76,7 @@ export async function getStudios(userId: string): Promise<Studio[]> {
 }
 
 export async function saveStudio(userId: string, studio: Studio): Promise<void> {
-  await setDoc(userDoc(userId, 'studios', studio.id), studio);
+  await setDoc(userDoc(userId, 'studios', studio.id), stripUndefined(studio));
 }
 
 export async function deleteStudio(userId: string, studioId: string): Promise<void> {
@@ -77,7 +92,7 @@ export async function getClasses(userId: string): Promise<Class[]> {
 }
 
 export async function saveClass(userId: string, cls: Class): Promise<void> {
-  await setDoc(userDoc(userId, 'classes', cls.id), cls);
+  await setDoc(userDoc(userId, 'classes', cls.id), stripUndefined(cls));
 }
 
 export async function deleteClassDoc(userId: string, classId: string): Promise<void> {
@@ -99,7 +114,7 @@ export async function saveStudent(userId: string, student: Student): Promise<voi
     const url = await migrateStudentPhoto(userId, student.photo, student.id);
     processedStudent = { ...student, photo: url };
   }
-  await setDoc(userDoc(userId, 'students', processedStudent.id), processedStudent);
+  await setDoc(userDoc(userId, 'students', processedStudent.id), stripUndefined(processedStudent));
 }
 
 export async function deleteStudentDoc(userId: string, studentId: string): Promise<void> {
@@ -138,7 +153,7 @@ export async function saveWeekNotesDoc(userId: string, weekNotes: WeekNotes): Pr
     processedNotes = { ...weekNotes, classNotes: migratedClassNotes };
   }
 
-  await setDoc(userDoc(userId, 'weekNotes', docId), processedNotes);
+  await setDoc(userDoc(userId, 'weekNotes', docId), stripUndefined(processedNotes));
 }
 
 // ============================================================
@@ -150,7 +165,7 @@ export async function getTerminology(userId: string): Promise<TerminologyEntry[]
 }
 
 export async function saveTerminologyEntry(userId: string, entry: TerminologyEntry): Promise<void> {
-  await setDoc(userDoc(userId, 'terminology', entry.id), entry);
+  await setDoc(userDoc(userId, 'terminology', entry.id), stripUndefined(entry));
 }
 
 // ============================================================
@@ -162,7 +177,7 @@ export async function getCompetitions(userId: string): Promise<Competition[]> {
 }
 
 export async function saveCompetition(userId: string, comp: Competition): Promise<void> {
-  await setDoc(userDoc(userId, 'competitions', comp.id), comp);
+  await setDoc(userDoc(userId, 'competitions', comp.id), stripUndefined(comp));
 }
 
 export async function deleteCompetitionDoc(userId: string, compId: string): Promise<void> {
@@ -206,7 +221,7 @@ export async function saveCompetitionDance(userId: string, dance: CompetitionDan
     processedDance = { ...processedDance, musicTrack: { ...dance.musicTrack, url } };
   }
 
-  await setDoc(userDoc(userId, 'competitionDances', processedDance.id), processedDance);
+  await setDoc(userDoc(userId, 'competitionDances', processedDance.id), stripUndefined(processedDance));
 }
 
 export async function deleteCompetitionDanceDoc(userId: string, danceId: string): Promise<void> {
@@ -222,7 +237,7 @@ export async function getCalendarEvents(userId: string): Promise<CalendarEvent[]
 }
 
 export async function saveCalendarEvent(userId: string, event: CalendarEvent): Promise<void> {
-  await setDoc(userDoc(userId, 'calendarEvents', event.id), event);
+  await setDoc(userDoc(userId, 'calendarEvents', event.id), stripUndefined(event));
 }
 
 export async function deleteCalendarEventDoc(userId: string, eventId: string): Promise<void> {
@@ -242,12 +257,7 @@ export async function batchSaveCalendarEvents(userId: string, events: CalendarEv
       currentBatch = writeBatch(requireDb());
       opCount = 0;
     }
-    // Strip undefined values — Firestore rejects them
-    const clean: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(event)) {
-      if (v !== undefined) clean[k] = v;
-    }
-    currentBatch.set(userDoc(userId, 'calendarEvents', event.id), clean);
+    currentBatch.set(userDoc(userId, 'calendarEvents', event.id), stripUndefined(event));
     opCount++;
   }
   if (deleteIds) {
@@ -296,7 +306,7 @@ export async function getAICheckIns(userId: string): Promise<AICheckIn[]> {
 }
 
 export async function saveAICheckInDoc(userId: string, checkIn: AICheckIn): Promise<void> {
-  await setDoc(userDoc(userId, 'aiCheckIns', checkIn.id), checkIn);
+  await setDoc(userDoc(userId, 'aiCheckIns', checkIn.id), stripUndefined(checkIn));
 }
 
 // ============================================================
@@ -308,7 +318,7 @@ export async function getFixItems(userId: string): Promise<FixItem[]> {
 }
 
 export async function saveFixItemDoc(userId: string, item: FixItem): Promise<void> {
-  await setDoc(userDoc(userId, 'fixItems', item.id), item);
+  await setDoc(userDoc(userId, 'fixItems', item.id), stripUndefined(item));
 }
 
 export async function deleteFixItemDoc(userId: string, itemId: string): Promise<void> {
@@ -341,7 +351,7 @@ export async function getSelfCare(userId: string): Promise<SelfCareData | undefi
 }
 
 export async function updateSelfCareDoc(userId: string, updates: Partial<SelfCareData>): Promise<void> {
-  await setDoc(userDoc(userId, 'singletons', 'selfCare'), updates, { merge: true });
+  await setDoc(userDoc(userId, 'singletons', 'selfCare'), stripUndefined(updates), { merge: true });
 }
 
 // ============================================================
@@ -353,7 +363,7 @@ export async function getDayPlan(userId: string): Promise<DayPlan | undefined> {
 }
 
 export async function updateDayPlanDoc(userId: string, plan: DayPlan): Promise<void> {
-  await setDoc(userDoc(userId, 'singletons', 'dayPlan'), plan);
+  await setDoc(userDoc(userId, 'singletons', 'dayPlan'), stripUndefined(plan));
 }
 
 // ============================================================
@@ -365,7 +375,7 @@ export async function getLaunchPlan(userId: string): Promise<LaunchPlanData | un
 }
 
 export async function updateLaunchPlanDoc(userId: string, updates: Partial<LaunchPlanData>): Promise<void> {
-  await setDoc(userDoc(userId, 'singletons', 'launchPlan'), updates, { merge: true });
+  await setDoc(userDoc(userId, 'singletons', 'launchPlan'), stripUndefined(updates), { merge: true });
 }
 
 // ============================================================
@@ -377,7 +387,7 @@ export async function getLearningData(userId: string): Promise<LearningData | un
 }
 
 export async function updateLearningDataDoc(userId: string, data: LearningData): Promise<void> {
-  await setDoc(userDoc(userId, 'singletons', 'learningData'), data);
+  await setDoc(userDoc(userId, 'singletons', 'learningData'), stripUndefined(data));
 }
 
 // ============================================================
@@ -389,7 +399,7 @@ export async function getProfile(userId: string): Promise<{ settings: AppSetting
 }
 
 export async function updateProfile(userId: string, updates: { settings?: AppSettings; lastModified?: string }): Promise<void> {
-  await setDoc(userDoc(userId, 'singletons', 'profile'), updates, { merge: true });
+  await setDoc(userDoc(userId, 'singletons', 'profile'), stripUndefined(updates), { merge: true });
 }
 
 export function onProfileSnapshot(
@@ -410,7 +420,7 @@ export async function getTherapist(userId: string): Promise<TherapistData | unde
 }
 
 export async function updateTherapistDoc(userId: string, updates: Partial<TherapistData>): Promise<void> {
-  await setDoc(userDoc(userId, 'singletons', 'therapist'), updates, { merge: true });
+  await setDoc(userDoc(userId, 'singletons', 'therapist'), stripUndefined(updates), { merge: true });
 }
 
 // ============================================================
@@ -422,7 +432,7 @@ export async function getMeditation(userId: string): Promise<MeditationData | un
 }
 
 export async function updateMeditationDoc(userId: string, updates: Partial<MeditationData>): Promise<void> {
-  await setDoc(userDoc(userId, 'singletons', 'meditation'), updates, { merge: true });
+  await setDoc(userDoc(userId, 'singletons', 'meditation'), stripUndefined(updates), { merge: true });
 }
 
 // ============================================================
@@ -434,14 +444,14 @@ export async function getGrief(userId: string): Promise<GriefData | undefined> {
 }
 
 export async function updateGriefDoc(userId: string, updates: Partial<GriefData>): Promise<void> {
-  await setDoc(userDoc(userId, 'singletons', 'grief'), updates, { merge: true });
+  await setDoc(userDoc(userId, 'singletons', 'grief'), stripUndefined(updates), { merge: true });
 }
 
 // ============================================================
 // SINGLE DOCUMENT: NUDGE STATE (cross-device dismiss/snooze)
 // ============================================================
 export async function updateNudgeStateDoc(userId: string, state: NudgeDismissState): Promise<void> {
-  await setDoc(userDoc(userId, 'singletons', 'nudgeState'), state);
+  await setDoc(userDoc(userId, 'singletons', 'nudgeState'), stripUndefined(state));
 }
 
 // ============================================================
@@ -520,7 +530,7 @@ export async function getChatThreads(userId: string): Promise<AIChatThread[]> {
 }
 
 export async function saveChatThread(userId: string, thread: AIChatThread): Promise<void> {
-  await setDoc(userDoc(userId, 'chatThreads', thread.id), thread);
+  await setDoc(userDoc(userId, 'chatThreads', thread.id), stripUndefined(thread));
 }
 
 export async function deleteChatThread(userId: string, threadId: string): Promise<void> {
@@ -532,7 +542,7 @@ export async function updateDailyBriefingSummary(
   date: string,
   summary: string
 ): Promise<void> {
-  await setDoc(doc(requireDb(), 'users', userId, 'briefings', date), { summary }, { merge: true });
+  await setDoc(doc(requireDb(), 'users', userId, 'briefings', date), stripUndefined({ summary }), { merge: true });
 }
 
 export function onDailyBriefingSnapshot(
@@ -542,7 +552,7 @@ export function onDailyBriefingSnapshot(
 ): Unsubscribe {
   return onSnapshot(doc(requireDb(), 'users', userId, 'briefings', date), (snap) => {
     callback(snap.exists() ? ({ ...snap.data(), id: snap.id } as unknown as DailyBriefing) : undefined);
-  });
+  }, (error) => { console.error('dailyBriefing snapshot error:', error); });
 }
 
 // ============================================================
@@ -707,82 +717,82 @@ export async function migrateDataToFirestore(data: AppData, userId: string): Pro
 
   // Studios
   for (const studio of data.studios || []) {
-    addOp(b => b.set(userDoc(userId, 'studios', studio.id), studio));
+    addOp(b => b.set(userDoc(userId, 'studios', studio.id), stripUndefined(studio)));
   }
 
   // Classes
   for (const cls of data.classes || []) {
-    addOp(b => b.set(userDoc(userId, 'classes', cls.id), cls));
+    addOp(b => b.set(userDoc(userId, 'classes', cls.id), stripUndefined(cls)));
   }
 
   // Students
   for (const student of data.students || []) {
-    addOp(b => b.set(userDoc(userId, 'students', student.id), student));
+    addOp(b => b.set(userDoc(userId, 'students', student.id), stripUndefined(student)));
   }
 
   // WeekNotes — use weekOf as document ID
   for (const wn of data.weekNotes || []) {
-    addOp(b => b.set(userDoc(userId, 'weekNotes', wn.weekOf), wn));
+    addOp(b => b.set(userDoc(userId, 'weekNotes', wn.weekOf), stripUndefined(wn)));
   }
 
   // Terminology
   for (const term of data.terminology || []) {
-    addOp(b => b.set(userDoc(userId, 'terminology', term.id), term));
+    addOp(b => b.set(userDoc(userId, 'terminology', term.id), stripUndefined(term)));
   }
 
   // Competitions
   for (const comp of data.competitions || []) {
-    addOp(b => b.set(userDoc(userId, 'competitions', comp.id), comp));
+    addOp(b => b.set(userDoc(userId, 'competitions', comp.id), stripUndefined(comp)));
   }
 
   // Competition Dances
   for (const dance of data.competitionDances || []) {
-    addOp(b => b.set(userDoc(userId, 'competitionDances', dance.id), dance));
+    addOp(b => b.set(userDoc(userId, 'competitionDances', dance.id), stripUndefined(dance)));
   }
 
   // Calendar Events
   for (const event of data.calendarEvents || []) {
-    addOp(b => b.set(userDoc(userId, 'calendarEvents', event.id), event));
+    addOp(b => b.set(userDoc(userId, 'calendarEvents', event.id), stripUndefined(event)));
   }
 
   // AI Check-ins
   for (const checkIn of data.aiCheckIns || []) {
-    addOp(b => b.set(userDoc(userId, 'aiCheckIns', checkIn.id), checkIn));
+    addOp(b => b.set(userDoc(userId, 'aiCheckIns', checkIn.id), stripUndefined(checkIn)));
   }
 
   // Self Care (singleton)
   if (data.selfCare) {
-    addOp(b => b.set(userDoc(userId, 'singletons', 'selfCare'), data.selfCare!));
+    addOp(b => b.set(userDoc(userId, 'singletons', 'selfCare'), stripUndefined(data.selfCare!)));
   }
 
   // Day Plan (singleton)
   if (data.dayPlan) {
-    addOp(b => b.set(userDoc(userId, 'singletons', 'dayPlan'), data.dayPlan!));
+    addOp(b => b.set(userDoc(userId, 'singletons', 'dayPlan'), stripUndefined(data.dayPlan!)));
   }
 
   // Launch Plan (singleton)
   if (data.launchPlan) {
-    addOp(b => b.set(userDoc(userId, 'singletons', 'launchPlan'), data.launchPlan!));
+    addOp(b => b.set(userDoc(userId, 'singletons', 'launchPlan'), stripUndefined(data.launchPlan!)));
   }
 
   // Learning Data (singleton)
   if (data.learningData) {
-    addOp(b => b.set(userDoc(userId, 'singletons', 'learningData'), data.learningData!));
+    addOp(b => b.set(userDoc(userId, 'singletons', 'learningData'), stripUndefined(data.learningData!)));
   }
 
   // Therapist Data (singleton)
   if (data.therapist) {
-    addOp(b => b.set(userDoc(userId, 'singletons', 'therapist'), data.therapist!));
+    addOp(b => b.set(userDoc(userId, 'singletons', 'therapist'), stripUndefined(data.therapist!)));
   }
 
   // Meditation Data (singleton)
   if (data.meditation) {
-    addOp(b => b.set(userDoc(userId, 'singletons', 'meditation'), data.meditation!));
+    addOp(b => b.set(userDoc(userId, 'singletons', 'meditation'), stripUndefined(data.meditation!)));
   }
 
   // Grief Data (singleton)
   if (data.grief) {
-    addOp(b => b.set(userDoc(userId, 'singletons', 'grief'), data.grief!));
+    addOp(b => b.set(userDoc(userId, 'singletons', 'grief'), stripUndefined(data.grief!)));
   }
 
   // Commit all batches
