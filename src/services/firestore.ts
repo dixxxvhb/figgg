@@ -4,6 +4,7 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  updateDoc,
   deleteDoc,
   writeBatch,
   onSnapshot,
@@ -132,28 +133,38 @@ export async function getWeekNotesList(userId: string): Promise<WeekNotes[]> {
 export async function saveWeekNotesDoc(userId: string, weekNotes: WeekNotes): Promise<void> {
   // Use weekOf as the document ID for natural lookup
   const docId = weekNotes.weekOf;
+  const docRef = userDoc(userId, 'weekNotes', docId);
 
   // Migrate base64 media in classNotes to Firebase Storage
-  let processedNotes = weekNotes;
   const classNotesEntries = Object.entries(weekNotes.classNotes || {});
-  const hasBase64Media = classNotesEntries.some(
-    ([, cn]) => cn.media?.some(m => isBase64DataUrl(m.url))
-  );
-
-  if (hasBase64Media) {
-    const migratedClassNotes: typeof weekNotes.classNotes = {};
-    for (const [classId, cn] of classNotesEntries) {
-      if (cn.media?.some(m => isBase64DataUrl(m.url))) {
-        const migratedMedia = await migrateMediaItems(userId, cn.media, `weekNotes/${docId}/${classId}`);
-        migratedClassNotes[classId] = { ...cn, media: migratedMedia };
-      } else {
-        migratedClassNotes[classId] = cn;
-      }
+  const processedClassNotes: Record<string, unknown> = {};
+  for (const [classId, cn] of classNotesEntries) {
+    let processed = cn;
+    if (cn.media?.some(m => isBase64DataUrl(m.url))) {
+      const migratedMedia = await migrateMediaItems(userId, cn.media, `weekNotes/${docId}/${classId}`);
+      processed = { ...cn, media: migratedMedia };
     }
-    processedNotes = { ...weekNotes, classNotes: migratedClassNotes };
+    processedClassNotes[classId] = stripUndefined(processed);
   }
 
-  await setDoc(userDoc(userId, 'weekNotes', docId), stripUndefined(processedNotes));
+  // Use field-level updates so concurrent edits to DIFFERENT classes
+  // don't overwrite each other (dot-notation targets individual class entries)
+  const updates: Record<string, unknown> = { weekOf: weekNotes.weekOf };
+  if (weekNotes.reflection !== undefined) updates.reflection = weekNotes.reflection;
+  for (const [classId, classNotes] of Object.entries(processedClassNotes)) {
+    updates[`classNotes.${classId}`] = classNotes;
+  }
+
+  try {
+    await updateDoc(docRef, updates);
+  } catch (e: unknown) {
+    // Document doesn't exist yet — create it with full data
+    if (e && typeof e === 'object' && 'code' in e && (e as { code: string }).code === 'not-found') {
+      await setDoc(docRef, stripUndefined({ ...weekNotes, classNotes: processedClassNotes }));
+    } else {
+      throw e;
+    }
+  }
 }
 
 // ============================================================

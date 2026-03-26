@@ -2,12 +2,15 @@ import React, { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Download, Upload, Check } from 'lucide-react';
 import { useAppData } from '../../contexts/AppDataContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { exportData, importData, loadData } from '../../services/storage';
+import { migrateDataToFirestore } from '../../services/firestore';
 import { Button } from '../../components/common/Button';
 import { Card } from '../../components/common/Card';
 
 export function DataSettings() {
   const { data, refreshData } = useAppData();
+  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showImportSuccess, setShowImportSuccess] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -35,6 +38,11 @@ export function DataSettings() {
         const success = importData(content);
         if (success) {
           refreshData();
+          // Push imported data to Firestore so it syncs across devices
+          if (user?.uid) {
+            const imported = loadData();
+            migrateDataToFirestore(imported, user.uid).catch(console.warn);
+          }
           setShowImportSuccess(true);
           setTimeout(() => setShowImportSuccess(false), 3000);
         } else {

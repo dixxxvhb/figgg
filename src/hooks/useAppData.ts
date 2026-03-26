@@ -75,6 +75,9 @@ export function useAppData() {
   const therapistOnlyRef = useRef(false);
   const meditationOnlyRef = useRef(false);
   const griefOnlyRef = useRef(false);
+  // Same pattern for weekNotes — saveWeekNotes already writes to localStorage + Firestore,
+  // so the save effect should skip to avoid redundant localStorage writes
+  const weekNotesOnlyRef = useRef(false);
   // Track calendar sync updates — SyncContext already handles Firestore batch writes,
   // so the save effect should skip to avoid racing partial snapshot data
   const calendarSyncOnlyRef = useRef(false);
@@ -389,6 +392,11 @@ export function useAppData() {
       griefOnlyRef.current = false;
       return;
     }
+    // Same for weekNotes — saveWeekNotes already wrote to localStorage + Firestore
+    if (weekNotesOnlyRef.current) {
+      weekNotesOnlyRef.current = false;
+      return;
+    }
     // Same for calendar sync — SyncContext batch writes to Firestore directly
     if (calendarSyncOnlyRef.current) {
       calendarSyncOnlyRef.current = false;
@@ -467,11 +475,13 @@ export function useAppData() {
   }, [data.weekNotes]);
 
   const saveWeekNotes = useCallback((weekNotes: WeekNotes) => {
-    // Use the storage version directly for immediate cloud sync
-    // This ensures notes are saved reliably even if the app closes
+    // Write to localStorage immediately (survives app close)
     saveWeekNotesToStorage(weekNotes);
 
-    // Also update React state so UI reflects changes immediately
+    // Flag so the save effect skips redundant localStorage write
+    weekNotesOnlyRef.current = true;
+
+    // Update React state so UI reflects changes immediately
     setData(prev => {
       const index = prev.weekNotes.findIndex(w => w.weekOf === weekNotes.weekOf);
       if (index !== -1) {
