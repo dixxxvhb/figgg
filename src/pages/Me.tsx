@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAppData } from '../contexts/AppDataContext';
 import { haptic } from '../utils/haptics';
+import { safeTime } from '../utils/time';
 import { generateId } from '../utils/id';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
 import {
@@ -364,7 +365,7 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
       if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
       if (a.dueDate) return -1;
       if (b.dueDate) return 1;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return safeTime(b.createdAt) - safeTime(a.createdAt);
     });
   }, [reminders, currentView, todayStr, showCompleted]);
 

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { TeachingStats } from '../../hooks/useTeachingStats';
 import type { Class, Competition, WeekNotes, DayOfWeek } from '../../types';
+import { safeTime } from '../../utils/time';
 
 interface WeekStatsProps {
   stats: TeachingStats;
@@ -67,11 +68,11 @@ function useWeeklyInsight(stats: TeachingStats, classes: Class[], competitions?:
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const upcoming = competitions
-        .filter(c => new Date(c.date) >= today)
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        .filter(c => (safeTime(c.date) || 0) >= today.getTime())
+        .sort((a, b) => safeTime(a.date) - safeTime(b.date));
       if (upcoming.length > 0) {
         const next = upcoming[0];
-        const daysUntil = Math.ceil((new Date(next.date).getTime() - today.getTime()) / 86400000);
+        const daysUntil = Math.ceil((safeTime(next.date) - today.getTime()) / 86400000);
         if (daysUntil <= 7) {
           insights.push(`${next.name} is ${daysUntil === 0 ? 'today' : daysUntil === 1 ? 'tomorrow' : `in ${daysUntil} days`}.`);
         } else if (daysUntil <= 21) {

@@ -1,4 +1,5 @@
 import { WeekNotes, ClassWeekNotes } from '../types';
+import { safeTime } from './time';
 
 /**
  * Normalizes event titles for fuzzy matching across weeks.
@@ -69,7 +70,7 @@ export function findMatchingPastSessions(
   }
 
   // Sort newest first by weekOf date
-  matches.sort((a, b) => new Date(b.weekOf).getTime() - new Date(a.weekOf).getTime());
+  matches.sort((a, b) => safeTime(b.weekOf) - safeTime(a.weekOf));
 
   return matches;
 }

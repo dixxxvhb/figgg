@@ -2,6 +2,7 @@ import { useState, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Plus, User, Phone, Mail, ChevronRight, X, Trash2, Award, AlertTriangle, TrendingUp, MessageSquare, Calendar, Music, Camera, BarChart3, UserCheck, Clock3, UserX, FileText } from 'lucide-react';
 import { format } from 'date-fns';
+import { safeFormat } from '../utils/time';
 import { useAppData } from '../contexts/AppDataContext';
 import { Student, SkillNote, Class, Studio, CompetitionDance, WeekNotes } from '../types';
 import { Button } from '../components/common/Button';
@@ -942,7 +943,7 @@ function StudentDetailModal({
                         {entry.className}
                       </div>
                       <div className="type-caption text-[var(--text-tertiary)]">
-                        Week of {format(new Date(entry.weekOf), 'MMM d, yyyy')}
+                        Week of {safeFormat(entry.weekOf, 'MMM d, yyyy')}
                       </div>
                       {entry.absenceReason && (
                         <div className="text-xs text-[var(--status-danger)] mt-0.5">{entry.absenceReason}</div>
@@ -1042,7 +1043,7 @@ function StudentDetailModal({
                           )}
                           <p className="type-body">{note.text}</p>
                           <div className="type-caption text-[var(--text-tertiary)] mt-1">
-                            {format(new Date(note.date), 'MMM d, yyyy')}
+                            {safeFormat(note.date, 'MMM d, yyyy')}
                           </div>
                         </div>
                         <button

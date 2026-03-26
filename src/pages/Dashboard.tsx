@@ -23,7 +23,7 @@ import { useCurrentClass } from '../hooks/useCurrentClass';
 import { useAppData } from '../contexts/AppDataContext';
 import { useTeachingStats } from '../hooks/useTeachingStats';
 import { useSelfCareStatus } from '../hooks/useSelfCareStatus';
-import { getCurrentDayOfWeek, formatTimeDisplay, formatWeekOf, getWeekStart, timeToMinutes } from '../utils/time';
+import { getCurrentDayOfWeek, formatTimeDisplay, formatWeekOf, getWeekStart, timeToMinutes, safeTime } from '../utils/time';
 import { getClassesByDay } from '../data/classes';
 import { WeekStats } from '../components/Dashboard/WeekStats';
 import { TodaysAgenda } from '../components/Dashboard/TodaysAgenda';
@@ -580,7 +580,7 @@ export function Dashboard() {
   const currentStudio = classInfo.class ? data.studios.find(s => s.id === classInfo.class?.studioId) : null;
 
   const getLastWeekNotes = (classId: string) => {
-    const sorted = [...(data.weekNotes || [])].sort((a, b) => new Date(b.weekOf).getTime() - new Date(a.weekOf).getTime());
+    const sorted = [...(data.weekNotes || [])].sort((a, b) => safeTime(b.weekOf) - safeTime(a.weekOf));
     for (const week of sorted) {
       const notes = week.classNotes[classId];
       if (notes && notes.liveNotes.length > 0) return notes.liveNotes.slice(-3);

@@ -6,7 +6,7 @@ import { useAppData } from '../contexts/AppDataContext';
 import { PlanDisplay } from '../components/common/PlanDisplay';
 import { DropdownMenu } from '../components/common/DropdownMenu';
 import { LiveNote, ClassWeekNotes, Reminder, ReminderList, TermCategory, normalizeNoteCategory } from '../types';
-import { formatTimeDisplay, getCurrentTimeMinutes, getMinutesRemaining, formatWeekOf, getWeekStart } from '../utils/time';
+import { formatTimeDisplay, getCurrentTimeMinutes, getMinutesRemaining, formatWeekOf, getWeekStart, safeFormat, safeTime } from '../utils/time';
 import { getWeekNotes as getWeekNotesFromStorage } from '../services/storage';
 import { v4 as uuid } from 'uuid';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
@@ -658,7 +658,7 @@ export function LiveNotes() {
       // 3. Previous plan for continuity
       const previousPlans: string[] = [];
       const sorted = [...(data.weekNotes || [])].sort((a, b) =>
-        new Date(b.weekOf).getTime() - new Date(a.weekOf).getTime()
+        safeTime(b.weekOf) - safeTime(a.weekOf)
       );
       for (const week of sorted) {
         const notes = week.classNotes[cls.id];
@@ -917,7 +917,7 @@ export function LiveNotes() {
 
       const previousPlans: string[] = [];
       const sorted = [...(data.weekNotes || [])].sort((a, b) =>
-        new Date(b.weekOf).getTime() - new Date(a.weekOf).getTime()
+        safeTime(b.weekOf) - safeTime(a.weekOf)
       );
       for (const week of sorted) {
         const notes = week.classNotes[cls.id];
@@ -1414,7 +1414,7 @@ export function LiveNotes() {
                           <p className="text-sm text-[var(--text-primary)]">{note.text}</p>
                         </div>
                         <div className="text-xs text-[var(--text-tertiary)]">
-                          {format(new Date(note.timestamp), 'h:mm a')}
+                          {safeFormat(note.timestamp, 'h:mm a')}
                         </div>
                       </div>
                     </div>
@@ -1467,7 +1467,7 @@ export function LiveNotes() {
                     </div>
                     <div className="flex items-start gap-2">
                       <div className="text-xs text-[var(--text-tertiary)]">
-                        {format(new Date(note.timestamp), 'h:mm a')}
+                        {safeFormat(note.timestamp, 'h:mm a')}
                       </div>
                       {isEditing ? (
                         <>

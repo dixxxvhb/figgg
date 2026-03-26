@@ -5,7 +5,7 @@ import { format, parseISO, addWeeks } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
 import { DropdownMenu } from '../components/common/DropdownMenu';
 import { LiveNote, ClassWeekNotes, normalizeNoteCategory, Reminder, ReminderList } from '../types';
-import { formatTimeDisplay, formatWeekOf, getWeekStart } from '../utils/time';
+import { formatTimeDisplay, formatWeekOf, getWeekStart, safeFormat, safeTime } from '../utils/time';
 import { v4 as uuid } from 'uuid';
 import { findMatchingPastSessions, getCarryForwardText, PastSession } from '../utils/smartNotes';
 import { PreviousSessionsPanel } from '../components/events/PreviousSessionsPanel';
@@ -322,7 +322,7 @@ export function EventNotes() {
       // Previous plans for continuity
       const previousPlans: string[] = [];
       const sorted = [...(data.weekNotes || [])].sort((a, b) =>
-        new Date(b.weekOf).getTime() - new Date(a.weekOf).getTime()
+        safeTime(b.weekOf) - safeTime(a.weekOf)
       );
       for (const week of sorted) {
         const n = week.classNotes[event.id];
@@ -610,7 +610,7 @@ export function EventNotes() {
                     </div>
                     <div className="flex items-start gap-2">
                       <div className="text-xs text-[var(--text-tertiary)]">
-                        {format(new Date(note.timestamp), 'h:mm a')}
+                        {safeFormat(note.timestamp, 'h:mm a')}
                       </div>
                       <button
                         onClick={() => deleteNote(note.id)}

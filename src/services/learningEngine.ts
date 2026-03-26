@@ -1,7 +1,7 @@
 import { loadData, saveData } from './storage';
 import { subDays, differenceInCalendarDays } from 'date-fns';
 import { getClassesByDay } from '../data/classes';
-import { toDateStr, toTimeStr } from '../utils/time';
+import { toDateStr, toTimeStr, safeDate } from '../utils/time';
 import type { DailySnapshot, WeeklySummary, LearningData, AppData, DayOfWeek } from '../types';
 
 const MAX_SNAPSHOTS = 30;
@@ -164,7 +164,9 @@ export function generateWeeklySummary(snapshots: DailySnapshot[], weekOfStr: str
     // Detect best day of week (most wellness completion)
     const dayMap: Record<number, { wellness: number; total: number }> = {};
     snapshots.forEach(s => {
-      const day = new Date(s.date).getDay();
+      const d = safeDate(s.date);
+      if (!d) return;
+      const day = d.getDay();
       if (!dayMap[day]) dayMap[day] = { wellness: 0, total: 0 };
       dayMap[day].wellness += s.wellnessCompleted.length;
       dayMap[day].total += 1;

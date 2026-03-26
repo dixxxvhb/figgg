@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Clock, MapPin, Play, Calendar, Plus, Trash2, FileText, Image, Edit2, Save, Users, UserCheck, UserX, Clock3, ChevronDown, ChevronUp, Music, Camera, History, EyeOff } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
-import { formatTimeDisplay } from '../utils/time';
+import { formatTimeDisplay, safeDate, safeFormat } from '../utils/time';
 import { Button } from '../components/common/Button';
 import { DropdownMenu } from '../components/common/DropdownMenu';
 import { MediaItem, ClassWeekNotes, CalendarEvent, AppData, CompetitionDance, Student, WeekNotes } from '../types';
@@ -27,7 +27,7 @@ export function CalendarEventDetail() {
   const DAY_NAMES: Record<number, import('../types').DayOfWeek> = {
     0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday', 4: 'thursday', 5: 'friday', 6: 'saturday',
   };
-  const eventDayOfWeek = event ? DAY_NAMES[new Date(event.date + 'T12:00:00').getDay()] : undefined;
+  const eventDayOfWeek = event ? DAY_NAMES[safeDate(event.date + 'T12:00:00')?.getDay() ?? -1] : undefined;
   const matchingClass = event && eventDayOfWeek
     ? data.classes.find(c => c.name.toLowerCase() === event.title.toLowerCase() && c.day === eventDayOfWeek)
     : undefined;
@@ -540,7 +540,7 @@ export function CalendarEventDetail() {
                     <p className="text-[var(--text-primary)]">{note.text}</p>
                     <div className="flex items-center justify-between mt-2">
                       <p className="text-xs text-[var(--text-tertiary)]">
-                        {new Date(note.timestamp).toLocaleTimeString()}
+                        {safeFormat(note.timestamp, 'h:mm:ss a')}
                       </p>
                       <div className="flex gap-2">
                         <button

@@ -330,8 +330,10 @@ export function useAppData() {
       }));
 
       listenerUnsubs.push(onCalendarEventsSnapshot(user.uid, (calendarEvents) => {
-        isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-        setData(prev => ({ ...prev, calendarEvents }));
+        if (calendarEvents.length > 0) {
+          isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
+          setData(prev => ({ ...prev, calendarEvents }));
+        }
       }));
 
     });

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { format, parseISO, differenceInDays, startOfDay } from 'date-fns';
 import { haptic } from '../../utils/haptics';
+import { safeFormat, safeTime } from '../../utils/time';
 import { generateId } from '../../utils/id';
 import type {
   TherapistData,
@@ -416,12 +417,12 @@ function PrepNotesSection({
   const [newNote, setNewNote] = useState('');
   const [showJournalPicker, setShowJournalPicker] = useState(false);
   const sorted = [...prepNotes].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    (a, b) => safeTime(b.createdAt) - safeTime(a.createdAt)
   );
 
   const recentJournals = (journalEntries || [])
     .slice()
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .sort((a, b) => safeTime(b.createdAt) - safeTime(a.createdAt))
     .slice(0, 10);
 
   const handleAdd = () => {
@@ -576,7 +577,7 @@ function PrepNotesSection({
                 </p>
                 <div className="flex items-center gap-2">
                   <span className="type-caption text-[var(--text-tertiary)]">
-                    {format(new Date(note.createdAt), 'MMM d, h:mm a')}
+                    {safeFormat(note.createdAt, 'MMM d, h:mm a')}
                   </span>
                   {note.linkedJournalId && (
                     <span className="type-caption text-[var(--text-tertiary)] flex items-center gap-0.5">
@@ -873,7 +874,7 @@ function SessionFrequencyInsight({ sessions }: { sessions: TherapistSession[] })
   if (sessions.length === 0) return null;
 
   const sorted = [...sessions].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    (a, b) => safeTime(b.date) - safeTime(a.date)
   );
 
   const today = startOfDay(new Date());
@@ -915,7 +916,7 @@ function SessionHistory({
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const sorted = [...sessions].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    (a, b) => safeTime(b.date) - safeTime(a.date)
   );
 
   if (sorted.length === 0) return null;

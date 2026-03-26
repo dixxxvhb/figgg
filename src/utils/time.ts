@@ -82,3 +82,27 @@ export function formatWeekOf(date: Date): string {
   return format(date, 'yyyy-MM-dd');
 }
 
+/** Safely parse a date string, returning null if invalid. */
+export function safeDate(value: unknown): Date | null {
+  if (!value) return null;
+  const d = new Date(value as string | number);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/** Safely format a date string with date-fns format(). Returns fallback on invalid input. */
+export function safeFormat(value: unknown, fmt: string, fallback = ''): string {
+  const d = safeDate(value);
+  if (!d) return fallback;
+  try {
+    return format(d, fmt);
+  } catch {
+    return fallback;
+  }
+}
+
+/** Safely get timestamp for sorting. Returns 0 on invalid input. */
+export function safeTime(value: unknown): number {
+  const d = safeDate(value);
+  return d ? d.getTime() : 0;
+}
+

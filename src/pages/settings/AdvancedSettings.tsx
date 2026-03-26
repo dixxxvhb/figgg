@@ -96,9 +96,12 @@ export function AdvancedSettings() {
     }
 
     if (merged > 0) {
-      // Save via localStorage directly
       localStorage.setItem('dance-teaching-app-data', JSON.stringify(currentData));
       refreshData();
+      // Push merged data to Firestore so it syncs across devices
+      if (user?.uid) {
+        migrateDataToFirestore(currentData, user.uid).catch(console.warn);
+      }
     }
 
     setRecoveryStats({ merged, skipped });
