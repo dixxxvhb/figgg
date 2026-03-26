@@ -721,10 +721,10 @@ export async function migrateDataToFirestore(data: AppData, userId: string): Pro
   }
 
   // Profile (settings + lastModified)
-  addOp(b => b.set(userDoc(userId, 'singletons', 'profile'), {
+  addOp(b => b.set(userDoc(userId, 'singletons', 'profile'), stripUndefined({
     settings: data.settings || {},
     lastModified: data.lastModified || new Date().toISOString(),
-  }));
+  })));
 
   // Studios
   for (const studio of data.studios || []) {
