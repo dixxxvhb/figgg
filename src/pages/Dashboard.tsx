@@ -85,7 +85,7 @@ const isActionItem = (text: string) => ACTION_KEYWORDS.test(text) || text.starts
 // ── Component ──
 
 export function Dashboard() {
-  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, refreshData, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes, updateSettings, updateTherapist, updateNudgeState } = useAppData();
+  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes, updateTherapist, updateNudgeState } = useAppData();
   const medConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
   const selfCareStatus = useSelfCareStatus(data.selfCare, medConfig);
 
