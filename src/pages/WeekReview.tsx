@@ -5,6 +5,8 @@ import { useAppData } from '../contexts/AppDataContext';
 import { formatWeekOf, getWeekStart, formatTimeDisplay } from '../utils/time';
 import { normalizeNoteCategory } from '../types';
 import type { LiveNote, Class } from '../types';
+import { useTeachingStats } from '../hooks/useTeachingStats';
+import { WeeklyInsight } from '../components/Dashboard/WeeklyInsight';
 
 const CATEGORY_META: Record<string, { label: string; icon: typeof FileText; color: string }> = {
   'worked-on': { label: 'Worked On', icon: FileText, color: 'text-[var(--status-success)]' },
@@ -16,6 +18,7 @@ const CATEGORY_META: Record<string, { label: string; icon: typeof FileText; colo
 export function WeekReview() {
   const { data } = useAppData();
   const [weekOffset, setWeekOffset] = useState(0); // 0 = current, -1 = last week, etc.
+  const stats = useTeachingStats(data);
 
   const weekData = useMemo(() => {
     const baseDate = new Date();
@@ -112,6 +115,16 @@ export function WeekReview() {
           <span><strong className="text-[var(--text-primary)]">{weekData.classSummaries.length}</strong> classes with notes</span>
           <span><strong className="text-[var(--text-primary)]">{weekData.totalNotes}</strong> total notes</span>
         </div>
+      </div>
+
+      {/* Weekly Insight */}
+      <div className="px-4 mb-4">
+        <WeeklyInsight
+          stats={stats}
+          classes={data.classes}
+          competitions={data.competitions}
+          weekNotes={data.weekNotes}
+        />
       </div>
 
       {/* Empty state */}

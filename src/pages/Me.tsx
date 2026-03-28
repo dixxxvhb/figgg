@@ -22,6 +22,7 @@ import { MedsTracker } from '../components/wellness/MedsTracker';
 import { SmartChecklist } from '../components/wellness/SmartChecklist';
 import { TherapistTracker } from '../components/wellness/TherapistTracker';
 import { MeditationSpace } from '../components/wellness/MeditationSpace';
+import { FixItemWidget } from '../components/Dashboard/FixItemWidget';
 
 const TherapyJournal = lazy(() => import('../components/wellness/TherapyJournal').then(m => ({ default: m.TherapyJournal })));
 
@@ -110,7 +111,7 @@ function QuickModeSwitcher({ selfCare, onUpdateSelfCare }: { selfCare: import('.
 
 export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
-  const { data, updateSelfCare, updateTherapist, updateMeditation, updateGrief } = useAppData();
+  const { data, updateSelfCare, updateTherapist, updateMeditation, updateGrief, addFixItem, deleteFixItem } = useAppData();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<'meds' | 'reminders'>(() => {
     const urlTab = searchParams.get('tab');
@@ -490,6 +491,13 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
             {wellnessSubTab === 'breathing' && (
               <MeditationSpace data={meditationData} onUpdate={updateMeditation} />
             )}
+
+            {/* App Fix Logger — bottom of wellness section */}
+            <FixItemWidget
+              fixItems={data.fixItems || []}
+              onAdd={addFixItem}
+              onDelete={deleteFixItem}
+            />
           </div>
         )}
 
