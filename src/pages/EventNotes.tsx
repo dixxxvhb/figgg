@@ -1,26 +1,19 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, X, Trash2, FileText, ChevronDown, ChevronUp, ClipboardList, RotateCcw, History, Bell, StickyNote } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle, X, FileText, ChevronDown, ChevronUp, ClipboardList, RotateCcw, Bell } from 'lucide-react';
 import { format, parseISO, addWeeks } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
 import { DropdownMenu } from '../components/common/DropdownMenu';
+import { NotesList, InputBar } from '../components/common/NoteInput';
 import { LiveNote, ClassWeekNotes, normalizeNoteCategory, Reminder, ReminderList } from '../types';
-import { formatTimeDisplay, formatWeekOf, getWeekStart, safeFormat, safeTime } from '../utils/time';
+import { formatTimeDisplay, formatWeekOf, getWeekStart, safeTime } from '../utils/time';
 import { v4 as uuid } from 'uuid';
-import { findMatchingPastSessions, getCarryForwardText, PastSession } from '../utils/smartNotes';
+import { findMatchingPastSessions, getCarryForwardText } from '../utils/smartNotes';
 import { PreviousSessionsPanel } from '../components/events/PreviousSessionsPanel';
 import { generatePlan as aiGeneratePlan, detectReminders as aiDetectReminders } from '../services/ai';
 import { buildAIContext } from '../services/aiContext';
 import { getWeekNotes as getWeekNotesFromStorage } from '../services/storage';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
-import { EmptyState } from '../components/common/EmptyState';
-
-const QUICK_TAGS = [
-  { id: 'worked-on', label: 'Worked On', icon: CheckCircle, color: 'bg-[var(--accent-muted)] text-[var(--accent-primary)]' },
-  { id: 'needs-work', label: 'Needs More Work', icon: AlertCircle, color: 'bg-[var(--status-warning)]/10 text-[var(--status-warning)]' },
-  { id: 'next-week', label: 'Next Week', icon: Clock, color: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' },
-  { id: 'ideas', label: 'Ideas', icon: Lightbulb, color: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' },
-];
 
 export function EventNotes() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -39,7 +32,6 @@ export function EventNotes() {
 
   const event = data.calendarEvents?.find(e => e.id === eventId);
 
-  const [noteText, setNoteText] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | undefined>();
   const [weekNotes, setWeekNotes] = useState(() => getCurrentWeekNotes());
   const [showPlan, setShowPlan] = useState(true);
@@ -207,16 +199,7 @@ export function EventNotes() {
     saveWeekNotes(updatedWeekNotes);
   };
 
-  const addNote = () => {
-    if (!noteText.trim()) return;
-
-    const newNote: LiveNote = {
-      id: uuid(),
-      timestamp: new Date().toISOString(),
-      text: noteText.trim(),
-      category: selectedTag as LiveNote['category'],
-    };
-
+  const handleSaveNote = (newNote: LiveNote) => {
     const updatedEventNotes: ClassWeekNotes = {
       ...eventNotes,
       liveNotes: [...eventNotes.liveNotes, newNote],
@@ -232,18 +215,9 @@ export function EventNotes() {
 
     setWeekNotes(updatedWeekNotes);
     saveWeekNotes(updatedWeekNotes);
-    setNoteText('');
-    setSelectedTag(undefined);
 
     // AI: detect reminders in the note
     tryDetectReminder(newNote);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      addNote();
-    }
   };
 
   const deleteNote = (noteId: string) => {
@@ -577,55 +551,17 @@ export function EventNotes() {
 
       {/* Notes List */}
       <div className="flex-1 overflow-y-auto p-4 page-w w-full">
-
-        {eventNotes.liveNotes.length === 0 ? (
-          <EmptyState
-            icon={StickyNote}
-            title="No notes yet"
-            description="Start typing below to add notes"
-          />
-        ) : (
-          <div className="space-y-3">
-            {eventNotes.liveNotes.map(note => {
-              const tag = QUICK_TAGS.find(t => t.id === normalizeNoteCategory(note.category));
-              return (
-                <div
-                  key={note.id}
-                  className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 shadow-sm group relative"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      {tag && (
-                        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full mb-2 ${tag.color}`}>
-                          <tag.icon size={12} />
-                          {tag.label}
-                        </span>
-                      )}
-                      <p className="text-[var(--text-primary)]">{note.text}</p>
-                      {reminderNoteIds.has(note.id) && (
-                        <span className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 mt-1">
-                          <Bell size={10} /> Reminder created
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <div className="text-xs text-[var(--text-tertiary)]">
-                        {safeFormat(note.timestamp, 'h:mm a')}
-                      </div>
-                      <button
-                        onClick={() => deleteNote(note.id)}
-                        className="p-1.5 text-[var(--text-tertiary)] hover:text-red-500 active:text-red-600 transition-colors rounded-lg"
-                        title="Delete note"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <NotesList
+          notes={eventNotes.liveNotes}
+          onDeleteNote={deleteNote}
+          renderNoteExtra={(note) =>
+            reminderNoteIds.has(note.id) ? (
+              <span className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 mt-1">
+                <Bell size={10} /> Reminder created
+              </span>
+            ) : null
+          }
+        />
 
         {/* Next Session Goal */}
         <div className="mt-4 mb-2">
@@ -651,44 +587,12 @@ export function EventNotes() {
       {/* Input Area */}
       <div className="border-t border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 pb-safe">
         <div className="page-w">
-          {/* Quick Tags */}
-          <div className="flex gap-2 mb-3 overflow-x-auto pb-2">
-            {QUICK_TAGS.map(tag => (
-              <button
-                key={tag.id}
-                onClick={() => setSelectedTag(selectedTag === tag.id ? undefined : tag.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-all ${
-                  selectedTag === tag.id
-                    ? tag.color + ' shadow-sm'
-                    : 'bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:bg-[var(--surface-highlight)]'
-                }`}
-              >
-                <tag.icon size={14} />
-                {tag.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Text Input */}
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={noteText}
-              onChange={(e) => setNoteText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Add a note..."
-              aria-label="Add a note"
-              className="flex-1 px-4 py-3 border border-[var(--border-subtle)] rounded-xl focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent bg-[var(--surface-card)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)]"
-            />
-
-            <button
-              onClick={addNote}
-              disabled={!noteText.trim()}
-              className="px-4 py-3 bg-[var(--accent-primary)] text-[var(--text-on-accent)] rounded-xl disabled:opacity-50 hover:bg-[var(--accent-primary-hover)] transition-colors"
-            >
-              <Send size={20} />
-            </button>
-          </div>
+          <InputBar
+            onSaveNote={handleSaveNote}
+            placeholder="Add a note..."
+            selectedTag={selectedTag}
+            setSelectedTag={setSelectedTag}
+          />
 
           {/* End Event Button */}
           {alreadySaved ? (

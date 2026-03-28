@@ -1,28 +1,20 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Send, Clock, CheckCircle, Lightbulb, AlertCircle, X, FileText, Users, UserCheck, UserX, UserPlus, Clock3, ChevronDown, ChevronUp, ClipboardList, Pencil, BookOpen, Wand2, Loader2, Check, Trash2, StickyNote } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle, AlertCircle, X, FileText, Users, UserCheck, UserX, UserPlus, Clock3, ChevronDown, ChevronUp, ClipboardList, BookOpen, Wand2, Loader2, Check } from 'lucide-react';
 import { format, addWeeks, addDays } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
 import { PlanDisplay } from '../components/common/PlanDisplay';
 import { DropdownMenu } from '../components/common/DropdownMenu';
+import { NotesList, InputBar, type AutocompleteConfig } from '../components/common/NoteInput';
 import { LiveNote, ClassWeekNotes, Reminder, ReminderList, TermCategory, normalizeNoteCategory } from '../types';
-import { formatTimeDisplay, getCurrentTimeMinutes, getMinutesRemaining, formatWeekOf, getWeekStart, safeFormat, safeTime } from '../utils/time';
+import { formatTimeDisplay, getCurrentTimeMinutes, getMinutesRemaining, formatWeekOf, getWeekStart, safeTime } from '../utils/time';
 import { getWeekNotes as getWeekNotesFromStorage } from '../services/storage';
 import { v4 as uuid } from 'uuid';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
-import { EmptyState } from '../components/common/EmptyState';
 import { searchTerminology } from '../data/terminology';
 import { getProgressionSuggestions, getRepetitionFlags } from '../data/progressions';
-import { TerminologyEntry } from '../types';
 import { generatePlan as aiGeneratePlan, detectReminders as aiDetectReminders, expandNotes as aiExpandNotes } from '../services/ai';
 import { buildAIContext } from '../services/aiContext';
-
-const QUICK_TAGS = [
-  { id: 'worked-on', label: 'Worked On', icon: CheckCircle, color: 'bg-[var(--surface-highlight)] text-[var(--text-primary)]' },
-  { id: 'needs-work', label: 'Needs More Work', icon: AlertCircle, color: 'bg-[var(--status-warning)]/10 text-[var(--status-warning)]' },
-  { id: 'next-week', label: 'Next Week', icon: Clock, color: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' },
-  { id: 'ideas', label: 'Ideas', icon: Lightbulb, color: 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300' },
-];
 
 // Boost relevant terminology categories based on which note tag is selected
 const TAG_CATEGORY_BOOSTS: Record<string, TermCategory[]> = {
@@ -54,8 +46,6 @@ export function LiveNotes() {
   const [searchParams] = useSearchParams();
   const weekOffset = parseInt(searchParams.get('week') || '0', 10);
   const { data, getCurrentWeekNotes, saveWeekNotes, getWeekNotes, updateSelfCare, updateStudent, addStudent } = useAppData();
-  const inputWrapperRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   // Keep a ref to latest selfCare for use in async callbacks (avoid stale closures)
   const selfCareRef = useRef(data.selfCare);
@@ -84,10 +74,7 @@ export function LiveNotes() {
   // Get enrolled students for this class (computed after classNotes/attendance below)
   // Placeholder — actual computation is after attendance is available
 
-  const [noteText, setNoteText] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | undefined>();
-  const [suggestions, setSuggestions] = useState<TerminologyEntry[]>([]);
-  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
   const [weekNotes, setWeekNotes] = useState(() => {
     if (weekOffset === 0) return getCurrentWeekNotes();
     const weekOf = formatWeekOf(viewingWeekStart);
@@ -107,8 +94,6 @@ export function LiveNotes() {
   });
   const [showPlan, setShowPlan] = useState(true); // Show plan
   const [showSavedNotes, setShowSavedNotes] = useState(false); // Collapsed by default when session is complete
-  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
-  const [editText, setEditText] = useState('');
   const [isEndingClass, setIsEndingClass] = useState(false);
   const [showQuickAddStudent, setShowQuickAddStudent] = useState(false);
   const [quickAddName, setQuickAddName] = useState('');
@@ -197,47 +182,24 @@ export function LiveNotes() {
     );
   }
 
-  // --- Terminology autocomplete logic ---
-  const getLastWord = (text: string): string => {
-    const words = text.split(/\s+/);
-    return words[words.length - 1] || '';
-  };
-
-  const handleNoteTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newText = e.target.value;
-    setNoteText(newText);
-    setSelectedSuggestionIndex(-1);
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    debounceRef.current = setTimeout(() => {
-      const lastWord = getLastWord(newText);
-      if (lastWord.length >= 3) {
-        const boostCats = selectedTag ? TAG_CATEGORY_BOOSTS[selectedTag] : undefined;
-        const results = searchTerminology(lastWord, boostCats?.length ? boostCats : undefined).slice(0, 7);
-        setSuggestions(results);
-      } else {
-        setSuggestions([]);
-      }
-    }, 200);
-  };
-
-  const applySuggestion = (term: string) => {
-    const words = noteText.split(/\s+/);
-    words[words.length - 1] = term;
-    const newText = words.join(' ') + ' ';
-    setNoteText(newText);
-    setSuggestions([]);
-    setSelectedSuggestionIndex(-1);
-  };
-
-  // Cleanup debounce timer on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
-  // --- End terminology autocomplete logic ---
+  // Terminology autocomplete config for NoteInput
+  const terminologyAutocomplete = useMemo<AutocompleteConfig>(() => ({
+    getSuggestions: (text: string, currentTag?: string) => {
+      const words = text.split(/\s+/);
+      const lastWord = words[words.length - 1] || '';
+      if (lastWord.length < 3) return [];
+      const boostCats = currentTag ? TAG_CATEGORY_BOOSTS[currentTag] : undefined;
+      return searchTerminology(lastWord, boostCats?.length ? boostCats : undefined)
+        .slice(0, 7)
+        .map(entry => ({
+          id: entry.id,
+          term: entry.term,
+          pronunciation: entry.pronunciation,
+          categoryLabel: SHORT_CATEGORY_LABELS[entry.category] || entry.category,
+        }));
+    },
+    debounceMs: 200,
+  }), []);
 
   // Track which noteIds already have reminders created (avoid duplicates)
   const [reminderNoteIds, setReminderNoteIds] = useState<Set<string>>(new Set());
@@ -304,16 +266,7 @@ export function LiveNotes() {
     });
   };
 
-  const addNote = () => {
-    if (!noteText.trim()) return;
-
-    const newNote: LiveNote = {
-      id: uuid(),
-      timestamp: new Date().toISOString(),
-      text: noteText.trim(),
-      category: selectedTag as LiveNote['category'],
-    };
-
+  const handleSaveNote = (newNote: LiveNote) => {
     const updatedClassNotes: ClassWeekNotes = {
       ...classNotes,
       liveNotes: [...classNotes.liveNotes, newNote],
@@ -332,45 +285,6 @@ export function LiveNotes() {
 
     // Real-time reminder detection
     tryDetectReminder(newNote);
-
-    setNoteText('');
-    setSelectedTag(undefined);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Autocomplete keyboard navigation
-    if (suggestions.length > 0) {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setSelectedSuggestionIndex(prev =>
-          prev < suggestions.length - 1 ? prev + 1 : 0
-        );
-        return;
-      }
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSelectedSuggestionIndex(prev =>
-          prev > 0 ? prev - 1 : suggestions.length - 1
-        );
-        return;
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        setSuggestions([]);
-        setSelectedSuggestionIndex(-1);
-        return;
-      }
-      if (e.key === 'Enter' && !e.shiftKey && selectedSuggestionIndex >= 0) {
-        e.preventDefault();
-        applySuggestion(suggestions[selectedSuggestionIndex].term);
-        return;
-      }
-    }
-    // Default Enter behavior: submit the note
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      addNote();
-    }
   };
 
   // Attendance management
@@ -528,18 +442,11 @@ export function LiveNotes() {
   };
 
 
-  const editNote = (note: LiveNote) => {
-    setEditingNoteId(note.id);
-    setEditText(note.text);
-  };
-
-  const saveEdit = () => {
-    if (!editingNoteId || !editText.trim()) return;
-
+  const handleEditNote = (noteId: string, newText: string) => {
     const updatedClassNotes: ClassWeekNotes = {
       ...classNotes,
       liveNotes: classNotes.liveNotes.map(n =>
-        n.id === editingNoteId ? { ...n, text: editText.trim() } : n
+        n.id === noteId ? { ...n, text: newText } : n
       ),
     };
 
@@ -553,13 +460,6 @@ export function LiveNotes() {
 
     setWeekNotes(updatedWeekNotes);
     saveWeekNotes(updatedWeekNotes);
-    setEditingNoteId(null);
-    setEditText('');
-  };
-
-  const cancelEdit = () => {
-    setEditingNoteId(null);
-    setEditText('');
   };
 
 
@@ -837,26 +737,6 @@ export function LiveNotes() {
 
   const clearAllNotes = async () => {
     if (!(await confirm('Delete all notes for this class?'))) return;
-
-    const updatedClassNotes: ClassWeekNotes = {
-      ...classNotes,
-      liveNotes: [],
-    };
-
-    const updatedWeekNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [classId || '']: updatedClassNotes,
-      },
-    };
-
-    setWeekNotes(updatedWeekNotes);
-    saveWeekNotes(updatedWeekNotes);
-  };
-
-  const clearAll = async () => {
-    if (!(await confirm('Clear all notes?'))) return;
 
     const updatedClassNotes: ClassWeekNotes = {
       ...classNotes,
@@ -1368,13 +1248,7 @@ export function LiveNotes() {
           </div>
         )}
 
-        {classNotes.liveNotes.length === 0 ? (
-          <EmptyState
-            icon={StickyNote}
-            title="No notes yet"
-            description="Start typing below to add notes"
-          />
-        ) : alreadySaved ? (
+        {alreadySaved && classNotes.liveNotes.length > 0 ? (
           /* Collapsible saved notes section */
           <div>
             <button
@@ -1395,121 +1269,19 @@ export function LiveNotes() {
               )}
             </button>
             {showSavedNotes && (
-              <div className="space-y-3">
-                {classNotes.liveNotes.map(note => {
-                  const tag = QUICK_TAGS.find(t => t.id === normalizeNoteCategory(note.category));
-                  return (
-                    <div
-                      key={note.id}
-                      className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-3 opacity-80"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1">
-                          {tag && (
-                            <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full mb-1 ${tag.color}`}>
-                              <tag.icon size={12} />
-                              {tag.label}
-                            </span>
-                          )}
-                          <p className="text-sm text-[var(--text-primary)]">{note.text}</p>
-                        </div>
-                        <div className="text-xs text-[var(--text-tertiary)]">
-                          {safeFormat(note.timestamp, 'h:mm a')}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <NotesList
+                notes={classNotes.liveNotes}
+                onDeleteNote={deleteNote}
+                savedMode
+              />
             )}
           </div>
         ) : (
-          <div className="space-y-3">
-            {classNotes.liveNotes.map(note => {
-              const tag = QUICK_TAGS.find(t => t.id === normalizeNoteCategory(note.category));
-              const isEditing = editingNoteId === note.id;
-              return (
-                <div
-                  key={note.id}
-                  className={`bg-[var(--surface-card)] rounded-xl border p-4 shadow-sm group relative ${
-                    isEditing
-                      ? 'border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]'
-                      : 'border-[var(--border-subtle)]'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      {tag && (
-                        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full mb-2 ${tag.color}`}>
-                          <tag.icon size={12} />
-                          {tag.label}
-                        </span>
-                      )}
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={editText}
-                          onChange={(e) => setEditText(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              saveEdit();
-                            } else if (e.key === 'Escape') {
-                              cancelEdit();
-                            }
-                          }}
-                          autoFocus
-                          className="w-full px-3 py-2 border border-[var(--border-subtle)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent bg-[var(--surface-inset)] text-[var(--text-primary)] text-sm"
-                        />
-                      ) : (
-                        <p className="text-[var(--text-primary)]">{note.text}</p>
-                      )}
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <div className="text-xs text-[var(--text-tertiary)]">
-                        {safeFormat(note.timestamp, 'h:mm a')}
-                      </div>
-                      {isEditing ? (
-                        <>
-                          <button
-                            onClick={saveEdit}
-                            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--accent-primary)] hover:text-[var(--accent-primary-hover)] active:text-[var(--accent-primary-hover)] transition-colors rounded-lg"
-                            title="Save edit"
-                          >
-                            <Check size={16} />
-                          </button>
-                          <button
-                            onClick={cancelEdit}
-                            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--status-danger)] active:text-[var(--status-danger)] transition-colors rounded-lg"
-                            title="Cancel edit"
-                          >
-                            <X size={16} />
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            onClick={() => editNote(note)}
-                            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] active:text-[var(--accent-primary-hover)] transition-colors rounded-lg"
-                            title="Edit note"
-                          >
-                            <Pencil size={16} />
-                          </button>
-                          <button
-                            onClick={() => deleteNote(note.id)}
-                            className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--status-danger)] active:text-[var(--status-danger)] transition-colors rounded-lg"
-                            title="Delete note"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <NotesList
+            notes={classNotes.liveNotes}
+            onDeleteNote={deleteNote}
+            onEditNote={handleEditNote}
+          />
         )}
 
         {/* Next Week Goal — compact inline */}
@@ -1535,88 +1307,13 @@ export function LiveNotes() {
       {/* Input Area */}
       <div className="border-t border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 pb-safe sticky bottom-0 z-10">
         <div className="page-w">
-          {/* Quick Tags */}
-          <div className="flex gap-2 mb-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
-            {QUICK_TAGS.map(tag => (
-              <button
-                key={tag.id}
-                onClick={() => setSelectedTag(selectedTag === tag.id ? undefined : tag.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-sm whitespace-nowrap transition-all ${
-                  selectedTag === tag.id
-                    ? tag.color + ' shadow-sm'
-                    : 'bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:bg-[var(--surface-highlight)]'
-                }`}
-              >
-                <tag.icon size={14} />
-                {tag.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Text Input */}
-          <div className="flex gap-2">
-            <div className="flex-1 relative" ref={inputWrapperRef}>
-              <input
-                type="text"
-                value={noteText}
-                onChange={handleNoteTextChange}
-                onKeyDown={handleKeyDown}
-                onBlur={() => {
-                  // Delay hiding so click on suggestion registers first
-                  setTimeout(() => {
-                    setSuggestions([]);
-                    setSelectedSuggestionIndex(-1);
-                  }, 150);
-                }}
-                placeholder="Add a note..."
-                aria-label="Add a note"
-                autoComplete="off"
-                className="w-full px-4 py-3 border border-[var(--border-subtle)] rounded-xl focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent bg-[var(--surface-inset)] text-[var(--text-primary)] placeholder-[var(--text-tertiary)]"
-              />
-              {/* Terminology autocomplete suggestions */}
-              {suggestions.length > 0 && (
-                <div className="absolute bottom-full left-0 right-0 mb-1 bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-xl shadow-lg z-10 max-h-[300px] overflow-y-auto">
-                  {suggestions.map((entry, index) => (
-                    <button
-                      key={entry.id}
-                      type="button"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        applySuggestion(entry.term);
-                      }}
-                      className={`w-full text-left px-4 py-3 min-h-[44px] transition-colors flex items-center justify-between ${
-                        index === selectedSuggestionIndex
-                          ? 'bg-[var(--surface-highlight)]'
-                          : 'hover:bg-[var(--surface-inset)]'
-                      }`}
-                    >
-                      <div>
-                        <span className="text-sm font-medium text-[var(--text-primary)]">
-                          {entry.term}
-                        </span>
-                        {entry.pronunciation && (
-                          <span className="text-xs text-[var(--text-tertiary)] ml-2">
-                            ({entry.pronunciation})
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--surface-inset)] text-[var(--text-tertiary)] ml-2 flex-shrink-0">
-                        {SHORT_CATEGORY_LABELS[entry.category] || entry.category}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={addNote}
-              disabled={!noteText.trim()}
-              className="px-4 py-3 bg-[var(--accent-primary)] text-[var(--text-on-accent)] rounded-xl disabled:opacity-50 hover:bg-[var(--accent-secondary)] transition-colors"
-            >
-              <Send size={20} />
-            </button>
-          </div>
+          <InputBar
+            onSaveNote={handleSaveNote}
+            placeholder="Add a note..."
+            autocomplete={terminologyAutocomplete}
+            selectedTag={selectedTag}
+            setSelectedTag={setSelectedTag}
+          />
 
           {/* AI buttons — show when 3+ notes and class not already saved */}
           {classNotes.liveNotes.length >= 3 && !alreadySaved && (
