@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Check, RotateCcw } from 'lucide-react';
+import { Breadcrumb } from '../../components/common/Breadcrumb';
 import { useAppData } from '../../contexts/AppDataContext';
 import { themes } from '../../styles/themes';
 import { applyTheme, applyAccentOverride, clearAccentOverride, applyFontFamily, FONT_FAMILIES } from '../../styles/applyTheme';
@@ -177,6 +178,7 @@ export function DisplaySettings() {
 
   return (
     <div className="page-container pb-24">
+      <Breadcrumb items={[{ label: 'Settings', to: '/settings' }, { label: 'Display' }]} />
       <div className="flex items-center gap-3 mb-6">
         <Link to="/settings" className="p-1 -ml-1 rounded-lg hover:bg-[var(--bg-secondary)]">
           <ArrowLeft size={20} className="text-[var(--text-secondary)]" />

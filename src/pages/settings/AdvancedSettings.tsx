@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ChevronDown, ChevronUp, Database, Image, FileText } from 'lucide-react';
+import { Breadcrumb } from '../../components/common/Breadcrumb';
 import { useAppData } from '../../contexts/AppDataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { firebaseConfigured } from '../../services/firebase';
@@ -111,6 +112,7 @@ export function AdvancedSettings() {
   return (
     <div className="min-h-screen bg-[var(--surface-primary)] text-[var(--text-primary)]">
       <div className="max-w-2xl mx-auto px-4 py-6">
+        <Breadcrumb items={[{ label: 'Settings', to: '/settings' }, { label: 'Advanced' }]} />
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <Link to="/settings" className="p-2 -ml-2 rounded-lg hover:bg-[var(--surface-card-hover)]">

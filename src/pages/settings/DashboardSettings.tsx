@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { Breadcrumb } from '../../components/common/Breadcrumb';
 import { useAppData } from '../../contexts/AppDataContext';
 
 const WIDGET_DEFS = [
@@ -49,6 +50,7 @@ export function DashboardSettings() {
 
   return (
     <div className="page-container pb-24">
+      <Breadcrumb items={[{ label: 'Settings', to: '/settings' }, { label: 'Dashboard' }]} />
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <Link to="/settings" className="p-1 -ml-1 rounded-lg hover:bg-[var(--surface-card)]">

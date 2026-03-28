@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Droplets, Coffee, Utensils, Footprints, Brain, Smartphone, BedDouble, Sun, BookOpen, Sparkles, Heart, Zap, Plus, Trash2 } from 'lucide-react';
+import { Breadcrumb } from '../../components/common/Breadcrumb';
 import { useAppData } from '../../contexts/AppDataContext';
 import { DEFAULT_MED_CONFIG, DEFAULT_WELLNESS_ITEMS, type WellnessItemConfig } from '../../types';
 
@@ -70,6 +71,7 @@ export function WellnessSettings() {
 
   return (
     <div className="page-container pb-24">
+      <Breadcrumb items={[{ label: 'Settings', to: '/settings' }, { label: 'Wellness' }]} />
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <Link to="/settings" className="p-1 -ml-1 rounded-lg hover:bg-[var(--surface-card)]">

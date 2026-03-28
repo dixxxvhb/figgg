@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { Breadcrumb } from '../../components/common/Breadcrumb';
 import { useAppData } from '../../contexts/AppDataContext';
 import { DEFAULT_AI_CONFIG } from '../../types';
 
@@ -37,6 +38,7 @@ export function AISettings() {
 
   return (
     <div className="page-container pb-24">
+      <Breadcrumb items={[{ label: 'Settings', to: '/settings' }, { label: 'AI Assistant' }]} />
       <div className="flex items-center gap-3 mb-6">
         <Link to="/settings" className="p-1 -ml-1 rounded-lg hover:bg-[var(--bg-secondary)]">
           <ArrowLeft size={20} className="text-[var(--text-secondary)]" />

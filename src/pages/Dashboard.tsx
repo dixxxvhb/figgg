@@ -683,7 +683,7 @@ export function Dashboard() {
               </div>
 
               {medClassWarning && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 mb-3">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm bg-[var(--status-warning)]/10 text-[var(--status-warning)] mb-3">
                   <Pill size={15} /><span>{medClassWarning}</span>
                 </div>
               )}

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Palette, LayoutDashboard, Heart, Sparkles,
-  Cloud, Database, Wrench, ChevronRight, ChevronDown, Users,
+  Cloud, Database, Wrench, ChevronRight, ChevronDown, Users, BookOpen, Rocket,
 } from 'lucide-react';
 import { useAppData } from '../../contexts/AppDataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -88,9 +88,22 @@ export function SettingsHub() {
     { to: '/settings/advanced', icon: Wrench, label: 'Advanced', subtitle: 'Migration, recovery, compression', color: '#6b7280' },
   ];
 
+  const quickAccessRows: SettingRow[] = [
+    { to: '/library', icon: BookOpen, label: 'Library', subtitle: 'Terminology, competitions, songs', color: '#8b5cf6' },
+    { to: '/launch', icon: Rocket, label: 'Launch Plan', subtitle: 'DWD launch tracker', color: '#f97316' },
+  ];
+
   return (
     <div className="page-container px-4 pb-24">
       <h1 className="type-display text-[var(--text-primary)] mb-6">Settings</h1>
+
+      {/* Quick Access */}
+      <section className="mb-5">
+        <h2 className="type-caption font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-2 px-1">Quick Access</h2>
+        <div className="space-y-2">
+          {quickAccessRows.map(r => <SettingCard key={r.to} row={r} />)}
+        </div>
+      </section>
 
       {/* App */}
       <section className="mb-5">
