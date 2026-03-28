@@ -7,6 +7,11 @@ import { DayOfWeek, CalendarEvent } from '../types';
 import { formatTimeDisplay, timeToMinutes, getCurrentDayOfWeek, formatWeekOf } from '../utils/time';
 import { EmptyState } from '../components/common/EmptyState';
 import { estimateTravelTime, formatTravelTime } from '../services/location';
+import { useTeachingStats } from '../hooks/useTeachingStats';
+import { WeekStats } from '../components/Dashboard/WeekStats';
+import { WeekMomentumBar } from '../components/Dashboard/WeekMomentumBar';
+import { StreakCard } from '../components/Dashboard/StreakCard';
+import { EventCountdown } from '../components/Dashboard/EventCountdown';
 
 const DAYS: { key: DayOfWeek; label: string; short: string }[] = [
   { key: 'monday', label: 'Monday', short: 'Mon' },
@@ -37,6 +42,8 @@ export function Schedule() {
   const weekStart = addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), weekOffset);
   const weekLabel = format(weekStart, "'Week of' MMM d");
   const weekOf = formatWeekOf(weekStart);
+
+  const stats = useTeachingStats(data);
 
   const getStudio = (studioId: string) => data.studios.find(s => s.id === studioId);
 
@@ -202,6 +209,26 @@ export function Schedule() {
           <Users size={14} />
           Students
         </Link>
+      </div>
+
+      {/* Week Overview */}
+      <div className="space-y-3 mb-4">
+        <WeekMomentumBar stats={stats} />
+        <div className="grid grid-cols-2 gap-3">
+          <WeekStats
+            stats={stats}
+            classes={data.classes}
+            competitions={data.competitions}
+            weekNotes={data.weekNotes}
+          />
+          <StreakCard
+            selfCare={data.selfCare}
+            learningData={data.learningData}
+            notesThisWeek={stats.notesThisWeek}
+            totalClassesThisWeek={stats.classesThisWeek.total}
+          />
+        </div>
+        <EventCountdown competitions={data.competitions || []} />
       </div>
 
       {/* Day Tabs */}
