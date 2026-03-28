@@ -6,6 +6,7 @@ import { useAppData } from '../contexts/AppDataContext';
 import { formatTimeDisplay, formatWeekOf, timeToMinutes } from '../utils/time';
 import { DayOfWeek, ClassWeekNotes, WeekNotes, WeekReflection, CalendarEvent } from '../types';
 import { Button } from '../components/common/Button';
+import { Card } from '../components/common/Card';
 import { EmptyState } from '../components/common/EmptyState';
 import { v4 as uuid } from 'uuid';
 import { normalizeTitle } from '../utils/smartNotes';
@@ -226,12 +227,9 @@ export function WeekPlanner() {
 
       {/* Today Button */}
       <div className="flex justify-center mb-6">
-        <button
-          onClick={() => setWeekOffset(0)}
-          className="px-4 py-2 bg-[var(--accent-primary)] text-[var(--text-on-accent)] rounded-full text-sm font-medium hover:opacity-90 active:scale-[0.98] transition-colors shadow-sm"
-        >
+        <Button variant="primary" size="sm" onClick={() => setWeekOffset(0)}>
           Today
-        </button>
+        </Button>
       </div>
 
       {/* Actions */}
@@ -304,9 +302,11 @@ export function WeekPlanner() {
                   const lastWeekClassNotes = lastWeekNotes?.classNotes[cls.id];
 
                   return (
-                    <div
+                    <Card
                       key={cls.id}
-                      className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] overflow-hidden"
+                      variant="standard"
+                      padding="none"
+                      className="overflow-hidden"
                     >
                       <div
                         className="px-4 py-3 flex items-center gap-3"
@@ -361,7 +361,7 @@ export function WeekPlanner() {
                           </button>
                         </div>
                       </div>
-                    </div>
+                    </Card>
                   );
                 })}
 
@@ -435,7 +435,7 @@ export function WeekPlanner() {
             <MessageSquare size={16} className="text-[var(--accent-primary)]" />
             <h3 className="font-semibold text-[var(--text-primary)]">Week Reflection</h3>
           </div>
-          <div className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 space-y-4">
+          <Card variant="standard" className="space-y-4">
             <div>
               <label className="text-xs font-medium text-[var(--text-secondary)] mb-1 block">What went well?</label>
               <textarea
@@ -472,7 +472,7 @@ export function WeekPlanner() {
                 <p className="text-sm text-[var(--text-primary)] leading-relaxed">{currentWeekNotes.reflection.aiSummary}</p>
               </div>
             )}
-          </div>
+          </Card>
         </div>
       )}
     </div>

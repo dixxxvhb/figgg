@@ -6,6 +6,7 @@ import { useAppData } from '../contexts/AppDataContext';
 import { DayOfWeek, CalendarEvent } from '../types';
 import { formatTimeDisplay, timeToMinutes, getCurrentDayOfWeek, formatWeekOf } from '../utils/time';
 import { EmptyState } from '../components/common/EmptyState';
+import { Button } from '../components/common/Button';
 import { estimateTravelTime, formatTravelTime } from '../services/location';
 import { useTeachingStats } from '../hooks/useTeachingStats';
 import { WeekStats } from '../components/Dashboard/WeekStats';
@@ -187,15 +188,16 @@ export function Schedule() {
 
       {/* Today + Week Review buttons */}
       <div className="flex justify-center gap-2 mb-4">
-        <button
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => {
             setWeekOffset(0);
             setSelectedDay(getCurrentDayOfWeek());
           }}
-          className="px-4 py-2 bg-[var(--accent-muted)] text-[var(--accent-primary)] rounded-full text-sm font-medium hover:bg-[var(--accent-primary)] hover:text-[var(--text-on-accent)] transition-colors shadow-sm min-h-[44px]"
         >
           Today
-        </button>
+        </Button>
         <Link
           to="/week-review"
           className="px-4 py-2 bg-[var(--surface-card)] border border-[var(--border-subtle)] text-[var(--text-secondary)] rounded-full text-sm font-medium hover:text-[var(--text-primary)] transition-colors shadow-sm min-h-[44px] flex items-center"

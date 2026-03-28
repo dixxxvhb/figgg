@@ -7,6 +7,7 @@ import { PlanDisplay } from '../components/common/PlanDisplay';
 import { formatTimeDisplay, formatWeekOf, getWeekStart } from '../utils/time';
 import { addWeeks, addDays, format } from 'date-fns';
 import { Button } from '../components/common/Button';
+import { Card } from '../components/common/Card';
 import { DropdownMenu } from '../components/common/DropdownMenu';
 import { ClassWeekNotes, Student, normalizeNoteCategory } from '../types';
 import { v4 as uuid } from 'uuid';
@@ -623,7 +624,7 @@ export function ClassDetail() {
 
       {/* This Week's Prep */}
       <div className="mb-4">
-        <div className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4">
+        <Card variant="standard">
           <div className="flex items-center justify-between mb-2">
             <h3 className="type-h3 text-[var(--text-primary)] flex items-center gap-2">
               <ClipboardList size={16} className="text-[var(--accent-primary)]" />
@@ -665,7 +666,7 @@ export function ClassDetail() {
               Tap to add a plan for this class...
             </button>
           )}
-        </div>
+        </Card>
       </div>
 
       {/* Last Week's Review */}
@@ -831,7 +832,7 @@ export function ClassDetail() {
         </button>
 
         {showRoster && (
-          <div className="mt-3 bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] overflow-hidden">
+          <Card variant="standard" padding="none" className="mt-3 overflow-hidden">
             {/* Quick stats bar */}
             <div className="flex gap-1 border-b border-[var(--border-subtle)] p-2">
               <div className="flex-1 text-center py-1 bg-[var(--status-success)]/10 rounded-lg">
@@ -1001,7 +1002,7 @@ export function ClassDetail() {
                 <span className="font-medium">Add Students to Class</span>
               </button>
             </div>
-          </div>
+          </Card>
         )}
       </div>
 
@@ -1019,7 +1020,7 @@ export function ClassDetail() {
       )}
 
       {/* Class Song */}
-      <div className="mb-6 bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4">
+      <Card variant="standard" className="mb-6">
         <div className="flex items-center justify-between mb-3">
           <label className="type-label flex items-center gap-2 text-[var(--text-primary)]">
             <Music size={16} />
@@ -1108,10 +1109,10 @@ export function ClassDetail() {
             Tap the badge to switch between recital and combo
           </p>
         )}
-      </div>
+      </Card>
 
       {/* Choreography Notes */}
-      <div className="mb-6 bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4">
+      <Card variant="standard" className="mb-6">
         <div className="flex items-center justify-between mb-3">
           <label className="type-label flex items-center gap-2 text-[var(--text-primary)]">
             <FileText size={16} />
@@ -1171,7 +1172,7 @@ export function ClassDetail() {
             + Add choreography notes
           </button>
         )}
-      </div>
+      </Card>
 
     </div>
   );
@@ -1258,12 +1259,13 @@ function AddStudentToClassModal({
                       </div>
                       <div className="text-xs text-[var(--text-secondary)]">{student.name}</div>
                     </div>
-                    <button
+                    <Button
+                      variant="danger"
+                      size="sm"
                       onClick={() => onRemove(student.id)}
-                      className="px-3 py-1.5 text-sm text-[var(--status-danger)] hover:bg-[var(--status-danger)]/10 rounded-lg font-medium"
                     >
                       Remove
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -1288,12 +1290,13 @@ function AddStudentToClassModal({
                       </div>
                       <div className="text-xs text-[var(--text-secondary)]">{student.name}</div>
                     </div>
-                    <button
+                    <Button
+                      variant="primary"
+                      size="sm"
                       onClick={() => onAdd(student.id)}
-                      className="px-3 py-1.5 text-sm text-[var(--accent-primary)] bg-[var(--accent-muted)] hover:opacity-80 rounded-lg font-medium"
                     >
                       + Add
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>
