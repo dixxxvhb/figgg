@@ -274,6 +274,7 @@ export function EventNotes() {
     addReminder({
       title: `Schedule extra rehearsal for ${student.name} - ${danceLabel}`,
       notes: latestNote ? `Flagged from note: ${latestNote.text}` : `Flagged during ${event.title}`,
+      studentId: student.id,
       completed: false,
       dueDate: format(addWeeks(new Date(), 1), 'yyyy-MM-dd'),
       priority: 'medium',

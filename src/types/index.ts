@@ -789,6 +789,7 @@ export interface Reminder {
   title: string;
   notes?: string;
   listId: string;
+  studentId?: string;
   completed: boolean;
   completedAt?: string; // ISO timestamp
   dueDate?: string; // ISO date

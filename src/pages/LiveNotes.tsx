@@ -563,6 +563,7 @@ export function LiveNotes() {
     addReminder({
       title: `Schedule extra rehearsal for ${student.name} - ${danceLabel}`,
       notes: latestNote ? `Flagged from note: ${latestNote.text}` : `Flagged during ${cls.name}`,
+      studentId: student.id,
       completed: false,
       dueDate: format(addDays(new Date(), 7), 'yyyy-MM-dd'),
       priority: 'medium',

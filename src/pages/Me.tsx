@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
   Clock, Circle, CheckCircle2, CheckSquare, Flag, ChevronRight, Calendar, Bell, List, ChevronLeft, Trash2,
   CalendarDays, Inbox, AlertCircle, Repeat, Link as LinkIcon, Plus, X, Check, Pencil,
-  Brain, Wind, BookHeart, type LucideIcon,
+  Brain, Wind, BookHeart, Phone, Mail, User, type LucideIcon,
 } from 'lucide-react';
 import { useAppData } from '../contexts/AppDataContext';
 import { haptic } from '../utils/haptics';
@@ -14,7 +14,7 @@ import {
   format, isToday as isDateToday, isTomorrow, isPast, parseISO, startOfDay,
   addDays, isAfter,
 } from 'date-fns';
-import type { Reminder, ReminderList, Subtask, RecurringSchedule, MedConfig } from '../types';
+import type { Reminder, ReminderList, Subtask, RecurringSchedule, MedConfig, Student } from '../types';
 import { DEFAULT_MED_CONFIG } from '../types';
 
 // Wellness section components
@@ -645,6 +645,16 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
                             <p className={`type-body font-medium ${reminder.completed ? 'text-[var(--text-tertiary)] line-through opacity-50' : 'text-[var(--text-primary)]'}`}>{reminder.title}</p>
                             {reminder.notes && <p className="type-caption text-[var(--text-tertiary)] line-clamp-1 mt-0.5">{reminder.notes}</p>}
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              {(() => {
+                                const linkedStudent = (data.students || []).find(student => student.id === reminder.studentId);
+                                if (!linkedStudent || (!linkedStudent.parentPhone && !linkedStudent.parentEmail)) return null;
+                                return (
+                                  <span className="type-label flex items-center gap-1 text-[var(--accent-primary)]">
+                                    <Phone size={10} />
+                                    {linkedStudent.parentPhone || linkedStudent.parentEmail}
+                                  </span>
+                                );
+                              })()}
                               {reminder.dueDate && (
                                 <span className={`type-label flex items-center gap-1 ${!reminder.completed && reminder.dueDate && isPast(startOfDay(parseISO(reminder.dueDate))) && reminder.dueDate !== todayStr ? 'text-[var(--status-danger)]' : 'text-[var(--text-tertiary)]'}`}>
                                   <Bell size={10} />{formatDueDate(reminder.dueDate, reminder.dueTime)}
@@ -744,6 +754,7 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
           <ReminderDetailView
             reminder={selectedReminder}
             lists={lists}
+            students={data.students || []}
             onClose={() => { setShowReminderDetail(false); setSelectedReminder(null); }}
             onUpdate={handleUpdateReminder}
             onDelete={handleDeleteReminder}
@@ -762,16 +773,18 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
 interface ReminderDetailViewProps {
   reminder: Reminder;
   lists: ReminderList[];
+  students: Student[];
   onClose: () => void;
   onUpdate: (reminder: Reminder) => void;
   onDelete: (id: string) => void;
   onToggleSubtask: (reminderId: string, subtaskId: string) => void;
 }
 
-function ReminderDetailView({ reminder, lists, onClose, onUpdate, onDelete, onToggleSubtask }: ReminderDetailViewProps) {
+function ReminderDetailView({ reminder, lists, students, onClose, onUpdate, onDelete, onToggleSubtask }: ReminderDetailViewProps) {
   const [editedReminder, setEditedReminder] = useState<Reminder>(reminder);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [showRecurring, setShowRecurring] = useState(false);
+  const linkedStudent = students.find(student => student.id === editedReminder.studentId);
 
   useEffect(() => { setEditedReminder(reminder); }, [reminder]);
 
@@ -808,6 +821,52 @@ function ReminderDetailView({ reminder, lists, onClose, onUpdate, onDelete, onTo
           <LinkIcon size={18} className="text-[var(--text-tertiary)]" />
           <input type="url" value={editedReminder.url || ''} onChange={(e) => setEditedReminder({ ...editedReminder, url: e.target.value })}
             className="flex-1 text-[var(--text-secondary)] bg-transparent outline-none" placeholder="Add URL" />
+        </div>
+        <div className="p-4 border-b border-[var(--border-subtle)]">
+          <div className="flex items-center gap-3 mb-3">
+            <User size={18} className="text-[var(--text-tertiary)]" />
+            <span className="text-[var(--text-secondary)]">Student / Parent Contact</span>
+          </div>
+          <div className="ml-8 space-y-3">
+            <select
+              value={editedReminder.studentId || ''}
+              onChange={(e) => setEditedReminder({ ...editedReminder, studentId: e.target.value || undefined })}
+              className="w-full rounded-[var(--radius-sm)] bg-[var(--surface-inset)] px-3 py-2 text-[var(--text-primary)] outline-none"
+            >
+              <option value="">No linked contact</option>
+              {students.map(student => (
+                <option key={student.id} value={student.id}>
+                  {student.name}{student.parentName ? ` - ${student.parentName}` : ''}
+                </option>
+              ))}
+            </select>
+            {linkedStudent && (linkedStudent.parentPhone || linkedStudent.parentEmail) && (
+              <div className="space-y-2 rounded-[var(--radius-sm)] bg-[var(--surface-inset)] p-3">
+                <div className="text-sm text-[var(--text-secondary)]">
+                  {linkedStudent.parentName || linkedStudent.name}
+                  {linkedStudent.parentName ? ` for ${linkedStudent.name}` : ''}
+                </div>
+                {linkedStudent.parentPhone && (
+                  <a
+                    href={`tel:${linkedStudent.parentPhone}`}
+                    className="flex items-center gap-2 text-sm font-medium text-[var(--accent-primary)] hover:underline"
+                  >
+                    <Phone size={14} />
+                    {linkedStudent.parentPhone}
+                  </a>
+                )}
+                {linkedStudent.parentEmail && (
+                  <a
+                    href={`mailto:${linkedStudent.parentEmail}`}
+                    className="flex items-center gap-2 break-all text-sm font-medium text-[var(--accent-primary)] hover:underline"
+                  >
+                    <Mail size={14} />
+                    {linkedStudent.parentEmail}
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         <div className="p-4 border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-3 mb-3">
