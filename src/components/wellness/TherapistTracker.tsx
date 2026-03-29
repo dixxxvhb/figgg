@@ -4,6 +4,7 @@ import {
   Plus,
   Check,
   ChevronDown,
+  ChevronUp,
   ChevronRight,
   Trash2,
   Clock,
@@ -162,10 +163,12 @@ function NextSessionSection({
   nextSession,
   onUpdate,
   onAddPrepNote,
+  onLogSession,
 }: {
   nextSession: TherapistData['nextSession'];
   onUpdate: (next: TherapistData['nextSession']) => void;
   onAddPrepNote: () => void;
+  onLogSession: (date: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [date, setDate] = useState(nextSession?.date || '');
@@ -332,6 +335,7 @@ function NextSessionSection({
   const countdown = getCountdown();
   const isToday = countdown === 'today';
   const isPastDue = countdown === 'past due';
+  const canLogNow = isToday || isPastDue;
 
   return (
     <div className="space-y-2">
@@ -367,6 +371,19 @@ function NextSessionSection({
         {nextSession!.notes && (
           <p className="type-caption text-[var(--text-secondary)]">{nextSession!.notes}</p>
         )}
+        <button
+          onClick={() => {
+            haptic('light');
+            onLogSession(nextSession!.date);
+          }}
+          className={`w-full rounded-[var(--radius-sm)] px-3 py-2 text-sm font-medium transition-colors ${
+            canLogNow
+              ? 'bg-[var(--accent-primary)] text-white hover:opacity-90'
+              : 'bg-[var(--surface-card)] border border-[var(--accent-primary)]/20 text-[var(--accent-primary)] hover:bg-[var(--accent-muted)]'
+          }`}
+        >
+          {canLogNow ? 'Log this session' : 'Open log for this session'}
+        </button>
         <div className="flex items-center gap-2 pt-1">
           <button
             onClick={() => { haptic('light'); onAddPrepNote(); }}
@@ -707,17 +724,26 @@ function EmotionPicker({
 function NewSessionForm({
   onSave,
   onCancel,
+  initialDate,
+  lastSessionPrepNotes,
 }: {
   onSave: (session: TherapistSession) => void;
   onCancel: () => void;
+  initialDate?: string;
+  lastSessionPrepNotes?: TherapistPrepNote[];
 }) {
   const today = format(new Date(), 'yyyy-MM-dd');
-  const [date, setDate] = useState(today);
+  const [date, setDate] = useState(initialDate || today);
   const [summary, setSummary] = useState('');
   const [takeaways, setTakeaways] = useState('');
   const [actionItems, setActionItems] = useState<TherapistActionItem[]>([]);
   const [newAction, setNewAction] = useState('');
   const [selectedEmotions, setSelectedEmotions] = useState<GriefEmotion[]>([]);
+  const [showLastSessionPrep, setShowLastSessionPrep] = useState(false);
+
+  useEffect(() => {
+    setDate(initialDate || today);
+  }, [initialDate, today]);
 
   const handleAddAction = () => {
     if (!newAction.trim()) return;
@@ -768,6 +794,37 @@ function NewSessionForm({
   return (
     <div className="space-y-3 bg-[var(--surface-inset)] rounded-[var(--radius-md)] p-3">
       <h4 className="type-label text-[var(--text-primary)] font-medium">Log Session</h4>
+
+      {lastSessionPrepNotes && lastSessionPrepNotes.length > 0 && (
+        <div className="rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--surface-card)]">
+          <button
+            onClick={() => {
+              haptic('light');
+              setShowLastSessionPrep(prev => !prev);
+            }}
+            className="flex w-full items-center justify-between px-3 py-2 text-left"
+          >
+            <span className="type-caption font-medium text-[var(--text-secondary)]">
+              Last session&apos;s prep
+            </span>
+            {showLastSessionPrep ? (
+              <ChevronUp size={14} className="text-[var(--text-tertiary)]" />
+            ) : (
+              <ChevronDown size={14} className="text-[var(--text-tertiary)]" />
+            )}
+          </button>
+          {showLastSessionPrep && (
+            <div className="space-y-1 border-t border-[var(--border-subtle)] px-3 py-2">
+              {lastSessionPrepNotes.map(note => (
+                <div key={note.id} className="flex items-start gap-2 text-sm text-[var(--text-secondary)]">
+                  <span className={`mt-1 h-1.5 w-1.5 rounded-full ${note.discussed ? 'bg-[var(--status-success)]' : 'bg-[var(--accent-primary)]'}`} />
+                  <span className={note.discussed ? 'line-through opacity-70' : ''}>{note.text}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Date */}
       <div>
@@ -996,6 +1053,30 @@ function SessionHistory({
                     </div>
                   )}
 
+                  {session.prepNotesSnapshot && session.prepNotesSnapshot.length > 0 && (
+                    <div>
+                      <span className="type-caption text-[var(--text-tertiary)] block mb-1">
+                        Prep Notes From That Session
+                      </span>
+                      <div className="space-y-1.5">
+                        {session.prepNotesSnapshot.map(note => (
+                          <div key={note.id} className="flex items-start gap-2">
+                            <span className={`mt-1 h-1.5 w-1.5 rounded-full ${note.discussed ? 'bg-[var(--status-success)]' : 'bg-[var(--accent-primary)]'}`} />
+                            <span
+                              className={`type-body text-sm ${
+                                note.discussed
+                                  ? 'line-through text-[var(--text-tertiary)]'
+                                  : 'text-[var(--text-primary)]'
+                              }`}
+                            >
+                              {note.text}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Action Items */}
                   {totalActions > 0 && (
                     <div>
@@ -1079,8 +1160,19 @@ function CalendarTherapySuggestion({
 
 export function TherapistTracker({ data, onUpdate, journalEntries, calendarEvents }: TherapistTrackerProps) {
   const [showNewSession, setShowNewSession] = useState(false);
+  const [draftSessionDate, setDraftSessionDate] = useState<string | undefined>(undefined);
+  const [recentlyLoggedSessionDate, setRecentlyLoggedSessionDate] = useState<string | null>(null);
   const [dismissedCalEventIds, setDismissedCalEventIds] = useState<string[]>([]);
   const prepInputRef = useRef<HTMLInputElement | null>(null);
+
+  const lastSession = (data.sessions || [])
+    .slice()
+    .sort((a, b) => safeTime(b.date) - safeTime(a.date))[0];
+
+  const scheduledSessionIsDue = (() => {
+    if (!data.nextSession?.date) return false;
+    return data.nextSession.date <= format(new Date(), 'yyyy-MM-dd');
+  })();
 
   // Find upcoming therapy events from calendar that aren't already linked to nextSession
   const upcomingTherapyEvent = (calendarEvents || [])
@@ -1109,6 +1201,9 @@ export function TherapistTracker({ data, onUpdate, journalEntries, calendarEvent
   };
 
   const handleNextSessionUpdate = (next: TherapistData['nextSession']) => {
+    if (next) {
+      setRecentlyLoggedSessionDate(null);
+    }
     onUpdate({ nextSession: next });
   };
 
@@ -1122,8 +1217,31 @@ export function TherapistTracker({ data, onUpdate, journalEntries, calendarEvent
 
   const handleSaveSession = (session: TherapistSession) => {
     haptic('light');
-    onUpdate({ sessions: [...(data.sessions || []), session] });
+    const prepNotesSnapshot = (data.prepNotes || []).map(note => ({ ...note }));
+    const carryForwardPrepNotes = prepNotesSnapshot
+      .filter(note => !note.discussed)
+      .map(note => ({ ...note, discussed: false }));
+
+    if (data.nextSession?.googleCalendarEventId) {
+      deleteGoogleCalendarEvent(data.nextSession.googleCalendarEventId).catch(err =>
+        console.warn('Failed to delete Google Calendar event:', err)
+      );
+    }
+
+    onUpdate({
+      sessions: [...(data.sessions || []), { ...session, prepNotesSnapshot }],
+      prepNotes: carryForwardPrepNotes,
+      nextSession: undefined,
+    });
     setShowNewSession(false);
+    setDraftSessionDate(undefined);
+    setRecentlyLoggedSessionDate(session.date);
+  };
+
+  const handleOpenLogSession = (date?: string) => {
+    haptic('light');
+    setDraftSessionDate(date || data.nextSession?.date || format(new Date(), 'yyyy-MM-dd'));
+    setShowNewSession(true);
   };
 
   const handleToggleAction = (sessionId: string, actionId: string) => {
@@ -1156,10 +1274,21 @@ export function TherapistTracker({ data, onUpdate, journalEntries, calendarEvent
       )}
 
       {/* B. Next Session */}
+      {recentlyLoggedSessionDate && !data.nextSession && (
+        <div className="rounded-[var(--radius-md)] border border-[var(--accent-primary)]/20 bg-[var(--accent-muted)] p-3">
+          <p className="type-body text-sm font-medium text-[var(--text-primary)]">
+            Session logged for {format(parseISO(recentlyLoggedSessionDate), 'MMM d')}.
+          </p>
+          <p className="type-caption mt-1 text-[var(--text-secondary)]">
+            Schedule the next session when you&apos;re ready so this cycle stays current.
+          </p>
+        </div>
+      )}
       <NextSessionSection
         nextSession={data.nextSession}
         onUpdate={handleNextSessionUpdate}
         onAddPrepNote={handleAddPrepNote}
+        onLogSession={handleOpenLogSession}
       />
 
       {/* C. Prep Notes */}
@@ -1176,14 +1305,43 @@ export function TherapistTracker({ data, onUpdate, journalEntries, calendarEvent
           <Plus size={14} className="text-[var(--accent-primary)]" />
           Log Session
         </h3>
+        {data.nextSession && (
+          <div className={`rounded-[var(--radius-md)] border p-3 ${
+            scheduledSessionIsDue
+              ? 'border-[var(--accent-primary)] bg-[var(--accent-muted)]'
+              : 'border-[var(--border-subtle)] bg-[var(--surface-card)]'
+          }`}>
+            <p className="type-body text-sm text-[var(--text-primary)] font-medium">
+              {scheduledSessionIsDue ? 'This session is ready to log.' : 'A session is scheduled.'}
+            </p>
+            <p className="type-caption text-[var(--text-secondary)] mt-1">
+              Logging it will move it into history, clear the next-session slot, and carry forward any undiscussed prep notes.
+            </p>
+            <button
+              onClick={() => handleOpenLogSession(data.nextSession?.date)}
+              className={`mt-3 w-full rounded-[var(--radius-sm)] px-3 py-2 text-sm font-medium transition-colors ${
+                scheduledSessionIsDue
+                  ? 'bg-[var(--accent-primary)] text-white hover:opacity-90'
+                  : 'bg-[var(--surface-inset)] text-[var(--accent-primary)] hover:bg-[var(--accent-muted)]'
+              }`}
+            >
+              Log this session
+            </button>
+          </div>
+        )}
         {showNewSession ? (
           <NewSessionForm
             onSave={handleSaveSession}
-            onCancel={() => setShowNewSession(false)}
+            onCancel={() => {
+              setShowNewSession(false);
+              setDraftSessionDate(undefined);
+            }}
+            initialDate={draftSessionDate}
+            lastSessionPrepNotes={lastSession?.prepNotesSnapshot}
           />
         ) : (
           <button
-            onClick={() => { haptic('light'); setShowNewSession(true); }}
+            onClick={() => handleOpenLogSession()}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-[var(--radius-md)] border border-dashed border-[var(--border-subtle)] text-sm text-[var(--text-tertiary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] transition-colors"
           >
             <Plus size={14} />

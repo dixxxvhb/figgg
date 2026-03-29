@@ -847,6 +847,7 @@ export interface TherapistSession {
   summary: string;
   takeaways: string;
   actionItems: TherapistActionItem[];
+  prepNotesSnapshot?: TherapistPrepNote[]; // Prep notes captured for this session
   moodAfter: 'better' | 'same' | 'heavier';  // kept for backwards compat
   emotions?: GriefEmotion[];      // richer emotion tracking (shared with journal)
   moodContext?: string;            // optional note about how they feel
