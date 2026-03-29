@@ -208,6 +208,25 @@ function extractDancerNames(text: string, allDances: CompetitionDance[]): string
     }
   }
 
+  // Fallback for partial small-group rosters.
+  // Example: "Athena, Madeline" should still infer "Material Girl"
+  // even though Penelope is not listed in the event title.
+  if (foundDanceIds.length === 0 && mentionedStudentIds.size >= 2) {
+    const candidateDances = allDances
+      .filter((dance): dance is CompetitionDance & { dancerIds: string[] } =>
+        dance.id !== 'shania' && Array.isArray(dance.dancerIds) && dance.dancerIds.length > 0
+      )
+      .filter(dance => Array.from(mentionedStudentIds).every(id => dance.dancerIds.includes(id)))
+      .sort((a, b) => a.dancerIds.length - b.dancerIds.length);
+
+    if (candidateDances.length > 0) {
+      const smallestCastSize = candidateDances[0].dancerIds.length;
+      return candidateDances
+        .filter(dance => dance.dancerIds.length === smallestCastSize)
+        .map(dance => dance.id);
+    }
+  }
+
   return foundDanceIds;
 }
 
