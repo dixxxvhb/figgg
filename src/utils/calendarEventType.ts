@@ -20,6 +20,7 @@ interface ClassifyCalendarEventOptions {
 
 const NON_WORK_PATTERNS = /flight|therapy|doctor|dentist|appointment|meeting|lunch|dinner|travel|pickup|drop.?off|birthday|party|vacation|hair|nails|grocery|groceries|errand/i;
 const WORK_PATTERNS = /rehearsal|production|solo|duet|trio|small\s*group|large\s*group|lyrical|jazz|ballet|tap|contemporary|hip\s*hop|acro|musical\s*thea(?:t|tr)e|thea(?:t|tr)er\s*dance|private|lesson|class|technique|choreography|combo|audition|competition|recital/i;
+const REHEARSAL_PATTERNS = /rehearsal|dress\s*rehearsal|run\s*through|runthrough/i;
 
 function normalize(value: string | undefined): string {
   return (value || '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -67,6 +68,7 @@ export function classifyCalendarEvent(
   const isRecurringTitle = sameTitleCount >= 2;
   const isExplicitlyNonWork = !hasLinkedDances && NON_WORK_PATTERNS.test(searchText);
   const hasWorkKeywords = WORK_PATTERNS.test(searchText);
+  const hasRehearsalKeywords = REHEARSAL_PATTERNS.test(searchText);
 
   if (hasLinkedDances) {
     return {
@@ -78,7 +80,27 @@ export function classifyCalendarEvent(
     };
   }
 
-  if (!isExplicitlyNonWork && (matchingClass || isRecurringTitle)) {
+  if (!isExplicitlyNonWork && hasRehearsalKeywords) {
+    return {
+      kind: 'rehearsal',
+      isWork: true,
+      isClassLike: false,
+      badgeLabel: 'Rehearsal',
+      actionLabel: 'Continue Rehearsal',
+    };
+  }
+
+  if (!isExplicitlyNonWork && matchingClass) {
+    return {
+      kind: 'class',
+      isWork: true,
+      isClassLike: true,
+      badgeLabel: 'Class',
+      actionLabel: 'Continue Class',
+    };
+  }
+
+  if (!isExplicitlyNonWork && isRecurringTitle && hasWorkKeywords) {
     return {
       kind: 'class',
       isWork: true,
