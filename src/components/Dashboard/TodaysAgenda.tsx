@@ -17,6 +17,7 @@ import { getClassesByDay } from '../../data/classes';
 import { formatTimeDisplay, timeToMinutes, formatWeekOf, getWeekStart } from '../../utils/time';
 import { estimateTravelTime, formatTravelTime } from '../../services/location';
 import { useSelfCareStatus } from '../../hooks/useSelfCareStatus';
+import { classifyCalendarEvent } from '../../utils/calendarEventType';
 
 interface TodaysAgendaProps {
   classes: Class[];
@@ -275,14 +276,26 @@ export function TodaysAgenda({
 
           if (item.type === 'event') {
             const locationLine = item.location?.split('\n').filter(Boolean)[0];
+            const eventMeta = classifyCalendarEvent(
+              calendarEvents.find(event => event.id === item.id) || {
+                id: item.id,
+                title: item.name,
+                date: today,
+                startTime: item.startTime,
+                endTime: item.endTime || '00:00',
+                location: item.location,
+              },
+              { classes, allEvents: allCalendarEvents || calendarEvents }
+            );
+            const isWorkEvent = eventMeta.isWork;
             return (
               <Link
                 key={item.id}
                 to={`/event/${item.id}`}
                 className={`flex items-center gap-4 px-4 py-3.5 transition-colors ${
                   isPast ? 'opacity-40' :
-                  isCurrent ? 'bg-amber-50/50 dark:bg-amber-900/10 border-l-4 border-amber-500' :
-                  isNext ? 'bg-amber-50/30 dark:bg-amber-900/5' :
+                  isCurrent ? `${isWorkEvent ? 'bg-[var(--accent-muted)] border-l-4 border-[var(--accent-primary)]' : 'bg-amber-50/50 dark:bg-amber-900/10 border-l-4 border-amber-500'}` :
+                  isNext ? `${isWorkEvent ? 'bg-[var(--accent-muted)]/50' : 'bg-amber-50/30 dark:bg-amber-900/5'}` :
                   'hover:bg-[var(--surface-card-hover)]'
                 }`}
               >
@@ -290,7 +303,7 @@ export function TodaysAgenda({
                 <div className="flex-shrink-0 w-14 text-right">
                   <div className={`text-lg font-display leading-none tabular-nums ${
                     isPast ? 'text-[var(--text-tertiary)]' :
-                    isCurrent ? 'text-amber-600 dark:text-amber-400' :
+                    isCurrent ? (isWorkEvent ? 'text-[var(--accent-primary)]' : 'text-amber-600 dark:text-amber-400') :
                     'text-[var(--color-honey)] dark:text-[var(--color-honey-light)]'
                   }`}>
                     {formatTimeDisplay(item.startTime)}
@@ -302,7 +315,11 @@ export function TodaysAgenda({
                   <div className="font-medium text-[var(--text-primary)] flex items-center gap-2">
                     <span className="truncate">{item.name}</span>
                     {isCurrent && (
-                      <span className="type-label text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                      <span className={`type-label px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                        isWorkEvent
+                          ? 'text-[var(--text-on-accent)] bg-[var(--accent-primary)]'
+                          : 'text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400'
+                      }`}>
                         Now
                       </span>
                     )}
@@ -312,8 +329,12 @@ export function TodaysAgenda({
                       </span>
                     )}
                     {!isCurrent && !isNext && (
-                      <span className="type-label text-amber-600 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded-full flex-shrink-0">
-                        Event
+                      <span className={`type-label px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                        isWorkEvent
+                          ? 'text-[var(--accent-primary)] bg-[var(--accent-muted)]'
+                          : 'text-amber-600 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400'
+                      }`}>
+                        {eventMeta.badgeLabel}
                       </span>
                     )}
                   </div>
@@ -504,9 +525,21 @@ export function TodaysAgenda({
               <div className="font-medium text-[var(--text-primary)] flex items-center gap-2">
                 <span className="truncate">{tomorrowPreview.first.name}</span>
                 {tomorrowPreview.first.type === 'event' && (
-                  <span className="type-label text-amber-600 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded-full flex-shrink-0">
-                    Event
-                  </span>
+                  (() => {
+                    const previewEvent = (allCalendarEvents || []).find(event => event.id === tomorrowPreview.first.id);
+                    const previewMeta = previewEvent
+                      ? classifyCalendarEvent(previewEvent, { classes: allClasses, allEvents: allCalendarEvents })
+                      : null;
+                    return (
+                      <span className={`type-label px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                        previewMeta?.isWork
+                          ? 'text-[var(--accent-primary)] bg-[var(--accent-muted)]'
+                          : 'text-amber-600 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400'
+                      }`}>
+                        {previewMeta?.badgeLabel || 'Event'}
+                      </span>
+                    );
+                  })()
                 )}
               </div>
               <div className="text-sm text-[var(--text-tertiary)] mt-0.5 flex items-center gap-2">

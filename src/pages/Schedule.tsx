@@ -13,6 +13,7 @@ import { WeekStats } from '../components/Dashboard/WeekStats';
 import { WeekMomentumBar } from '../components/Dashboard/WeekMomentumBar';
 import { StreakCard } from '../components/Dashboard/StreakCard';
 import { EventCountdown } from '../components/Dashboard/EventCountdown';
+import { classifyCalendarEvent } from '../utils/calendarEventType';
 
 const DAYS: { key: DayOfWeek; label: string; short: string }[] = [
   { key: 'monday', label: 'Monday', short: 'Mon' },
@@ -234,7 +235,13 @@ export function Schedule() {
           const hasClasses = data.classes.some(c => c.day === key);
           const dayDate = addDays(weekStart, DAYS.findIndex(d => d.key === key));
           const dayDateStr = format(dayDate, 'yyyy-MM-dd');
-          const hasCalendarEvents = data.calendarEvents?.some(e => e.date === dayDateStr && !hiddenEventIds.has(e.id));
+          const dayCalendarEvents = (data.calendarEvents || []).filter(e => e.date === dayDateStr && !hiddenEventIds.has(e.id));
+          const hasWorkCalendarEvents = dayCalendarEvents.some(event =>
+            classifyCalendarEvent(event, { classes: data.classes, allEvents: data.calendarEvents || [] }).isWork
+          );
+          const hasGenericCalendarEvents = dayCalendarEvents.some(event =>
+            !classifyCalendarEvent(event, { classes: data.classes, allEvents: data.calendarEvents || [] }).isWork
+          );
           const hasCompetitions = data.competitions?.some(comp => {
             const startDate = parseISO(comp.date);
             const endDate = comp.endDate ? parseISO(comp.endDate) : startDate;
@@ -257,10 +264,11 @@ export function Schedule() {
               <div className={`text-lg font-medium ${isToday && !isSelected ? 'text-[var(--accent-primary)]' : ''}`}>
                 {format(dayDate, 'd')}
               </div>
-              {!isSelected && (hasClasses || hasCalendarEvents || hasCompetitions) && (
+              {!isSelected && (hasClasses || dayCalendarEvents.length > 0 || hasCompetitions) && (
                 <div className="flex gap-0.5 justify-center mt-1">
                   {hasClasses && <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]" />}
-                  {hasCalendarEvents && <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
+                  {hasWorkCalendarEvents && <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]/70" />}
+                  {hasGenericCalendarEvents && <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
                   {hasCompetitions && <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />}
                 </div>
               )}
@@ -419,6 +427,8 @@ export function Schedule() {
               );
             } else {
               const event = item.data;
+              const eventType = classifyCalendarEvent(event, { classes: data.classes, allEvents: data.calendarEvents || [] });
+              const isWorkEvent = eventType.isWork;
               return (
                 <Link
                   key={event.id}
@@ -426,13 +436,17 @@ export function Schedule() {
                   className="block bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-card-hover)] transition-all"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="w-1.5 h-full min-h-[60px] rounded-full bg-amber-400" />
+                    <div className={`w-1.5 h-full min-h-[60px] rounded-full ${isWorkEvent ? 'bg-[var(--accent-primary)]' : 'bg-amber-400'}`} />
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <div className="type-h2 text-[var(--text-primary)]">{event.title}</div>
-                        <div className="flex items-center gap-1 text-xs text-[var(--status-warning)] bg-[var(--status-warning)]/10 px-2 py-0.5 rounded-full">
+                        <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
+                          isWorkEvent
+                            ? 'text-[var(--accent-primary)] bg-[var(--accent-muted)]'
+                            : 'text-[var(--status-warning)] bg-[var(--status-warning)]/10'
+                        }`}>
                           <Calendar size={12} />
-                          <span>Event</span>
+                          <span>{eventType.badgeLabel}</span>
                         </div>
                       </div>
                       {event.startTime && event.startTime !== '00:00' && (

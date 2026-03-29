@@ -1,19 +1,18 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, Play, Calendar, Plus, Trash2, FileText, Image, Edit2, Save, Users, UserCheck, UserX, Clock3, ChevronDown, ChevronUp, Music, Camera, History, EyeOff } from 'lucide-react';
+import { ArrowLeft, Clock, MapPin, Play, Calendar, Trash2, FileText, Edit2, Save, Users, UserCheck, UserX, Clock3, ChevronDown, ChevronUp, Music, History, EyeOff } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
 import { formatTimeDisplay, safeDate, safeFormat } from '../utils/time';
 import { Button } from '../components/common/Button';
 import { DropdownMenu } from '../components/common/DropdownMenu';
-import { MediaItem, ClassWeekNotes, CalendarEvent, AppData, CompetitionDance, Student, WeekNotes } from '../types';
-import { v4 as uuid } from 'uuid';
-import { processMediaFile } from '../utils/mediaCompression';
+import { ClassWeekNotes, CalendarEvent, AppData, CompetitionDance, Student, WeekNotes } from '../types';
 import { forceAutoLinkDances } from '../utils/danceLinker';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
 import { findMatchingPastSessions } from '../utils/smartNotes';
 import { getCategoryStyle, getCategoryLabel } from '../constants/noteCategories';
 import { normalizeNoteCategory } from '../types';
+import { classifyCalendarEvent } from '../utils/calendarEventType';
 
 export function CalendarEventDetail() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -34,17 +33,11 @@ export function CalendarEventDetail() {
 
   // Determine if this event looks like a teaching class (vs a flight, therapy, etc.)
   // A class either already matches a Figgg class, OR it recurs on the same title multiple times in the calendar
-  const isLikelyClass = (() => {
-    if (matchingClass) return true;
-    if (!event) return false;
-    const title = event.title.toLowerCase();
-    // Exclude obvious non-class events
-    const nonClassPatterns = /flight|therapy|doctor|dentist|appointment|meeting|lunch|dinner|travel|pickup|drop.?off|rehearsal|recital|competition|show|performance|audition/i;
-    if (nonClassPatterns.test(event.title)) return false;
-    // Check if the same title appears more than once in calendar (recurring = likely a class)
-    const sameTitle = (data.calendarEvents || []).filter(e => e.title.toLowerCase() === title);
-    return sameTitle.length >= 2;
-  })();
+  const eventClassification = event
+    ? classifyCalendarEvent(event, { classes: data.classes, allEvents: data.calendarEvents || [] })
+    : null;
+  const isLikelyClass = eventClassification?.isClassLike || false;
+  const isWorkEvent = eventClassification?.isWork || false;
 
   // Auto-create a class from this calendar event and navigate to its LiveNotes
   const handleStartClassNotes = () => {
@@ -80,7 +73,7 @@ export function CalendarEventDetail() {
 
   useEffect(() => {
     if (event && data.competitionDances && autoLinkAttempted !== event.id) {
-      setAutoLinkAttempted(event.id);
+      queueMicrotask(() => setAutoLinkAttempted(event.id));
 
       // If no dances linked yet, try auto-linking
       if (!event.linkedDanceIds || event.linkedDanceIds.length === 0) {
@@ -90,127 +83,29 @@ export function CalendarEventDetail() {
         }
       }
     }
-  }, [event?.id, data.competitionDances]); // Run when event ID changes
+  }, [autoLinkAttempted, data.competitionDances, event, updateCalendarEvent]); // Run when event ID changes
 
   // Get initial week notes and keep in local state
   const [weekNotes, setWeekNotes] = useState(() => getCurrentWeekNotes());
+  const [localPlan, setLocalPlan] = useState(() => getCurrentWeekNotes().classNotes[eventId || '']?.plan || '');
 
   // Sync weekNotes when data changes (e.g., from cloud sync)
   useEffect(() => {
     const fresh = getCurrentWeekNotes();
-    setWeekNotes(fresh);
-    setLocalPlan(fresh.classNotes[eventId || '']?.plan || '');
-  }, [data.weekNotes]);
+    queueMicrotask(() => {
+      setWeekNotes(fresh);
+      setLocalPlan(fresh.classNotes[eventId || '']?.plan || '');
+    });
+  }, [data.weekNotes, eventId, getCurrentWeekNotes]);
 
   const eventNotes: ClassWeekNotes | undefined = weekNotes.classNotes[eventId || ''];
 
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editNoteText, setEditNoteText] = useState('');
-  const [localPlan, setLocalPlan] = useState(eventNotes?.plan || '');
 
   const saveNotes = (updatedNotes: typeof weekNotes) => {
     setWeekNotes(updatedNotes);
     saveWeekNotes(updatedNotes);
-  };
-
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !eventId) return;
-
-    setIsUploading(true);
-    setUploadError(null);
-
-    try {
-      const result = await processMediaFile(file);
-
-      if ('error' in result) {
-        setUploadError(result.error);
-        setIsUploading(false);
-        e.target.value = '';
-        return;
-      }
-
-      const { dataUrl, warning } = result;
-      if (warning) {
-        console.warn(warning);
-      }
-
-      const newMedia: MediaItem = {
-        id: uuid(),
-        type: 'image',
-        url: dataUrl,
-        name: file.name,
-        timestamp: new Date().toISOString(),
-      };
-
-      const updatedNotes = {
-        ...weekNotes,
-        classNotes: {
-          ...weekNotes.classNotes,
-          [eventId]: {
-            classId: eventId,
-            plan: eventNotes?.plan || '',
-            liveNotes: eventNotes?.liveNotes || [],
-            isOrganized: eventNotes?.isOrganized || false,
-            media: [...(eventNotes?.media || []), newMedia],
-            eventTitle: event?.title,
-          },
-        },
-      };
-      saveNotes(updatedNotes);
-    } catch (error) {
-      console.error('Upload failed:', error);
-      setUploadError('Failed to process file. Please try again.');
-    }
-
-    setIsUploading(false);
-    e.target.value = '';
-  };
-
-  const handleDeleteMedia = (mediaId: string) => {
-    if (!eventId || !eventNotes) return;
-
-    const updatedNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [eventId]: {
-          ...eventNotes,
-          media: (eventNotes.media || []).filter(m => m.id !== mediaId),
-        },
-      },
-    };
-    saveNotes(updatedNotes);
-  };
-
-  const handleDeleteAllMedia = async () => {
-    if (!eventId) return;
-    if (!await confirm('Delete all photos for this event?')) return;
-
-    const existingNotes = eventNotes || {
-      classId: eventId,
-      plan: '',
-      liveNotes: [],
-      isOrganized: false,
-      media: [],
-      eventTitle: event?.title,
-    };
-
-    const updatedNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [eventId]: {
-          ...existingNotes,
-          media: [],
-          eventTitle: event?.title,
-        },
-      },
-    };
-    saveNotes(updatedNotes);
   };
 
   const handleDeleteAllNotes = async () => {
@@ -364,9 +259,9 @@ export function CalendarEventDetail() {
           <ArrowLeft size={20} />
         </Link>
         <div className="flex-1">
-          <div className="flex items-center gap-2 text-[var(--status-warning)] text-sm mb-1">
+          <div className={`flex items-center gap-2 text-sm mb-1 ${isWorkEvent ? 'text-[var(--accent-primary)]' : 'text-[var(--status-warning)]'}`}>
             <Calendar size={14} />
-            <span>Calendar Event</span>
+            <span>{eventClassification?.badgeLabel || 'Calendar Event'}</span>
           </div>
           <h1 className="text-xl font-bold text-[var(--text-primary)]">{event.title}</h1>
         </div>
@@ -468,7 +363,7 @@ export function CalendarEventDetail() {
         <Link to={`/event/${event.id}/notes`} className="block mb-6">
           <Button className="w-full" size="lg">
             <Play size={18} className="mr-2" />
-            Start Event Notes
+            {isWorkEvent ? 'Start Rehearsal Notes' : 'Start Event Notes'}
           </Button>
         </Link>
       )}

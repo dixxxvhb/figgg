@@ -43,6 +43,7 @@ import { executeAIActions as executeSharedAIActions } from '../services/aiAction
 import type { ActionCallbacks } from '../services/aiActions';
 import { applyMoodLayer } from '../styles/moodLayer';
 import type { MoodSignal, ActivityState } from '../styles/moodLayer';
+import { classifyCalendarEvent } from '../utils/calendarEventType';
 
 // ── Constants ──
 
@@ -740,21 +741,41 @@ export function Dashboard() {
             const endMins = currentCalendarEvent.endTime && currentCalendarEvent.endTime !== '00:00' ? timeToMinutes(currentCalendarEvent.endTime) : startMins + 60;
             const remaining = endMins - currentMinute;
             const locationLine = currentCalendarEvent.location?.split('\n').filter(Boolean)[0];
+            const eventMeta = classifyCalendarEvent(currentCalendarEvent, { classes: data.classes, allEvents: data.calendarEvents || [] });
+            const isWorkEvent = eventMeta.isWork;
             return (
-              <div className="bg-[var(--surface-card)] rounded-2xl overflow-hidden ring-2 ring-amber-400/30 shadow-lg shadow-amber-400/10">
+              <div className={`bg-[var(--surface-card)] rounded-2xl overflow-hidden ${
+                isWorkEvent
+                  ? 'ring-2 ring-[var(--accent-primary)]/25 shadow-lg shadow-[var(--accent-primary)]/10'
+                  : 'ring-2 ring-amber-400/30 shadow-lg shadow-amber-400/10'
+              }`}>
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest bg-amber-500 text-white px-2.5 py-1 rounded-full">
+                    <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-white px-2.5 py-1 rounded-full ${
+                      isWorkEvent ? 'bg-[var(--accent-primary)]' : 'bg-amber-500'
+                    }`}>
                       <span className="w-1.5 h-1.5 bg-white rounded-full live-dot" />Live
                     </span>
-                    <div><span className="type-stat text-amber-600 dark:text-amber-400 leading-none">{remaining}</span><span className="text-[11px] text-[var(--text-tertiary)] ml-1">min left</span></div>
+                    <div>
+                      <span className={`type-stat leading-none ${isWorkEvent ? 'text-[var(--accent-primary)]' : 'text-amber-600 dark:text-amber-400'}`}>{remaining}</span>
+                      <span className="text-[11px] text-[var(--text-tertiary)] ml-1">min left</span>
+                    </div>
                   </div>
                   <h2 className="type-h1 text-[var(--text-primary)] leading-tight line-clamp-2 mb-3">{currentCalendarEvent.title}</h2>
                   <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--text-secondary)] mb-4">
                     <span className="flex items-center gap-1 text-[var(--color-honey)] dark:text-[var(--color-honey-light)] font-medium"><Clock size={14} />{formatTimeDisplay(currentCalendarEvent.startTime)}{currentCalendarEvent.endTime && currentCalendarEvent.endTime !== '00:00' && <> - {formatTimeDisplay(currentCalendarEvent.endTime)}</>}</span>
                     {locationLine && <span className="flex items-center gap-1"><MapPin size={14} />{locationLine}</span>}
                   </div>
-                  <Link to={`/event/${currentCalendarEvent.id}/notes`} className="flex items-center justify-center gap-2 w-full bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white py-3.5 rounded-xl font-semibold transition-colors"><Play size={18} />Continue Notes</Link>
+                  <Link
+                    to={`/event/${currentCalendarEvent.id}/notes`}
+                    className={`flex items-center justify-center gap-2 w-full text-white py-3.5 rounded-xl font-semibold transition-colors ${
+                      isWorkEvent
+                        ? 'bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] active:opacity-90'
+                        : 'bg-amber-500 hover:bg-amber-600 active:bg-amber-700'
+                    }`}
+                  >
+                    <Play size={18} />{eventMeta.actionLabel}
+                  </Link>
                 </div>
               </div>
             );
