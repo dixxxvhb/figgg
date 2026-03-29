@@ -237,10 +237,18 @@ export function Schedule() {
           const dayDateStr = format(dayDate, 'yyyy-MM-dd');
           const dayCalendarEvents = (data.calendarEvents || []).filter(e => e.date === dayDateStr && !hiddenEventIds.has(e.id));
           const hasWorkCalendarEvents = dayCalendarEvents.some(event =>
-            classifyCalendarEvent(event, { classes: data.classes, allEvents: data.calendarEvents || [] }).isWork
+            classifyCalendarEvent(event, {
+              classes: data.classes,
+              allEvents: data.calendarEvents || [],
+              competitionDances: data.competitionDances || [],
+            }).isWork
           );
           const hasGenericCalendarEvents = dayCalendarEvents.some(event =>
-            !classifyCalendarEvent(event, { classes: data.classes, allEvents: data.calendarEvents || [] }).isWork
+            !classifyCalendarEvent(event, {
+              classes: data.classes,
+              allEvents: data.calendarEvents || [],
+              competitionDances: data.competitionDances || [],
+            }).isWork
           );
           const hasCompetitions = data.competitions?.some(comp => {
             const startDate = parseISO(comp.date);
@@ -427,7 +435,11 @@ export function Schedule() {
               );
             } else {
               const event = item.data;
-              const eventType = classifyCalendarEvent(event, { classes: data.classes, allEvents: data.calendarEvents || [] });
+              const eventType = classifyCalendarEvent(event, {
+                classes: data.classes,
+                allEvents: data.calendarEvents || [],
+                competitionDances: data.competitionDances || [],
+              });
               const isWorkEvent = eventType.isWork;
               return (
                 <Link

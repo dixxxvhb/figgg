@@ -285,7 +285,11 @@ export function TodaysAgenda({
                 endTime: item.endTime || '00:00',
                 location: item.location,
               },
-              { classes, allEvents: allCalendarEvents || calendarEvents }
+              {
+                classes,
+                allEvents: allCalendarEvents || calendarEvents,
+                competitionDances,
+              }
             );
             const isWorkEvent = eventMeta.isWork;
             return (
@@ -528,7 +532,11 @@ export function TodaysAgenda({
                   (() => {
                     const previewEvent = (allCalendarEvents || []).find(event => event.id === tomorrowPreview.first.id);
                     const previewMeta = previewEvent
-                      ? classifyCalendarEvent(previewEvent, { classes: allClasses, allEvents: allCalendarEvents })
+                      ? classifyCalendarEvent(previewEvent, {
+                          classes: allClasses,
+                          allEvents: allCalendarEvents,
+                          competitionDances,
+                        })
                       : null;
                     return (
                       <span className={`type-label px-1.5 py-0.5 rounded-full flex-shrink-0 ${

@@ -1,4 +1,5 @@
-import type { CalendarEvent, Class, DayOfWeek } from '../types';
+import type { CalendarEvent, Class, CompetitionDance, DayOfWeek } from '../types';
+import { detectLinkedDances } from './danceLinker';
 
 export type CalendarEventKind = 'class' | 'rehearsal' | 'work' | 'event';
 
@@ -13,6 +14,7 @@ export interface CalendarEventClassification {
 interface ClassifyCalendarEventOptions {
   classes?: Class[];
   allEvents?: CalendarEvent[];
+  competitionDances?: CompetitionDance[];
 }
 
 const NON_WORK_PATTERNS = /flight|therapy|doctor|dentist|appointment|meeting|lunch|dinner|travel|pickup|drop.?off|birthday|party|vacation|hair|nails|grocery|groceries|errand/i;
@@ -31,14 +33,17 @@ function getEventDay(date: string): DayOfWeek | null {
 
 export function classifyCalendarEvent(
   event: CalendarEvent,
-  { classes = [], allEvents = [] }: ClassifyCalendarEventOptions = {}
+  { classes = [], allEvents = [], competitionDances = [] }: ClassifyCalendarEventOptions = {}
 ): CalendarEventClassification {
   const title = normalize(event.title);
   const description = normalize(event.description);
   const location = normalize(event.location);
   const searchText = [title, description, location].filter(Boolean).join(' ');
 
-  const hasLinkedDances = (event.linkedDanceIds?.length || 0) > 0;
+  const inferredLinkedDanceIds = (event.linkedDanceIds?.length || 0) > 0
+    ? event.linkedDanceIds || []
+    : (competitionDances.length > 0 ? detectLinkedDances(event, competitionDances) : []);
+  const hasLinkedDances = inferredLinkedDanceIds.length > 0;
   const eventDay = getEventDay(event.date);
 
   const matchingClass = eventDay

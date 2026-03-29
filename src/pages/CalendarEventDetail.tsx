@@ -34,7 +34,11 @@ export function CalendarEventDetail() {
   // Determine if this event looks like a teaching class (vs a flight, therapy, etc.)
   // A class either already matches a Figgg class, OR it recurs on the same title multiple times in the calendar
   const eventClassification = event
-    ? classifyCalendarEvent(event, { classes: data.classes, allEvents: data.calendarEvents || [] })
+    ? classifyCalendarEvent(event, {
+        classes: data.classes,
+        allEvents: data.calendarEvents || [],
+        competitionDances: data.competitionDances || [],
+      })
     : null;
   const isLikelyClass = eventClassification?.isClassLike || false;
   const isWorkEvent = eventClassification?.isWork || false;

@@ -741,7 +741,11 @@ export function Dashboard() {
             const endMins = currentCalendarEvent.endTime && currentCalendarEvent.endTime !== '00:00' ? timeToMinutes(currentCalendarEvent.endTime) : startMins + 60;
             const remaining = endMins - currentMinute;
             const locationLine = currentCalendarEvent.location?.split('\n').filter(Boolean)[0];
-            const eventMeta = classifyCalendarEvent(currentCalendarEvent, { classes: data.classes, allEvents: data.calendarEvents || [] });
+            const eventMeta = classifyCalendarEvent(currentCalendarEvent, {
+              classes: data.classes,
+              allEvents: data.calendarEvents || [],
+              competitionDances: data.competitionDances || [],
+            });
             const isWorkEvent = eventMeta.isWork;
             return (
               <div className={`bg-[var(--surface-card)] rounded-2xl overflow-hidden ${

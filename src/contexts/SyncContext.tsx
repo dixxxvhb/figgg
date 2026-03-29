@@ -5,6 +5,7 @@ import { fetchGoogleCalendarEvents } from '../services/googleCalendar';
 import { getCalendarEvents, batchSaveCalendarEvents } from '../services/firestore';
 import { auth } from '../services/firebase';
 import type { CalendarEvent } from '../types';
+import { autoLinkDancesToEvent } from '../utils/danceLinker';
 
 type SyncStatus = 'idle' | 'syncing' | 'success' | 'error' | 'offline';
 
@@ -120,6 +121,7 @@ async function syncAllCalendars(force = false): Promise<string[]> {
     console.warn('Failed to read calendar events from Firestore, using localStorage:', e);
   }
   const localEvents = data.calendarEvents || [];
+  const competitionDances = data.competitionDances || [];
   // Build a merged map: Firestore is source of truth, but localStorage may have
   // more recent linkedDanceIds edits from this device
   const existingMap = new Map<string, CalendarEvent>();
@@ -152,14 +154,15 @@ async function syncAllCalendars(force = false): Promise<string[]> {
     const existing = existingMap.get(event.id);
     if (existing) {
       // Preserve user modifications, update feed data
-      mergedEvents.push({
+      const mergedEvent = {
         ...event,
         linkedDanceIds: existing.linkedDanceIds,
         googleCalendarEventId: event.googleCalendarEventId || existing.googleCalendarEventId,
         source: event.source || existing.source,
-      });
+      };
+      mergedEvents.push(autoLinkDancesToEvent(mergedEvent, competitionDances) || mergedEvent);
     } else {
-      mergedEvents.push(event);
+      mergedEvents.push(autoLinkDancesToEvent(event, competitionDances) || event);
     }
   }
 
