@@ -87,7 +87,7 @@ function NotesList({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="divide-y divide-[var(--border-subtle)] rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)]">
       {notes.map(note => {
         const tag = QUICK_TAGS.find(t => t.id === normalizeNoteCategory(note.category));
         const isEditing = editingNoteId === note.id;
@@ -95,22 +95,25 @@ function NotesList({
         return (
           <div
             key={note.id}
-            className={`bg-[var(--surface-card)] rounded-xl border p-4 shadow-sm group relative ${
+            className={`group relative px-3 py-2.5 ${
               savedMode
-                ? 'border-[var(--border-subtle)] opacity-80 p-3'
+                ? 'opacity-85'
                 : isEditing
-                  ? 'border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]'
-                  : 'border-[var(--border-subtle)]'
+                  ? 'bg-[var(--accent-muted)]/50'
+                  : 'hover:bg-[var(--surface-inset)]/60'
             }`}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1">
-                {tag && (
-                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full mb-2 ${tag.color}`}>
-                    <tag.icon size={12} />
-                    {tag.label}
-                  </span>
-                )}
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start gap-2">
+                  {tag ? (
+                    <span className={`mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] ${tag.color}`}>
+                      <tag.icon size={11} />
+                      {!savedMode && tag.label}
+                    </span>
+                  ) : (
+                    <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[var(--border-strong)]" />
+                  )}
                 {isEditing && onEditNote ? (
                   <input
                     type="text"
@@ -121,15 +124,20 @@ function NotesList({
                       else if (e.key === 'Escape') { cancelEdit(); }
                     }}
                     autoFocus
-                    className="w-full px-3 py-2 border border-[var(--border-subtle)] rounded-lg focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent bg-[var(--surface-inset)] text-[var(--text-primary)] text-sm"
+                    className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-inset)] px-3 py-2 text-sm text-[var(--text-primary)] focus:border-transparent focus:ring-2 focus:ring-[var(--accent-primary)]"
                   />
                 ) : (
-                  <p className={savedMode ? 'text-sm text-[var(--text-primary)]' : 'text-[var(--text-primary)]'}>{note.text}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className={`${savedMode ? 'text-sm' : 'text-sm'} leading-5 text-[var(--text-primary)]`}>
+                      {note.text}
+                    </p>
+                    {renderNoteExtra?.(note)}
+                  </div>
                 )}
-                {renderNoteExtra?.(note)}
+                </div>
               </div>
-              <div className="flex items-start gap-2">
-                <div className="text-xs text-[var(--text-tertiary)]">
+              <div className="flex items-start gap-1">
+                <div className="whitespace-nowrap pt-0.5 text-[11px] text-[var(--text-tertiary)]">
                   {safeFormat(note.timestamp, 'h:mm a')}
                 </div>
                 {!savedMode && (
@@ -137,14 +145,14 @@ function NotesList({
                     <>
                       <button
                         onClick={saveEdit}
-                        className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--accent-primary)] hover:text-[var(--accent-primary-hover)] active:text-[var(--accent-primary-hover)] transition-colors rounded-lg"
+                        className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-lg p-2 text-[var(--accent-primary)] transition-colors hover:bg-[var(--surface-card)] hover:text-[var(--accent-primary-hover)]"
                         title="Save edit"
                       >
                         <Check size={16} />
                       </button>
                       <button
                         onClick={cancelEdit}
-                        className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--status-danger)] active:text-[var(--status-danger)] transition-colors rounded-lg"
+                        className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-lg p-2 text-[var(--text-tertiary)] transition-colors hover:bg-[var(--surface-card)] hover:text-[var(--status-danger)]"
                         title="Cancel edit"
                       >
                         <X size={16} />
@@ -155,7 +163,7 @@ function NotesList({
                       {onEditNote && (
                         <button
                           onClick={() => startEdit(note)}
-                          className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] active:text-[var(--accent-primary-hover)] transition-colors rounded-lg"
+                          className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-lg p-2 text-[var(--text-tertiary)] opacity-80 transition-colors hover:bg-[var(--surface-card)] hover:text-[var(--accent-primary)] sm:opacity-0 sm:group-hover:opacity-100"
                           title="Edit note"
                         >
                           <Pencil size={16} />
@@ -163,7 +171,7 @@ function NotesList({
                       )}
                       <button
                         onClick={() => onDeleteNote(note.id)}
-                        className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-[var(--text-tertiary)] hover:text-[var(--status-danger)] active:text-[var(--status-danger)] transition-colors rounded-lg"
+                        className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-lg p-2 text-[var(--text-tertiary)] opacity-80 transition-colors hover:bg-[var(--surface-card)] hover:text-[var(--status-danger)] sm:opacity-0 sm:group-hover:opacity-100"
                         title="Delete note"
                       >
                         <Trash2 size={16} />
