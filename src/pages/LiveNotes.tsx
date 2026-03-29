@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Clock, CheckCircle, AlertCircle, X, FileText, Users, UserCheck, UserX, UserPlus, Clock3, ChevronDown, ChevronUp, ClipboardList, BookOpen, Wand2, Loader2, Check } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle, AlertCircle, X, FileText, Users, UserCheck, UserX, UserPlus, Clock3, ChevronDown, ChevronUp, ClipboardList, BookOpen, Wand2, Loader2, Check, Flag } from 'lucide-react';
 import { format, addWeeks, addDays } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
 import { PlanDisplay } from '../components/common/PlanDisplay';
@@ -15,6 +15,7 @@ import { searchTerminology } from '../data/terminology';
 import { getProgressionSuggestions, getRepetitionFlags } from '../data/progressions';
 import { generatePlan as aiGeneratePlan, detectReminders as aiDetectReminders, expandNotes as aiExpandNotes } from '../services/ai';
 import { buildAIContext } from '../services/aiContext';
+import { detectLinkedDances } from '../utils/danceLinker';
 
 // Boost relevant terminology categories based on which note tag is selected
 const TAG_CATEGORY_BOOSTS: Record<string, TermCategory[]> = {
@@ -45,7 +46,7 @@ export function LiveNotes() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const weekOffset = parseInt(searchParams.get('week') || '0', 10);
-  const { data, getCurrentWeekNotes, saveWeekNotes, getWeekNotes, updateSelfCare, updateStudent, addStudent } = useAppData();
+  const { data, getCurrentWeekNotes, saveWeekNotes, getWeekNotes, updateSelfCare, updateStudent, addStudent, addReminder } = useAppData();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   // Keep a ref to latest selfCare for use in async callbacks (avoid stale closures)
   const selfCareRef = useRef(data.selfCare);
@@ -112,6 +113,9 @@ export function LiveNotes() {
   const [expandedSummary, setExpandedSummary] = useState<string | null>(null);
   const [isEditingSummary, setIsEditingSummary] = useState(false);
   const [editedSummary, setEditedSummary] = useState('');
+  const [showFlagDancerPicker, setShowFlagDancerPicker] = useState(false);
+  const [flaggedStudentId, setFlaggedStudentId] = useState('');
+  const [flagReminderCreated, setFlagReminderCreated] = useState(false);
 
   // Sync weekNotes when data changes (e.g., from cloud sync)
   useEffect(() => {
@@ -137,16 +141,42 @@ export function LiveNotes() {
   // Initialize attendance from classNotes or default
   const attendance = classNotes.attendance || { present: [], absent: [], late: [] };
 
+  const linkedDanceIds = useMemo(() => {
+    if (!cls) return [];
+    if (cls.competitionDanceId) return [cls.competitionDanceId];
+    return detectLinkedDances({
+      id: cls.id,
+      title: cls.name,
+      date: format(classDate, 'yyyy-MM-dd'),
+      startTime: cls.startTime,
+      endTime: cls.endTime,
+    }, data.competitionDances || []);
+  }, [classDate, cls, data.competitionDances]);
+
+  const linkedDances = useMemo(
+    () => (data.competitionDances || []).filter(dance => linkedDanceIds.includes(dance.id)),
+    [data.competitionDances, linkedDanceIds]
+  );
+
   // Get enrolled students — include attendees who aren't formally enrolled
   const enrolledStudents = useMemo(() => {
     const byClassId = (data.students || []).filter(s => s.classIds?.includes(classId || ''));
-    const enrolledIds = new Set(byClassId.map(s => s.id));
+    const fromLinkedDances = (data.students || []).filter(student =>
+      linkedDances.some(dance => dance.dancerIds?.includes(student.id))
+    );
+    const enrolledIds = new Set<string>();
+    const result = [];
+    for (const student of [...fromLinkedDances, ...byClassId]) {
+      if (!enrolledIds.has(student.id)) {
+        result.push(student);
+        enrolledIds.add(student.id);
+      }
+    }
     const attendeeIds = [
       ...(attendance.present || []),
       ...(attendance.late || []),
       ...(attendance.absent || []),
     ];
-    const result = [...byClassId];
     for (const id of attendeeIds) {
       if (!enrolledIds.has(id)) {
         const student = (data.students || []).find(s => s.id === id);
@@ -157,7 +187,12 @@ export function LiveNotes() {
       }
     }
     return result;
-  }, [data.students, classId, attendance]);
+  }, [attendance, classId, data.students, linkedDances]);
+
+  const rehearsalReminderTargetStudents = useMemo(() => {
+    if (linkedDances.length > 0) return enrolledStudents;
+    return (data.students || []).filter(student => student.classIds?.includes(classId || ''));
+  }, [classId, data.students, enrolledStudents, linkedDances.length]);
 
   // Update time remaining
   useEffect(() => {
@@ -480,6 +515,30 @@ export function LiveNotes() {
 
     setWeekNotes(updatedWeekNotes);
     saveWeekNotes(updatedWeekNotes);
+  };
+
+  const createFlagDancerReminder = () => {
+    const student = rehearsalReminderTargetStudents.find(item => item.id === flaggedStudentId);
+    if (!student) return;
+
+    const danceLabel = linkedDances.map(dance => dance.registrationName).join(', ') || cls.name;
+    const latestNote = classNotes.liveNotes[classNotes.liveNotes.length - 1];
+
+    addReminder({
+      title: `Schedule extra rehearsal for ${student.name} - ${danceLabel}`,
+      notes: latestNote ? `Flagged from note: ${latestNote.text}` : `Flagged during ${cls.name}`,
+      completed: false,
+      dueDate: format(addDays(new Date(), 7), 'yyyy-MM-dd'),
+      priority: 'medium',
+      flagged: true,
+      listName: 'Class Reminders',
+      listColor: '#3B82F6',
+      listIcon: 'AlertCircle',
+    });
+
+    setFlagReminderCreated(true);
+    setShowFlagDancerPicker(false);
+    setFlaggedStudentId('');
   };
 
   const deleteNote = async (noteId: string) => {
@@ -1027,6 +1086,18 @@ export function LiveNotes() {
           </Link>
         )}
 
+        {flagReminderCreated && (
+          <Link
+            to="/me"
+            className="flex items-center gap-2 px-3 py-2 mb-3 bg-[var(--accent-muted)] border border-[var(--accent-primary)]/20 rounded-xl"
+          >
+            <Flag size={14} className="text-[var(--accent-primary)]" />
+            <span className="text-xs text-[var(--accent-primary)]">
+              Rehearsal follow-up reminder added
+            </span>
+          </Link>
+        )}
+
         {/* Already Saved Banner */}
         {alreadySaved && classNotes.liveNotes.length > 0 && (
           <div className="mb-4 p-3 bg-[var(--surface-highlight)] border border-[var(--border-subtle)] rounded-xl">
@@ -1314,6 +1385,53 @@ export function LiveNotes() {
             selectedTag={selectedTag}
             setSelectedTag={setSelectedTag}
           />
+
+          {rehearsalReminderTargetStudents.length > 0 && (
+            <div className="mt-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-inset)] p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-[var(--text-primary)]">Flag dancer for extra rehearsal</div>
+                  <div className="text-xs text-[var(--text-secondary)]">
+                    Creates a reminder due next week for this roster.
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowFlagDancerPicker(current => !current);
+                    setFlagReminderCreated(false);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[var(--surface-card)] px-3 py-2 text-sm font-medium text-[var(--accent-primary)] hover:bg-[var(--surface-highlight)] transition-colors"
+                >
+                  <Flag size={14} />
+                  Flag dancer
+                </button>
+              </div>
+
+              {showFlagDancerPicker && (
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <select
+                    value={flaggedStudentId}
+                    onChange={(e) => setFlaggedStudentId(e.target.value)}
+                    className="flex-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-sm text-[var(--text-primary)]"
+                  >
+                    <option value="">Select dancer...</option>
+                    {rehearsalReminderTargetStudents.map(student => (
+                      <option key={student.id} value={student.id}>
+                        {student.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={createFlagDancerReminder}
+                    disabled={!flaggedStudentId}
+                    className="rounded-xl bg-[var(--accent-primary)] px-4 py-2 text-sm font-medium text-[var(--text-on-accent)] transition-colors disabled:opacity-50"
+                  >
+                    Create reminder
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* AI buttons — show when 3+ notes and class not already saved */}
           {classNotes.liveNotes.length >= 3 && !alreadySaved && (

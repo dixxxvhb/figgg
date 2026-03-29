@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, CheckCircle, X, FileText, ChevronDown, ChevronUp, ClipboardList, RotateCcw, Bell } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle, X, FileText, ChevronDown, ChevronUp, ClipboardList, RotateCcw, Bell, Flag } from 'lucide-react';
 import { format, parseISO, addWeeks } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
 import { DropdownMenu } from '../components/common/DropdownMenu';
@@ -14,11 +14,12 @@ import { generatePlan as aiGeneratePlan, detectReminders as aiDetectReminders } 
 import { buildAIContext } from '../services/aiContext';
 import { getWeekNotes as getWeekNotesFromStorage } from '../services/storage';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
+import { detectLinkedDances } from '../utils/danceLinker';
 
 export function EventNotes() {
   const { eventId } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
-  const { data, getCurrentWeekNotes, saveWeekNotes, updateSelfCare } = useAppData();
+  const { data, getCurrentWeekNotes, saveWeekNotes, updateSelfCare, addReminder } = useAppData();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
 
   // Build AI context once for all AI calls during this event session
@@ -40,6 +41,9 @@ export function EventNotes() {
   const [reminderNoteIds, setReminderNoteIds] = useState<Set<string>>(new Set());
   const [reminderCount, setReminderCount] = useState(0);
   const [isEndingEvent, setIsEndingEvent] = useState(false);
+  const [showFlagDancerPicker, setShowFlagDancerPicker] = useState(false);
+  const [flaggedStudentId, setFlaggedStudentId] = useState('');
+  const [flagReminderCreated, setFlagReminderCreated] = useState(false);
   const [alreadySaved, setAlreadySaved] = useState(() => {
     const notes = getCurrentWeekNotes().classNotes[eventId || ''];
     return notes?.isOrganized === true;
@@ -122,6 +126,24 @@ export function EventNotes() {
         eventTitle: event?.title,
       };
 
+  const linkedDanceIds = useMemo(() => {
+    if (!event) return [];
+    if (event.linkedDanceIds?.length) return event.linkedDanceIds;
+    return detectLinkedDances(event, data.competitionDances || []);
+  }, [data.competitionDances, event]);
+
+  const linkedDances = useMemo(
+    () => (data.competitionDances || []).filter(dance => linkedDanceIds.includes(dance.id)),
+    [data.competitionDances, linkedDanceIds]
+  );
+
+  const rehearsalReminderTargetStudents = useMemo(
+    () => (data.students || []).filter(student =>
+      linkedDances.some(dance => dance.dancerIds?.includes(student.id))
+    ),
+    [data.students, linkedDances]
+  );
+
   // Smart Notes: find matching past sessions by event title
   const pastSessions = event?.title
     ? findMatchingPastSessions(data.weekNotes, event.title, eventId || '')
@@ -197,6 +219,30 @@ export function EventNotes() {
     };
     setWeekNotes(updatedWeekNotes);
     saveWeekNotes(updatedWeekNotes);
+  };
+
+  const createFlagDancerReminder = () => {
+    const student = rehearsalReminderTargetStudents.find(item => item.id === flaggedStudentId);
+    if (!student || !event) return;
+
+    const danceLabel = linkedDances.map(dance => dance.registrationName).join(', ') || event.title || 'Rehearsal';
+    const latestNote = eventNotes.liveNotes[eventNotes.liveNotes.length - 1];
+
+    addReminder({
+      title: `Schedule extra rehearsal for ${student.name} - ${danceLabel}`,
+      notes: latestNote ? `Flagged from note: ${latestNote.text}` : `Flagged during ${event.title}`,
+      completed: false,
+      dueDate: format(addWeeks(new Date(), 1), 'yyyy-MM-dd'),
+      priority: 'medium',
+      flagged: true,
+      listName: 'Class Reminders',
+      listColor: '#3B82F6',
+      listIcon: 'AlertCircle',
+    });
+
+    setFlagReminderCreated(true);
+    setShowFlagDancerPicker(false);
+    setFlaggedStudentId('');
   };
 
   const handleSaveNote = (newNote: LiveNote) => {
@@ -551,6 +597,16 @@ export function EventNotes() {
 
       {/* Notes List */}
       <div className="flex-1 overflow-y-auto p-4 page-w w-full">
+        {flagReminderCreated && (
+          <Link
+            to="/me"
+            className="mb-3 flex items-center gap-2 rounded-xl border border-[var(--accent-primary)]/20 bg-[var(--accent-muted)] px-3 py-2"
+          >
+            <Flag size={14} className="text-[var(--accent-primary)]" />
+            <span className="text-xs text-[var(--accent-primary)]">Rehearsal follow-up reminder added</span>
+          </Link>
+        )}
+
         <NotesList
           notes={eventNotes.liveNotes}
           onDeleteNote={deleteNote}
@@ -593,6 +649,53 @@ export function EventNotes() {
             selectedTag={selectedTag}
             setSelectedTag={setSelectedTag}
           />
+
+          {rehearsalReminderTargetStudents.length > 0 && (
+            <div className="mt-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-inset)] p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-[var(--text-primary)]">Flag dancer for extra rehearsal</div>
+                  <div className="text-xs text-[var(--text-secondary)]">
+                    Creates a reminder due next week for this rehearsal roster.
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowFlagDancerPicker(current => !current);
+                    setFlagReminderCreated(false);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[var(--surface-card)] px-3 py-2 text-sm font-medium text-[var(--accent-primary)] hover:bg-[var(--surface-highlight)] transition-colors"
+                >
+                  <Flag size={14} />
+                  Flag dancer
+                </button>
+              </div>
+
+              {showFlagDancerPicker && (
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <select
+                    value={flaggedStudentId}
+                    onChange={(e) => setFlaggedStudentId(e.target.value)}
+                    className="flex-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-sm text-[var(--text-primary)]"
+                  >
+                    <option value="">Select dancer...</option>
+                    {rehearsalReminderTargetStudents.map(student => (
+                      <option key={student.id} value={student.id}>
+                        {student.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={createFlagDancerReminder}
+                    disabled={!flaggedStudentId}
+                    className="rounded-xl bg-[var(--accent-primary)] px-4 py-2 text-sm font-medium text-[var(--text-on-accent)] transition-colors disabled:opacity-50"
+                  >
+                    Create reminder
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* End Event Button */}
           {alreadySaved ? (

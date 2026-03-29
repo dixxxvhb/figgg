@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppData, AppSettings, Class, WeekNotes, Competition, CompetitionDance, Student, CalendarEvent, SelfCareData, LaunchPlanData } from '../types';
-import type { AICheckIn, DayPlan, TherapistData, MeditationData, GriefData, NudgeDismissState, FixItem } from '../types';
+import type { AICheckIn, DayPlan, TherapistData, MeditationData, GriefData, NudgeDismissState, FixItem, Reminder, ReminderList } from '../types';
 import { loadData, saveData, saveWeekNotes as saveWeekNotesToStorage, saveSelfCareToStorage, saveLaunchPlanToStorage, saveDayPlanToStorage, saveTherapistToStorage, saveMeditationToStorage, saveGriefToStorage } from '../services/storage';
 import { runLearningEngine } from '../services/learningEngine';
 import { getWeekStart, formatWeekOf, toDateStr } from '../utils/time';
@@ -712,6 +712,57 @@ export function useAppData() {
     }
   }, []);
 
+  const addReminder = useCallback((
+    reminder: Omit<Reminder, 'id' | 'createdAt' | 'updatedAt' | 'listId'> & {
+      listId?: string;
+      listName?: string;
+      listColor?: string;
+      listIcon?: string;
+    }
+  ) => {
+    const existingReminders = data.selfCare?.reminders || [];
+    const existingLists = data.selfCare?.reminderLists || [];
+
+    let targetList: ReminderList | undefined = reminder.listId
+      ? existingLists.find(list => list.id === reminder.listId)
+      : undefined;
+
+    if (!targetList) {
+      const listName = reminder.listName || 'Reminders';
+      targetList = existingLists.find(list => list.name === listName);
+      if (!targetList) {
+        targetList = {
+          id: uuid(),
+          name: listName,
+          color: reminder.listColor || '#3B82F6',
+          icon: reminder.listIcon || 'AlertCircle',
+          order: existingLists.length,
+          createdAt: new Date().toISOString(),
+        };
+      }
+    }
+
+    const nextLists = existingLists.some(list => list.id === targetList!.id)
+      ? existingLists
+      : [...existingLists, targetList];
+
+    const now = new Date().toISOString();
+    const newReminder: Reminder = {
+      ...reminder,
+      id: uuid(),
+      listId: targetList.id,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    updateSelfCare({
+      reminders: [...existingReminders, newReminder],
+      reminderLists: nextLists,
+    });
+
+    return newReminder;
+  }, [data.selfCare, updateSelfCare]);
+
   // Launch plan — uses immediate cloud save (same pattern as selfCare)
   const updateLaunchPlan = useCallback((updates: Partial<LaunchPlanData>) => {
     saveLaunchPlanToStorage(updates);
@@ -936,6 +987,7 @@ export function useAppData() {
     hideCalendarEvent,
     // Self-care
     updateSelfCare,
+    addReminder,
     // Launch plan
     updateLaunchPlan,
     // AI
