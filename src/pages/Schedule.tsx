@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Calendar, MapPin, Clock, Trophy, Users, Car, CalendarOff } from 'lucide-react';
 import { format, addWeeks, startOfWeek, addDays, isWithinInterval, parseISO } from 'date-fns';
@@ -13,7 +13,7 @@ import { WeekStats } from '../components/Dashboard/WeekStats';
 import { WeekMomentumBar } from '../components/Dashboard/WeekMomentumBar';
 import { StreakCard } from '../components/Dashboard/StreakCard';
 import { EventCountdown } from '../components/Dashboard/EventCountdown';
-import { classifyCalendarEvent } from '../utils/calendarEventType';
+import { classifyCalendarEvent, shouldPreferCalendarEventOverClass } from '../utils/calendarEventType';
 
 const DAYS: { key: DayOfWeek; label: string; short: string }[] = [
   { key: 'monday', label: 'Monday', short: 'Mon' },
@@ -79,6 +79,14 @@ export function Schedule() {
   const dayClasses = data.classes
     .filter(c => c.day === selectedDay)
     .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+  const visibleDayClasses = dayClasses.filter(cls =>
+    !shouldPreferCalendarEventOverClass(cls, calendarEventsForDay, {
+      classes: data.classes,
+      allEvents: data.calendarEvents || [],
+      competitionDances: data.competitionDances || [],
+      studios: data.studios,
+    })
+  );
 
   // Count students enrolled in each class (or dancers in competition dance for rehearsals)
   const getStudentCount = (classId: string) => {
@@ -98,18 +106,18 @@ export function Schedule() {
     | { type: 'event'; data: CalendarEvent; time: number }
     | { type: 'travel'; fromStudio: string; toStudio: string; travelMinutes: number; time: number };
 
-  const mergedSchedule = useMemo(() => {
+  const mergedSchedule = (() => {
     const items: ScheduleItem[] = [];
 
     // Build class lookup for deduplication (by time and name)
     const classTimeSet = new Set(
-      dayClasses.map(cls => timeToMinutes(cls.startTime))
+      visibleDayClasses.map(cls => timeToMinutes(cls.startTime))
     );
     const classNameSet = new Set(
-      dayClasses.map(cls => cls.name.toLowerCase())
+      visibleDayClasses.map(cls => cls.name.toLowerCase())
     );
 
-    dayClasses.forEach(cls => {
+    visibleDayClasses.forEach(cls => {
       items.push({ type: 'class', data: cls, time: timeToMinutes(cls.startTime) });
     });
 
@@ -156,7 +164,7 @@ export function Schedule() {
     }
 
     return withTravel;
-  }, [dayClasses, calendarEventsForDay, data.studios]);
+  })();
 
   return (
     <div className="page-container pb-24 xl:max-w-5xl">
@@ -232,10 +240,19 @@ export function Schedule() {
       <div className="flex gap-1 mb-6 overflow-x-auto pb-2 md:grid md:grid-cols-7 md:overflow-visible">
         {DAYS.map(({ key, short }) => {
           const isSelected = selectedDay === key;
-          const hasClasses = data.classes.some(c => c.day === key);
+          const rawDayClasses = data.classes.filter(c => c.day === key);
           const dayDate = addDays(weekStart, DAYS.findIndex(d => d.key === key));
           const dayDateStr = format(dayDate, 'yyyy-MM-dd');
           const dayCalendarEvents = (data.calendarEvents || []).filter(e => e.date === dayDateStr && !hiddenEventIds.has(e.id));
+          const visibleClasses = rawDayClasses.filter(cls =>
+            !shouldPreferCalendarEventOverClass(cls, dayCalendarEvents, {
+              classes: data.classes,
+              allEvents: data.calendarEvents || [],
+              competitionDances: data.competitionDances || [],
+              studios: data.studios,
+            })
+          );
+          const hasClasses = visibleClasses.length > 0;
           const hasWorkCalendarEvents = dayCalendarEvents.some(event =>
             classifyCalendarEvent(event, {
               classes: data.classes,
@@ -320,7 +337,7 @@ export function Schedule() {
       )}
 
       {/* Weekend message when no calendar connected, no competitions, and no classes */}
-      {isWeekend && calendarEventsForDay.length === 0 && competitionsForDay.length === 0 && dayClasses.length === 0 && !data.settings?.calendarUrl && (
+      {isWeekend && calendarEventsForDay.length === 0 && competitionsForDay.length === 0 && visibleDayClasses.length === 0 && !data.settings?.calendarUrl && (
         <div className="bg-[var(--surface-card)] rounded-xl p-6 mb-4 text-center border border-[var(--border-subtle)]">
           <div className="w-12 h-12 bg-[var(--surface-inset)] rounded-full flex items-center justify-center mx-auto mb-3">
             <Calendar className="text-[var(--accent-primary)]" size={24} />

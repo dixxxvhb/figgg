@@ -43,7 +43,7 @@ import { executeAIActions as executeSharedAIActions } from '../services/aiAction
 import type { ActionCallbacks } from '../services/aiActions';
 import { applyMoodLayer } from '../styles/moodLayer';
 import type { MoodSignal, ActivityState } from '../styles/moodLayer';
-import { classifyCalendarEvent } from '../utils/calendarEventType';
+import { classifyCalendarEvent, shouldPreferCalendarEventOverClass } from '../utils/calendarEventType';
 
 // ── Constants ──
 
@@ -397,8 +397,22 @@ export function Dashboard() {
   currentTime.setSeconds(0, 0);
 
   const currentDay = getCurrentDayOfWeek();
-  const todayClasses = useMemo(() => getClassesByDay(data.classes, currentDay), [data.classes, currentDay]);
+  const rawTodayClasses = useMemo(() => getClassesByDay(data.classes, currentDay), [data.classes, currentDay]);
   const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const hiddenEventIds = useMemo(() => new Set(data.settings?.hiddenCalendarEventIds || []), [data.settings?.hiddenCalendarEventIds]);
+  const todayEventsRaw = useMemo(() => (
+    (data.calendarEvents || [])
+      .filter((e: CalendarEvent) => e.date === todayStr && e.startTime && e.startTime !== '00:00' && !hiddenEventIds.has(e.id))
+      .sort((a: CalendarEvent, b: CalendarEvent) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime))
+  ), [data.calendarEvents, todayStr, hiddenEventIds]);
+  const todayClasses = useMemo(() => rawTodayClasses.filter(cls =>
+    !shouldPreferCalendarEventOverClass(cls, todayEventsRaw, {
+      classes: data.classes,
+      allEvents: data.calendarEvents || [],
+      competitionDances: data.competitionDances || [],
+      studios: data.studios,
+    })
+  ), [rawTodayClasses, todayEventsRaw, data.classes, data.calendarEvents, data.competitionDances, data.studios]);
 
   const activeTodayClasses = useMemo(() => {
     const weekOf = formatWeekOf(getWeekStart());
@@ -409,17 +423,15 @@ export function Dashboard() {
     });
   }, [todayClasses, data.weekNotes]);
 
-  const hiddenEventIds = useMemo(() => new Set(data.settings?.hiddenCalendarEventIds || []), [data.settings?.hiddenCalendarEventIds]);
   const todayCalendarEvents = useMemo(() => {
     const classTimes = todayClasses.map(c => timeToMinutes(c.startTime));
-    return (data.calendarEvents || [])
-      .filter((e: CalendarEvent) => e.date === todayStr && e.startTime && e.startTime !== '00:00' && !hiddenEventIds.has(e.id))
+    return todayEventsRaw
       .filter((e: CalendarEvent) => {
         const et = timeToMinutes(e.startTime);
         return !classTimes.some(ct => Math.abs(ct - et) <= 10);
       })
       .sort((a: CalendarEvent, b: CalendarEvent) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
-  }, [data.calendarEvents, todayStr, todayClasses, hiddenEventIds]);
+  }, [todayEventsRaw, todayClasses]);
 
   const currentCalendarEvent = useMemo(() => {
     return todayCalendarEvents.find((e: CalendarEvent) => {

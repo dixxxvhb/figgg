@@ -1,5 +1,6 @@
-import type { CalendarEvent, Class, CompetitionDance, DayOfWeek } from '../types';
+import type { CalendarEvent, Class, CompetitionDance, DayOfWeek, Studio } from '../types';
 import { detectLinkedDances } from './danceLinker';
+import { timeToMinutes } from './time';
 
 export type CalendarEventKind = 'class' | 'rehearsal' | 'work' | 'event';
 
@@ -22,6 +23,18 @@ const WORK_PATTERNS = /rehearsal|production|solo|duet|trio|small\s*group|large\s
 
 function normalize(value: string | undefined): string {
   return (value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function inferLinkedDanceIdsForClass(cls: Class, competitionDances: CompetitionDance[]): string[] {
+  if (cls.competitionDanceId) return [cls.competitionDanceId];
+  if (competitionDances.length === 0) return [];
+  return detectLinkedDances({
+    id: cls.id,
+    title: cls.name,
+    date: '',
+    startTime: cls.startTime,
+    endTime: cls.endTime,
+  }, competitionDances);
 }
 
 function getEventDay(date: string): DayOfWeek | null {
@@ -92,4 +105,33 @@ export function classifyCalendarEvent(
     badgeLabel: 'Event',
     actionLabel: 'Continue Notes',
   };
+}
+
+export function shouldPreferCalendarEventOverClass(
+  cls: Class,
+  calendarEvents: CalendarEvent[],
+  {
+    classes = [],
+    allEvents = [],
+    competitionDances = [],
+    studios = [],
+  }: ClassifyCalendarEventOptions & { studios?: Studio[] } = {}
+): boolean {
+  const hasKnownStudio = studios.some(studio => studio.id === cls.studioId);
+  const inferredLinkedDances = inferLinkedDanceIdsForClass(cls, competitionDances);
+  const matchingEvent = calendarEvents.find(event => {
+    const sameName = normalize(event.title) === normalize(cls.name);
+    const sameTime = Math.abs(timeToMinutes(event.startTime || '00:00') - timeToMinutes(cls.startTime)) <= 10;
+    return sameName || sameTime;
+  });
+
+  if (!matchingEvent) return false;
+
+  const matchingEventType = classifyCalendarEvent(matchingEvent, {
+    classes,
+    allEvents,
+    competitionDances,
+  });
+
+  return (!hasKnownStudio && matchingEventType.isWork) || (inferredLinkedDances.length > 0 && matchingEventType.isWork);
 }

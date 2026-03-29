@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { getClassesByDay } from '../data/classes';
 import { timeToMinutes, getCurrentDayOfWeek, formatWeekOf, getWeekStart } from '../utils/time';
 import type { AppData, Class, Studio, Student, LiveNote } from '../types';
+import { shouldPreferCalendarEventOverClass } from '../utils/calendarEventType';
 
 export interface ClassWithContext {
   class: Class;
@@ -20,7 +21,21 @@ export function useClassTiming(data: AppData, currentMinute: number): {
 } {
   return useMemo(() => {
     const dayName = getCurrentDayOfWeek();
-    const todayClasses = getClassesByDay(data.classes, dayName);
+    const rawTodayClasses = getClassesByDay(data.classes, dayName);
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const hiddenEventIds = new Set(data.settings?.hiddenCalendarEventIds || []);
+    const todayCalendarEvents = (data.calendarEvents || []).filter(
+      event => event.date === todayStr && !hiddenEventIds.has(event.id)
+    );
+    const todayClasses = rawTodayClasses.filter(cls =>
+      !shouldPreferCalendarEventOverClass(cls, todayCalendarEvents, {
+        classes: data.classes,
+        allEvents: data.calendarEvents || [],
+        competitionDances: data.competitionDances || [],
+        studios: data.studios,
+      })
+    );
 
     if (todayClasses.length === 0) {
       return { upcomingClass: null, justEndedClass: null, minutesUntilNext: null };
