@@ -33,6 +33,7 @@ import {
   updateGoogleCalendarEvent as updateGCalEvent,
   deleteGoogleCalendarEvent,
 } from '../../services/googleCalendar';
+import { auth } from '../../services/firebase';
 
 // ─── Shared Emotion Config ─────────────────────────────────────
 
@@ -983,6 +984,24 @@ function SessionHistory({
     setExpandedId(prev => (prev === id ? null : id));
   };
 
+  const handleEmailToSelf = (session: TherapistSession) => {
+    const subject = `Therapy Session Notes - ${format(parseISO(session.date), 'MMM d, yyyy')}`;
+    const body = [
+      `Therapy Session - ${format(parseISO(session.date), 'MMMM d, yyyy')}`,
+      '',
+      'SUMMARY',
+      session.summary,
+      '',
+      session.takeaways ? `KEY TAKEAWAYS\n${session.takeaways}\n` : '',
+      session.actionItems.length > 0
+        ? `ACTION ITEMS\n${session.actionItems.map(item => `- ${item.text}`).join('\n')}\n`
+        : '',
+    ].filter(Boolean).join('\n');
+
+    const recipient = auth?.currentUser?.email || '';
+    window.location.href = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
   return (
     <div className="space-y-2">
       <h3 className="type-label text-[var(--text-secondary)] flex items-center gap-1.5">
@@ -1034,6 +1053,14 @@ function SessionHistory({
                       {session.summary}
                     </p>
                   </div>
+
+                  <button
+                    onClick={() => handleEmailToSelf(session)}
+                    className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-[var(--surface-card)] px-3 py-2 text-sm font-medium text-[var(--accent-primary)] hover:bg-[var(--accent-muted)]"
+                  >
+                    <BookOpen size={14} />
+                    Email to self
+                  </button>
 
                   {/* Emotions */}
                   {session.emotions && session.emotions.length > 0 && (

@@ -964,6 +964,26 @@ export function LiveNotes() {
     }
   };
 
+  const handleShareOrganizedNotes = () => {
+    if (!expandedSummary || !cls) return;
+    const emails = Array.from(new Set(
+      enrolledStudents
+        .map(student => student.parentEmail?.trim())
+        .filter((email): email is string => Boolean(email))
+    ));
+
+    const subject = `Class Notes - ${cls.name} - ${classDateLabel || format(new Date(), 'MMM d, yyyy')}`;
+    const body = [
+      `Class Notes for ${cls.name}`,
+      classDateLabel || format(new Date(), 'MMM d, yyyy'),
+      '',
+      expandedSummary,
+    ].join('\n');
+
+    const mailto = `mailto:?bcc=${encodeURIComponent(emails.join(','))}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailto;
+  };
+
   return (
     <div className="flex flex-col h-full bg-[var(--surface-primary)]">
       {confirmDialog}
@@ -1057,7 +1077,7 @@ export function LiveNotes() {
         {/* Expanded Summary */}
         {expandedSummary && (
           <div className="mb-4 bg-[var(--status-warning)]/10 border border-[var(--status-warning)]/30 rounded-xl overflow-hidden">
-            <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--status-warning)]/30">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--status-warning)]/30">
               <div className="flex items-center gap-2">
                 <BookOpen size={14} className="text-[var(--status-warning)]" />
                 <span className="text-xs font-semibold text-[var(--status-warning)] uppercase tracking-wide">Class Summary</span>
@@ -1065,6 +1085,12 @@ export function LiveNotes() {
               <div className="flex items-center gap-2">
                 {!isEditingSummary && (
                   <>
+                    <button
+                      onClick={handleShareOrganizedNotes}
+                      className="text-xs text-[var(--status-warning)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded"
+                    >
+                      Share via Email
+                    </button>
                     <button
                       onClick={() => { setEditedSummary(expandedSummary); setIsEditingSummary(true); }}
                       className="text-xs text-[var(--status-warning)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded"
