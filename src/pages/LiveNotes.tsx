@@ -16,6 +16,7 @@ import { getProgressionSuggestions, getRepetitionFlags } from '../data/progressi
 import { generatePlan as aiGeneratePlan, detectReminders as aiDetectReminders, expandNotes as aiExpandNotes } from '../services/ai';
 import { buildAIContext } from '../services/aiContext';
 import { detectLinkedDances } from '../utils/danceLinker';
+import { getClassRosterStudentIds } from '../utils/attendanceRoster';
 
 // Boost relevant terminology categories based on which note tag is selected
 const TAG_CATEGORY_BOOSTS: Record<string, TermCategory[]> = {
@@ -158,6 +159,13 @@ export function LiveNotes() {
     [data.competitionDances, linkedDanceIds]
   );
 
+  const autoRosterStudentIds = useMemo(
+    () => cls
+      ? getClassRosterStudentIds(cls, data.students || [], data.competitionDances || [])
+      : [],
+    [cls, data.competitionDances, data.students]
+  );
+
   // Get enrolled students — include attendees who aren't formally enrolled
   const enrolledStudents = useMemo(() => {
     const byClassId = (data.students || []).filter(s => s.classIds?.includes(classId || ''));
@@ -193,6 +201,34 @@ export function LiveNotes() {
     if (linkedDances.length > 0) return enrolledStudents;
     return (data.students || []).filter(student => student.classIds?.includes(classId || ''));
   }, [classId, data.students, enrolledStudents, linkedDances.length]);
+
+  useEffect(() => {
+    if (!classId || autoRosterStudentIds.length === 0) return;
+    const hasExistingAttendance = attendance.present.length > 0 || attendance.absent.length > 0 || attendance.late.length > 0;
+    if (hasExistingAttendance) return;
+
+    const updatedClassNotes: ClassWeekNotes = {
+      ...classNotes,
+      attendance: {
+        present: autoRosterStudentIds,
+        absent: [],
+        late: [],
+        absenceReasons: {},
+        rollCompleted: false,
+      },
+    };
+
+    const updatedWeekNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [classId]: updatedClassNotes,
+      },
+    };
+
+    setWeekNotes(updatedWeekNotes);
+    saveWeekNotes(updatedWeekNotes);
+  }, [attendance.absent.length, attendance.late.length, attendance.present.length, autoRosterStudentIds, classId, classNotes, saveWeekNotes, weekNotes]);
 
   // Update time remaining
   useEffect(() => {

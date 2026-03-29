@@ -13,6 +13,7 @@ import { findMatchingPastSessions } from '../utils/smartNotes';
 import { getCategoryStyle, getCategoryLabel } from '../constants/noteCategories';
 import { normalizeNoteCategory } from '../types';
 import { classifyCalendarEvent } from '../utils/calendarEventType';
+import { getEventRosterStudentIds } from '../utils/attendanceRoster';
 
 export function CalendarEventDetail() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -573,16 +574,55 @@ function EventRoster({
   }, [event.linkedDanceIds, data.competitionDances]);
 
   // Get unique dancers from all linked dances
-  const dancers = useMemo(() => {
-    const dancerIdSet = new Set<string>();
-    linkedDances.forEach((dance: CompetitionDance) => {
-      (dance.dancerIds || []).forEach((id: string) => dancerIdSet.add(id));
-    });
-    return (data.students || []).filter((s: Student) => dancerIdSet.has(s.id));
-  }, [linkedDances, data.students]);
+  const rosterStudentIds = useMemo(
+    () => getEventRosterStudentIds(event, {
+      students: data.students || [],
+      classes: data.classes || [],
+      competitionDances: data.competitionDances || [],
+    }),
+    [data.classes, data.competitionDances, data.students, event]
+  );
+
+  const dancers = useMemo(
+    () => (data.students || []).filter((s: Student) => rosterStudentIds.includes(s.id)),
+    [data.students, rosterStudentIds]
+  );
 
   // Attendance from weekNotes
   const attendance = eventNotes?.attendance || { present: [], absent: [], late: [] };
+
+  useEffect(() => {
+    if (rosterStudentIds.length === 0) return;
+    const hasExistingAttendance = attendance.present.length > 0 || attendance.absent.length > 0 || attendance.late.length > 0;
+    if (hasExistingAttendance) return;
+
+    const existingNotes = eventNotes || {
+      classId: eventId,
+      plan: '',
+      liveNotes: [],
+      isOrganized: false,
+      media: [],
+      eventTitle: event?.title,
+    };
+
+    const updatedNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [eventId]: {
+          ...existingNotes,
+          attendance: {
+            present: rosterStudentIds,
+            absent: [],
+            late: [],
+            absenceReasons: {},
+            rollCompleted: false,
+          },
+        },
+      },
+    };
+    saveNotes(updatedNotes);
+  }, [attendance.absent.length, attendance.late.length, attendance.present.length, event?.title, eventId, eventNotes, rosterStudentIds, saveNotes, weekNotes]);
 
   const getAttendanceStatus = (studentId: string): 'present' | 'absent' | 'late' | 'unmarked' => {
     if (attendance.present.includes(studentId)) return 'present';

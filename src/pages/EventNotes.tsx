@@ -15,6 +15,7 @@ import { buildAIContext } from '../services/aiContext';
 import { getWeekNotes as getWeekNotesFromStorage } from '../services/storage';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
 import { detectLinkedDances } from '../utils/danceLinker';
+import { getEventRosterStudentIds } from '../utils/attendanceRoster';
 
 export function EventNotes() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -144,6 +145,17 @@ export function EventNotes() {
     [data.students, linkedDances]
   );
 
+  const autoRosterStudentIds = useMemo(
+    () => event
+      ? getEventRosterStudentIds(event, {
+          students: data.students || [],
+          classes: data.classes || [],
+          competitionDances: data.competitionDances || [],
+        })
+      : [],
+    [data.classes, data.competitionDances, data.students, event]
+  );
+
   // Smart Notes: find matching past sessions by event title
   const pastSessions = event?.title
     ? findMatchingPastSessions(data.weekNotes, event.title, eventId || '')
@@ -179,6 +191,35 @@ export function EventNotes() {
       setCarryForwardApplied(true);
     }
   }, []); // Run once on mount only
+
+  useEffect(() => {
+    if (!eventId || autoRosterStudentIds.length === 0) return;
+    const attendance = eventNotes.attendance || { present: [], absent: [], late: [] };
+    const hasExistingAttendance = attendance.present.length > 0 || attendance.absent.length > 0 || attendance.late.length > 0;
+    if (hasExistingAttendance) return;
+
+    const updatedEventNotes: ClassWeekNotes = {
+      ...eventNotes,
+      attendance: {
+        present: autoRosterStudentIds,
+        absent: [],
+        late: [],
+        absenceReasons: {},
+        rollCompleted: false,
+      },
+    };
+
+    const updatedWeekNotes = {
+      ...weekNotes,
+      classNotes: {
+        ...weekNotes.classNotes,
+        [eventId]: updatedEventNotes,
+      },
+    };
+
+    setWeekNotes(updatedWeekNotes);
+    saveWeekNotes(updatedWeekNotes);
+  }, [autoRosterStudentIds, eventId, eventNotes, saveWeekNotes, weekNotes]);
 
   if (!event) {
     return (
