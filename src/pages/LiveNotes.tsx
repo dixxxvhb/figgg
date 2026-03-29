@@ -99,6 +99,9 @@ export function LiveNotes() {
   const [isEndingClass, setIsEndingClass] = useState(false);
   const [showQuickAddStudent, setShowQuickAddStudent] = useState(false);
   const [quickAddName, setQuickAddName] = useState('');
+  const [showNextWeekGoal, setShowNextWeekGoal] = useState(false);
+  const [nextWeekGoalDraft, setNextWeekGoalDraft] = useState('');
+  const [nextWeekGoalSaved, setNextWeekGoalSaved] = useState(false);
   const endClassLockRef = useRef(false);
   const [alreadySaved, setAlreadySaved] = useState(() => {
     // Check if this class was already ended/saved this week
@@ -141,6 +144,12 @@ export function LiveNotes() {
 
   // Initialize attendance from classNotes or default
   const attendance = classNotes.attendance || { present: [], absent: [], late: [] };
+
+  useEffect(() => {
+    setNextWeekGoalDraft(classNotes.nextWeekGoal || '');
+    setShowNextWeekGoal(Boolean(classNotes.nextWeekGoal));
+    setNextWeekGoalSaved(false);
+  }, [classNotes.nextWeekGoal]);
 
   const linkedDanceIds = useMemo(() => {
     if (!cls) return [];
@@ -1392,24 +1401,6 @@ export function LiveNotes() {
           />
         )}
 
-        {/* Next Week Goal — compact inline */}
-        {!alreadySaved && (
-          <div className="mt-3 flex items-center gap-2 px-1">
-            <span className="text-xs text-blue-500 dark:text-blue-400 whitespace-nowrap font-medium">Next week goal:</span>
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                value={classNotes.nextWeekGoal || ''}
-                onChange={(e) => saveNextWeekGoal(e.target.value)}
-                placeholder="What's the focus for next week?"
-                className="w-full text-sm px-3 py-1.5 pr-8 bg-[var(--surface-inset)] border border-blue-200 dark:border-blue-700 rounded-lg text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-              />
-              {classNotes.nextWeekGoal && (
-                <Check size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--status-success)]" />
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Input Area */}
@@ -1501,6 +1492,58 @@ export function LiveNotes() {
                 <div className="p-3 bg-[var(--status-danger)]/10 border border-[var(--status-danger)]/30 rounded-xl text-[var(--status-danger)] text-sm">
                   {aiError}
                   <button onClick={() => setAiError(null)} className="ml-2 text-[var(--status-danger)] hover:text-[var(--text-primary)]">Dismiss</button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!alreadySaved && (
+            <div className="mt-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-inset)] p-3">
+              <button
+                onClick={() => setShowNextWeekGoal(current => !current)}
+                className="flex w-full items-center justify-between gap-3 text-left"
+              >
+                <div>
+                  <div className="text-sm font-medium text-[var(--text-primary)]">Goals for next session</div>
+                  <div className="text-xs text-[var(--text-secondary)]">
+                    Save one wrap-up focus before leaving class.
+                  </div>
+                </div>
+                {showNextWeekGoal ? (
+                  <ChevronUp size={16} className="text-[var(--text-tertiary)]" />
+                ) : (
+                  <ChevronDown size={16} className="text-[var(--text-tertiary)]" />
+                )}
+              </button>
+
+              {showNextWeekGoal && (
+                <div className="mt-3 flex gap-2">
+                  <input
+                    type="text"
+                    value={nextWeekGoalDraft}
+                    onChange={(e) => {
+                      setNextWeekGoalDraft(e.target.value);
+                      setNextWeekGoalSaved(false);
+                    }}
+                    placeholder="What's the focus for next week?"
+                    className="flex-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:border-transparent focus:ring-2 focus:ring-[var(--accent-primary)]"
+                  />
+                  <button
+                    onClick={() => {
+                      saveNextWeekGoal(nextWeekGoalDraft.trim());
+                      setNextWeekGoalSaved(true);
+                    }}
+                    className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl bg-[var(--accent-primary)] px-3 text-[var(--text-on-accent)] transition-colors hover:bg-[var(--accent-primary-hover)]"
+                    title="Save next session goal"
+                  >
+                    <Check size={16} />
+                  </button>
+                </div>
+              )}
+
+              {showNextWeekGoal && nextWeekGoalSaved && (
+                <div className="mt-2 text-xs text-[var(--accent-primary)]">
+                  Goal saved for next session.
                 </div>
               )}
             </div>
