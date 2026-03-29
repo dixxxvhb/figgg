@@ -161,9 +161,12 @@ All jobs use `w9jds/firebase-action@master` with `FIREBASE_SERVICE_ACCOUNT` secr
 | `choreography.ts` | Choreography domain: Section, Progression, Formation, PracticeNote |
 
 ### Components (`src/components/`)
-**Common** (`common/`): Header, Button, Card, ConfirmDialog, DropdownMenu, EmptyState, ErrorBoundary, PageSkeleton, PlanDisplay, PullToRefresh, SaveStatus
+**Common** (`common/`): Header, Button, Card, Checkbox, Breadcrumb, ConfirmDialog, DropdownMenu, EmptyState, ErrorBoundary, NoteInput, PageSkeleton, PlanDisplay, PullToRefresh, SaveStatus
 
-**Dashboard** (`Dashboard/`): TodaysAgenda, MorningBriefing, AICheckInWidget, DayPlanWidget, NudgeCards, PrepCard, PostClassCapture, RemindersWidget, ScratchpadWidget, WeekStats, WeekMomentumBar, StreakCard, LaunchPlanWidget, EventCountdown, SortableWidget
+**Dashboard** (`Dashboard/`): TodaysAgenda, MorningBriefing, AICheckInWidget, DayPlanWidget, NudgeCards, PrepCard, PostClassCapture, RemindersWidget, ScratchpadWidget, WeekStats, WeekMomentumBar, StreakCard, EventCountdown, FixItemWidget, WeeklyInsight, QuickNoteCapture
+  - Note: Dashboard is context-aware (morning/prep/class/post/evening/default) — only 4-5 cards show at a time
+  - Deleted: SortableWidget, DailyBriefingWidget, EndOfDaySummary, LaunchPlanWidget
+  - Relocated to other pages: WeekStats/MomentumBar/StreakCard/EventCountdown → Schedule, WeeklyInsight → WeekReview, FixItemWidget → Me
 
 **Wellness** (`wellness/`): CollapsibleSection, GriefToolkit, MeditationSpace, MedsTracker, SmartChecklist, TherapistTracker
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppData, AppSettings, Class, WeekNotes, Competition, CompetitionDance, Student, CalendarEvent, SelfCareData, LaunchPlanData } from '../types';
-import type { AICheckIn, DayPlan, TherapistData, MeditationData, GriefData, DailyBriefing, NudgeDismissState, FixItem } from '../types';
+import type { AICheckIn, DayPlan, TherapistData, MeditationData, GriefData, NudgeDismissState, FixItem } from '../types';
 import { loadData, saveData, saveWeekNotes as saveWeekNotesToStorage, saveSelfCareToStorage, saveLaunchPlanToStorage, saveDayPlanToStorage, saveTherapistToStorage, saveMeditationToStorage, saveGriefToStorage } from '../services/storage';
 import { runLearningEngine } from '../services/learningEngine';
 import { getWeekStart, formatWeekOf, toDateStr } from '../utils/time';
@@ -8,7 +8,7 @@ import { v4 as uuid } from 'uuid';
 import { auth } from '../services/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import {
-  loadAllData,
+  loadAllDataWithMeta,
   onSelfCareSnapshot,
   onDayPlanSnapshot,
   onLaunchPlanSnapshot,
@@ -121,20 +121,44 @@ export function useAppData() {
   // to avoid React 18 batching issue where N snapshot callbacks increment by N but
   // the save effect only decrements by 1, suppressing subsequent user saves.
   const isSnapshotUpdate = useRef(false);
+  const cloudAuthorityRef = useRef<'unknown' | 'local-fallback' | 'cloud-authoritative'>('unknown');
+
+  const applySnapshotUpdate = useCallback((updater: (prev: AppData) => AppData) => {
+    isSnapshotUpdate.current = true;
+    queueMicrotask(() => { isSnapshotUpdate.current = false; });
+    setData(updater);
+  }, []);
+
+  const mergeCloudData = useCallback((firestoreData: AppData, hasRemoteState: boolean) => {
+    const localData = loadData();
+
+    if (!hasRemoteState) {
+      cloudAuthorityRef.current = 'local-fallback';
+      return localData;
+    }
+
+    cloudAuthorityRef.current = 'cloud-authoritative';
+    return {
+      ...firestoreData,
+      // Static reference data still falls back to the bundled glossary.
+      terminology: firestoreData.terminology.length > 0 ? firestoreData.terminology : localData.terminology,
+    };
+  }, []);
 
   // Run learning engine on app open (generates yesterday's snapshot if missing)
   useEffect(() => {
     const updated = runLearningEngine();
     if (updated) {
       const newData = loadData();
-      setData(prev => ({ ...prev, ...newData }));
+      queueMicrotask(() => {
+        setData(prev => ({ ...prev, ...newData }));
+      });
       // Push learningData to Firestore so it syncs across devices
       const uid = getUserId();
       if (uid && newData.learningData) {
         updateLearningDataDoc(uid, newData.learningData).catch(console.warn);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load data from Firestore on mount (overlays localStorage data)
@@ -142,47 +166,21 @@ export function useAppData() {
     const user = auth?.currentUser;
     if (!user) return;
 
-    loadAllData(user.uid).then(firestoreData => {
-      // Only use Firestore data if it has content (migration has been run)
-      const hasFirestoreData = firestoreData.classes.length > 0
-        || firestoreData.studios.length > 0
-        || firestoreData.selfCare
-        || firestoreData.launchPlan
-        || firestoreData.dayPlan
-        || (firestoreData.students && firestoreData.students.length > 0)
-        || firestoreData.weekNotes.length > 0;
-      if (hasFirestoreData) {
-        // Preserve seed/localStorage data for collections not yet migrated to Firestore.
-        // Without this, Firestore's empty arrays wipe out seed studios, classes, etc.
-        const localData = loadData();
-        setData(prev => {
-          const mergedData = {
-            ...prev,
-            ...firestoreData,
-            classes: firestoreData.classes.length > 0 ? firestoreData.classes : localData.classes,
-            studios: firestoreData.studios.length > 0 ? firestoreData.studios : localData.studios,
-            competitions: firestoreData.competitions.length > 0 ? firestoreData.competitions : localData.competitions,
-            competitionDances: firestoreData.competitionDances.length > 0 ? firestoreData.competitionDances : localData.competitionDances,
-            terminology: firestoreData.terminology.length > 0 ? firestoreData.terminology : localData.terminology,
-            students: (firestoreData.students?.length ?? 0) > 0 ? firestoreData.students : localData.students,
-            weekNotes: firestoreData.weekNotes.length > 0 ? firestoreData.weekNotes : localData.weekNotes,
-          };
-          // Also update localStorage cache for offline use
-          try {
-            localStorage.setItem('dance-teaching-app-data', JSON.stringify({
-              ...mergedData,
-              lastModified: new Date().toISOString(),
-            }));
-          } catch {
-            // localStorage write failed — not critical
-          }
-          return mergedData;
-        });
+    loadAllDataWithMeta(user.uid).then(({ data: firestoreData, hasRemoteState }) => {
+      const mergedData = mergeCloudData(firestoreData, hasRemoteState);
+      setData(prev => ({ ...prev, ...mergedData }));
+      try {
+        localStorage.setItem('dance-teaching-app-data', JSON.stringify({
+          ...mergedData,
+          lastModified: new Date().toISOString(),
+        }));
+      } catch {
+        // localStorage write failed — not critical
       }
     }).catch(err => {
       console.warn('Firestore load failed, using localStorage:', err);
     });
-  }, []);
+  }, [mergeCloudData]);
 
   // Set up Firestore real-time listeners once auth is ready.
   // auth.currentUser is null on mount (Firebase restores session async),
@@ -201,23 +199,20 @@ export function useAppData() {
 
       // Singleton listeners
       listenerUnsubs.push(onSelfCareSnapshot(user.uid, (selfCare) => {
-        if (selfCare) {
-          isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-          setData(prev => ({ ...prev, selfCare }));
+        if (selfCare || cloudAuthorityRef.current === 'cloud-authoritative') {
+          applySnapshotUpdate(prev => ({ ...prev, selfCare }));
         }
       }));
 
       listenerUnsubs.push(onDayPlanSnapshot(user.uid, (dayPlan) => {
-        if (dayPlan) {
-          isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-          setData(prev => ({ ...prev, dayPlan }));
+        if (dayPlan || cloudAuthorityRef.current === 'cloud-authoritative') {
+          applySnapshotUpdate(prev => ({ ...prev, dayPlan }));
         }
       }));
 
       listenerUnsubs.push(onLaunchPlanSnapshot(user.uid, (launchPlan) => {
-        if (launchPlan) {
-          isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-          setData(prev => ({ ...prev, launchPlan }));
+        if (launchPlan || cloudAuthorityRef.current === 'cloud-authoritative') {
+          applySnapshotUpdate(prev => ({ ...prev, launchPlan }));
         }
       }));
 
@@ -229,8 +224,7 @@ export function useAppData() {
       function setupBriefingListener(uid: string, dateStr: string) {
         briefingUnsub?.();
         briefingUnsub = onDailyBriefingSnapshot(uid, dateStr, (dailyBriefing) => {
-          isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-          setData(prev => ({ ...prev, dailyBriefing }));
+          applySnapshotUpdate(prev => ({ ...prev, dailyBriefing }));
           // Cache roast for login screen (shown before auth)
           if (dailyBriefing?.loginRoast) {
             localStorage.setItem('figgg_login_roast', dailyBriefing.loginRoast);
@@ -251,92 +245,79 @@ export function useAppData() {
       listenerUnsubs.push(() => clearInterval(dateCheckInterval));
 
       listenerUnsubs.push(onTherapistSnapshot(user.uid, (therapist) => {
-        if (therapist) {
-          isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-          setData(prev => ({ ...prev, therapist }));
+        if (therapist || cloudAuthorityRef.current === 'cloud-authoritative') {
+          applySnapshotUpdate(prev => ({ ...prev, therapist }));
         }
       }));
 
       listenerUnsubs.push(onMeditationSnapshot(user.uid, (meditation) => {
-        if (meditation) {
-          isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-          setData(prev => ({ ...prev, meditation }));
+        if (meditation || cloudAuthorityRef.current === 'cloud-authoritative') {
+          applySnapshotUpdate(prev => ({ ...prev, meditation }));
         }
       }));
 
       listenerUnsubs.push(onGriefSnapshot(user.uid, (grief) => {
-        if (grief) {
-          isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-          setData(prev => ({ ...prev, grief }));
+        if (grief || cloudAuthorityRef.current === 'cloud-authoritative') {
+          applySnapshotUpdate(prev => ({ ...prev, grief }));
         }
       }));
 
       listenerUnsubs.push(onNudgeStateSnapshot(user.uid, (nudgeState) => {
-        isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-        setData(prev => ({ ...prev, nudgeState: nudgeState || { dismissed: {}, snoozed: {} } }));
+        applySnapshotUpdate(prev => ({ ...prev, nudgeState: nudgeState || { dismissed: {}, snoozed: {} } }));
       }));
 
       listenerUnsubs.push(onProfileSnapshot(user.uid, (profile) => {
         if (profile?.settings) {
-          isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-          setData(prev => ({ ...prev, settings: { ...prev.settings, ...profile.settings } }));
+          applySnapshotUpdate(prev => ({ ...prev, settings: { ...prev.settings, ...profile.settings } }));
         }
       }));
 
       listenerUnsubs.push(onFixItemsSnapshot(user.uid, (fixItems) => {
-        if (fixItems.length > 0) {
-          isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-          setData(prev => ({ ...prev, fixItems }));
+        if (fixItems.length > 0 || cloudAuthorityRef.current === 'cloud-authoritative') {
+          applySnapshotUpdate(prev => ({ ...prev, fixItems }));
         }
       }));
 
       // Collection listeners for cross-device sync
       listenerUnsubs.push(onClassesSnapshot(user.uid, (classes) => {
-        if (classes.length > 0) {
-          isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-          setData(prev => ({ ...prev, classes }));
+        if (classes.length > 0 || cloudAuthorityRef.current === 'cloud-authoritative') {
+          applySnapshotUpdate(prev => ({ ...prev, classes }));
         }
       }));
 
       listenerUnsubs.push(onStudentsSnapshot(user.uid, (students) => {
-        if (students.length > 0) {
-          isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-          setData(prev => ({ ...prev, students }));
+        if (students.length > 0 || cloudAuthorityRef.current === 'cloud-authoritative') {
+          applySnapshotUpdate(prev => ({ ...prev, students }));
         }
       }));
 
       listenerUnsubs.push(onWeekNotesSnapshot(user.uid, (weekNotes) => {
-        if (weekNotes.length > 0) {
-          isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-          setData(prev => ({ ...prev, weekNotes }));
+        if (weekNotes.length > 0 || cloudAuthorityRef.current === 'cloud-authoritative') {
+          applySnapshotUpdate(prev => ({ ...prev, weekNotes }));
         }
       }));
 
       listenerUnsubs.push(onCompetitionsSnapshot(user.uid, (competitions) => {
-        if (competitions.length > 0) {
-          isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-          setData(prev => ({ ...prev, competitions }));
+        if (competitions.length > 0 || cloudAuthorityRef.current === 'cloud-authoritative') {
+          applySnapshotUpdate(prev => ({ ...prev, competitions }));
         }
       }));
 
       listenerUnsubs.push(onCompetitionDancesSnapshot(user.uid, (competitionDances) => {
-        if (competitionDances.length > 0) {
-          isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-          setData(prev => ({ ...prev, competitionDances }));
+        if (competitionDances.length > 0 || cloudAuthorityRef.current === 'cloud-authoritative') {
+          applySnapshotUpdate(prev => ({ ...prev, competitionDances }));
         }
       }));
 
       listenerUnsubs.push(onStudiosSnapshot(user.uid, (studios) => {
-        if (studios.length > 0) {
-          isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-          setData(prev => ({ ...prev, studios }));
+        if (studios.length > 0 || cloudAuthorityRef.current === 'cloud-authoritative') {
+          applySnapshotUpdate(prev => ({ ...prev, studios }));
         }
       }));
 
       listenerUnsubs.push(onCalendarEventsSnapshot(user.uid, (calendarEvents) => {
-        if (calendarEvents.length > 0) {
-          isSnapshotUpdate.current = true; queueMicrotask(() => { isSnapshotUpdate.current = false; });
-          setData(prev => ({ ...prev, calendarEvents }));
+        if (calendarEvents.length > 0 || cloudAuthorityRef.current === 'cloud-authoritative') {
+          applySnapshotUpdate(prev => ({ ...prev, calendarEvents }));
         }
       }));
 
@@ -346,7 +327,7 @@ export function useAppData() {
       unsubAuth();
       listenerUnsubs.forEach(fn => fn());
     };
-  }, []);
+  }, [applySnapshotUpdate]);
 
   // Save whenever data changes (skip initial mount to avoid double-save)
   useEffect(() => {
@@ -617,19 +598,15 @@ export function useAppData() {
     // Use functional setData to preserve real-time listener fields (dailyBriefing, etc.)
     const user = auth?.currentUser;
     if (user) {
-      loadAllData(user.uid).then(firestoreData => {
-        if (firestoreData.classes.length > 0 || firestoreData.studios.length > 0) {
-          setData(prev => ({ ...prev, ...firestoreData }));
-        } else {
-          setData(prev => ({ ...prev, ...loadData() }));
-        }
+      loadAllDataWithMeta(user.uid).then(({ data: firestoreData, hasRemoteState }) => {
+        setData(prev => ({ ...prev, ...mergeCloudData(firestoreData, hasRemoteState) }));
       }).catch(() => {
         setData(prev => ({ ...prev, ...loadData() }));
       });
     } else {
       setData(prev => ({ ...prev, ...loadData() }));
     }
-  }, []);
+  }, [mergeCloudData]);
 
   // Listen for cloud sync events and local saves from other hook instances
   useEffect(() => {

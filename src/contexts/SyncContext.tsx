@@ -58,8 +58,8 @@ async function syncAllCalendars(force = false): Promise<string[]> {
       const events = await fetchCalendarEvents(url);
       results.push(`${shortUrl}: ${events.length} events`);
       return events;
-    } catch (e: any) {
-      const msg = e?.message || 'failed';
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'failed';
       results.push(`${shortUrl}: FAILED (${msg})`);
       return [] as CalendarEvent[];
     }
@@ -128,9 +128,15 @@ async function syncAllCalendars(force = false): Promise<string[]> {
   }
   // Overlay localStorage events — preserves local edits not yet in Firestore
   for (const event of localEvents) {
-    if (!existingMap.has(event.id)) {
+    const existing = existingMap.get(event.id);
+    if (!existing) {
       existingMap.set(event.id, event);
+      continue;
     }
+    existingMap.set(event.id, {
+      ...existing,
+      linkedDanceIds: event.linkedDanceIds ?? existing.linkedDanceIds,
+    });
   }
   const existingEvents = Array.from(existingMap.values());
 
@@ -207,11 +213,10 @@ const CALENDAR_SYNC_COOLDOWN = 5 * 60 * 1000;
 let lastCalendarSyncTime = 0;
 
 export function SyncProvider({ children }: { children: React.ReactNode }) {
-  const [status, setStatusState] = useState<SyncStatus>('idle');
+  const [status, setStatusState] = useState<SyncStatus>(() => navigator.onLine ? 'idle' : 'offline');
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const statusRef = useRef<SyncStatus>(status);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const calendarSyncIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     statusRef.current = status;
@@ -231,17 +236,28 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   // Firestore onSnapshot handles real-time data sync.
   // triggerSync is kept for backward compatibility (UI components may call it).
   const triggerSync = useCallback(async () => {
-    setLastSynced(new Date());
-    setStatusState('success');
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => setStatusState('idle'), 2000);
+    if (statusRef.current === 'offline') {
+      setStatusState('offline');
+      return;
+    }
+
+    setStatusState('syncing');
+    try {
+      await syncAllCalendars(true);
+      setLastSynced(new Date());
+      setStatusState('success');
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => setStatusState('idle'), 2000);
+    } catch (error) {
+      console.error('Manual sync failed:', error);
+      setStatusState('error');
+    }
   }, []);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      if (calendarSyncIntervalRef.current) clearInterval(calendarSyncIntervalRef.current);
     };
   }, []);
 
@@ -256,9 +272,6 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-
-    if (!navigator.onLine) setStatusState('offline');
-
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
@@ -310,6 +323,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useSyncStatus() {
   const context = useContext(SyncContext);
   if (!context) {

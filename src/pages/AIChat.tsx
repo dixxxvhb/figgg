@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Send, Loader2, Plus, Sparkles, Undo2, History, Trash2, ChevronLeft } from 'lucide-react';
 import { useAppData } from '../contexts/AppDataContext';
 import { callAIChat } from '../services/ai';
@@ -10,8 +10,9 @@ import { buildFullAIContext } from '../services/aiContext';
 import { executeAIActions } from '../services/aiActions';
 import type { ActionCallbacks } from '../services/aiActions';
 import { haptic } from '../utils/haptics';
-import { applyTheme } from '../styles/applyTheme';
+import { applyVisualSettings } from '../styles/applyTheme';
 import { auth } from '../services/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { getChatThreads, saveChatThread, deleteChatThread, updateDailyBriefingSummary } from '../services/firestore';
 import { v4 as uuid } from 'uuid';
 import { format, parseISO } from 'date-fns';
@@ -31,8 +32,8 @@ export function AIChat() {
     updateStudent,
     updateSettings,
     updateTherapist,
+    refreshData,
   } = useAppData();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const [view, setView] = useState<View>('chat');
@@ -50,9 +51,15 @@ export function AIChat() {
 
   // Load threads from Firestore on mount
   useEffect(() => {
-    const uid = auth?.currentUser?.uid;
-    if (!uid) return;
-    getChatThreads(uid).then(setThreads).catch(console.warn);
+    if (!auth) return;
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        setThreads([]);
+        return;
+      }
+      getChatThreads(user.uid).then(setThreads).catch(console.warn);
+    });
+    return unsubscribe;
   }, []);
 
   // Save thread to Firestore (debounced)
@@ -120,22 +127,8 @@ export function AIChat() {
   const medConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
   const handleUpdateSettings = useCallback((updates: Partial<import('../types').AppSettings>) => {
     updateSettings(updates);
-    if (updates.darkMode !== undefined) {
-      if (updates.darkMode) document.documentElement.classList.add('dark');
-      else document.documentElement.classList.remove('dark');
-    }
-    if (updates.themeId) {
-      applyTheme(updates.themeId, document.documentElement.classList.contains('dark'));
-    }
-    if (updates.fontSize) {
-      const root = document.documentElement;
-      switch (updates.fontSize) {
-        case 'large': root.style.fontSize = '18px'; break;
-        case 'extra-large': root.style.fontSize = '20px'; break;
-        default: root.style.fontSize = '16px';
-      }
-    }
-  }, []);
+    applyVisualSettings({ ...dataRef.current.settings, ...updates });
+  }, [updateSettings]);
 
   const actionCallbacks: ActionCallbacks = useMemo(() => ({
     getData: () => dataRef.current,
@@ -188,6 +181,12 @@ export function AIChat() {
             selfCare: dataRef.current.selfCare,
             dayPlan: dataRef.current.dayPlan,
             launchPlan: dataRef.current.launchPlan,
+            settings: dataRef.current.settings,
+            therapist: dataRef.current.therapist,
+            classes: dataRef.current.classes,
+            students: dataRef.current.students,
+            competitionDances: dataRef.current.competitionDances,
+            weekNotes: dataRef.current.weekNotes,
           }));
         } catch { /* snapshot too large */ }
         executeAIActions(result.actions, actionCallbacks);
@@ -284,6 +283,24 @@ export function AIChat() {
       if (snapshot.selfCare) updateSelfCare(snapshot.selfCare);
       if (snapshot.dayPlan) saveDayPlan(snapshot.dayPlan);
       if (snapshot.launchPlan) updateLaunchPlan(snapshot.launchPlan);
+      if (snapshot.settings) {
+        updateSettings(snapshot.settings);
+        applyVisualSettings(snapshot.settings);
+      }
+      if (snapshot.therapist) updateTherapist(snapshot.therapist);
+      if (Array.isArray(snapshot.classes)) {
+        snapshot.classes.forEach((cls: import('../types').Class) => updateClass(cls));
+      }
+      if (Array.isArray(snapshot.students)) {
+        snapshot.students.forEach((student: import('../types').Student) => updateStudent(student));
+      }
+      if (Array.isArray(snapshot.competitionDances)) {
+        snapshot.competitionDances.forEach((dance: import('../types').CompetitionDance) => updateCompetitionDance(dance));
+      }
+      if (Array.isArray(snapshot.weekNotes)) {
+        snapshot.weekNotes.forEach((weekNote: import('../types').WeekNotes) => saveWeekNotes(weekNote));
+      }
+      refreshData();
       setLastActionSnapshot(null);
       haptic('medium');
       const undoMsg: AIChatMessage = {
@@ -296,7 +313,7 @@ export function AIChat() {
     } catch {
       console.warn('Failed to undo actions');
     }
-  }, [lastActionSnapshot, updateSelfCare, saveDayPlan, updateLaunchPlan]);
+  }, [lastActionSnapshot, updateSelfCare, saveDayPlan, updateLaunchPlan, updateSettings, updateTherapist, updateClass, updateStudent, updateCompetitionDance, saveWeekNotes, refreshData]);
 
   // ── History View ──
   if (view === 'history') {

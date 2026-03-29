@@ -6,6 +6,7 @@ const CACHE_NAME = `figgg-v${CACHE_VERSION}`;
 
 // App shell files to precache (NOT index.html — navigation is network-first)
 const PRECACHE_URLS = [
+  '/index.html',
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',

@@ -14,6 +14,58 @@ const anthropicKey = defineSecret("ANTHROPIC_API_KEY");
 
 const VALID_MODES: Mode[] = ["check-in", "chat", "briefing", "day-plan", "prep", "capture", "reflection", "generate-plan", "expand-notes", "detect-reminders", "organize-notes"];
 
+function extractBalancedJsonBlock(text: string, openChar: '{' | '['): string | null {
+  const closeChar = openChar === '{' ? '}' : ']';
+  const start = text.indexOf(openChar);
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaping = false;
+
+  for (let i = start; i < text.length; i++) {
+    const char = text[i];
+
+    if (escaping) {
+      escaping = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escaping = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) continue;
+
+    if (char === openChar) depth++;
+    if (char === closeChar) depth--;
+
+    if (depth === 0) {
+      return text.slice(start, i + 1);
+    }
+  }
+
+  return null;
+}
+
+function parseJsonLike<T>(text: string, openChar: '{' | '['): T | null {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1];
+  const candidate = fenced || text;
+  const block = extractBalancedJsonBlock(candidate, openChar);
+  if (!block) return null;
+  try {
+    return JSON.parse(block) as T;
+  } catch {
+    return null;
+  }
+}
+
 export const aiChat = onCall(
   { timeoutSeconds: 60, memory: "256MiB", secrets: [anthropicKey] },
   async (request) => {
@@ -86,13 +138,7 @@ export const aiChat = onCall(
       });
 
       const text = msg.content[0].type === "text" ? msg.content[0].text : "";
-      let parsed;
-      try {
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : getFallbackResponse(mode);
-      } catch {
-        parsed = getFallbackResponse(mode);
-      }
+      const parsed = parseJsonLike<Record<string, unknown>>(text, '{') || getFallbackResponse(mode);
 
       // Normalize arrays for modes that use them
       if (mode === "check-in" || mode === "chat") {
@@ -120,7 +166,7 @@ export const aiChat = onCall(
       // Class-tool modes: return structured responses
       if (mode === "generate-plan") {
         // Plain text response — strip markdown artifacts
-        let planText = text
+        const planText = text
           .replace(/^#{1,6}\s*/gm, '')
           .replace(/\*\*([^*]+)\*\*/g, '$1')
           .replace(/\*([^*]+)\*/g, '$1')
@@ -136,17 +182,16 @@ export const aiChat = onCall(
       if (mode === "detect-reminders") {
         // Parse JSON array from response
         let reminders: Array<{ noteId: string; title: string }> = [];
-        try {
-          const jsonMatch = text.match(/\[[\s\S]*\]/);
-          if (jsonMatch) {
-            const arr = JSON.parse(jsonMatch[0]);
-            if (Array.isArray(arr)) {
-              reminders = arr.filter(
-                (r: unknown) => r && typeof r === "object" && "noteId" in (r as Record<string, unknown>) && "title" in (r as Record<string, unknown>)
-              );
-            }
-          }
-        } catch {
+        const arr = parseJsonLike<unknown[]>(text, '[');
+        if (Array.isArray(arr)) {
+          reminders = arr.filter(
+            (r: unknown): r is { noteId: string; title: string } =>
+              !!r &&
+              typeof r === "object" &&
+              typeof (r as Record<string, unknown>).noteId === "string" &&
+              typeof (r as Record<string, unknown>).title === "string"
+          );
+        } else {
           console.error("Failed to parse detect-reminders response:", text.substring(0, 200));
         }
         return { reminders };

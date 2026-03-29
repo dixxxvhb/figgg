@@ -1,3 +1,5 @@
+import type { AppSettings } from '../types';
+import { applyAppIcon } from './appIcons';
 import { getTheme } from './themes';
 
 const THEME_MIGRATIONS: Record<string, string> = {
@@ -82,4 +84,32 @@ export function applyFontFamily(id: string): void {
   const root = document.documentElement;
   root.style.setProperty('--font-display', combo.display);
   root.style.setProperty('--font-body', combo.body);
+}
+
+export function applyVisualSettings(settings?: Partial<AppSettings>): void {
+  const root = document.documentElement;
+  const darkMode = settings?.darkMode ?? false;
+
+  switch (settings?.fontSize) {
+    case 'large':
+      root.style.fontSize = '18px';
+      break;
+    case 'extra-large':
+      root.style.fontSize = '20px';
+      break;
+    default:
+      root.style.fontSize = '16px';
+  }
+
+  root.classList.toggle('dark', darkMode);
+  applyTheme(settings?.themeId || 'stone', darkMode);
+
+  if (settings?.customAccentColor) {
+    applyAccentOverride(settings.customAccentColor);
+  } else {
+    clearAccentOverride();
+  }
+
+  applyFontFamily(settings?.fontFamily || 'editorial');
+  applyAppIcon(settings?.appIconId || 'ink-gold');
 }

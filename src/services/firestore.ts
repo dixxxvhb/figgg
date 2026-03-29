@@ -350,7 +350,15 @@ export function onFixItemsSnapshot(
 // ============================================================
 export async function getProjects(userId: string): Promise<Array<{ id: string; name: string; type: string; dancers: string; song: string; status: string; notes: string }>> {
   const snapshot = await getDocs(userCollection(userId, 'projects'));
-  return snapshot.docs.map(d => ({ ...d.data(), id: d.id } as any));
+  return snapshot.docs.map(d => ({ ...d.data(), id: d.id } as {
+    id: string;
+    name: string;
+    type: string;
+    dancers: string;
+    song: string;
+    status: string;
+    notes: string;
+  }));
 }
 
 // ============================================================
@@ -636,6 +644,13 @@ export function onCalendarEventsSnapshot(
 // LOAD ALL DATA — returns AppData shape for backward compatibility
 // ============================================================
 export async function loadAllData(userId: string): Promise<AppData> {
+  return (await loadAllDataWithMeta(userId)).data;
+}
+
+export async function loadAllDataWithMeta(userId: string): Promise<{
+  data: AppData;
+  hasRemoteState: boolean;
+}> {
   const [
     studios,
     classes,
@@ -676,7 +691,7 @@ export async function loadAllData(userId: string): Promise<AppData> {
     getFixItems(userId),
   ]);
 
-  return {
+  const data: AppData = {
     studios,
     classes,
     weekNotes,
@@ -697,6 +712,29 @@ export async function loadAllData(userId: string): Promise<AppData> {
     grief,
     fixItems,
   };
+
+  const hasRemoteState = Boolean(
+    profile ||
+    selfCare ||
+    dayPlan ||
+    launchPlan ||
+    learningData ||
+    therapist ||
+    meditation ||
+    grief ||
+    studios.length > 0 ||
+    classes.length > 0 ||
+    weekNotes.length > 0 ||
+    terminology.length > 0 ||
+    competitions.length > 0 ||
+    competitionDances.length > 0 ||
+    calendarEvents.length > 0 ||
+    students.length > 0 ||
+    aiCheckIns.length > 0 ||
+    fixItems.length > 0
+  );
+
+  return { data, hasRemoteState };
 }
 
 // ============================================================

@@ -50,6 +50,7 @@ snapshot fires → state updates → useEffect skips saveData because ref is tru
 | File | Purpose |
 |------|---------|
 | `src/hooks/useAppData.ts` | Master data hook — all CRUD + Firestore sync |
+| `src/hooks/useDashboardContext.ts` | Context-aware Dashboard — returns morning/pre-class/during-class/post-class/evening/default |
 | `src/services/firestore.ts` | Firestore CRUD + real-time listeners |
 | `src/services/firebase.ts` | Firebase init (auth, db, storage, functions) |
 | `src/services/firebaseStorage.ts` | Media upload + base64 migration |
@@ -57,9 +58,20 @@ snapshot fires → state updates → useEffect skips saveData because ref is tru
 | `src/services/cloudStorage.ts` | Legacy no-op stubs (Netlify Blobs removed) |
 | `src/contexts/AuthContext.tsx` | Firebase Auth provider + LoginScreen |
 | `src/contexts/SyncContext.tsx` | Calendar sync + offline detection |
+| `src/components/common/NoteInput.tsx` | Shared note-taking UI (tags, input, note display) used by LiveNotes + EventNotes |
+| `src/components/common/Breadcrumb.tsx` | Breadcrumb nav for Settings sub-pages |
+| `src/components/common/Checkbox.tsx` | Shared checkbox with consistent styling |
 | `src/styles/themes.ts` | 8 themes (stone/ocean/plum/midnight/clay/dusk/pride/neon) |
 | `src/styles/moodLayer.ts` | Mood layer system |
 | `src/index.css` | Ink & Gold palette + semantic tokens |
+
+### Dashboard Architecture (Mar 28 2026 rewrite)
+Dashboard is context-aware — shows 4-5 cards based on time-of-day and teaching state.
+- `useDashboardContext` hook combines useClassTiming + useCheckInStatus + useSelfCareStatus + useCurrentClass
+- Returns `DashboardContextType`: morning | pre-class | during-class | post-class | evening | default
+- NO widget ordering, NO drag-drop, NO DashboardSettings widget toggles
+- Widgets relocated: WeekStats/MomentumBar/StreakCard/EventCountdown → Schedule page, WeeklyInsight → WeekReview, FixItemWidget → Me wellness tab
+- Deleted components: SortableWidget, DailyBriefingWidget, EndOfDaySummary, LaunchPlanWidget, useDashboardMode
 
 ### Cloud Functions (`functions/src/`)
 | Function | Type | Purpose |

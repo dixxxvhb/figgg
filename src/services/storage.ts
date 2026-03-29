@@ -70,11 +70,11 @@ export function loadData(): AppData {
       const result: AppData = {
         ...defaults,
         ...parsed,
-        // Use stored data if available, otherwise seed from defaults
-        classes: parsed.classes?.length > 0 ? parsed.classes : defaults.classes,
-        competitions: parsed.competitions?.length > 0 ? parsed.competitions : defaults.competitions,
-        competitionDances: parsed.competitionDances?.length > 0 ? parsed.competitionDances : defaults.competitionDances,
-        students: (parsed.students?.length ?? 0) > 0 ? parsed.students : defaults.students,
+        // Preserve intentional empty arrays. Only fall back when the field is missing.
+        classes: Array.isArray(parsed.classes) ? parsed.classes : defaults.classes,
+        competitions: Array.isArray(parsed.competitions) ? parsed.competitions : defaults.competitions,
+        competitionDances: Array.isArray(parsed.competitionDances) ? parsed.competitionDances : defaults.competitionDances,
+        students: Array.isArray(parsed.students) ? parsed.students : defaults.students,
       };
       loadDataCache = { data: result, timestamp: Date.now() };
       return result;

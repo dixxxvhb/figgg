@@ -444,13 +444,15 @@ export function buildFullAIContext(
   const base = buildAIContext(data, checkInType, userMessage);
   const now = new Date();
   const todayStr = toDateStr(now);
+  const clip = (value: string | undefined, max: number) => value ? value.slice(0, max) : value;
 
   // All active reminders (not just top 5)
   const reminders = (data.selfCare?.reminders || [])
     .filter(r => !r.completed)
+    .slice(0, 20)
     .map(r => ({
       id: r.id,
-      title: r.title,
+      title: clip(r.title, 120) || '',
       dueDate: r.dueDate,
       flagged: r.flagged,
       completed: r.completed,
@@ -468,71 +470,71 @@ export function buildFullAIContext(
     });
 
   // Full class details (for AI to reference and modify)
-  const classDetails = data.classes.map(c => ({
+  const classDetails = data.classes.slice(0, 20).map(c => ({
     id: c.id,
-    name: c.name,
+    name: clip(c.name, 80) || '',
     day: c.day,
     startTime: c.startTime,
     endTime: c.endTime,
     studioId: c.studioId,
     level: c.level,
-    recitalSong: c.recitalSong,
-    choreographyNotes: c.choreographyNotes,
+    recitalSong: clip(c.recitalSong, 80),
+    choreographyNotes: clip(c.choreographyNotes, 160),
   }));
 
   // Studios
-  const studioList = data.studios.map(s => ({
+  const studioList = data.studios.slice(0, 12).map(s => ({
     id: s.id,
-    name: s.name,
-    shortName: s.shortName,
-    address: s.address,
+    name: clip(s.name, 80) || '',
+    shortName: clip(s.shortName, 40) || '',
+    address: clip(s.address, 120) || '',
   }));
 
   // Students with recent skill notes (last 3 per student)
-  const studentList = (data.students || []).map(s => ({
+  const studentList = (data.students || []).slice(0, 30).map(s => ({
     id: s.id,
-    name: s.name,
-    nickname: s.nickname,
-    classIds: s.classIds,
-    notes: s.notes,
+    name: clip(s.name, 80) || '',
+    nickname: clip(s.nickname, 40),
+    classIds: (s.classIds || []).slice(0, 12),
+    notes: clip(s.notes, 180) || '',
     recentSkillNotes: s.skillNotes
       ?.sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, 3)
-      .map(sn => ({ date: sn.date, category: sn.category, text: sn.text })),
+      .map(sn => ({ date: sn.date, category: sn.category, text: clip(sn.text, 100) || '' })),
   }));
 
   // Full competition details
-  const competitionDetails = (data.competitions || []).map(c => ({
+  const competitionDetails = (data.competitions || []).slice(0, 10).map(c => ({
     id: c.id,
-    name: c.name,
+    name: clip(c.name, 80) || '',
     date: c.date,
     endDate: c.endDate,
-    location: c.location,
-    dances: c.dances,
-    notes: c.notes,
+    location: clip(c.location, 120) || '',
+    dances: (c.dances || []).slice(0, 12),
+    notes: clip(c.notes, 180) || '',
   }));
 
   // Full competition dance details with recent rehearsals
-  const competitionDanceDetails = (data.competitionDances || []).map(d => ({
+  const competitionDanceDetails = (data.competitionDances || []).slice(0, 16).map(d => ({
     id: d.id,
-    registrationName: d.registrationName,
-    songTitle: d.songTitle,
+    registrationName: clip(d.registrationName, 80) || '',
+    songTitle: clip(d.songTitle, 80) || '',
     style: d.style,
     category: d.category,
     level: d.level,
-    dancers: d.dancers,
-    dancerIds: d.dancerIds,
-    notes: d.notes,
+    dancers: (d.dancers || []).slice(0, 16),
+    dancerIds: d.dancerIds?.slice(0, 16),
+    notes: clip(d.notes, 180) || '',
     recentRehearsals: (d.rehearsalNotes || [])
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, 3)
-      .map(r => ({ date: r.date, notes: r.notes, workOn: r.workOn })),
+      .map(r => ({ date: r.date, notes: clip(r.notes, 120) || '', workOn: (r.workOn || []).slice(0, 5).map(item => clip(item, 60) || '') })),
     costume: d.costume ? {
-      hair: d.costume.hair,
-      shoes: d.costume.shoes,
-      tights: d.costume.tights,
-      accessories: d.costume.accessories,
-      notes: d.costume.notes,
+      hair: clip(d.costume.hair, 60) || '',
+      shoes: clip(d.costume.shoes, 60),
+      tights: clip(d.costume.tights, 60),
+      accessories: d.costume.accessories?.slice(0, 6).map(item => clip(item, 40) || ''),
+      notes: clip(d.costume.notes, 120),
     } : undefined,
   }));
 
@@ -571,7 +573,7 @@ export function buildFullAIContext(
               notes: cn.liveNotes
                 .slice(-8)  // last 8 notes per class
                 .map(n => ({
-                  text: n.text.slice(0, 120),
+                  text: n.text.slice(0, 100),
                   category: n.category,
                   timestamp: n.timestamp,
                 })),

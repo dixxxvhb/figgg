@@ -133,7 +133,7 @@ export function Dashboard() {
       setFrozenCheckInType(ctx.checkIn.type);
       setFrozenGreeting(ctx.checkIn.greeting);
     }
-  }, [ctx.checkIn.isDue, ctx.checkIn.type, checkInActive]);
+  }, [ctx.checkIn.isDue, ctx.checkIn.type, ctx.checkIn.greeting, checkInActive]);
 
   const [isReplanning, setIsReplanning] = useState(false);
   const dataRef = useRef(data);
@@ -392,15 +392,12 @@ export function Dashboard() {
   }, [data.selfCare, medConfig, updateSelfCare]);
 
   // ── Derived Data ──
-  const currentTime = useMemo(() => {
-    const now = new Date();
-    now.setSeconds(0, 0);
-    return now;
-  }, [currentMinute]);
+  const currentTime = new Date();
+  currentTime.setSeconds(0, 0);
 
-  const currentDay = useMemo(() => getCurrentDayOfWeek(), [currentMinute]);
+  const currentDay = getCurrentDayOfWeek();
   const todayClasses = useMemo(() => getClassesByDay(data.classes, currentDay), [data.classes, currentDay]);
-  const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [currentMinute]);
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
 
   const activeTodayClasses = useMemo(() => {
     const weekOf = formatWeekOf(getWeekStart());
@@ -584,35 +581,33 @@ export function Dashboard() {
   return (
     <div className="pb-24 bg-[var(--surface-primary)] min-h-screen">
       {/* ── Greeting ── */}
-      <div className="px-4 pt-8 pb-2">
-        <div className="page-w">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="type-caption uppercase tracking-wider text-[var(--text-secondary)]">
-                {greeting.startsWith('Good') ? <>{greeting}, <span className="text-[var(--accent-primary)] font-medium">Dixon</span></> : greeting}
+      <div className="page-container pt-8 pb-2">
+        <div className="flex items-start justify-between gap-4 xl:items-end">
+          <div>
+            <p className="type-caption uppercase tracking-wider text-[var(--text-secondary)]">
+              {greeting.startsWith('Good') ? <>{greeting}, <span className="text-[var(--accent-primary)] font-medium">Dixon</span></> : greeting}
+            </p>
+            <h1 className="type-display text-[var(--text-primary)] mt-0.5 leading-tight">
+              {dayName}, <span className="text-[var(--accent-primary)]">{dateStr}</span>
+            </h1>
+            {greetingSub && (
+              <p className="text-sm text-[var(--text-tertiary)] mt-1">{greetingSub}</p>
+            )}
+            {data.dailyBriefing?.loginRoast && (
+              <p className="text-xs text-[var(--text-tertiary)] mt-2 italic opacity-70 max-w-[300px]">
+                {data.dailyBriefing.loginRoast}
               </p>
-              <h1 className="type-display text-[var(--text-primary)] mt-0.5 leading-tight">
-                {dayName}, <span className="text-[var(--accent-primary)]">{dateStr}</span>
-              </h1>
-              {greetingSub && (
-                <p className="text-sm text-[var(--text-tertiary)] mt-1">{greetingSub}</p>
-              )}
-              {data.dailyBriefing?.loginRoast && (
-                <p className="text-xs text-[var(--text-tertiary)] mt-2 italic opacity-70 max-w-[300px]">
-                  {data.dailyBriefing.loginRoast}
-                </p>
-              )}
-            </div>
-            <span className="mt-2 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--accent-muted)] text-[var(--accent-primary)]">
-              {CONTEXT_LABELS[ctx.context]}
-            </span>
+            )}
           </div>
+          <span className="mt-2 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--accent-muted)] text-[var(--accent-primary)] shrink-0">
+            {CONTEXT_LABELS[ctx.context]}
+          </span>
         </div>
       </div>
 
       {/* ── Competition Banner ── */}
       {nextComp && daysUntilComp !== null && daysUntilComp <= 14 && (
-        <div className="page-w px-4 pt-2">
+        <div className="page-container pt-2">
           <Link
             to="/choreography"
             className={`block rounded-2xl overflow-hidden ${
@@ -644,7 +639,7 @@ export function Dashboard() {
         </div>
       )}
 
-      <div className="page-w px-4 pt-4 space-y-4">
+      <div className="page-container pt-4 space-y-4 xl:space-y-5">
         {/* ── Hero Card — Teaching Now / Calendar Event / Recently Ended ── */}
         {classInfo.class && classInfo.status === 'during' ? (
           <div className="bg-[var(--surface-card)] rounded-2xl overflow-hidden ring-2 ring-[var(--accent-primary)]/30 shadow-lg shadow-[var(--accent-primary)]/10 relative">

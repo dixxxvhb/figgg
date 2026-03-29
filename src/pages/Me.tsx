@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
-  Pill, Clock, Circle, CheckCircle2, CheckSquare, Flag, ChevronRight, Calendar, Bell, List, ChevronLeft, Trash2,
+  Clock, Circle, CheckCircle2, CheckSquare, Flag, ChevronRight, Calendar, Bell, List, ChevronLeft, Trash2,
   CalendarDays, Inbox, AlertCircle, Repeat, Link as LinkIcon, Plus, X, Check, Pencil,
   Brain, Wind, BookHeart, type LucideIcon,
 } from 'lucide-react';
@@ -182,13 +182,17 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
   const [inlineAddText, setInlineAddText] = useState('');
   const inlineInputRef = useRef<HTMLInputElement>(null);
   const listsRef = useRef(lists);
-  listsRef.current = lists;
+  useEffect(() => {
+    listsRef.current = lists;
+  }, [lists]);
 
   // Reminders & lists reactive to sync
   useEffect(() => {
     const sc = data.selfCare || {};
-    setReminders(sc.reminders || []);
-    setLists(sc.reminderLists || DEFAULT_LISTS);
+    queueMicrotask(() => {
+      setReminders(sc.reminders || []);
+      setLists(sc.reminderLists || DEFAULT_LISTS);
+    });
   }, [data.selfCare]);
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
@@ -218,6 +222,20 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
     setInlineAddText('');
     setTimeout(() => inlineInputRef.current?.focus(), 0);
   }, [inlineAddText, reminders, lists, persistTasks, currentView]);
+
+  function getNextRecurringDate(currentDate: string, recurring: RecurringSchedule): string | null {
+    const date = parseISO(currentDate);
+    let nextDate: Date;
+    switch (recurring.type) {
+      case 'daily': nextDate = addDays(date, recurring.interval); break;
+      case 'weekly': nextDate = addDays(date, 7 * recurring.interval); break;
+      case 'monthly': nextDate = new Date(date); nextDate.setMonth(nextDate.getMonth() + recurring.interval); break;
+      case 'yearly': nextDate = new Date(date); nextDate.setFullYear(nextDate.getFullYear() + recurring.interval); break;
+      default: return null;
+    }
+    if (recurring.endDate && isAfter(nextDate, parseISO(recurring.endDate))) return null;
+    return format(nextDate, 'yyyy-MM-dd');
+  }
 
   const handleToggleComplete = useCallback((id: string) => {
     setReminders(prev => {
@@ -326,20 +344,6 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
     if (updatedReminder) setSelectedReminder(updatedReminder);
   }, [reminders, lists, persistTasks]);
 
-  const getNextRecurringDate = (currentDate: string, recurring: RecurringSchedule): string | null => {
-    const date = parseISO(currentDate);
-    let nextDate: Date;
-    switch (recurring.type) {
-      case 'daily': nextDate = addDays(date, recurring.interval); break;
-      case 'weekly': nextDate = addDays(date, 7 * recurring.interval); break;
-      case 'monthly': nextDate = new Date(date); nextDate.setMonth(nextDate.getMonth() + recurring.interval); break;
-      case 'yearly': nextDate = new Date(date); nextDate.setFullYear(nextDate.getFullYear() + recurring.interval); break;
-      default: return null;
-    }
-    if (recurring.endDate && isAfter(nextDate, parseISO(recurring.endDate))) return null;
-    return format(nextDate, 'yyyy-MM-dd');
-  };
-
   // Smart list counts
   const smartCounts = useMemo(() => {
     const incomplete = reminders.filter(r => !r.completed);
@@ -413,7 +417,7 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
   return (
     <div className="pb-24 bg-[var(--surface-primary)]">
       {confirmDialog}
-      <div className="max-w-lg mx-auto px-4 py-6">
+      <div className="page-container xl:max-w-5xl">
         {/* Header */}
         <div className="mb-4">
           <h1 className="type-h1 text-[var(--text-primary)]">
@@ -440,8 +444,7 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
             {/* Wellness Sub-Tab Bar */}
             <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
               {WELLNESS_SUB_TABS.map(tab => {
-                const Icon = tab.icon;
-                const isActive = wellnessSubTab === tab.key;
+                  const isActive = wellnessSubTab === tab.key;
                 return (
                   <button
                     key={tab.key}

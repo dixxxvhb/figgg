@@ -4,8 +4,8 @@ import { ArrowLeft, Check, RotateCcw } from 'lucide-react';
 import { Breadcrumb } from '../../components/common/Breadcrumb';
 import { useAppData } from '../../contexts/AppDataContext';
 import { themes } from '../../styles/themes';
-import { applyTheme, applyAccentOverride, clearAccentOverride, applyFontFamily, FONT_FAMILIES } from '../../styles/applyTheme';
-import { appIcons, applyAppIcon, renderIconToDataUrl } from '../../styles/appIcons';
+import { applyTheme, applyAccentOverride, clearAccentOverride, applyVisualSettings, FONT_FAMILIES } from '../../styles/applyTheme';
+import { appIcons, applyAppIcon } from '../../styles/appIcons';
 
 const THEME_GROUPS: { label: string; ids: string[] }[] = [
   { label: 'Classic', ids: ['stone', 'ocean', 'dwd', 'emerald'] },
@@ -14,7 +14,7 @@ const THEME_GROUPS: { label: string; ids: string[] }[] = [
 
 function SafariButton() {
   const [copied, setCopied] = useState(false);
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
 
   return (
     <>
@@ -131,32 +131,15 @@ export function DisplaySettings() {
     }
   };
 
-  const handleSaveIcon = async () => {
-    // Render the current icon as a downloadable PNG
-    const dataUrl = renderIconToDataUrl(currentIconId, 512);
-    const link = document.createElement('a');
-    link.href = dataUrl;
-    link.download = `figgg-icon-${currentIconId}.png`;
-    link.click();
-  };
-
   const handleFontSize = (value: typeof currentFontSize) => {
     updateSettings({ fontSize: value });
-    const match = FONT_SIZES.find(f => f.value === value);
-    if (match) document.documentElement.style.fontSize = match.rootSize;
+    applyVisualSettings({ ...settings, fontSize: value });
   };
 
   const handleDarkMode = () => {
     const next = !darkMode;
     updateSettings({ darkMode: next });
-    applyTheme(currentThemeId, next);
-    if (next) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    // Re-apply accent override on top of new mode
-    if (customAccent) applyAccentOverride(customAccent);
+    applyVisualSettings({ ...settings, darkMode: next });
   };
 
   const handleAccentSelect = (hex: string) => {
@@ -173,7 +156,7 @@ export function DisplaySettings() {
 
   const handleFontFamily = (id: string) => {
     updateSettings({ fontFamily: id });
-    applyFontFamily(id);
+    applyVisualSettings({ ...settings, fontFamily: id });
   };
 
   return (

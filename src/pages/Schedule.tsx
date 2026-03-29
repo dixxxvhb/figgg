@@ -49,9 +49,7 @@ export function Schedule() {
   const getStudio = (studioId: string) => data.studios.find(s => s.id === studioId);
 
   // Look up weekNotes for exception status (cancelled/subbed classes)
-  const currentWeekNotes = useMemo(() => {
-    return data.weekNotes.find(w => w.weekOf === weekOf);
-  }, [data.weekNotes, weekOf]);
+  const currentWeekNotes = data.weekNotes.find(w => w.weekOf === weekOf);
 
   const getClassException = (classId: string) => {
     return currentWeekNotes?.classNotes[classId]?.exception;
@@ -61,24 +59,18 @@ export function Schedule() {
   const selectedDateStr = format(selectedDayDate, 'yyyy-MM-dd');
 
   // Get calendar events for the selected day (from synced calendar), sorted by start time
-  const hiddenEventIds = useMemo(() => new Set(data.settings?.hiddenCalendarEventIds || []), [data.settings?.hiddenCalendarEventIds]);
-  const calendarEventsForDay = useMemo(() => {
-    if (!data.calendarEvents) return [];
-    return data.calendarEvents
-      .filter(e => e.date === selectedDateStr && !hiddenEventIds.has(e.id))
-      .sort((a, b) => timeToMinutes(a.startTime || '00:00') - timeToMinutes(b.startTime || '00:00'));
-  }, [data.calendarEvents, selectedDateStr, hiddenEventIds]);
+  const hiddenEventIds = new Set(data.settings?.hiddenCalendarEventIds || []);
+  const calendarEventsForDay = (data.calendarEvents || [])
+    .filter(e => e.date === selectedDateStr && !hiddenEventIds.has(e.id))
+    .sort((a, b) => timeToMinutes(a.startTime || '00:00') - timeToMinutes(b.startTime || '00:00'));
 
   // Get competitions happening on the selected day
-  const competitionsForDay = useMemo(() => {
-    if (!data.competitions) return [];
-    return data.competitions.filter(comp => {
-      const startDate = parseISO(comp.date);
-      const endDate = comp.endDate ? parseISO(comp.endDate) : startDate;
-      const selectedDate = parseISO(selectedDateStr);
-      return isWithinInterval(selectedDate, { start: startDate, end: endDate });
-    });
-  }, [data.competitions, selectedDateStr]);
+  const competitionsForDay = (data.competitions || []).filter(comp => {
+    const startDate = parseISO(comp.date);
+    const endDate = comp.endDate ? parseISO(comp.endDate) : startDate;
+    const selectedDate = parseISO(selectedDateStr);
+    return isWithinInterval(selectedDate, { start: startDate, end: endDate });
+  });
 
   // Check if it's a weekend
   const isWeekend = selectedDay === 'saturday' || selectedDay === 'sunday';
@@ -166,7 +158,7 @@ export function Schedule() {
   }, [dayClasses, calendarEventsForDay, data.studios]);
 
   return (
-    <div className="page-w px-4 py-6 pb-24">
+    <div className="page-container pb-24 xl:max-w-5xl">
       {/* Week Navigation */}
       <div className="flex items-center justify-between mb-6">
         <button
@@ -187,7 +179,7 @@ export function Schedule() {
       </div>
 
       {/* Today + Week Review buttons */}
-      <div className="flex justify-center gap-2 mb-4">
+      <div className="flex flex-wrap justify-center gap-2 mb-4">
         <Button
           variant="secondary"
           size="sm"
@@ -216,7 +208,7 @@ export function Schedule() {
       {/* Week Overview */}
       <div className="space-y-3 mb-4">
         <WeekMomentumBar stats={stats} />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <WeekStats
             stats={stats}
             classes={data.classes}
@@ -229,12 +221,14 @@ export function Schedule() {
             notesThisWeek={stats.notesThisWeek}
             totalClassesThisWeek={stats.classesThisWeek.total}
           />
+          <div className="sm:col-span-2 lg:col-span-1">
+            <EventCountdown competitions={data.competitions || []} />
+          </div>
         </div>
-        <EventCountdown competitions={data.competitions || []} />
       </div>
 
       {/* Day Tabs */}
-      <div className="flex gap-1 mb-6 overflow-x-auto pb-2">
+      <div className="flex gap-1 mb-6 overflow-x-auto pb-2 md:grid md:grid-cols-7 md:overflow-visible">
         {DAYS.map(({ key, short }) => {
           const isSelected = selectedDay === key;
           const hasClasses = data.classes.some(c => c.day === key);
@@ -253,7 +247,7 @@ export function Schedule() {
             <button
               key={key}
               onClick={() => setSelectedDay(key)}
-              className={`flex-1 min-w-[48px] py-2 px-1 rounded-xl text-center transition-all min-h-[64px] ${
+              className={`flex-1 min-w-[48px] py-2 px-1 rounded-xl text-center transition-all min-h-[64px] md:min-w-0 ${
                 isSelected
                   ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)] shadow-sm'
                   : 'hover:bg-[var(--surface-card-hover)] text-[var(--text-secondary)]'

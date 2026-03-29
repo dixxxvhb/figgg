@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import { Header, MobileNav } from './components/common/Header';
 import { PullToRefresh } from './components/common/PullToRefresh';
 import { Dashboard } from './pages/Dashboard';
@@ -11,9 +11,9 @@ import { SyncProvider } from './contexts/SyncContext';
 import { AppDataProvider, useAppData } from './contexts/AppDataContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { loadData } from './services/storage';
-import { applyTheme, applyAccentOverride, clearAccentOverride, applyFontFamily } from './styles/applyTheme';
+import { applyVisualSettings } from './styles/applyTheme';
 import { restoreMoodLayer } from './styles/moodLayer';
-import { applyAppIcon, renderIconToDataUrl } from './styles/appIcons';
+import { renderIconToDataUrl } from './styles/appIcons';
 
 /**
  * SettingsWatcher — lives inside AppDataProvider, reactively applies visual
@@ -33,42 +33,8 @@ function SettingsWatcher() {
       return;
     }
 
-    // Re-apply all visual settings
-    const root = document.documentElement;
-
-    // Font size
-    switch (settings?.fontSize) {
-      case 'large': root.style.fontSize = '18px'; break;
-      case 'extra-large': root.style.fontSize = '20px'; break;
-      default: root.style.fontSize = '16px';
-    }
-
-    // Dark mode
-    if (settings?.darkMode) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-
-    // Theme
-    applyTheme(settings?.themeId || 'stone', root.classList.contains('dark'));
-
-    // Accent color (after theme so it wins)
-    if (settings?.customAccentColor) {
-      applyAccentOverride(settings.customAccentColor);
-    } else {
-      clearAccentOverride();
-    }
-
-    // Font family
-    applyFontFamily(settings?.fontFamily || 'editorial');
-
-    // App icon
-    applyAppIcon(settings?.appIconId || 'ink-gold');
-  }, [
-    settings?.fontSize, settings?.darkMode, settings?.themeId,
-    settings?.customAccentColor, settings?.fontFamily, settings?.appIconId,
-  ]);
+    applyVisualSettings(settings);
+  }, [settings]);
 
   return null;
 }
@@ -78,23 +44,22 @@ function SettingsWatcher() {
  * from the icon update flow. Guides user to Add to Home Screen.
  */
 function InstallBanner() {
-  const [show, setShow] = useState(false);
+  const [show, setShow] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    return params.get('reinstall') === '1' && !isStandalone && isIOS;
+  });
   const { data } = useAppData();
   const iconId = data.settings?.appIconId || 'ink-gold';
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-
-    if (params.get('reinstall') === '1' && !isStandalone && isIOS) {
-      setShow(true);
-      // Clean the URL param without reload
+    if (show) {
       const url = new URL(window.location.href);
       url.searchParams.delete('reinstall');
       window.history.replaceState({}, '', url.toString());
     }
-  }, []);
+  }, [show]);
 
   if (!show) return null;
 
@@ -146,7 +111,6 @@ const DanceDetail = lazy(() => import('./pages/DanceDetail').then(m => ({ defaul
 const Students = lazy(() => import('./pages/Students').then(m => ({ default: m.Students })));
 const Library = lazy(() => import('./pages/Library').then(m => ({ default: m.Library })));
 const Me = lazy(() => import('./pages/Me').then(m => ({ default: m.Me })));
-const TasksPage = lazy(() => import('./pages/TasksPage').then(m => ({ default: m.TasksPage })));
 const Settings = lazy(() => import('./pages/settings/SettingsHub').then(m => ({ default: m.SettingsHub })));
 const DisplaySettings = lazy(() => import('./pages/settings/DisplaySettings').then(m => ({ default: m.DisplaySettings })));
 const DashboardSettings = lazy(() => import('./pages/settings/DashboardSettings').then(m => ({ default: m.DashboardSettings })));
@@ -185,6 +149,8 @@ function AnimatedRoutes() {
         <Route path="/dance/:danceId" element={<DanceDetail />} />
         <Route path="/students" element={<Students />} />
         <Route path="/library" element={<Library />} />
+        <Route path="/choreography" element={<Navigate to="/library?tab=competitions" replace />} />
+        <Route path="/choreography/:itemId" element={<Navigate to="/library?tab=competitions" replace />} />
         <Route path="/tasks" element={<Me initialTab="reminders" />} />
         <Route path="/me" element={<Me />} />
         <Route path="/launch" element={<LaunchPlan />} />
@@ -208,47 +174,7 @@ function App() {
   // Apply display settings on app load
   useEffect(() => {
     const data = loadData();
-    const settings = data?.settings;
-
-    // Apply font size
-    const root = document.documentElement;
-    switch (settings?.fontSize) {
-      case 'large':
-        root.style.fontSize = '18px';
-        break;
-      case 'extra-large':
-        root.style.fontSize = '20px';
-        break;
-      default:
-        root.style.fontSize = '16px';
-    }
-
-    // Apply dark mode
-    if (settings?.darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-
-    // Apply color theme
-    if (settings?.themeId) {
-      applyTheme(settings.themeId, document.documentElement.classList.contains('dark'));
-    }
-
-    // Apply custom accent color override (after theme, so it wins)
-    if (settings?.customAccentColor) {
-      applyAccentOverride(settings.customAccentColor);
-    }
-
-    // Apply font family
-    if (settings?.fontFamily) {
-      applyFontFamily(settings.fontFamily);
-    }
-
-    // Apply selected app icon (favicon + manifest)
-    if (settings?.appIconId) {
-      applyAppIcon(settings.appIconId);
-    }
+    applyVisualSettings(data?.settings);
 
     // Restore mood layer from session (persists across navigations, resets daily)
     restoreMoodLayer();
