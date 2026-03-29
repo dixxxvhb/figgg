@@ -409,6 +409,17 @@ export function buildContextString(payload: any, mode: Mode): string {
     }
   }
 
+  if (ctx.eventData) {
+    const event = ctx.eventData;
+    contextLines.push(`Current event: ${event.title} on ${event.date}${event.startTime ? ` at ${event.startTime}` : ""}${event.endTime ? ` until ${event.endTime}` : ""}`);
+    if (event.linkedDanceNames?.length) {
+      contextLines.push(`Linked dances for this event: ${event.linkedDanceNames.join(", ")}`);
+    }
+    if (event.description) {
+      contextLines.push(`Event description: ${event.description.substring(0, 400)}`);
+    }
+  }
+
   return contextLines.join("\n");
 }
 

@@ -22,17 +22,19 @@ export function EventNotes() {
   const navigate = useNavigate();
   const { data, getCurrentWeekNotes, saveWeekNotes, updateSelfCare, addReminder } = useAppData();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
+  const event = data.calendarEvents?.find(e => e.id === eventId);
 
   // Build AI context once for all AI calls during this event session
   const aiContext = useMemo(() => {
-    return buildAIContext(data, new Date().getHours() < 12 ? 'morning' : 'afternoon', '');
+    return buildAIContext(data, new Date().getHours() < 12 ? 'morning' : 'afternoon', '', {
+      currentEvent: event,
+    });
   }, [
+    event,
     data.selfCare?.dose1Time, data.selfCare?.dose2Time, data.selfCare?.dose3Time,
     data.selfCare?.skippedDoseDate, data.selfCare?.dayMode,
     data.competitions?.length, data.calendarEvents?.length,
   ]);
-
-  const event = data.calendarEvents?.find(e => e.id === eventId);
 
   const [selectedTag, setSelectedTag] = useState<string | undefined>();
   const [weekNotes, setWeekNotes] = useState(() => getCurrentWeekNotes());

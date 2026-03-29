@@ -4,8 +4,9 @@
  */
 import { getClassesByDay } from '../data/classes';
 import { timeToMinutes, formatWeekOf, getWeekStart, toDateStr, toTimeStr } from '../utils/time';
-import type { AppData, DayOfWeek } from '../types';
+import type { AppData, CalendarEvent, DayOfWeek } from '../types';
 import { DEFAULT_AI_CONFIG, DEFAULT_MED_CONFIG, DEFAULT_WELLNESS_ITEMS } from '../types';
+import { detectLinkedDances } from '../utils/danceLinker';
 
 export interface AIContextPayload {
   time: string;              // HH:mm
@@ -123,6 +124,15 @@ export interface AIContextPayload {
     expandedSummary?: string;
     date?: string;
   };
+  eventData?: {
+    id: string;
+    title: string;
+    date: string;
+    startTime?: string;
+    endTime?: string;
+    description?: string;
+    linkedDanceNames?: string[];
+  };
   // Preferences
   tone: 'supportive' | 'direct' | 'minimal';
   // Check-in context (for briefing and day-plan generation)
@@ -134,6 +144,9 @@ export function buildAIContext(
   data: AppData,
   checkInType: 'morning' | 'afternoon',
   userMessage: string,
+  options?: {
+    currentEvent?: CalendarEvent;
+  },
 ): AIContextPayload {
   const now = new Date();
   const todayStr = toDateStr(now);
@@ -390,6 +403,28 @@ export function buildAIContext(
     nextCompetition = { name: nextComp.name, daysAway, dancesReady, dancesTotal: compDances.length };
   }
 
+  const currentEvent = options?.currentEvent;
+  const eventData = currentEvent
+    ? (() => {
+        const linkedDanceIds = currentEvent.linkedDanceIds?.length
+          ? currentEvent.linkedDanceIds
+          : detectLinkedDances(currentEvent, data.competitionDances || []);
+        const linkedDanceNames = (data.competitionDances || [])
+          .filter(dance => linkedDanceIds.includes(dance.id))
+          .map(dance => dance.registrationName);
+
+        return {
+          id: currentEvent.id,
+          title: currentEvent.title,
+          date: currentEvent.date,
+          startTime: currentEvent.startTime,
+          endTime: currentEvent.endTime,
+          description: currentEvent.description,
+          linkedDanceNames,
+        };
+      })()
+    : undefined;
+
   return {
     time: toTimeStr(now),
     dayOfWeek: dayName,
@@ -418,6 +453,7 @@ export function buildAIContext(
     lastReflection: lastReflectionStr,
     teachingLoad,
     nextCompetition,
+    eventData,
     tone: config.tone,
   };
 }
