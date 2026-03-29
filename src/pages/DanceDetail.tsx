@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, Clock, Users, User, Music, Edit2, Save, X,
@@ -11,6 +11,7 @@ import { RehearsalNote, MediaItem, DanceLevel, DanceStyle, CompetitionResult, St
 import { v4 as uuid } from 'uuid';
 import { processMediaFile } from '../utils/mediaCompression';
 import { saveEvents } from '../services/storage';
+import { findNextRehearsalForDance } from '../utils/nextRehearsal';
 
 const levelColors: Record<DanceLevel, string> = {
   'beginner': 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
@@ -74,6 +75,17 @@ export function DanceDetail() {
   }, []);
 
   const dance = data.competitionDances?.find(d => d.id === danceId);
+  const nextRehearsalEvent = useMemo(
+    () => dance
+      ? findNextRehearsalForDance({
+          danceId: dance.id,
+          calendarEvents: data.calendarEvents || [],
+          competitionDances: data.competitionDances || [],
+          afterDate: new Date().toISOString().split('T')[0],
+        })
+      : undefined,
+    [dance, data.calendarEvents, data.competitionDances]
+  );
 
   const [editedDance, setEditedDance] = useState(dance);
 
@@ -428,6 +440,27 @@ export function DanceDetail() {
           </button>
         )}
       </div>
+
+      {nextRehearsalEvent ? (
+        <Link
+          to={`/event/${nextRehearsalEvent.id}`}
+          className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--accent-primary)]/20 bg-[var(--accent-muted)] px-3 py-2"
+        >
+          <Clock size={14} className="text-[var(--accent-primary)]" />
+          <span className="text-sm text-[var(--accent-primary)]">
+            Next rehearsal: {formatDate(nextRehearsalEvent.date)}
+            {nextRehearsalEvent.startTime ? ` at ${nextRehearsalEvent.startTime}` : ''}
+          </span>
+        </Link>
+      ) : (
+        <Link
+          to="/schedule"
+          className="mb-4 flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2"
+        >
+          <Clock size={14} className="text-[var(--text-tertiary)]" />
+          <span className="text-sm text-[var(--text-secondary)]">No upcoming rehearsal scheduled</span>
+        </Link>
+      )}
 
       {/* Quick Info Card */}
       <div className="bg-[var(--accent-primary)] rounded-xl p-4 mb-6 text-[var(--text-on-accent)]">

@@ -17,6 +17,7 @@ import { generatePlan as aiGeneratePlan, detectReminders as aiDetectReminders, e
 import { buildAIContext } from '../services/aiContext';
 import { detectLinkedDances } from '../utils/danceLinker';
 import { getClassRosterStudentIds } from '../utils/attendanceRoster';
+import { findNextRehearsalEvent } from '../utils/nextRehearsal';
 
 // Boost relevant terminology categories based on which note tag is selected
 const TAG_CATEGORY_BOOSTS: Record<string, TermCategory[]> = {
@@ -210,6 +211,20 @@ export function LiveNotes() {
     if (linkedDances.length > 0) return enrolledStudents;
     return (data.students || []).filter(student => student.classIds?.includes(classId || ''));
   }, [classId, data.students, enrolledStudents, linkedDances.length]);
+
+  const nextRehearsalEvent = useMemo(
+    () => cls
+      ? findNextRehearsalEvent({
+          calendarEvents: data.calendarEvents || [],
+          competitionDances: data.competitionDances || [],
+          afterDate: format(classDate, 'yyyy-MM-dd'),
+          afterTime: cls.endTime,
+          currentTitle: cls.name,
+          linkedDanceIds,
+        })
+      : undefined,
+    [classDate, cls, data.calendarEvents, data.competitionDances, linkedDanceIds]
+  );
 
   useEffect(() => {
     if (!classId || autoRosterStudentIds.length === 0) return;
@@ -1168,6 +1183,29 @@ export function LiveNotes() {
               Rehearsal follow-up reminder added
             </span>
           </Link>
+        )}
+
+        {linkedDanceIds.length > 0 && (
+          nextRehearsalEvent ? (
+            <Link
+              to={`/event/${nextRehearsalEvent.id}`}
+              className="mb-3 flex items-center gap-2 rounded-xl border border-[var(--accent-primary)]/20 bg-[var(--accent-muted)] px-3 py-2"
+            >
+              <Clock size={14} className="text-[var(--accent-primary)]" />
+              <span className="text-xs text-[var(--accent-primary)]">
+                Next rehearsal: {format(new Date(`${nextRehearsalEvent.date}T12:00:00`), 'EEE, MMM d')}
+                {nextRehearsalEvent.startTime ? ` at ${formatTimeDisplay(nextRehearsalEvent.startTime)}` : ''}
+              </span>
+            </Link>
+          ) : (
+            <Link
+              to="/schedule"
+              className="mb-3 flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2"
+            >
+              <Clock size={14} className="text-[var(--text-tertiary)]" />
+              <span className="text-xs text-[var(--text-secondary)]">No upcoming rehearsal scheduled</span>
+            </Link>
+          )
         )}
 
         {/* Already Saved Banner */}

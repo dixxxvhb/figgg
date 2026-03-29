@@ -16,6 +16,7 @@ import { getWeekNotes as getWeekNotesFromStorage } from '../services/storage';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
 import { detectLinkedDances } from '../utils/danceLinker';
 import { getEventRosterStudentIds } from '../utils/attendanceRoster';
+import { findNextRehearsalEvent } from '../utils/nextRehearsal';
 
 export function EventNotes() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -156,6 +157,21 @@ export function EventNotes() {
         })
       : [],
     [data.classes, data.competitionDances, data.students, event]
+  );
+
+  const nextRehearsalEvent = useMemo(
+    () => event
+      ? findNextRehearsalEvent({
+          calendarEvents: data.calendarEvents || [],
+          competitionDances: data.competitionDances || [],
+          afterDate: event.date,
+          afterTime: event.endTime || event.startTime,
+          currentEventId: event.id,
+          currentTitle: event.title,
+          linkedDanceIds,
+        })
+      : undefined,
+    [data.calendarEvents, data.competitionDances, event, linkedDanceIds]
   );
 
   // Smart Notes: find matching past sessions by event title
@@ -641,6 +657,29 @@ export function EventNotes() {
 
       {/* Notes List */}
       <div className="flex-1 overflow-y-auto p-4 page-w w-full">
+        {linkedDanceIds.length > 0 && (
+          nextRehearsalEvent ? (
+            <Link
+              to={`/event/${nextRehearsalEvent.id}`}
+              className="mb-3 flex items-center gap-2 rounded-xl border border-[var(--accent-primary)]/20 bg-[var(--accent-muted)] px-3 py-2"
+            >
+              <Clock size={14} className="text-[var(--accent-primary)]" />
+              <span className="text-xs text-[var(--accent-primary)]">
+                Next rehearsal: {format(parseISO(nextRehearsalEvent.date), 'EEE, MMM d')}
+                {nextRehearsalEvent.startTime ? ` at ${formatTimeDisplay(nextRehearsalEvent.startTime)}` : ''}
+              </span>
+            </Link>
+          ) : (
+            <Link
+              to="/schedule"
+              className="mb-3 flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2"
+            >
+              <Clock size={14} className="text-[var(--text-tertiary)]" />
+              <span className="text-xs text-[var(--text-secondary)]">No upcoming rehearsal scheduled</span>
+            </Link>
+          )
+        )}
+
         {flagReminderCreated && (
           <Link
             to="/me"
