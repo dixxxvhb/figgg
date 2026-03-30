@@ -26,9 +26,25 @@ export function WeekReview() {
     const weekOf = formatWeekOf(getWeekStart(baseDate));
     const weekNote = data.weekNotes.find(w => w.weekOf === weekOf);
 
-    // Build a map of classId -> Class for name lookup
+    // Build a map of classId -> Class for name lookup (includes calendar events)
     const classMap = new Map<string, Class>();
     for (const cls of data.classes) classMap.set(cls.id, cls);
+    // Also map calendar events so notes saved against cal-* IDs resolve names
+    for (const e of (data.calendarEvents || [])) {
+      if (!classMap.has(e.id) && e.title) {
+        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+        const d = new Date(`${e.date}T12:00:00`);
+        classMap.set(e.id, {
+          id: e.id,
+          name: e.title,
+          day: dayNames[d.getDay()],
+          startTime: e.startTime || '',
+          endTime: e.endTime || '',
+          studioId: '',
+          musicLinks: [],
+        });
+      }
+    }
 
     // Aggregate notes per class, sorted by day/time
     const classSummaries: {

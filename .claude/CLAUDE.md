@@ -88,6 +88,17 @@ Dashboard is context-aware — shows 4-5 cards based on time-of-day and teaching
 - All themes have light + dark variants
 - Font size settings: Normal (15px), Large (17px), Extra-large (19px)
 
+## Class Sources — Critical Architecture Rule
+
+Classes come from TWO sources that MUST be treated identically everywhere:
+1. **Internal definitions** (`data.classes`) — Figgg-native class records (name, day, time, studio). IDs: `class-*`.
+2. **iCal calendar events** (`data.calendarEvents`) — synced from Google Calendar. IDs: `cal-*`. Use `classifyCalendarEvent()` from `src/utils/calendarEventType.ts` — if `isClassLike === true`, treat it as a class.
+
+**Any feature that counts, displays, filters, or acts on classes must handle BOTH sources.**
+- When counting: dedup by matching title+day to avoid double-counting overlapping entries.
+- When marking exceptions (cancel/sub): mark both internal class IDs AND calendar event IDs.
+- When displaying: show cancelled/subbed badges on calendar event cards, not just internal class cards.
+
 ## Deploy
 ```bash
 npm run build                # Must pass before deploy

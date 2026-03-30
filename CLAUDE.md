@@ -229,6 +229,13 @@ VITE_FIREBASE_*             # All 7 client env vars above
 
 These files are **first-run seed data only**. Once the app has stored data (localStorage cache or Firestore), the seed data is never used again. All data is fully editable in-app and persists via Firestore — no hardcoded overrides.
 
+## Class Sources — Critical Rule
+Classes come from TWO sources that must be treated identically:
+1. **Internal definitions** (`data.classes`) — IDs: `class-*`. Use `getClassesByDay()`.
+2. **iCal calendar events** (`data.calendarEvents`) — IDs: `cal-*`. Use `classifyCalendarEvent()` → `isClassLike`.
+
+Any feature counting, displaying, or acting on classes MUST handle both. Dedup by title+day when counting.
+
 ## Gotchas
 - No test suite — verify with `npm run build` (TypeScript + Vite)
 - Cloud Functions: `cd functions && npm install && npm run build` — separate Node 22 project

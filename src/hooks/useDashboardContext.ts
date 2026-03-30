@@ -3,8 +3,9 @@ import { useClassTiming, type ClassWithContext } from './useClassTiming';
 import { useCheckInStatus } from './useCheckInStatus';
 import { useSelfCareStatus, type SelfCareStatus } from './useSelfCareStatus';
 import { useCurrentClass } from './useCurrentClass';
-import { getCurrentDayOfWeek, timeToMinutes } from '../utils/time';
+import { getCurrentDayOfWeek, timeToMinutes, toDateStr } from '../utils/time';
 import { getClassesByDay } from '../data/classes';
+import { classifyCalendarEvent } from '../utils/calendarEventType';
 import type { AppData, CurrentClassInfo } from '../types';
 
 export type DashboardContextType =
@@ -46,7 +47,10 @@ export function useDashboardContext(
   data: AppData,
   currentMinute: number,
 ): DashboardContextData {
-  const currentClassInfo = useCurrentClass(data.classes || [], data.weekNotes);
+  const currentClassInfo = useCurrentClass(data.classes || [], data.weekNotes, {
+    calendarEvents: data.calendarEvents,
+    competitionDances: data.competitionDances,
+  });
   const { upcomingClass, justEndedClass, minutesUntilNext } = useClassTiming(data, currentMinute);
   const checkIn = useCheckInStatus(data.aiCheckIns, data.settings?.aiConfig, currentMinute);
   const selfCareStatus = useSelfCareStatus(data.selfCare, data.settings?.medConfig);
@@ -55,13 +59,23 @@ export function useDashboardContext(
     const hour = new Date().getHours();
     const nowMinutes = currentMinute;
 
-    // Determine if all classes for today are done
+    // Determine if all classes for today are done (both internal + calendar)
     const dayName = getCurrentDayOfWeek();
-    const todayClasses = getClassesByDay(data.classes || [], dayName);
-    const allClassesDone = todayClasses.length > 0 && todayClasses.every(cls => {
-      const classEnd = timeToMinutes(cls.endTime);
-      return nowMinutes > classEnd;
+    const todayInternalClasses = getClassesByDay(data.classes || [], dayName);
+    const todayStr = toDateStr(new Date());
+    const todayCalClasses = (data.calendarEvents || []).filter(e => {
+      if (e.date !== todayStr || !e.startTime || e.startTime === '00:00') return false;
+      return classifyCalendarEvent(e, {
+        classes: data.classes || [],
+        allEvents: data.calendarEvents || [],
+        competitionDances: data.competitionDances || [],
+      }).isClassLike;
     });
+    const allEndTimes = [
+      ...todayInternalClasses.map(c => timeToMinutes(c.endTime)),
+      ...todayCalClasses.map(e => timeToMinutes(e.endTime || e.startTime)),
+    ];
+    const allClassesDone = allEndTimes.length > 0 && allEndTimes.every(end => nowMinutes > end);
 
     // Priority order matters here
     if (currentClassInfo.status === 'during') {
@@ -85,18 +99,28 @@ export function useDashboardContext(
     }
 
     return 'default';
-  }, [currentClassInfo.status, upcomingClass, justEndedClass, currentMinute, data.classes]);
+  }, [currentClassInfo.status, upcomingClass, justEndedClass, currentMinute, data.classes, data.calendarEvents, data.competitionDances]);
 
   const hour = new Date().getHours();
 
   const allClassesDone = useMemo(() => {
     const dayName = getCurrentDayOfWeek();
-    const todayClasses = getClassesByDay(data.classes || [], dayName);
-    return todayClasses.length > 0 && todayClasses.every(cls => {
-      const classEnd = timeToMinutes(cls.endTime);
-      return currentMinute > classEnd;
+    const internalClasses = getClassesByDay(data.classes || [], dayName);
+    const todayStr = toDateStr(new Date());
+    const calClasses = (data.calendarEvents || []).filter(e => {
+      if (e.date !== todayStr || !e.startTime || e.startTime === '00:00') return false;
+      return classifyCalendarEvent(e, {
+        classes: data.classes || [],
+        allEvents: data.calendarEvents || [],
+        competitionDances: data.competitionDances || [],
+      }).isClassLike;
     });
-  }, [data.classes, currentMinute]);
+    const allEndTimes = [
+      ...internalClasses.map(c => timeToMinutes(c.endTime)),
+      ...calClasses.map(e => timeToMinutes(e.endTime || e.startTime)),
+    ];
+    return allEndTimes.length > 0 && allEndTimes.every(end => currentMinute > end);
+  }, [data.classes, data.calendarEvents, data.competitionDances, currentMinute]);
 
   return {
     context,
