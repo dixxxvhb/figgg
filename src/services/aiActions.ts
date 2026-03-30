@@ -309,12 +309,20 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
         }
         callbacks.saveWeekNotes(exWeekNotes);
 
-        // Also remove cancelled class items from Day Plan (sourceId matches classId)
+        // Also remove cancelled class items from Day Plan
         if (action.exceptionType === 'cancelled' && currentPlan) {
           const cancelledSet = new Set(targetIds);
-          const updatedItems = currentPlan.items.filter(
-            i => !(i.category === 'class' && i.sourceId && cancelledSet.has(i.sourceId))
-          );
+          // Collect class names for title-based fallback matching
+          const cancelledNames = new Set<string>([
+            ...todayClasses.filter(c => cancelledSet.has(c.id)).map(c => c.name.toLowerCase()),
+            ...todayCalEvents.filter(e => cancelledSet.has(e.id)).map(e => e.title.toLowerCase()),
+          ]);
+          const updatedItems = currentPlan.items.filter(i => {
+            if (i.category !== 'class') return true;
+            if (i.sourceId && cancelledSet.has(i.sourceId)) return false;
+            if (cancelledNames.has(i.title.toLowerCase())) return false;
+            return true;
+          });
           if (updatedItems.length !== currentPlan.items.length) {
             currentPlan = { ...currentPlan, items: updatedItems };
             planUpdated = true;

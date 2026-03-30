@@ -791,10 +791,19 @@ function buildBriefingContext(data: BriefingData): string {
     lines.push(`\nNo classes today.`);
   }
 
-  // Calendar events
-  if (data.calendarEvents.length > 0) {
-    lines.push(`\nToday's events:`);
-    for (const e of data.calendarEvents) {
+  // Calendar events — split rehearsals from other events so AI doesn't confuse them with classes
+  const REHEARSAL_RE = /rehearsal|dress\s*rehearsal|run.?through/i;
+  const rehearsalEvents = data.calendarEvents.filter(e => REHEARSAL_RE.test(e.title));
+  const otherEvents = data.calendarEvents.filter(e => !REHEARSAL_RE.test(e.title));
+  if (rehearsalEvents.length > 0) {
+    lines.push(`\nToday's rehearsals:`);
+    for (const e of rehearsalEvents) {
+      lines.push(`  ${e.startTime || "All day"} — ${e.title}`);
+    }
+  }
+  if (otherEvents.length > 0) {
+    lines.push(`\nToday's other events:`);
+    for (const e of otherEvents) {
       lines.push(`  ${e.startTime || "All day"} — ${e.title}`);
     }
   }

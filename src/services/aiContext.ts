@@ -619,10 +619,33 @@ export function buildFullAIContext(
       ),
     }));
 
+  // Append a live override note to the briefing if class exceptions exist —
+  // the stored briefing was generated at 5:30am before any exceptions were set
+  let dailyBriefingSummary = data.dailyBriefing?.summary;
+  {
+    const days: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const todayDayName = days[new Date().getDay()];
+    const todayClassesForBriefing = getClassesByDay(data.classes, todayDayName);
+    const weekOfStr = formatWeekOf(getWeekStart());
+    const weekNotesForBriefing = (data.weekNotes || []).find(w => w.weekOf === weekOfStr);
+    const exceptionItems: Array<{ name: string; exception: string; subName?: string }> = [];
+    for (const cls of todayClassesForBriefing) {
+      const exc = weekNotesForBriefing?.classNotes[cls.id]?.exception;
+      if (exc) exceptionItems.push({ name: cls.name, exception: exc.type, subName: exc.subName });
+    }
+    if (exceptionItems.length > 0 && dailyBriefingSummary) {
+      const noteLines = exceptionItems.map(c =>
+        `  - ${c.name}: ${c.exception}${c.subName ? ` (sub: ${c.subName})` : ''}`
+      ).join('\n');
+      dailyBriefingSummary +=
+        `\n\n⚠️ CLASS STATUS UPDATE (set after briefing was generated):\n${noteLines}\nTreat these as the current class status — override any class references in the briefing above.`;
+    }
+  }
+
   return {
     ...base,
     date: todayStr,
-    dailyBriefing: data.dailyBriefing?.summary,
+    dailyBriefing: dailyBriefingSummary,
     briefingEmail: data.dailyBriefing?.email ? {
       needsResponse: (data.dailyBriefing.email.needsResponse || []).map(e => ({ from: e.from, subject: e.subject, priority: e.priority })),
       actionRequired: (data.dailyBriefing.email.actionRequired || []).map(e => ({ from: e.from, subject: e.subject, actionType: e.actionType })),
