@@ -2,6 +2,7 @@ import { format, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import { getClassesByDay } from '../data/classes';
 import { formatWeekOf, getWeekStart, getCurrentDayOfWeek } from '../utils/time';
+import { classifyCalendarEvent } from '../utils/calendarEventType';
 import type { AIAction } from './ai';
 import type {
   AppData,
@@ -244,9 +245,36 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
         if (!action.exceptionType) break;
         const dayName = getCurrentDayOfWeek();
         const todayClasses = getClassesByDay(callbacks.getData().classes, dayName);
-        const targetIds = action.scope === 'specific' && action.classIds?.length
+
+        // Build target IDs from internal classes
+        let targetIds = action.scope === 'specific' && action.classIds?.length
           ? action.classIds
           : todayClasses.map(c => c.id);
+
+        // Also include calendar events that are class-like for today
+        const todayStr = new Date().toISOString().split('T')[0];
+        const appData = callbacks.getData();
+        const todayCalEvents = (appData.calendarEvents || []).filter(e => {
+          if (e.date !== todayStr) return false;
+          if (!e.startTime || e.startTime === '00:00') return false;
+          const classification = classifyCalendarEvent(e, {
+            classes: appData.classes,
+            allEvents: appData.calendarEvents || [],
+            competitionDances: appData.competitionDances || [],
+          });
+          return classification.isClassLike;
+        });
+
+        if (action.scope !== 'specific') {
+          // Add calendar class event IDs that aren't already covered by internal class IDs
+          const existingIds = new Set(targetIds);
+          for (const e of todayCalEvents) {
+            if (!existingIds.has(e.id)) {
+              targetIds.push(e.id);
+            }
+          }
+        }
+
         if (targetIds.length === 0) break;
         const exWeekNotes = callbacks.getCurrentWeekNotes();
         for (const classId of targetIds) {

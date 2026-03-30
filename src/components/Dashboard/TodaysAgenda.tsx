@@ -115,10 +115,12 @@ export function TodaysAgenda({
         const eventStartMinutes = timeToMinutes(e.startTime);
         const minutesFromNow = eventStartMinutes - currentMinute;
         const energy = skippedToday ? 'none' as const : statusToEnergy(medStatus.projectedStatus(minutesFromNow));
+        const calNotes = currentWeekNotes?.classNotes[e.id];
         items.push({
           type: 'event', id: e.id, name: e.title,
           startTime: e.startTime, endTime: e.endTime,
           location: e.location, energy,
+          exception: calNotes?.exception,
         });
       });
 

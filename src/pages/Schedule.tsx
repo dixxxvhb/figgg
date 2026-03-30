@@ -458,24 +458,39 @@ export function Schedule() {
                 competitionDances: data.competitionDances || [],
               });
               const isWorkEvent = eventType.isWork;
+              const calException = getClassException(event.id);
+              const isCancelled = calException?.type === 'cancelled';
+              const isSubbed = calException?.type === 'subbed';
               return (
                 <Link
                   key={event.id}
                   to={`/event/${event.id}`}
-                  className="block bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-card-hover)] transition-all"
+                  className={`block bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-card-hover)] transition-all ${isCancelled ? 'opacity-60' : ''}`}
                 >
                   <div className="flex items-start gap-3">
-                    <div className={`w-1.5 h-full min-h-[60px] rounded-full ${isWorkEvent ? 'bg-[var(--accent-primary)]' : 'bg-amber-400'}`} />
+                    <div className={`w-1.5 h-full min-h-[60px] rounded-full ${isCancelled ? 'bg-[var(--text-tertiary)]' : isWorkEvent ? 'bg-[var(--accent-primary)]' : 'bg-amber-400'}`} />
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
-                        <div className="type-h2 text-[var(--text-primary)]">{event.title}</div>
-                        <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
-                          isWorkEvent
-                            ? 'text-[var(--accent-primary)] bg-[var(--accent-muted)]'
-                            : 'text-[var(--status-warning)] bg-[var(--status-warning)]/10'
-                        }`}>
-                          <Calendar size={12} />
-                          <span>{eventType.badgeLabel}</span>
+                        <div className={`type-h2 ${isCancelled ? 'text-[var(--text-tertiary)] line-through' : 'text-[var(--text-primary)]'}`}>{event.title}</div>
+                        <div className="flex items-center gap-1.5">
+                          {isCancelled && (
+                            <span className="text-xs text-[var(--text-tertiary)] bg-[var(--surface-inset)] px-2 py-0.5 rounded-full">
+                              Cancelled
+                            </span>
+                          )}
+                          {isSubbed && calException?.subName && (
+                            <span className="text-xs text-[var(--status-info)] bg-[var(--status-info)]/10 px-2 py-0.5 rounded-full">
+                              Sub: {calException.subName}
+                            </span>
+                          )}
+                          <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
+                            isWorkEvent
+                              ? 'text-[var(--accent-primary)] bg-[var(--accent-muted)]'
+                              : 'text-[var(--status-warning)] bg-[var(--status-warning)]/10'
+                          }`}>
+                            <Calendar size={12} />
+                            <span>{eventType.badgeLabel}</span>
+                          </div>
                         </div>
                       </div>
                       {event.startTime && event.startTime !== '00:00' && (
