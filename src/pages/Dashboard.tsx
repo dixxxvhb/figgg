@@ -423,8 +423,13 @@ export function Dashboard() {
       if (exc?.type === 'cancelled') cancelled++;
       return !exc || exc.type === 'time-change';
     });
+    // Also count cancelled calendar events (class-like)
+    for (const e of todayEventsRaw) {
+      const exc = wn?.classNotes[e.id]?.exception;
+      if (exc?.type === 'cancelled') cancelled++;
+    }
     return { activeTodayClasses: active, cancelledTodayCount: cancelled };
-  }, [todayClasses, data.weekNotes]);
+  }, [todayClasses, todayEventsRaw, data.weekNotes]);
 
   const todayCalendarEvents = useMemo(() => {
     const classTimes = todayClasses.map(c => timeToMinutes(c.startTime));

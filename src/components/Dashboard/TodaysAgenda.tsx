@@ -264,14 +264,28 @@ export function TodaysAgenda({
       </div>
 
       {/* All-cancelled banner */}
-      {cancelledTodayCount > 0 && agendaItems.filter(i => i.type === 'class').every(i => i.exception?.type === 'cancelled') && (
-        <div className="px-4 py-3 bg-red-50 dark:bg-red-900/15 border-b border-red-200 dark:border-red-800/30 flex items-center gap-2">
-          <CalendarOff size={16} className="text-red-500 dark:text-red-400 flex-shrink-0" />
-          <span className="text-sm font-medium text-red-600 dark:text-red-400">
-            {cancelledTodayCount === 1 ? '1 class cancelled today' : `All ${cancelledTodayCount} classes cancelled today`}
-          </span>
-        </div>
-      )}
+      {(() => {
+        const teachingItems = agendaItems.filter(i => i.type === 'class' || (i.type === 'event' && i.exception));
+        const cancelledItems = agendaItems.filter(i => i.exception?.type === 'cancelled');
+        const allTeachingCancelled = cancelledItems.length > 0 &&
+          agendaItems.filter(i => i.type !== 'travel').every(i => i.exception?.type === 'cancelled' || i.status === 'past');
+        const totalCancelled = cancelledItems.length || cancelledTodayCount;
+        return totalCancelled > 0 && (allTeachingCancelled || (cancelledTodayCount > 0 && teachingItems.length === cancelledItems.length)) ? (
+          <div className="px-4 py-3 bg-red-50 dark:bg-red-900/15 border-b border-red-200 dark:border-red-800/30 flex items-center gap-2">
+            <CalendarOff size={16} className="text-red-500 dark:text-red-400 flex-shrink-0" />
+            <span className="text-sm font-medium text-red-600 dark:text-red-400">
+              {totalCancelled === 1 ? '1 class cancelled today' : `All ${totalCancelled} classes cancelled today`}
+            </span>
+          </div>
+        ) : cancelledItems.length > 0 ? (
+          <div className="px-4 py-3 bg-red-50 dark:bg-red-900/15 border-b border-red-200 dark:border-red-800/30 flex items-center gap-2">
+            <CalendarOff size={16} className="text-red-500 dark:text-red-400 flex-shrink-0" />
+            <span className="text-sm font-medium text-red-600 dark:text-red-400">
+              {cancelledItems.length} class{cancelledItems.length > 1 ? 'es' : ''} cancelled today
+            </span>
+          </div>
+        ) : null;
+      })()}
 
       <div className="divide-y divide-[var(--border-subtle)]">
         {displayItems.map(item => {
@@ -307,6 +321,84 @@ export function TodaysAgenda({
               }
             );
             const isWorkEvent = eventMeta.isWork;
+            const eventCancelled = item.exception?.type === 'cancelled';
+            const eventSubbed = item.exception?.type === 'subbed';
+            const eventHasException = !!item.exception;
+
+            const eventContent = (
+              <>
+                {/* Big time on left */}
+                <div className="flex-shrink-0 w-14 text-right">
+                  <div className={`text-lg font-display leading-none tabular-nums ${
+                    eventHasException || isPast ? 'text-[var(--text-tertiary)]' :
+                    isCurrent ? (isWorkEvent ? 'text-[var(--accent-primary)]' : 'text-amber-600 dark:text-amber-400') :
+                    'text-[var(--color-honey)] dark:text-[var(--color-honey-light)]'
+                  }`}>
+                    {formatTimeDisplay(item.startTime)}
+                  </div>
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className={`font-medium flex items-center gap-2 ${eventCancelled ? 'text-[var(--text-tertiary)] line-through' : 'text-[var(--text-primary)]'}`}>
+                    <span className="truncate">{item.name}</span>
+                    {eventCancelled && (
+                      <span className="type-label text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded-full flex-shrink-0">
+                        Cancelled
+                      </span>
+                    )}
+                    {eventSubbed && (
+                      <span className="type-label text-[var(--status-success)] bg-[var(--accent-muted)] px-1.5 py-0.5 rounded-full flex-shrink-0">
+                        Sub{item.exception?.subName ? `: ${item.exception.subName}` : ''}
+                      </span>
+                    )}
+                    {!eventHasException && isCurrent && (
+                      <span className={`type-label px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                        isWorkEvent
+                          ? 'text-[var(--text-on-accent)] bg-[var(--accent-primary)]'
+                          : 'text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400'
+                      }`}>
+                        Now
+                      </span>
+                    )}
+                    {!eventHasException && isNext && (
+                      <span className="type-label text-[var(--accent-primary)] bg-[var(--accent-muted)] px-1.5 py-0.5 rounded-full flex-shrink-0">
+                        Next
+                      </span>
+                    )}
+                    {!eventHasException && !isCurrent && !isNext && (
+                      <span className={`type-label px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                        isWorkEvent
+                          ? 'text-[var(--accent-primary)] bg-[var(--accent-muted)]'
+                          : 'text-amber-600 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400'
+                      }`}>
+                        {eventMeta.badgeLabel}
+                      </span>
+                    )}
+                  </div>
+                  {locationLine && !isPast && !eventHasException && (
+                    <div className="text-sm text-[var(--text-tertiary)] mt-0.5 flex items-center gap-1 truncate">
+                      <MapPin size={11} className="flex-shrink-0" />
+                      <span className="truncate">{locationLine}</span>
+                    </div>
+                  )}
+                </div>
+
+                {!isPast && !eventHasException && <ChevronRight size={16} className="text-[var(--text-tertiary)] flex-shrink-0" />}
+              </>
+            );
+
+            if (eventHasException) {
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-4 px-4 py-3.5 opacity-50"
+                >
+                  {eventContent}
+                </div>
+              );
+            }
+
             return (
               <Link
                 key={item.id}
@@ -318,54 +410,7 @@ export function TodaysAgenda({
                   'hover:bg-[var(--surface-card-hover)]'
                 }`}
               >
-                {/* Big time on left */}
-                <div className="flex-shrink-0 w-14 text-right">
-                  <div className={`text-lg font-display leading-none tabular-nums ${
-                    isPast ? 'text-[var(--text-tertiary)]' :
-                    isCurrent ? (isWorkEvent ? 'text-[var(--accent-primary)]' : 'text-amber-600 dark:text-amber-400') :
-                    'text-[var(--color-honey)] dark:text-[var(--color-honey-light)]'
-                  }`}>
-                    {formatTimeDisplay(item.startTime)}
-                  </div>
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-[var(--text-primary)] flex items-center gap-2">
-                    <span className="truncate">{item.name}</span>
-                    {isCurrent && (
-                      <span className={`type-label px-1.5 py-0.5 rounded-full flex-shrink-0 ${
-                        isWorkEvent
-                          ? 'text-[var(--text-on-accent)] bg-[var(--accent-primary)]'
-                          : 'text-amber-600 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400'
-                      }`}>
-                        Now
-                      </span>
-                    )}
-                    {isNext && (
-                      <span className="type-label text-[var(--accent-primary)] bg-[var(--accent-muted)] px-1.5 py-0.5 rounded-full flex-shrink-0">
-                        Next
-                      </span>
-                    )}
-                    {!isCurrent && !isNext && (
-                      <span className={`type-label px-1.5 py-0.5 rounded-full flex-shrink-0 ${
-                        isWorkEvent
-                          ? 'text-[var(--accent-primary)] bg-[var(--accent-muted)]'
-                          : 'text-amber-600 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400'
-                      }`}>
-                        {eventMeta.badgeLabel}
-                      </span>
-                    )}
-                  </div>
-                  {locationLine && !isPast && (
-                    <div className="text-sm text-[var(--text-tertiary)] mt-0.5 flex items-center gap-1 truncate">
-                      <MapPin size={11} className="flex-shrink-0" />
-                      <span className="truncate">{locationLine}</span>
-                    </div>
-                  )}
-                </div>
-
-                {!isPast && <ChevronRight size={16} className="text-[var(--text-tertiary)] flex-shrink-0" />}
+                {eventContent}
               </Link>
             );
           }
