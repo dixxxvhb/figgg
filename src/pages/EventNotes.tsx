@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, CheckCircle, X, FileText, ChevronDown, ChevronUp, ClipboardList, RotateCcw, Bell, Flag } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle, X, FileText, ChevronDown, ChevronUp, ClipboardList, RotateCcw, Bell, Flag, Mail } from 'lucide-react';
 import { format, parseISO, addWeeks } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
 import { DropdownMenu } from '../components/common/DropdownMenu';
@@ -210,11 +210,15 @@ export function EventNotes() {
     }
   }, []); // Run once on mount only
 
+  // Auto-populate roster on mount — run once when roster students are known
+  const rosterPopulatedRef = useRef(false);
   useEffect(() => {
+    if (rosterPopulatedRef.current) return;
     if (!eventId || autoRosterStudentIds.length === 0) return;
     const attendance = eventNotes.attendance || { present: [], absent: [], late: [] };
     const hasExistingAttendance = attendance.present.length > 0 || attendance.absent.length > 0 || attendance.late.length > 0;
     if (hasExistingAttendance) return;
+    rosterPopulatedRef.current = true;
 
     const updatedEventNotes: ClassWeekNotes = {
       ...eventNotes,
@@ -237,7 +241,8 @@ export function EventNotes() {
 
     setWeekNotes(updatedWeekNotes);
     saveWeekNotes(updatedWeekNotes);
-  }, [autoRosterStudentIds, eventId, eventNotes, saveWeekNotes, weekNotes]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRosterStudentIds, eventId]);
 
   if (!event) {
     return (
@@ -364,6 +369,26 @@ export function EventNotes() {
     saveWeekNotes(updatedWeekNotes);
   };
 
+  const handleShareNotesViaEmail = () => {
+    if (!event || eventNotes.liveNotes.length === 0) return;
+    // Gather parent emails from roster students
+    const rosterStudents = (data.students || []).filter(s => autoRosterStudentIds.includes(s.id));
+    const emails = Array.from(new Set(
+      rosterStudents
+        .map(s => s.parentEmail?.trim())
+        .filter((e): e is string => Boolean(e))
+    ));
+
+    const subject = `Notes - ${event.title} - ${format(parseISO(event.date), 'MMM d, yyyy')}`;
+    const body = [
+      `Notes for ${event.title}`,
+      format(parseISO(event.date), 'MMM d, yyyy'),
+      '',
+      ...eventNotes.liveNotes.map(n => `- ${n.text}`),
+    ].join('\n');
+
+    window.location.href = `mailto:?bcc=${encodeURIComponent(emails.join(','))}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
 
 
   const endEvent = async () => {
@@ -568,6 +593,11 @@ export function EventNotes() {
           <DropdownMenu
             className="text-[var(--text-on-accent)]"
             items={[
+              ...(eventNotes.liveNotes.length > 0 ? [{
+                label: 'Share notes via email',
+                icon: <Mail size={16} />,
+                onClick: handleShareNotesViaEmail,
+              }] : []),
               {
                 label: 'Clear all notes',
                 icon: <FileText size={16} />,
@@ -657,28 +687,26 @@ export function EventNotes() {
 
       {/* Notes List */}
       <div className="flex-1 overflow-y-auto p-4 page-w w-full">
-        {linkedDanceIds.length > 0 && (
-          nextRehearsalEvent ? (
-            <Link
-              to={`/event/${nextRehearsalEvent.id}`}
-              className="mb-3 flex items-center gap-2 rounded-xl border border-[var(--accent-primary)]/20 bg-[var(--accent-muted)] px-3 py-2"
-            >
-              <Clock size={14} className="text-[var(--accent-primary)]" />
-              <span className="text-xs text-[var(--accent-primary)]">
-                Next rehearsal: {format(parseISO(nextRehearsalEvent.date), 'EEE, MMM d')}
-                {nextRehearsalEvent.startTime ? ` at ${formatTimeDisplay(nextRehearsalEvent.startTime)}` : ''}
-              </span>
-            </Link>
-          ) : (
-            <Link
-              to="/schedule"
-              className="mb-3 flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2"
-            >
-              <Clock size={14} className="text-[var(--text-tertiary)]" />
-              <span className="text-xs text-[var(--text-secondary)]">No upcoming rehearsal scheduled</span>
-            </Link>
-          )
-        )}
+        {nextRehearsalEvent ? (
+          <Link
+            to={`/event/${nextRehearsalEvent.id}`}
+            className="mb-3 flex items-center gap-2 rounded-xl border border-[var(--accent-primary)]/20 bg-[var(--accent-muted)] px-3 py-2"
+          >
+            <Clock size={14} className="text-[var(--accent-primary)]" />
+            <span className="text-xs text-[var(--accent-primary)]">
+              Next rehearsal: {format(parseISO(nextRehearsalEvent.date), 'EEE, MMM d')}
+              {nextRehearsalEvent.startTime ? ` at ${formatTimeDisplay(nextRehearsalEvent.startTime)}` : ''}
+            </span>
+          </Link>
+        ) : linkedDanceIds.length > 0 ? (
+          <Link
+            to="/schedule"
+            className="mb-3 flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2"
+          >
+            <Clock size={14} className="text-[var(--text-tertiary)]" />
+            <span className="text-xs text-[var(--text-secondary)]">No upcoming rehearsal scheduled</span>
+          </Link>
+        ) : null}
 
         {flagReminderCreated && (
           <Link

@@ -54,15 +54,6 @@ export function LiveNotes() {
   const selfCareRef = useRef(data.selfCare);
   selfCareRef.current = data.selfCare;
 
-  // Build AI context once for all AI calls during this class session
-  const aiContext = useMemo(() => {
-    return buildAIContext(data, new Date().getHours() < 12 ? 'morning' : 'afternoon', '');
-  }, [
-    data.selfCare?.dose1Time, data.selfCare?.dose2Time, data.selfCare?.dose3Time,
-    data.selfCare?.skippedDoseDate, data.selfCare?.dayMode,
-    data.competitions?.length, data.calendarEvents?.length,
-  ]);
-
   const cls = data.classes.find(c => c.id === classId);
   const studio = cls ? data.studios.find(s => s.id === cls.studioId) : null;
 
@@ -73,6 +64,27 @@ export function LiveNotes() {
   const viewingWeekStart = addWeeks(getWeekStart(), weekOffset);
   const classDate = cls ? addDays(viewingWeekStart, DAY_OFFSETS[cls.day] ?? 0) : new Date();
   const classDateLabel = cls ? format(classDate, 'EEE, MMM d') : '';
+
+  // Build AI context once for all AI calls during this class session
+  const aiContext = useMemo(() => {
+    // Synthesize a CalendarEvent from the class so AI has session context
+    const currentEvent = cls ? {
+      id: cls.id,
+      title: cls.name,
+      date: format(classDate, 'yyyy-MM-dd'),
+      startTime: cls.startTime,
+      endTime: cls.endTime,
+      linkedDanceIds: cls.competitionDanceId ? [cls.competitionDanceId] : undefined,
+    } : undefined;
+    return buildAIContext(data, new Date().getHours() < 12 ? 'morning' : 'afternoon', '', {
+      currentEvent,
+    });
+  }, [
+    classDate, cls,
+    data.selfCare?.dose1Time, data.selfCare?.dose2Time, data.selfCare?.dose3Time,
+    data.selfCare?.skippedDoseDate, data.selfCare?.dayMode,
+    data.competitions?.length, data.calendarEvents?.length,
+  ]);
 
   // Get enrolled students for this class (computed after classNotes/attendance below)
   // Placeholder — actual computation is after attendance is available
@@ -226,10 +238,14 @@ export function LiveNotes() {
     [classDate, cls, data.calendarEvents, data.competitionDances, linkedDanceIds]
   );
 
+  // Auto-populate roster on mount — run once when roster students are known
+  const rosterPopulatedRef = useRef(false);
   useEffect(() => {
+    if (rosterPopulatedRef.current) return;
     if (!classId || autoRosterStudentIds.length === 0) return;
     const hasExistingAttendance = attendance.present.length > 0 || attendance.absent.length > 0 || attendance.late.length > 0;
     if (hasExistingAttendance) return;
+    rosterPopulatedRef.current = true;
 
     const updatedClassNotes: ClassWeekNotes = {
       ...classNotes,
@@ -252,7 +268,8 @@ export function LiveNotes() {
 
     setWeekNotes(updatedWeekNotes);
     saveWeekNotes(updatedWeekNotes);
-  }, [attendance.absent.length, attendance.late.length, attendance.present.length, autoRosterStudentIds, classId, classNotes, saveWeekNotes, weekNotes]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRosterStudentIds, classId]);
 
   // Update time remaining
   useEffect(() => {
@@ -1185,28 +1202,26 @@ export function LiveNotes() {
           </Link>
         )}
 
-        {linkedDanceIds.length > 0 && (
-          nextRehearsalEvent ? (
-            <Link
-              to={`/event/${nextRehearsalEvent.id}`}
-              className="mb-3 flex items-center gap-2 rounded-xl border border-[var(--accent-primary)]/20 bg-[var(--accent-muted)] px-3 py-2"
-            >
-              <Clock size={14} className="text-[var(--accent-primary)]" />
-              <span className="text-xs text-[var(--accent-primary)]">
-                Next rehearsal: {format(new Date(`${nextRehearsalEvent.date}T12:00:00`), 'EEE, MMM d')}
-                {nextRehearsalEvent.startTime ? ` at ${formatTimeDisplay(nextRehearsalEvent.startTime)}` : ''}
-              </span>
-            </Link>
-          ) : (
-            <Link
-              to="/schedule"
-              className="mb-3 flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2"
-            >
-              <Clock size={14} className="text-[var(--text-tertiary)]" />
-              <span className="text-xs text-[var(--text-secondary)]">No upcoming rehearsal scheduled</span>
-            </Link>
-          )
-        )}
+        {nextRehearsalEvent ? (
+          <Link
+            to={`/event/${nextRehearsalEvent.id}`}
+            className="mb-3 flex items-center gap-2 rounded-xl border border-[var(--accent-primary)]/20 bg-[var(--accent-muted)] px-3 py-2"
+          >
+            <Clock size={14} className="text-[var(--accent-primary)]" />
+            <span className="text-xs text-[var(--accent-primary)]">
+              Next rehearsal: {format(new Date(`${nextRehearsalEvent.date}T12:00:00`), 'EEE, MMM d')}
+              {nextRehearsalEvent.startTime ? ` at ${formatTimeDisplay(nextRehearsalEvent.startTime)}` : ''}
+            </span>
+          </Link>
+        ) : linkedDanceIds.length > 0 ? (
+          <Link
+            to="/schedule"
+            className="mb-3 flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2"
+          >
+            <Clock size={14} className="text-[var(--text-tertiary)]" />
+            <span className="text-xs text-[var(--text-secondary)]">No upcoming rehearsal scheduled</span>
+          </Link>
+        ) : null}
 
         {/* Already Saved Banner */}
         {alreadySaved && classNotes.liveNotes.length > 0 && (
