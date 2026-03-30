@@ -35,8 +35,6 @@ cd functions && npm run build        # Verify Cloud Functions compile
 | `/choreography` | Choreography | Yes |
 | `/choreography/:id` | ChoreographyDetail | Yes |
 | `/dance/:danceId` | DanceDetail | Yes |
-| `/formations` | FormationBuilder | Yes |
-| `/formations/:danceId` | FormationBuilder | Yes |
 | `/students` | Students | Yes |
 | `/library` | Library | Yes |
 | `/tasks` | Me (reminders tab) | Yes |
@@ -168,7 +166,7 @@ All jobs use `w9jds/firebase-action@master` with `FIREBASE_SERVICE_ACCOUNT` secr
   - Deleted: SortableWidget, DailyBriefingWidget, EndOfDaySummary, LaunchPlanWidget
   - Relocated to other pages: WeekStats/MomentumBar/StreakCard/EventCountdown → Schedule, WeeklyInsight → WeekReview, FixItemWidget → Me
 
-**Wellness** (`wellness/`): CollapsibleSection, GriefToolkit, MeditationSpace, MedsTracker, SmartChecklist, TherapistTracker
+**Wellness** (`wellness/`): CollapsibleSection, MeditationSpace, MedsTracker, SmartChecklist, TherapistTracker, TherapyJournal (grief letters, emotional check-ins, permission slips)
 
 **Other**: `events/PreviousSessionsPanel.tsx`, `MoodTrends.tsx`
 

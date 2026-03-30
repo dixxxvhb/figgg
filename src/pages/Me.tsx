@@ -3,8 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import {
   Clock, Circle, CheckCircle2, CheckSquare, Flag, ChevronRight, Calendar, Bell, List, ChevronLeft, Trash2,
   CalendarDays, Inbox, AlertCircle, Repeat, Link as LinkIcon, Plus, X, Check, Pencil,
-  Brain, Wind, BookHeart, Phone, Mail, User, type LucideIcon,
+  Brain, Wind, BookHeart, Heart, Phone, Mail, User, type LucideIcon,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAppData } from '../contexts/AppDataContext';
 import { haptic } from '../utils/haptics';
 import { safeTime } from '../utils/time';
@@ -22,6 +23,7 @@ import { MedsTracker } from '../components/wellness/MedsTracker';
 import { SmartChecklist } from '../components/wellness/SmartChecklist';
 import { TherapistTracker } from '../components/wellness/TherapistTracker';
 import { MeditationSpace } from '../components/wellness/MeditationSpace';
+import { GriefToolkit } from '../components/wellness/GriefToolkit';
 import { FixItemWidget } from '../components/Dashboard/FixItemWidget';
 
 const TherapyJournal = lazy(() => import('../components/wellness/TherapyJournal').then(m => ({ default: m.TherapyJournal })));
@@ -63,13 +65,14 @@ const PRIORITY_COLORS = {
 };
 
 type SmartListType = 'today' | 'scheduled' | 'all' | 'flagged';
-type WellnessSubTab = 'checkin' | 'therapy' | 'journal' | 'breathing';
+type WellnessSubTab = 'checkin' | 'therapy' | 'journal' | 'breathing' | 'grief';
 
 const WELLNESS_SUB_TABS: { key: WellnessSubTab; label: string; icon: LucideIcon }[] = [
   { key: 'checkin', label: 'Check-in', icon: CheckSquare },
   { key: 'therapy', label: 'Therapy', icon: Brain },
   { key: 'journal', label: 'Journal', icon: BookHeart },
   { key: 'breathing', label: 'Breathing', icon: Wind },
+  { key: 'grief', label: 'Grief', icon: Heart },
 ];
 
 const WELLNESS_MODES = [
@@ -254,6 +257,7 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
               }, 0);
             }
           }
+          if (nowCompleted) toast.success(`Done: ${r.title}`, { duration: 2000 });
           return { ...r, completed: nowCompleted, completedAt: nowCompleted ? new Date().toISOString() : undefined, updatedAt: new Date().toISOString() };
         }
         return r;
@@ -493,6 +497,10 @@ export function Me({ initialTab }: { initialTab?: 'meds' | 'reminders' } = {}) {
 
             {wellnessSubTab === 'breathing' && (
               <MeditationSpace data={meditationData} onUpdate={updateMeditation} />
+            )}
+
+            {wellnessSubTab === 'grief' && (
+              <GriefToolkit data={griefData} onUpdate={updateGrief} />
             )}
 
             {/* App Fix Logger — bottom of wellness section */}

@@ -7,7 +7,7 @@ import {
 import { useAppData } from '../../contexts/AppDataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { themes } from '../../styles/themes';
-import { DEFAULT_AI_CONFIG, DEFAULT_MED_CONFIG } from '../../types';
+import { DEFAULT_AI_CONFIG, DEFAULT_MED_CONFIG, DEFAULT_WELLNESS_ITEMS } from '../../types';
 
 interface SettingRow {
   to: string;
@@ -52,7 +52,7 @@ export function SettingsHub() {
   const nudgeLabel = settings.nudgesEnabled === false ? 'Nudges off' : `Nudges ${settings.nudgeSensitivity || 'balanced'}`;
 
   const medLabel = `${medConfig.medType || 'IR'}, ${medConfig.maxDoses || 2} doses`;
-  const wellnessCount = (settings.wellnessItems || []).filter(w => w.enabled).length;
+  const wellnessCount = (settings.wellnessItems || DEFAULT_WELLNESS_ITEMS).filter(w => w.enabled).length;
 
   const toneLabel = (aiConfig.tone || 'direct').charAt(0).toUpperCase() + (aiConfig.tone || 'direct').slice(1);
   const checkInLabel = aiConfig.morningCheckInEnabled !== false ? 'Check-ins on' : 'Check-ins off';

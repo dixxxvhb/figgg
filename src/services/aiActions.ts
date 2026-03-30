@@ -1,4 +1,5 @@
 import { format, addDays } from 'date-fns';
+import { toast } from 'sonner';
 import { getClassesByDay } from '../data/classes';
 import { formatWeekOf, getWeekStart, getCurrentDayOfWeek } from '../utils/time';
 import type { AIAction } from './ai';
@@ -640,5 +641,23 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
   }
   if (planUpdated && currentPlan) {
     callbacks.saveDayPlan(currentPlan as DayPlan);
+  }
+
+  // Summary toast for AI actions
+  const count = actions.length;
+  if (count > 0) {
+    const labels: string[] = [];
+    for (const a of actions) {
+      if (a.type === 'addReminder') labels.push('reminder added');
+      else if (a.type === 'logDose') labels.push('dose logged');
+      else if (a.type === 'toggleWellness' || a.type === 'batchToggleWellness') labels.push('wellness updated');
+      else if (a.type === 'setDayMode') labels.push('day mode set');
+      else if (a.type === 'addPlanItem') labels.push('plan item added');
+      else if (a.type === 'completeReminder') labels.push('reminder completed');
+    }
+    const unique = [...new Set(labels)];
+    if (unique.length > 0) {
+      toast.success(unique.join(', '), { duration: 3000 });
+    }
   }
 }

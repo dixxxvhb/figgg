@@ -1,9 +1,11 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { BrowserRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { Header, MobileNav } from './components/common/Header';
 import { PullToRefresh } from './components/common/PullToRefresh';
-import { Dashboard } from './pages/Dashboard';
-import { Schedule } from './pages/Schedule';
+// Dashboard and Schedule were eagerly loaded but are large — lazy-load them
+const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
+const Schedule = lazy(() => import('./pages/Schedule').then(m => ({ default: m.Schedule })));
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { SaveStatus } from './components/common/SaveStatus';
 import { PageSkeleton } from './components/common/PageSkeleton';
@@ -233,6 +235,19 @@ function App() {
               </main>
               <MobileNav />
               <SaveStatus />
+              <Toaster
+                position="top-center"
+                offset={64}
+                toastOptions={{
+                  style: {
+                    background: 'var(--surface-card)',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'var(--text-primary)',
+                    fontFamily: 'Inter, sans-serif',
+                    fontSize: '14px',
+                  },
+                }}
+              />
             </div>
             </AppDataProvider>
           </BrowserRouter>

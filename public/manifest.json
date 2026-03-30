@@ -50,9 +50,9 @@
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "My Students",
-      "short_name": "Students",
-      "url": "/students",
+      "name": "AI Chat",
+      "short_name": "AI",
+      "url": "/ai",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]

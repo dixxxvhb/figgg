@@ -55,7 +55,6 @@ snapshot fires → state updates → useEffect skips saveData because ref is tru
 | `src/services/firebase.ts` | Firebase init (auth, db, storage, functions) |
 | `src/services/firebaseStorage.ts` | Media upload + base64 migration |
 | `src/services/storage.ts` | localStorage read/write |
-| `src/services/cloudStorage.ts` | Legacy no-op stubs (Netlify Blobs removed) |
 | `src/contexts/AuthContext.tsx` | Firebase Auth provider + LoginScreen |
 | `src/contexts/SyncContext.tsx` | Calendar sync + offline detection |
 | `src/components/common/NoteInput.tsx` | Shared note-taking UI (tags, input, note display) used by LiveNotes + EventNotes |

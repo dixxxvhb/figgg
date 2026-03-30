@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Pill, Zap, Moon, SkipForward, Undo2, Check, X, ChevronRight, Clock, ChevronDown,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import type { SelfCareData, MedConfig, Class, Studio, LearningData } from '../../types';
 import { DEFAULT_MED_CONFIG } from '../../types';
 import { getCurrentDayOfWeek } from '../../utils/time';
@@ -150,6 +151,7 @@ export function MedsTracker({ selfCare, medConfig, classes, studios, onUpdateSel
     setSkippedDose1(false);
     haptic('light');
     persist({ dose1Time: now, dose1Date: getTodayKey(), skippedDoseDate: null, skippedDose1Date: null });
+    toast.success('Dose 1 logged');
   };
 
   const handleTakeDose2 = () => {
@@ -159,6 +161,7 @@ export function MedsTracker({ selfCare, medConfig, classes, studios, onUpdateSel
     if (dose1Time) setSkippedToday(false);
     haptic('light');
     persist({ dose2Time: now, dose2Date: getTodayKey(), skippedDose2Date: null, skippedDoseDate: dose1Time ? null : undefined });
+    toast.success('Dose 2 logged');
   };
 
   const handleTakeDose3 = () => {
@@ -167,6 +170,7 @@ export function MedsTracker({ selfCare, medConfig, classes, studios, onUpdateSel
     setSkippedDose3(false);
     haptic('light');
     persist({ dose3Time: now, dose3Date: getTodayKey(), skippedDose3Date: null });
+    toast.success('Dose 3 logged');
   };
 
   const handleSkipToday = () => {
