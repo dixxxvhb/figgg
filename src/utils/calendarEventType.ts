@@ -1,4 +1,4 @@
-import type { CalendarEvent, Class, CompetitionDance, DayOfWeek, Studio } from '../types';
+import type { CalendarEvent, Class, CompetitionDance, DayOfWeek, Studio, Student } from '../types';
 import { detectLinkedDances } from './danceLinker';
 import { timeToMinutes } from './time';
 
@@ -16,6 +16,7 @@ interface ClassifyCalendarEventOptions {
   classes?: Class[];
   allEvents?: CalendarEvent[];
   competitionDances?: CompetitionDance[];
+  students?: Student[];
 }
 
 const NON_WORK_PATTERNS = /flight|therapy|doctor|dentist|appointment|meeting|lunch|dinner|travel|pickup|drop.?off|birthday|party|vacation|hair|nails|grocery|groceries|errand/i;
@@ -45,9 +46,31 @@ function getEventDay(date: string): DayOfWeek | null {
   return dayNames[parsed.getDay()] || null;
 }
 
+/** Returns true if the event title looks like one or more student names (e.g. "Ava", "Evie and Adelyn") */
+function isTitleStudentNames(title: string, students: Student[]): boolean {
+  if (students.length === 0) return false;
+  // Build a flat set of lowercase first names and full names
+  const nameSet = new Set<string>();
+  for (const s of students) {
+    const parts = s.name.trim().split(/\s+/);
+    nameSet.add(s.name.toLowerCase());
+    if (parts.length > 0) nameSet.add(parts[0].toLowerCase()); // first name only
+    if (s.nickname) nameSet.add(s.nickname.toLowerCase());
+  }
+  // Split title on " and ", " & ", commas, slash
+  const segments = title.split(/\s+(?:and|&)\s+|,\s*|\//).map(s => s.trim()).filter(Boolean);
+  // Require at least 1 segment and all segments are short (≤3 words, looks like a name)
+  if (segments.length === 0) return false;
+  return segments.every(seg => {
+    const words = seg.split(/\s+/);
+    if (words.length > 3) return false; // too long to be a name
+    return nameSet.has(seg.toLowerCase());
+  });
+}
+
 export function classifyCalendarEvent(
   event: CalendarEvent,
-  { classes = [], allEvents = [], competitionDances = [] }: ClassifyCalendarEventOptions = {}
+  { classes = [], allEvents = [], competitionDances = [], students = [] }: ClassifyCalendarEventOptions = {}
 ): CalendarEventClassification {
   const title = normalize(event.title);
   const description = normalize(event.description);
@@ -81,6 +104,17 @@ export function classifyCalendarEvent(
   }
 
   if (!isExplicitlyNonWork && hasRehearsalKeywords) {
+    return {
+      kind: 'rehearsal',
+      isWork: true,
+      isClassLike: false,
+      badgeLabel: 'Rehearsal',
+      actionLabel: 'Continue Rehearsal',
+    };
+  }
+
+  // Title looks like student name(s) — e.g. "Ava", "Evie and Adelyn" → solo/duet rehearsal
+  if (!isExplicitlyNonWork && isTitleStudentNames(title, students)) {
     return {
       kind: 'rehearsal',
       isWork: true,
@@ -136,6 +170,7 @@ export function shouldPreferCalendarEventOverClass(
     classes = [],
     allEvents = [],
     competitionDances = [],
+    students = [],
     studios = [],
   }: ClassifyCalendarEventOptions & { studios?: Studio[] } = {}
 ): boolean {
@@ -153,6 +188,7 @@ export function shouldPreferCalendarEventOverClass(
     classes,
     allEvents,
     competitionDances,
+    students,
   });
 
   return (!hasKnownStudio && matchingEventType.isWork) || (inferredLinkedDances.length > 0 && matchingEventType.isWork);

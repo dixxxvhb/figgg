@@ -34,6 +34,7 @@ function countCalendarClassEvents(
   calendarEvents: CalendarEvent[],
   classes: Class[],
   competitionDances: AppData['competitionDances'],
+  students: AppData['students'] = [],
 ): number {
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // Monday
@@ -70,6 +71,7 @@ function countCalendarClassEvents(
       classes,
       allEvents: calendarEvents,
       competitionDances: competitionDances || [],
+      students: students || [],
     });
     return classification.isClassLike;
   }).length;
@@ -159,6 +161,7 @@ export function useTeachingStats(data: AppData): TeachingStats {
       data.calendarEvents || [],
       data.classes,
       data.competitionDances,
+      data.students,
     );
     const totalClasses = classesUpToToday.length + calendarClassCount;
 

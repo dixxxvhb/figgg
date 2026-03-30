@@ -50,6 +50,7 @@ export function useDashboardContext(
   const currentClassInfo = useCurrentClass(data.classes || [], data.weekNotes, {
     calendarEvents: data.calendarEvents,
     competitionDances: data.competitionDances,
+    students: data.students || [],
   });
   const { upcomingClass, justEndedClass, minutesUntilNext } = useClassTiming(data, currentMinute);
   const checkIn = useCheckInStatus(data.aiCheckIns, data.settings?.aiConfig, currentMinute);
@@ -69,6 +70,7 @@ export function useDashboardContext(
         classes: data.classes || [],
         allEvents: data.calendarEvents || [],
         competitionDances: data.competitionDances || [],
+        students: data.students || [],
       }).isClassLike;
     });
     const allEndTimes = [
@@ -113,6 +115,7 @@ export function useDashboardContext(
         classes: data.classes || [],
         allEvents: data.calendarEvents || [],
         competitionDances: data.competitionDances || [],
+        students: data.students || [],
       }).isClassLike;
     });
     const allEndTimes = [

@@ -410,6 +410,7 @@ export function Dashboard() {
       classes: data.classes,
       allEvents: data.calendarEvents || [],
       competitionDances: data.competitionDances || [],
+      students: data.students || [],
       studios: data.studios,
     })
   ), [rawTodayClasses, todayEventsRaw, data.classes, data.calendarEvents, data.competitionDances, data.studios]);
@@ -811,6 +812,7 @@ export function Dashboard() {
               classes: data.classes,
               allEvents: data.calendarEvents || [],
               competitionDances: data.competitionDances || [],
+              students: data.students || [],
             });
             const isWorkEvent = eventMeta.isWork;
             return (

@@ -110,6 +110,7 @@ export function Schedule() {
       classes: data.classes,
       allEvents: data.calendarEvents || [],
       competitionDances: data.competitionDances || [],
+      students: data.students || [],
       studios: data.studios,
     })
   );
@@ -275,6 +276,7 @@ export function Schedule() {
               classes: data.classes,
               allEvents: data.calendarEvents || [],
               competitionDances: data.competitionDances || [],
+              students: data.students || [],
               studios: data.studios,
             })
           );
@@ -284,6 +286,7 @@ export function Schedule() {
               classes: data.classes,
               allEvents: data.calendarEvents || [],
               competitionDances: data.competitionDances || [],
+              students: data.students || [],
             }).isWork
           );
           const hasGenericCalendarEvents = dayCalendarEvents.some(event =>
@@ -291,6 +294,7 @@ export function Schedule() {
               classes: data.classes,
               allEvents: data.calendarEvents || [],
               competitionDances: data.competitionDances || [],
+              students: data.students || [],
             }).isWork
           );
           const hasCompetitions = data.competitions?.some(comp => {
@@ -482,6 +486,7 @@ export function Schedule() {
                 classes: data.classes,
                 allEvents: data.calendarEvents || [],
                 competitionDances: data.competitionDances || [],
+                students: data.students || [],
               });
               const isWorkEvent = eventType.isWork;
               const calException = getClassException(event.id, event.title, event.startTime);

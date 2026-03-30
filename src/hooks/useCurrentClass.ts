@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Class, CalendarEvent, CompetitionDance, CurrentClassInfo, DayOfWeek, WeekNotes } from '../types';
+import { Class, CalendarEvent, CompetitionDance, CurrentClassInfo, DayOfWeek, WeekNotes, Student } from '../types';
 import { getCurrentDayOfWeek, getCurrentTimeMinutes, getClassStatus, getMinutesUntilClass, getMinutesRemaining, timeToMinutes, formatWeekOf, getWeekStart, toDateStr } from '../utils/time';
 import { getStudioById } from '../data/studios';
 import { classifyCalendarEvent } from '../utils/calendarEventType';
@@ -23,7 +23,7 @@ function calEventToClass(e: CalendarEvent): Class {
 export function useCurrentClass(
   classes: Class[],
   weekNotes?: WeekNotes[],
-  options?: { calendarEvents?: CalendarEvent[]; competitionDances?: CompetitionDance[] },
+  options?: { calendarEvents?: CalendarEvent[]; competitionDances?: CompetitionDance[]; students?: Student[] },
 ): CurrentClassInfo {
   const [currentTime, setCurrentTime] = useState(getCurrentTimeMinutes());
   const [currentDay, setCurrentDay] = useState<DayOfWeek>(getCurrentDayOfWeek());
@@ -76,6 +76,7 @@ export function useCurrentClass(
           classes,
           allEvents: calEvents,
           competitionDances: compDances,
+          students: options?.students || [],
         }).isClassLike;
       })
       .map(calEventToClass);

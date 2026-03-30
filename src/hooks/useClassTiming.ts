@@ -33,6 +33,7 @@ export function useClassTiming(data: AppData, currentMinute: number): {
         classes: data.classes,
         allEvents: data.calendarEvents || [],
         competitionDances: data.competitionDances || [],
+        students: data.students || [],
         studios: data.studios,
       })
     );

@@ -39,6 +39,7 @@ export function CalendarEventDetail() {
         classes: data.classes,
         allEvents: data.calendarEvents || [],
         competitionDances: data.competitionDances || [],
+        students: data.students || [],
       })
     : null;
   const isLikelyClass = eventClassification?.isClassLike || false;

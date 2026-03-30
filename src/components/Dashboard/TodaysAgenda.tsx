@@ -348,6 +348,7 @@ export function TodaysAgenda({
                 classes,
                 allEvents: allCalendarEvents || calendarEvents,
                 competitionDances,
+                // students not passed here — TodaysAgenda uses a stripped student type (no name)
               }
             );
             const isWorkEvent = eventMeta.isWork;
@@ -626,7 +627,7 @@ export function TodaysAgenda({
                           classes: allClasses,
                           allEvents: allCalendarEvents,
                           competitionDances,
-                        })
+                        })  // no students — preview badge, doesn't need name matching
                       : null;
                     return (
                       <span className={`type-label px-1.5 py-0.5 rounded-full flex-shrink-0 ${

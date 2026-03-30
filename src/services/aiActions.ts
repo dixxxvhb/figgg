@@ -261,6 +261,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
             classes: appData.classes,
             allEvents: appData.calendarEvents || [],
             competitionDances: appData.competitionDances || [],
+            students: appData.students || [],
           });
           return classification.isClassLike;
         });
