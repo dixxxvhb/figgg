@@ -35,6 +35,7 @@ interface TodaysAgendaProps {
   allCalendarEvents?: CalendarEvent[];
   currentMinute: number;
   cancelledTodayCount?: number;
+  subbedTodayCount?: number;
 }
 
 type ItemStatus = 'past' | 'current' | 'next' | 'upcoming';
@@ -85,6 +86,7 @@ export function TodaysAgenda({
   allCalendarEvents,
   currentMinute,
   cancelledTodayCount = 0,
+  subbedTodayCount = 0,
 }: TodaysAgendaProps) {
   const today = format(new Date(), 'yyyy-MM-dd');
   const weekOf = formatWeekOf(getWeekStart());
@@ -296,28 +298,23 @@ export function TodaysAgenda({
         </Link>
       </div>
 
-      {/* All-cancelled banner */}
+      {/* Exception summary banner */}
       {(() => {
-        const teachingItems = agendaItems.filter(i => i.type === 'class' || (i.type === 'event' && i.exception));
         const cancelledItems = agendaItems.filter(i => i.exception?.type === 'cancelled');
-        const allTeachingCancelled = cancelledItems.length > 0 &&
-          agendaItems.filter(i => i.type !== 'travel').every(i => i.exception?.type === 'cancelled' || i.status === 'past');
-        const totalCancelled = cancelledItems.length || cancelledTodayCount;
-        return totalCancelled > 0 && (allTeachingCancelled || (cancelledTodayCount > 0 && teachingItems.length === cancelledItems.length)) ? (
+        const subbedItems = agendaItems.filter(i => i.exception?.type === 'subbed');
+        const totalAffected = cancelledItems.length + subbedItems.length;
+        if (totalAffected === 0) return null;
+        const parts: string[] = [];
+        if (cancelledItems.length > 0) parts.push(`${cancelledItems.length} cancelled`);
+        if (subbedItems.length > 0) parts.push(`${subbedItems.length} subbed`);
+        return (
           <div className="px-4 py-3 bg-red-50 dark:bg-red-900/15 border-b border-red-200 dark:border-red-800/30 flex items-center gap-2">
             <CalendarOff size={16} className="text-red-500 dark:text-red-400 flex-shrink-0" />
             <span className="text-sm font-medium text-red-600 dark:text-red-400">
-              {totalCancelled === 1 ? '1 class cancelled today' : `All ${totalCancelled} classes cancelled today`}
+              {parts.join(' · ')} today
             </span>
           </div>
-        ) : cancelledItems.length > 0 ? (
-          <div className="px-4 py-3 bg-red-50 dark:bg-red-900/15 border-b border-red-200 dark:border-red-800/30 flex items-center gap-2">
-            <CalendarOff size={16} className="text-red-500 dark:text-red-400 flex-shrink-0" />
-            <span className="text-sm font-medium text-red-600 dark:text-red-400">
-              {cancelledItems.length} class{cancelledItems.length > 1 ? 'es' : ''} cancelled today
-            </span>
-          </div>
-        ) : null;
+        );
       })()}
 
       <div className="divide-y divide-[var(--border-subtle)]">

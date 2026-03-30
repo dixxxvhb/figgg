@@ -414,22 +414,62 @@ export function Dashboard() {
     })
   ), [rawTodayClasses, todayEventsRaw, data.classes, data.calendarEvents, data.competitionDances, data.studios]);
 
-  const { activeTodayClasses, cancelledTodayCount } = useMemo(() => {
+  const { activeTodayClasses, cancelledTodayCount, subbedTodayCount } = useMemo(() => {
     const weekOf = formatWeekOf(getWeekStart());
     const wn = data.weekNotes.find(w => w.weekOf === weekOf);
     let cancelled = 0;
+    let subbed = 0;
+    const countedIds = new Set<string>();
+
     const active = todayClasses.filter(c => {
       const exc = wn?.classNotes[c.id]?.exception;
-      if (exc?.type === 'cancelled') cancelled++;
+      if (exc?.type === 'cancelled') { cancelled++; countedIds.add(c.id); }
+      if (exc?.type === 'subbed') { subbed++; countedIds.add(c.id); }
       return !exc || exc.type === 'time-change';
     });
-    // Also count cancelled calendar events (class-like)
+
+    // Count exceptions on calendar events — direct ID or cross-referenced from internal class
     for (const e of todayEventsRaw) {
-      const exc = wn?.classNotes[e.id]?.exception;
+      if (countedIds.has(e.id)) continue;
+      let exc = wn?.classNotes[e.id]?.exception;
+      // Cross-reference: check matching internal class by name+time
+      if (!exc && wn) {
+        for (const cls of data.classes) {
+          if (countedIds.has(cls.id)) continue;
+          const sameName = cls.name.toLowerCase() === e.title.toLowerCase();
+          const sameTime = Math.abs(timeToMinutes(cls.startTime) - timeToMinutes(e.startTime)) <= 10;
+          if ((sameName || sameTime) && wn.classNotes[cls.id]?.exception) {
+            exc = wn.classNotes[cls.id].exception;
+            countedIds.add(cls.id);
+            break;
+          }
+        }
+      }
+      // Also check orphaned IDs by studio hint + time
+      if (!exc && wn) {
+        const normTitle = e.title.toLowerCase();
+        const eventMinutes = timeToMinutes(e.startTime);
+        for (const [, cn] of Object.entries(wn.classNotes)) {
+          if (!cn.exception || !cn.classId || countedIds.has(cn.classId)) continue;
+          const idParts = cn.classId.toLowerCase().split('-');
+          const studioHint = idParts.find(p => p.length > 2 && normTitle.includes(p));
+          const timeHint = idParts.find(p => /^\d{4}$/.test(p));
+          if (studioHint && timeHint) {
+            const hintMinutes = parseInt(timeHint.slice(0, 2)) * 60 + parseInt(timeHint.slice(2));
+            if (Math.abs(hintMinutes - eventMinutes) <= 10) {
+              exc = cn.exception;
+              countedIds.add(cn.classId);
+              break;
+            }
+          }
+        }
+      }
       if (exc?.type === 'cancelled') cancelled++;
+      if (exc?.type === 'subbed') subbed++;
     }
-    return { activeTodayClasses: active, cancelledTodayCount: cancelled };
-  }, [todayClasses, todayEventsRaw, data.weekNotes]);
+
+    return { activeTodayClasses: active, cancelledTodayCount: cancelled, subbedTodayCount: subbed };
+  }, [todayClasses, todayEventsRaw, data.weekNotes, data.classes]);
 
   const todayCalendarEvents = useMemo(() => {
     const classTimes = todayClasses.map(c => timeToMinutes(c.startTime));
@@ -593,13 +633,16 @@ export function Dashboard() {
       const remaining = activeTodayClasses.filter(c => timeToMinutes(c.endTime) >= currentMinute).length;
       if (remaining > 0) return { greeting: base, greetingSub: `${remaining} class${remaining > 1 ? 'es' : ''} left today` };
     }
-    if (todayMood && moodSubs[todayMood]) return { greeting: base, greetingSub: moodSubs[todayMood] };
-    if (cancelledTodayCount > 0 && activeTodayClasses.length === 0) {
-      return { greeting: base, greetingSub: cancelledTodayCount === 1 ? 'Class cancelled today' : `All ${cancelledTodayCount} classes cancelled today` };
+    if ((cancelledTodayCount > 0 || subbedTodayCount > 0) && activeTodayClasses.length === 0) {
+      const parts: string[] = [];
+      if (cancelledTodayCount > 0) parts.push(`${cancelledTodayCount} cancelled`);
+      if (subbedTodayCount > 0) parts.push(`${subbedTodayCount} subbed`);
+      return { greeting: base, greetingSub: `No classes for you today — ${parts.join(', ')}` };
     }
+    if (todayMood && moodSubs[todayMood]) return { greeting: base, greetingSub: moodSubs[todayMood] };
     if (activeTodayClasses.length === 0 && todayCalendarEvents.length === 0) return { greeting: base, greetingSub: 'No classes today' };
     return { greeting: base, greetingSub: undefined as string | undefined };
-  }, [hour, activeTodayClasses, todayCalendarEvents, classInfo, selfCareStatus, currentMinute, recentlyEndedClass, data.selfCare?.skippedDoseDate, todayStr2, todayMood, cancelledTodayCount]);
+  }, [hour, activeTodayClasses, todayCalendarEvents, classInfo, selfCareStatus, currentMinute, recentlyEndedClass, data.selfCare?.skippedDoseDate, todayStr2, todayMood, cancelledTodayCount, subbedTodayCount]);
 
   // ── Render ──
   return (
@@ -869,6 +912,7 @@ export function Dashboard() {
               allCalendarEvents={data.calendarEvents || []}
               currentMinute={currentMinute}
               cancelledTodayCount={cancelledTodayCount}
+              subbedTodayCount={subbedTodayCount}
             />
             {todayPlan && todayPlan.items.some(i => !i.completed) && (
               <DayPlanWidget
@@ -945,6 +989,7 @@ export function Dashboard() {
               allCalendarEvents={data.calendarEvents || []}
               currentMinute={currentMinute}
               cancelledTodayCount={cancelledTodayCount}
+              subbedTodayCount={subbedTodayCount}
             />
           </>
         )}
@@ -1010,6 +1055,7 @@ export function Dashboard() {
               allCalendarEvents={data.calendarEvents || []}
               currentMinute={currentMinute}
               cancelledTodayCount={cancelledTodayCount}
+              subbedTodayCount={subbedTodayCount}
             />
             {/* Wellness link */}
             <Link
@@ -1042,6 +1088,7 @@ export function Dashboard() {
               allCalendarEvents={data.calendarEvents || []}
               currentMinute={currentMinute}
               cancelledTodayCount={cancelledTodayCount}
+              subbedTodayCount={subbedTodayCount}
             />
             {todayPlan && todayPlan.items.some(i => !i.completed) && (
               <DayPlanWidget
