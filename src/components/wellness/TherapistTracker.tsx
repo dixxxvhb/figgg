@@ -14,6 +14,8 @@ import {
   CloudRain,
   BookOpen,
   AlertCircle,
+  Mail,
+  ArrowRight,
 } from 'lucide-react';
 import { format, parseISO, differenceInDays, startOfDay } from 'date-fns';
 import { haptic } from '../../utils/haptics';
@@ -100,6 +102,24 @@ function derivesMoodAfter(emotions: GriefEmotion[]): TherapistSession['moodAfter
   return 'heavier';
 }
 
+// ─── Phase Derivation ──────────────────────────────────────────
+
+type SessionPhase = 'no-session' | 'preparing' | 'ready-to-log' | 'wrapping-up' | 'just-logged';
+
+function deriveSessionPhase(
+  nextSession: TherapistData['nextSession'],
+  wrappingUp: boolean,
+  justLogged: boolean,
+): SessionPhase {
+  if (wrappingUp) return 'wrapping-up';
+  if (justLogged) return 'just-logged';
+  if (!nextSession) return 'no-session';
+  const today = format(new Date(), 'yyyy-MM-dd');
+  return nextSession.date <= today ? 'ready-to-log' : 'preparing';
+}
+
+// ─── Types ─────────────────────────────────────────────────────
+
 interface TherapistTrackerProps {
   data: TherapistData;
   onUpdate: (updates: Partial<TherapistData>) => void;
@@ -158,282 +178,154 @@ function OpenActionItemsBanner({
   );
 }
 
-// ─── Next Session ───────────────────────────────────────────────
+// ─── Emotion Components ────────────────────────────────────────
 
-function NextSessionSection({
-  nextSession,
-  onUpdate,
-  onAddPrepNote,
-  onLogSession,
-}: {
-  nextSession: TherapistData['nextSession'];
-  onUpdate: (next: TherapistData['nextSession']) => void;
-  onAddPrepNote: () => void;
-  onLogSession: (date: string) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [date, setDate] = useState(nextSession?.date || '');
-  const [time, setTime] = useState(nextSession?.time || '');
-  const [notes, setNotes] = useState(nextSession?.notes || '');
-  const [syncing, setSyncing] = useState(false);
-  const notesTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  useEffect(() => {
-    setDate(nextSession?.date || '');
-    setTime(nextSession?.time || '');
-    setNotes(nextSession?.notes || '');
-  }, [nextSession]);
-
-  // Sync nextSession to Google Calendar (fire-and-forget, updates googleCalendarEventId on success)
-  const syncToGoogleCalendar = async (
-    sessionData: { date: string; time: string; notes: string },
-    existingGCalId?: string
-  ) => {
-    setSyncing(true);
-    try {
-      const input = {
-        title: 'Therapy - Brian Mandel',
-        date: sessionData.date,
-        startTime: sessionData.time || '10:00',
-        endTime: '', // 1-hour default handled by Cloud Function
-        description: sessionData.notes || '',
-      };
-
-      if (existingGCalId) {
-        await updateGCalEvent(existingGCalId, input);
-        // ID stays the same, no need to update
-      } else {
-        const result = await createGoogleCalendarEvent(input);
-        // Save the Google Calendar event ID back to nextSession
-        onUpdate({
-          ...sessionData,
-          googleCalendarEventId: result.googleCalendarEventId,
-        });
-      }
-    } catch (err) {
-      console.warn('Google Calendar sync failed (session saved locally):', err);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const handleSave = () => {
-    haptic('light');
-    if (date) {
-      const sessionData = { date, time, notes };
-      onUpdate(sessionData);
-      // Sync to Google Calendar as side effect
-      syncToGoogleCalendar(sessionData, nextSession?.googleCalendarEventId);
-    } else {
-      onUpdate(undefined);
-    }
-    setEditing(false);
-  };
-
-  const handleNotesChange = (value: string) => {
-    setNotes(value);
-    clearTimeout(notesTimeoutRef.current);
-    notesTimeoutRef.current = setTimeout(() => {
-      if (date) {
-        onUpdate({ date, time, notes: value, googleCalendarEventId: nextSession?.googleCalendarEventId });
-      }
-    }, 500);
-  };
-
-  const handleClear = () => {
-    haptic('light');
-    // Delete from Google Calendar if linked
-    if (nextSession?.googleCalendarEventId) {
-      deleteGoogleCalendarEvent(nextSession.googleCalendarEventId).catch(err =>
-        console.warn('Failed to delete Google Calendar event:', err)
-      );
-    }
-    onUpdate(undefined);
-    setDate('');
-    setTime('');
-    setNotes('');
-    setEditing(false);
-  };
-
-  const getCountdown = (): string | null => {
-    if (!nextSession?.date) return null;
-    const sessionDate = startOfDay(parseISO(nextSession.date));
-    const today = startOfDay(new Date());
-    const days = differenceInDays(sessionDate, today);
-    if (days < 0) return 'past due';
-    if (days === 0) return 'today';
-    if (days === 1) return 'tomorrow';
-    return `in ${days} days`;
-  };
-
-  if (!nextSession && !editing) {
-    return (
-      <div className="space-y-2">
-        <h3 className="type-label text-[var(--text-secondary)] flex items-center gap-1.5">
-          <Calendar size={14} className="text-[var(--accent-primary)]" />
-          Next Session
-        </h3>
-        <button
-          onClick={() => { haptic('light'); setEditing(true); }}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-[var(--radius-md)] border border-dashed border-[var(--border-subtle)] text-sm text-[var(--text-tertiary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] transition-colors"
-        >
-          <Plus size={14} />
-          Set next session
-        </button>
-      </div>
-    );
-  }
-
-  if (editing) {
-    return (
-      <div className="space-y-3">
-        <h3 className="type-label text-[var(--text-secondary)] flex items-center gap-1.5">
-          <Calendar size={14} className="text-[var(--accent-primary)]" />
-          Next Session
-        </h3>
-        <div className="space-y-2">
-          <div className="flex gap-2">
-            <input
-              type="date"
-              value={date}
-              onChange={e => setDate(e.target.value)}
-              className="flex-1 text-sm bg-[var(--surface-inset)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
-            />
-            <input
-              type="time"
-              value={time}
-              onChange={e => setTime(e.target.value)}
-              className="w-28 text-sm bg-[var(--surface-inset)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
-            />
-          </div>
-          <textarea
-            value={notes}
-            onChange={e => handleNotesChange(e.target.value)}
-            placeholder="Session notes or focus areas..."
-            rows={2}
-            className="w-full text-sm bg-[var(--surface-inset)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)] resize-none"
-          />
-          <div className="flex gap-2">
-            <button
-              onClick={handleSave}
-              className="flex-1 text-sm font-medium bg-[var(--accent-primary)] text-white rounded-[var(--radius-sm)] py-2 hover:opacity-90 transition-opacity"
-            >
-              Save
-            </button>
-            <button
-              onClick={() => { setEditing(false); setDate(nextSession?.date || ''); setTime(nextSession?.time || ''); setNotes(nextSession?.notes || ''); }}
-              className="px-4 text-sm text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Display mode
-  const countdown = getCountdown();
-  const isToday = countdown === 'today';
-  const isPastDue = countdown === 'past due';
-  const canLogNow = isToday || isPastDue;
-
+function EmotionTags({ emotions }: { emotions: GriefEmotion[] }) {
   return (
-    <div className="space-y-2">
-      <h3 className="type-label text-[var(--text-secondary)] flex items-center gap-1.5">
-        <Calendar size={14} className="text-[var(--accent-primary)]" />
-        Next Session
-      </h3>
-      <div className="bg-[var(--surface-inset)] rounded-[var(--radius-md)] p-3 space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="type-body text-[var(--text-primary)] font-medium">
-              {format(parseISO(nextSession!.date), 'EEE, MMM d')}
-            </span>
-            {nextSession!.time && (
-              <span className="type-caption text-[var(--text-tertiary)] flex items-center gap-1">
-                <Clock size={11} />
-                {nextSession!.time}
-              </span>
-            )}
-          </div>
-          <span
-            className={`type-caption font-medium px-2 py-0.5 rounded-full ${
-              isPastDue
-                ? 'bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400'
-                : isToday
-                  ? 'bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400'
-                  : 'bg-[var(--accent-muted)] text-[var(--accent-primary)]'
-            }`}
-          >
-            {countdown}
-          </span>
-        </div>
-        {nextSession!.notes && (
-          <p className="type-caption text-[var(--text-secondary)]">{nextSession!.notes}</p>
-        )}
-        <button
-          onClick={() => {
-            haptic('light');
-            onLogSession(nextSession!.date);
-          }}
-          className={`w-full rounded-[var(--radius-sm)] px-3 py-2 text-sm font-medium transition-colors ${
-            canLogNow
-              ? 'bg-[var(--accent-primary)] text-white hover:opacity-90'
-              : 'bg-[var(--surface-card)] border border-[var(--accent-primary)]/20 text-[var(--accent-primary)] hover:bg-[var(--accent-muted)]'
-          }`}
+    <div className="flex flex-wrap gap-1">
+      {emotions.map(emotion => (
+        <span
+          key={emotion}
+          className={`text-xs px-1.5 py-0.5 rounded-full border ${EMOTION_COLORS[emotion]}`}
         >
-          {canLogNow ? 'Log this session' : 'Open log for this session'}
-        </button>
-        <div className="flex items-center gap-2 pt-1">
-          <button
-            onClick={() => { haptic('light'); onAddPrepNote(); }}
-            className="flex items-center gap-1 text-xs text-[var(--accent-primary)] hover:underline"
-          >
-            <Plus size={12} />
-            Add to prep notes
-          </button>
-          <span className="text-[var(--border-subtle)]">|</span>
-          <button
-            onClick={() => { haptic('light'); setEditing(true); }}
-            className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
-          >
-            Edit
-          </button>
-          <span className="text-[var(--border-subtle)]">|</span>
-          <button
-            onClick={handleClear}
-            className="text-xs text-[var(--text-tertiary)] hover:text-red-500 transition-colors"
-          >
-            Remove
-          </button>
-          {syncing && (
-            <span className="text-xs text-[var(--text-tertiary)] italic">syncing...</span>
-          )}
-          {!syncing && nextSession?.googleCalendarEventId && (
-            <span className="text-xs text-[var(--text-tertiary)]">on calendar</span>
-          )}
-        </div>
-      </div>
+          {EMOTION_LABELS[emotion]}
+        </span>
+      ))}
     </div>
   );
 }
 
-// ─── Prep Notes ─────────────────────────────────────────────────
+function EmotionPicker({
+  selected,
+  onToggle,
+}: {
+  selected: GriefEmotion[];
+  onToggle: (emotion: GriefEmotion) => void;
+}) {
+  const groups: { label: string; emotions: GriefEmotion[] }[] = [
+    { label: 'Difficult', emotions: DIFFICULT_EMOTIONS },
+    { label: 'Neutral', emotions: NEUTRAL_EMOTIONS },
+    { label: 'Positive', emotions: POSITIVE_EMOTIONS },
+  ];
 
-function PrepNotesSection({
+  return (
+    <div className="space-y-2">
+      {groups.map(group => (
+        <div key={group.label}>
+          <span className="type-caption text-[var(--text-tertiary)] block mb-1">{group.label}</span>
+          <div className="flex flex-wrap gap-1.5">
+            {group.emotions.map(emotion => {
+              const isSelected = selected.includes(emotion);
+              return (
+                <button
+                  key={emotion}
+                  onClick={() => { haptic('light'); onToggle(emotion); }}
+                  className={`text-xs px-2.5 py-1.5 rounded-full border transition-all ${
+                    isSelected
+                      ? EMOTION_SELECTED_COLORS[emotion]
+                      : EMOTION_COLORS[emotion]
+                  }`}
+                >
+                  {EMOTION_LABELS[emotion]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Mood Badge ────────────────────────────────────────────────
+
+const MOOD_CONFIG: Record<
+  TherapistSession['moodAfter'],
+  { icon: typeof Smile; label: string; colorClass: string; bgClass: string }
+> = {
+  better: {
+    icon: Smile,
+    label: 'Better',
+    colorClass: 'text-green-600 dark:text-green-400',
+    bgClass: 'bg-green-100 dark:bg-green-900/20',
+  },
+  same: {
+    icon: Meh,
+    label: 'Same',
+    colorClass: 'text-amber-600 dark:text-amber-400',
+    bgClass: 'bg-amber-100 dark:bg-amber-900/20',
+  },
+  heavier: {
+    icon: CloudRain,
+    label: 'Heavier',
+    colorClass: 'text-blue-600 dark:text-blue-400',
+    bgClass: 'bg-blue-100 dark:bg-blue-900/20',
+  },
+};
+
+function MoodBadge({ mood }: { mood: TherapistSession['moodAfter'] }) {
+  const cfg = MOOD_CONFIG[mood];
+  const Icon = cfg.icon;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${cfg.bgClass} ${cfg.colorClass}`}
+    >
+      <Icon size={12} />
+      {cfg.label}
+    </span>
+  );
+}
+
+// ─── Session Frequency Insight ──────────────────────────────────
+
+function SessionFrequencyInsight({ sessions }: { sessions: TherapistSession[] }) {
+  if (sessions.length === 0) return null;
+
+  const sorted = [...sessions].sort(
+    (a, b) => safeTime(b.date) - safeTime(a.date)
+  );
+
+  const today = startOfDay(new Date());
+  const lastSessionDate = startOfDay(parseISO(sorted[0].date));
+  const daysSinceLast = differenceInDays(today, lastSessionDate);
+
+  if (sessions.length === 1) {
+    return (
+      <p className="type-caption text-[var(--text-tertiary)]">
+        Last session: {daysSinceLast} day{daysSinceLast !== 1 ? 's' : ''} ago
+      </p>
+    );
+  }
+
+  let totalGap = 0;
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const a = startOfDay(parseISO(sorted[i].date));
+    const b = startOfDay(parseISO(sorted[i + 1].date));
+    totalGap += differenceInDays(a, b);
+  }
+  const avgGap = Math.round(totalGap / (sorted.length - 1));
+
+  return (
+    <p className="type-caption text-[var(--text-tertiary)]">
+      Last session: {daysSinceLast} day{daysSinceLast !== 1 ? 's' : ''} ago — Avg: every {avgGap} day{avgGap !== 1 ? 's' : ''}
+    </p>
+  );
+}
+
+// ─── Prep Notes (inline within lifecycle card) ──────────────────
+
+function PrepNotesInline({
   prepNotes,
   onUpdate,
-  inputRef,
   journalEntries,
 }: {
   prepNotes: TherapistPrepNote[];
   onUpdate: (notes: TherapistPrepNote[]) => void;
-  inputRef: React.RefObject<HTMLInputElement | null>;
   journalEntries?: GriefLetter[];
 }) {
   const [newNote, setNewNote] = useState('');
   const [showJournalPicker, setShowJournalPicker] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const sorted = [...prepNotes].sort(
     (a, b) => safeTime(b.createdAt) - safeTime(a.createdAt)
   );
@@ -496,12 +388,12 @@ function PrepNotesSection({
 
   return (
     <div className="space-y-2">
-      <h3 className="type-label text-[var(--text-secondary)] flex items-center gap-1.5">
-        <MessageSquare size={14} className="text-[var(--accent-primary)]" />
-        Prep Notes
-      </h3>
+      <div className="flex items-center gap-1.5">
+        <MessageSquare size={12} className="text-[var(--text-tertiary)]" />
+        <span className="type-caption text-[var(--text-tertiary)] font-medium">Things to bring up</span>
+      </div>
 
-      {/* Inline add input */}
+      {/* Input row */}
       <div className="flex gap-2">
         <input
           ref={inputRef}
@@ -509,8 +401,8 @@ function PrepNotesSection({
           value={newNote}
           onChange={e => setNewNote(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="What to bring up next session..."
-          className="flex-1 text-sm bg-[var(--surface-inset)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
+          placeholder="Add a topic..."
+          className="flex-1 text-sm bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
         />
         {journalEntries && journalEntries.length > 0 && (
           <button
@@ -518,7 +410,7 @@ function PrepNotesSection({
             className={`px-3 py-2 rounded-[var(--radius-sm)] transition-colors ${
               showJournalPicker
                 ? 'bg-[var(--accent-primary)] text-white'
-                : 'bg-[var(--surface-inset)] border border-[var(--border-subtle)] text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]'
+                : 'bg-[var(--surface-card)] border border-[var(--border-subtle)] text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]'
             }`}
             title="From journal"
           >
@@ -559,18 +451,18 @@ function PrepNotesSection({
 
       {/* Notes list */}
       {sorted.length === 0 ? (
-        <p className="type-caption text-[var(--text-tertiary)] text-center py-3">
-          No prep notes yet. Jot down topics for your next session.
+        <p className="type-caption text-[var(--text-tertiary)] text-center py-2">
+          No prep notes yet.
         </p>
       ) : (
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           {sorted.map(note => (
             <div
               key={note.id}
-              className={`flex items-start gap-2 p-2 rounded-[var(--radius-sm)] ${
+              className={`flex items-start gap-2 px-2 py-1.5 rounded-[var(--radius-sm)] ${
                 note.discussed
-                  ? 'bg-[var(--surface-inset)] opacity-60'
-                  : 'bg-[var(--surface-card)]'
+                  ? 'opacity-50'
+                  : ''
               }`}
             >
               <button
@@ -594,13 +486,13 @@ function PrepNotesSection({
                   {note.text}
                 </p>
                 <div className="flex items-center gap-2">
-                  <span className="type-caption text-[var(--text-tertiary)]">
-                    {safeFormat(note.createdAt, 'MMM d, h:mm a')}
+                  <span className="type-caption text-[var(--text-tertiary)]" style={{ fontSize: '11px' }}>
+                    {safeFormat(note.createdAt, 'MMM d')}
                   </span>
                   {note.linkedJournalId && (
-                    <span className="type-caption text-[var(--text-tertiary)] flex items-center gap-0.5">
+                    <span className="type-caption text-[var(--text-tertiary)] flex items-center gap-0.5" style={{ fontSize: '11px' }}>
                       <BookOpen size={10} />
-                      from journal{(() => {
+                      journal{(() => {
                         const jDate = findJournalDate(note.linkedJournalId!);
                         return jDate ? ` ${format(parseISO(jDate), 'MMM d')}` : '';
                       })()}
@@ -622,345 +514,644 @@ function PrepNotesSection({
   );
 }
 
-// ─── Mood Indicator ─────────────────────────────────────────────
+// ─── Calendar Therapy Detection ─────────────────────────────────
 
-const MOOD_CONFIG: Record<
-  TherapistSession['moodAfter'],
-  { icon: typeof Smile; label: string; colorClass: string; bgClass: string }
-> = {
-  better: {
-    icon: Smile,
-    label: 'Better',
-    colorClass: 'text-green-600 dark:text-green-400',
-    bgClass: 'bg-green-100 dark:bg-green-900/20',
-  },
-  same: {
-    icon: Meh,
-    label: 'Same',
-    colorClass: 'text-amber-600 dark:text-amber-400',
-    bgClass: 'bg-amber-100 dark:bg-amber-900/20',
-  },
-  heavier: {
-    icon: CloudRain,
-    label: 'Heavier',
-    colorClass: 'text-blue-600 dark:text-blue-400',
-    bgClass: 'bg-blue-100 dark:bg-blue-900/20',
-  },
-};
+const THERAPY_KEYWORDS = ['therapy', 'therapist', 'brian mandel', 'brian m', 'betterhelp', 'counseling'];
 
-function MoodBadge({ mood }: { mood: TherapistSession['moodAfter'] }) {
-  const cfg = MOOD_CONFIG[mood];
-  const Icon = cfg.icon;
-  return (
-    <span
-      className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${cfg.bgClass} ${cfg.colorClass}`}
-    >
-      <Icon size={12} />
-      {cfg.label}
-    </span>
-  );
+function isTherapyEvent(event: CalendarEvent): boolean {
+  const text = `${event.title} ${event.description || ''}`.toLowerCase();
+  return THERAPY_KEYWORDS.some(kw => text.includes(kw));
 }
 
-function EmotionTags({ emotions }: { emotions: GriefEmotion[] }) {
-  return (
-    <div className="flex flex-wrap gap-1">
-      {emotions.map(emotion => (
-        <span
-          key={emotion}
-          className={`text-xs px-1.5 py-0.5 rounded-full border ${EMOTION_COLORS[emotion]}`}
-        >
-          {EMOTION_LABELS[emotion]}
-        </span>
-      ))}
-    </div>
-  );
+// ─── Countdown Helper ───────────────────────────────────────────
+
+function getCountdown(dateStr: string): { text: string; isPastDue: boolean; isToday: boolean } {
+  const sessionDate = startOfDay(parseISO(dateStr));
+  const today = startOfDay(new Date());
+  const days = differenceInDays(sessionDate, today);
+  if (days < 0) return { text: `${Math.abs(days)} day${Math.abs(days) !== 1 ? 's' : ''} overdue`, isPastDue: true, isToday: false };
+  if (days === 0) return { text: 'today', isPastDue: false, isToday: true };
+  if (days === 1) return { text: 'tomorrow', isPastDue: false, isToday: false };
+  return { text: `in ${days} days`, isPastDue: false, isToday: false };
 }
 
-// ─── Emotion Picker (for New Session Form) ──────────────────────
+// ─── Session Lifecycle Card ─────────────────────────────────────
 
-function EmotionPicker({
-  selected,
-  onToggle,
+function SessionLifecycleCard({
+  data,
+  onUpdate,
+  journalEntries,
+  upcomingTherapyEvent,
+  onAcceptCalendarEvent,
+  onSaveSession,
+  phase,
+  setWrappingUp,
+  justLoggedDate,
+  setJustLoggedDate,
 }: {
-  selected: GriefEmotion[];
-  onToggle: (emotion: GriefEmotion) => void;
+  data: TherapistData;
+  onUpdate: (updates: Partial<TherapistData>) => void;
+  journalEntries?: GriefLetter[];
+  upcomingTherapyEvent?: CalendarEvent;
+  onAcceptCalendarEvent: (event: CalendarEvent) => void;
+  onSaveSession: (session: TherapistSession) => void;
+  phase: SessionPhase;
+  setWrappingUp: (v: boolean) => void;
+  justLoggedDate: string | null;
+  setJustLoggedDate: (v: string | null) => void;
 }) {
-  const groups: { label: string; emotions: GriefEmotion[] }[] = [
-    { label: 'Difficult', emotions: DIFFICULT_EMOTIONS },
-    { label: 'Neutral', emotions: NEUTRAL_EMOTIONS },
-    { label: 'Positive', emotions: POSITIVE_EMOTIONS },
-  ];
+  const [editing, setEditing] = useState(false);
+  const [date, setDate] = useState(data.nextSession?.date || '');
+  const [time, setTime] = useState(data.nextSession?.time || '');
+  const [notes, setNotes] = useState(data.nextSession?.notes || '');
+  const [syncing, setSyncing] = useState(false);
+  const notesTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  return (
-    <div className="space-y-2">
-      {groups.map(group => (
-        <div key={group.label}>
-          <span className="type-caption text-[var(--text-tertiary)] block mb-1">{group.label}</span>
-          <div className="flex flex-wrap gap-1.5">
-            {group.emotions.map(emotion => {
-              const isSelected = selected.includes(emotion);
-              return (
-                <button
-                  key={emotion}
-                  onClick={() => { haptic('light'); onToggle(emotion); }}
-                  className={`text-xs px-2.5 py-1.5 rounded-full border transition-all ${
-                    isSelected
-                      ? EMOTION_SELECTED_COLORS[emotion]
-                      : EMOTION_COLORS[emotion]
-                  }`}
-                >
-                  {EMOTION_LABELS[emotion]}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+  // Wrap-up form state
+  const [wuSummary, setWuSummary] = useState('');
+  const [wuTakeaways, setWuTakeaways] = useState('');
+  const [wuActionItems, setWuActionItems] = useState<TherapistActionItem[]>([]);
+  const [wuNewAction, setWuNewAction] = useState('');
+  const [wuEmotions, setWuEmotions] = useState<GriefEmotion[]>([]);
+  const [wuDate, setWuDate] = useState(data.nextSession?.date || format(new Date(), 'yyyy-MM-dd'));
+  // Ad-hoc logging (no scheduled session)
+  const [showAdHocForm, setShowAdHocForm] = useState(false);
 
-// ─── New Session Form ───────────────────────────────────────────
+  const summaryRef = useRef<HTMLTextAreaElement | null>(null);
 
-function NewSessionForm({
-  onSave,
-  onCancel,
-  initialDate,
-  lastSessionPrepNotes,
-}: {
-  onSave: (session: TherapistSession) => void;
-  onCancel: () => void;
-  initialDate?: string;
-  lastSessionPrepNotes?: TherapistPrepNote[];
-}) {
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const [date, setDate] = useState(initialDate || today);
-  const [summary, setSummary] = useState('');
-  const [takeaways, setTakeaways] = useState('');
-  const [actionItems, setActionItems] = useState<TherapistActionItem[]>([]);
-  const [newAction, setNewAction] = useState('');
-  const [selectedEmotions, setSelectedEmotions] = useState<GriefEmotion[]>([]);
-  const [showLastSessionPrep, setShowLastSessionPrep] = useState(false);
-
+  // Sync form state when nextSession changes
   useEffect(() => {
-    setDate(initialDate || today);
-  }, [initialDate, today]);
+    setDate(data.nextSession?.date || '');
+    setTime(data.nextSession?.time || '');
+    setNotes(data.nextSession?.notes || '');
+  }, [data.nextSession]);
 
-  const handleAddAction = () => {
-    if (!newAction.trim()) return;
-    haptic('light');
-    setActionItems(prev => [
-      ...prev,
-      { id: generateId(), text: newAction.trim(), completed: false },
-    ]);
-    setNewAction('');
-  };
+  // Auto-focus summary when entering wrap-up
+  useEffect(() => {
+    if (phase === 'wrapping-up' && summaryRef.current) {
+      summaryRef.current.focus();
+    }
+  }, [phase]);
 
-  const handleActionKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleAddAction();
+  // ─── Google Calendar Sync ──────────────────────────────────
+
+  const syncToGoogleCalendar = async (
+    sessionData: { date: string; time: string; notes: string },
+    existingGCalId?: string
+  ) => {
+    setSyncing(true);
+    try {
+      const input = {
+        title: 'Therapy - Brian Mandel',
+        date: sessionData.date,
+        startTime: sessionData.time || '10:00',
+        endTime: '',
+        description: sessionData.notes || '',
+      };
+
+      if (existingGCalId) {
+        await updateGCalEvent(existingGCalId, input);
+      } else {
+        const result = await createGoogleCalendarEvent(input);
+        onUpdate({
+          nextSession: {
+            ...sessionData,
+            googleCalendarEventId: result.googleCalendarEventId,
+          },
+        });
+      }
+    } catch (err) {
+      console.warn('Google Calendar sync failed (session saved locally):', err);
+    } finally {
+      setSyncing(false);
     }
   };
 
-  const removeAction = (id: string) => {
-    setActionItems(prev => prev.filter(a => a.id !== id));
+  // ─── Next Session Handlers ─────────────────────────────────
+
+  const handleSave = () => {
+    haptic('light');
+    if (date) {
+      const sessionData = { date, time, notes };
+      onUpdate({ nextSession: sessionData });
+      syncToGoogleCalendar(sessionData, data.nextSession?.googleCalendarEventId);
+    } else {
+      onUpdate({ nextSession: undefined });
+    }
+    setEditing(false);
   };
 
-  const toggleEmotion = (emotion: GriefEmotion) => {
-    setSelectedEmotions(prev =>
-      prev.includes(emotion) ? prev.filter(e => e !== emotion) : [...prev, emotion]
+  const handleNotesChange = (value: string) => {
+    setNotes(value);
+    clearTimeout(notesTimeoutRef.current);
+    notesTimeoutRef.current = setTimeout(() => {
+      if (date) {
+        onUpdate({ nextSession: { date, time, notes: value, googleCalendarEventId: data.nextSession?.googleCalendarEventId } });
+      }
+    }, 500);
+  };
+
+  const handleClear = () => {
+    haptic('light');
+    if (data.nextSession?.googleCalendarEventId) {
+      deleteGoogleCalendarEvent(data.nextSession.googleCalendarEventId).catch(err =>
+        console.warn('Failed to delete Google Calendar event:', err)
+      );
+    }
+    onUpdate({ nextSession: undefined });
+    setDate('');
+    setTime('');
+    setNotes('');
+    setEditing(false);
+  };
+
+  // ─── Wrap-up Handlers ──────────────────────────────────────
+
+  const startWrapUp = () => {
+    haptic('light');
+    setWuDate(data.nextSession?.date || format(new Date(), 'yyyy-MM-dd'));
+    setWuSummary('');
+    setWuTakeaways('');
+    setWuActionItems([]);
+    setWuNewAction('');
+    setWuEmotions([]);
+    setWrappingUp(true);
+  };
+
+  const cancelWrapUp = () => {
+    haptic('light');
+    setWrappingUp(false);
+    setShowAdHocForm(false);
+  };
+
+  const handleWuAddAction = () => {
+    if (!wuNewAction.trim()) return;
+    haptic('light');
+    setWuActionItems(prev => [
+      ...prev,
+      { id: generateId(), text: wuNewAction.trim(), completed: false },
+    ]);
+    setWuNewAction('');
+  };
+
+  const handleWuSave = () => {
+    if (!wuSummary.trim() || wuEmotions.length === 0) return;
+    haptic('light');
+    const session: TherapistSession = {
+      id: generateId(),
+      date: wuDate,
+      summary: wuSummary.trim(),
+      takeaways: wuTakeaways.trim(),
+      actionItems: wuActionItems,
+      moodAfter: derivesMoodAfter(wuEmotions),
+      emotions: wuEmotions,
+      createdAt: new Date().toISOString(),
+    };
+    onSaveSession(session);
+  };
+
+  const canSaveWrapUp = wuSummary.trim() && wuEmotions.length > 0;
+
+  const handlePrepNotesUpdate = (prepNotes: TherapistPrepNote[]) => {
+    onUpdate({ prepNotes });
+  };
+
+  // ─── Render by Phase ───────────────────────────────────────
+
+  // Shared: session header for preparing/ready-to-log
+  const renderSessionHeader = () => {
+    if (!data.nextSession) return null;
+    const countdown = getCountdown(data.nextSession.date);
+
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Calendar size={14} className="text-[var(--accent-primary)]" />
+            <span className="type-body text-[var(--text-primary)] font-medium">
+              {format(parseISO(data.nextSession.date), 'EEE, MMM d')}
+            </span>
+            {data.nextSession.time && (
+              <span className="type-caption text-[var(--text-tertiary)] flex items-center gap-1">
+                <Clock size={11} />
+                {data.nextSession.time}
+              </span>
+            )}
+          </div>
+          <span
+            className={`type-caption font-medium px-2 py-0.5 rounded-full ${
+              countdown.isPastDue
+                ? 'bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+                : countdown.isToday
+                  ? 'bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400'
+                  : 'bg-[var(--accent-muted)] text-[var(--accent-primary)]'
+            }`}
+          >
+            {countdown.text}
+          </span>
+        </div>
+        {data.nextSession.notes && (
+          <p className="type-caption text-[var(--text-secondary)] pl-5">{data.nextSession.notes}</p>
+        )}
+        <div className="flex items-center gap-2 pl-5">
+          <button
+            onClick={() => { haptic('light'); setEditing(true); }}
+            className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+          >
+            Edit
+          </button>
+          <span className="text-[var(--border-subtle)]">|</span>
+          <button
+            onClick={handleClear}
+            className="text-xs text-[var(--text-tertiary)] hover:text-red-500 transition-colors"
+          >
+            Remove
+          </button>
+          {syncing && (
+            <span className="text-xs text-[var(--text-tertiary)] italic">syncing...</span>
+          )}
+          {!syncing && data.nextSession.googleCalendarEventId && (
+            <span className="text-xs text-[var(--text-tertiary)]">on calendar</span>
+          )}
+        </div>
+      </div>
     );
   };
 
-  const handleSave = () => {
-    if (!summary.trim() || selectedEmotions.length === 0) return;
-    haptic('light');
-    const moodAfter = derivesMoodAfter(selectedEmotions);
-    const session: TherapistSession = {
-      id: generateId(),
-      date,
-      summary: summary.trim(),
-      takeaways: takeaways.trim(),
-      actionItems,
-      moodAfter,
-      emotions: selectedEmotions,
-      createdAt: new Date().toISOString(),
-    };
-    onSave(session);
-  };
+  // Editing form (shared between phases)
+  if (editing) {
+    return (
+      <div className="bg-[var(--surface-inset)] rounded-[var(--radius-lg)] p-4 space-y-3">
+        <h3 className="type-label text-[var(--text-secondary)] flex items-center gap-1.5">
+          <Calendar size={14} className="text-[var(--accent-primary)]" />
+          {data.nextSession ? 'Edit Session' : 'Schedule Next Session'}
+        </h3>
+        <div className="flex gap-2">
+          <input
+            type="date"
+            value={date}
+            onChange={e => setDate(e.target.value)}
+            className="flex-1 text-sm bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
+          />
+          <input
+            type="time"
+            value={time}
+            onChange={e => setTime(e.target.value)}
+            className="w-28 text-sm bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
+          />
+        </div>
+        <textarea
+          value={notes}
+          onChange={e => handleNotesChange(e.target.value)}
+          placeholder="What do you want to focus on?"
+          rows={2}
+          className="w-full text-sm bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)] resize-none"
+        />
+        <div className="flex gap-2">
+          <button
+            onClick={handleSave}
+            className="flex-1 text-sm font-medium bg-[var(--accent-primary)] text-white rounded-[var(--radius-sm)] py-2 hover:opacity-90 transition-opacity"
+          >
+            Save
+          </button>
+          <button
+            onClick={() => { setEditing(false); setDate(data.nextSession?.date || ''); setTime(data.nextSession?.time || ''); setNotes(data.nextSession?.notes || ''); }}
+            className="px-4 text-sm text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-  const canSave = summary.trim() && selectedEmotions.length > 0;
+  // ─── Phase: No Session ─────────────────────────────────────
 
-  return (
-    <div className="space-y-3 bg-[var(--surface-inset)] rounded-[var(--radius-md)] p-3">
-      <h4 className="type-label text-[var(--text-primary)] font-medium">Log Session</h4>
+  if (phase === 'no-session') {
+    return (
+      <div className="bg-[var(--surface-inset)] rounded-[var(--radius-lg)] p-4 space-y-3">
+        <h3 className="type-label text-[var(--text-secondary)] flex items-center gap-1.5">
+          <Calendar size={14} className="text-[var(--accent-primary)]" />
+          Therapy
+        </h3>
 
-      {lastSessionPrepNotes && lastSessionPrepNotes.length > 0 && (
-        <div className="rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--surface-card)]">
+        <SessionFrequencyInsight sessions={data.sessions || []} />
+
+        {/* Calendar suggestion */}
+        {upcomingTherapyEvent && (
+          <div className="bg-[var(--accent-muted)] border border-[var(--accent-primary)]/20 rounded-[var(--radius-md)] p-3 space-y-2">
+            <p className="type-caption text-[var(--text-secondary)]">
+              Found on your calendar:
+            </p>
+            <p className="type-body text-sm text-[var(--text-primary)] font-medium">
+              {upcomingTherapyEvent.title} — {format(parseISO(upcomingTherapyEvent.date), 'EEE, MMM d')}{upcomingTherapyEvent.startTime ? ` at ${upcomingTherapyEvent.startTime}` : ''}
+            </p>
+            <button
+              onClick={() => { haptic('light'); onAcceptCalendarEvent(upcomingTherapyEvent); }}
+              className="text-xs font-medium text-[var(--accent-primary)] hover:underline"
+            >
+              Set as next session
+            </button>
+          </div>
+        )}
+
+        <button
+          onClick={() => { haptic('light'); setEditing(true); }}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-[var(--radius-md)] border border-dashed border-[var(--border-subtle)] text-sm text-[var(--text-tertiary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] transition-colors"
+        >
+          <Plus size={14} />
+          Schedule next session
+        </button>
+
+        {/* Prep notes still accessible even without a scheduled session */}
+        {(data.prepNotes || []).length > 0 && (
+          <>
+            <div className="border-t border-[var(--border-subtle)]" />
+            <PrepNotesInline
+              prepNotes={data.prepNotes || []}
+              onUpdate={handlePrepNotesUpdate}
+              journalEntries={journalEntries}
+            />
+          </>
+        )}
+
+        {/* Ad-hoc session logging */}
+        {showAdHocForm ? (
+          <>
+            <div className="border-t border-[var(--border-subtle)]" />
+            {renderWrapUpForm()}
+          </>
+        ) : (
           <button
             onClick={() => {
               haptic('light');
-              setShowLastSessionPrep(prev => !prev);
+              setWuDate(format(new Date(), 'yyyy-MM-dd'));
+              setWuSummary('');
+              setWuTakeaways('');
+              setWuActionItems([]);
+              setWuNewAction('');
+              setWuEmotions([]);
+              setShowAdHocForm(true);
+              setWrappingUp(true);
             }}
-            className="flex w-full items-center justify-between px-3 py-2 text-left"
+            className="w-full text-xs text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] transition-colors py-1"
           >
-            <span className="type-caption font-medium text-[var(--text-secondary)]">
-              Last session&apos;s prep
-            </span>
-            {showLastSessionPrep ? (
-              <ChevronUp size={14} className="text-[var(--text-tertiary)]" />
-            ) : (
-              <ChevronDown size={14} className="text-[var(--text-tertiary)]" />
-            )}
+            Log a past session
           </button>
-          {showLastSessionPrep && (
-            <div className="space-y-1 border-t border-[var(--border-subtle)] px-3 py-2">
-              {lastSessionPrepNotes.map(note => (
-                <div key={note.id} className="flex items-start gap-2 text-sm text-[var(--text-secondary)]">
-                  <span className={`mt-1 h-1.5 w-1.5 rounded-full ${note.discussed ? 'bg-[var(--status-success)]' : 'bg-[var(--accent-primary)]'}`} />
-                  <span className={note.discussed ? 'line-through opacity-70' : ''}>{note.text}</span>
+        )}
+      </div>
+    );
+  }
+
+  // ─── Phase: Preparing ──────────────────────────────────────
+
+  if (phase === 'preparing') {
+    return (
+      <div className="bg-[var(--surface-inset)] rounded-[var(--radius-lg)] p-4 space-y-4">
+        {renderSessionHeader()}
+        <div className="border-t border-[var(--border-subtle)]" />
+        <PrepNotesInline
+          prepNotes={data.prepNotes || []}
+          onUpdate={handlePrepNotesUpdate}
+          journalEntries={journalEntries}
+        />
+      </div>
+    );
+  }
+
+  // ─── Phase: Ready to Log ───────────────────────────────────
+
+  if (phase === 'ready-to-log') {
+    return (
+      <div className="bg-[var(--surface-inset)] rounded-[var(--radius-lg)] p-4 space-y-4">
+        {/* Prominent CTA */}
+        <button
+          onClick={startWrapUp}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-[var(--radius-md)] bg-[var(--accent-primary)] text-white font-medium text-sm hover:opacity-90 transition-opacity"
+        >
+          Session done? Let&apos;s wrap up
+          <ArrowRight size={16} />
+        </button>
+
+        {renderSessionHeader()}
+        <div className="border-t border-[var(--border-subtle)]" />
+        <PrepNotesInline
+          prepNotes={data.prepNotes || []}
+          onUpdate={handlePrepNotesUpdate}
+          journalEntries={journalEntries}
+        />
+      </div>
+    );
+  }
+
+  // ─── Wrap-up form (shared renderer) ────────────────────────
+
+  function renderWrapUpForm() {
+    return (
+      <div className="space-y-4">
+        <h3 className="type-label text-[var(--text-primary)] font-medium">
+          How did it go?
+        </h3>
+
+        {/* Prep notes review */}
+        {(data.prepNotes || []).length > 0 && (
+          <div className="space-y-1.5">
+            <span className="type-caption text-[var(--text-tertiary)] flex items-center gap-1">
+              <MessageSquare size={11} />
+              Mark what you discussed
+            </span>
+            {(data.prepNotes || []).map(note => (
+              <div key={note.id} className="flex items-start gap-2 px-1 py-1">
+                <button
+                  onClick={() => {
+                    haptic('light');
+                    handlePrepNotesUpdate(
+                      (data.prepNotes || []).map(n => n.id === note.id ? { ...n, discussed: !n.discussed } : n)
+                    );
+                  }}
+                  className="flex-shrink-0 mt-0.5 active:scale-90 transition-transform"
+                >
+                  {note.discussed ? (
+                    <Check size={16} className="text-[var(--status-success)]" />
+                  ) : (
+                    <div className="w-4 h-4 rounded border border-[var(--border-subtle)]" />
+                  )}
+                </button>
+                <span className={`type-body text-sm ${note.discussed ? 'line-through text-[var(--text-tertiary)]' : 'text-[var(--text-primary)]'}`}>
+                  {note.text}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Date (collapsed, editable) */}
+        <div>
+          <label className="type-caption text-[var(--text-tertiary)] block mb-1">Date</label>
+          <input
+            type="date"
+            value={wuDate}
+            onChange={e => setWuDate(e.target.value)}
+            className="w-full text-sm bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
+          />
+        </div>
+
+        {/* Summary */}
+        <div>
+          <label className="type-caption text-[var(--text-tertiary)] block mb-1 flex items-center gap-1">
+            What did you discuss?
+            {wuSummary.trim() && <Check size={12} className="text-[var(--status-success)]" />}
+          </label>
+          <textarea
+            ref={summaryRef}
+            value={wuSummary}
+            onChange={e => setWuSummary(e.target.value)}
+            placeholder="Topics, breakthroughs, hard stuff..."
+            rows={3}
+            className="w-full text-sm bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)] resize-none"
+          />
+        </div>
+
+        {/* Takeaways */}
+        <div>
+          <label className="type-caption text-[var(--text-tertiary)] block mb-1 flex items-center gap-1">
+            What stood out or resonated?
+            {wuTakeaways.trim() && <Check size={12} className="text-[var(--status-success)]" />}
+          </label>
+          <textarea
+            value={wuTakeaways}
+            onChange={e => setWuTakeaways(e.target.value)}
+            placeholder="Key insights, things to sit with..."
+            rows={2}
+            className="w-full text-sm bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)] resize-none"
+          />
+        </div>
+
+        {/* Action Items */}
+        <div>
+          <label className="type-caption text-[var(--text-tertiary)] block mb-1 flex items-center gap-1">
+            Action items
+            {wuActionItems.length > 0 && <Check size={12} className="text-[var(--status-success)]" />}
+          </label>
+          <div className="flex gap-2 mb-2">
+            <input
+              type="text"
+              value={wuNewAction}
+              onChange={e => setWuNewAction(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleWuAddAction(); } }}
+              placeholder="Something to do before next time..."
+              className="flex-1 text-sm bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
+            />
+            <button
+              onClick={handleWuAddAction}
+              disabled={!wuNewAction.trim()}
+              className="px-3 py-2 bg-[var(--accent-primary)] text-white rounded-[var(--radius-sm)] hover:opacity-90 transition-opacity disabled:opacity-40"
+            >
+              <Plus size={14} />
+            </button>
+          </div>
+          {wuActionItems.length > 0 && (
+            <div className="space-y-1.5">
+              {wuActionItems.map(item => (
+                <div key={item.id} className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
+                  <div className="w-4 h-4 rounded border border-[var(--border-subtle)] flex-shrink-0" />
+                  <span className="flex-1">{item.text}</span>
+                  <button
+                    onClick={() => setWuActionItems(prev => prev.filter(a => a.id !== item.id))}
+                    className="p-0.5 text-[var(--text-tertiary)] hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 size={12} />
+                  </button>
                 </div>
               ))}
             </div>
           )}
         </div>
-      )}
 
-      {/* Date */}
-      <div>
-        <label className="type-caption text-[var(--text-tertiary)] block mb-1">Date</label>
-        <input
-          type="date"
-          value={date}
-          onChange={e => setDate(e.target.value)}
-          className="w-full text-sm bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
-        />
-      </div>
-
-      {/* Summary */}
-      <div>
-        <label className="type-caption text-[var(--text-tertiary)] block mb-1">Summary</label>
-        <textarea
-          value={summary}
-          onChange={e => setSummary(e.target.value)}
-          placeholder="What did you discuss?"
-          rows={3}
-          className="w-full text-sm bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)] resize-none"
-        />
-      </div>
-
-      {/* Takeaways */}
-      <div>
-        <label className="type-caption text-[var(--text-tertiary)] block mb-1">Key Takeaways</label>
-        <textarea
-          value={takeaways}
-          onChange={e => setTakeaways(e.target.value)}
-          placeholder="What stood out or resonated?"
-          rows={2}
-          className="w-full text-sm bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)] resize-none"
-        />
-      </div>
-
-      {/* Action Items */}
-      <div>
-        <label className="type-caption text-[var(--text-tertiary)] block mb-1">Action Items</label>
-        <div className="flex gap-2 mb-2">
-          <input
-            type="text"
-            value={newAction}
-            onChange={e => setNewAction(e.target.value)}
-            onKeyDown={handleActionKeyDown}
-            placeholder="Add an action item..."
-            className="flex-1 text-sm bg-[var(--surface-card)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] px-3 py-2 text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
+        {/* Emotions */}
+        <div>
+          <label className="type-caption text-[var(--text-tertiary)] block mb-1.5 flex items-center gap-1">
+            How do you feel after?
+            {wuEmotions.length > 0 && <Check size={12} className="text-[var(--status-success)]" />}
+          </label>
+          <EmotionPicker
+            selected={wuEmotions}
+            onToggle={emotion => {
+              setWuEmotions(prev =>
+                prev.includes(emotion) ? prev.filter(e => e !== emotion) : [...prev, emotion]
+              );
+            }}
           />
+        </div>
+
+        {/* Save / Cancel */}
+        <div className="flex gap-2 pt-1">
           <button
-            onClick={handleAddAction}
-            disabled={!newAction.trim()}
-            className="px-3 py-2 bg-[var(--accent-primary)] text-white rounded-[var(--radius-sm)] hover:opacity-90 transition-opacity disabled:opacity-40"
+            onClick={handleWuSave}
+            disabled={!canSaveWrapUp}
+            className="flex-1 text-sm font-medium bg-[var(--accent-primary)] text-white rounded-[var(--radius-sm)] py-2.5 hover:opacity-90 transition-opacity disabled:opacity-40"
           >
-            <Plus size={14} />
+            Save Session
+          </button>
+          <button
+            onClick={cancelWrapUp}
+            className="px-4 text-sm text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+          >
+            Cancel
           </button>
         </div>
-        {actionItems.length > 0 && (
-          <div className="space-y-1.5">
-            {actionItems.map(item => (
-              <div key={item.id} className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
-                <div className="w-4 h-4 rounded border border-[var(--border-subtle)] flex-shrink-0" />
-                <span className="flex-1">{item.text}</span>
-                <button
-                  onClick={() => removeAction(item.id)}
-                  className="p-0.5 text-[var(--text-tertiary)] hover:text-red-500 transition-colors"
-                >
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
-
-      {/* Emotions (replaces mood selector) */}
-      <div>
-        <label className="type-caption text-[var(--text-tertiary)] block mb-1.5">How do you feel after?</label>
-        <EmotionPicker selected={selectedEmotions} onToggle={toggleEmotion} />
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-2 pt-1">
-        <button
-          onClick={handleSave}
-          disabled={!canSave}
-          className="flex-1 text-sm font-medium bg-[var(--accent-primary)] text-white rounded-[var(--radius-sm)] py-2 hover:opacity-90 transition-opacity disabled:opacity-40"
-        >
-          Save Session
-        </button>
-        <button
-          onClick={() => { haptic('light'); onCancel(); }}
-          className="px-4 text-sm text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ─── Session Frequency Insight ──────────────────────────────────
-
-function SessionFrequencyInsight({ sessions }: { sessions: TherapistSession[] }) {
-  if (sessions.length === 0) return null;
-
-  const sorted = [...sessions].sort(
-    (a, b) => safeTime(b.date) - safeTime(a.date)
-  );
-
-  const today = startOfDay(new Date());
-  const lastSessionDate = startOfDay(parseISO(sorted[0].date));
-  const daysSinceLast = differenceInDays(today, lastSessionDate);
-
-  if (sessions.length === 1) {
-    return (
-      <p className="type-caption text-[var(--text-tertiary)]">
-        Last session: {daysSinceLast} day{daysSinceLast !== 1 ? 's' : ''} ago
-      </p>
     );
   }
 
-  // Compute average gap
-  let totalGap = 0;
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const a = startOfDay(parseISO(sorted[i].date));
-    const b = startOfDay(parseISO(sorted[i + 1].date));
-    totalGap += differenceInDays(a, b);
-  }
-  const avgGap = Math.round(totalGap / (sorted.length - 1));
+  // ─── Phase: Wrapping Up ────────────────────────────────────
 
-  return (
-    <p className="type-caption text-[var(--text-tertiary)]">
-      Last session: {daysSinceLast} day{daysSinceLast !== 1 ? 's' : ''} ago — Avg: every {avgGap} day{avgGap !== 1 ? 's' : ''}
-    </p>
-  );
+  if (phase === 'wrapping-up') {
+    return (
+      <div className="bg-[var(--surface-inset)] rounded-[var(--radius-lg)] p-4">
+        {renderWrapUpForm()}
+      </div>
+    );
+  }
+
+  // ─── Phase: Just Logged ────────────────────────────────────
+
+  if (phase === 'just-logged' && justLoggedDate) {
+    return (
+      <div className="bg-[var(--surface-inset)] rounded-[var(--radius-lg)] p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-full bg-[var(--status-success)]/20 flex items-center justify-center">
+            <Check size={14} className="text-[var(--status-success)]" />
+          </div>
+          <span className="type-body text-[var(--text-primary)] font-medium">
+            Session logged for {format(parseISO(justLoggedDate), 'MMM d')}
+          </span>
+        </div>
+        <p className="type-caption text-[var(--text-secondary)]">
+          Schedule your next session to keep the cycle going.
+        </p>
+        <button
+          onClick={() => {
+            haptic('light');
+            setJustLoggedDate(null);
+            setEditing(true);
+          }}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-[var(--radius-md)] bg-[var(--accent-primary)] text-white font-medium text-sm hover:opacity-90 transition-opacity"
+        >
+          <Calendar size={16} />
+          Schedule next session
+        </button>
+        <button
+          onClick={() => { haptic('light'); setJustLoggedDate(null); }}
+          className="w-full text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors py-1"
+        >
+          Dismiss
+        </button>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 // ─── Session History ────────────────────────────────────────────
@@ -973,6 +1164,7 @@ function SessionHistory({
   onToggleAction: (sessionId: string, actionId: string) => void;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(sessions.length > 3);
   const sorted = [...sessions].sort(
     (a, b) => safeTime(b.date) - safeTime(a.date)
   );
@@ -1004,213 +1196,178 @@ function SessionHistory({
 
   return (
     <div className="space-y-2">
-      <h3 className="type-label text-[var(--text-secondary)] flex items-center gap-1.5">
-        <Clock size={14} className="text-[var(--accent-primary)]" />
-        Session History
-      </h3>
-      <SessionFrequencyInsight sessions={sessions} />
-      <div className="space-y-2">
-        {sorted.map(session => {
-          const isExpanded = expandedId === session.id;
-          const completedActions = session.actionItems.filter(a => a.completed).length;
-          const totalActions = session.actionItems.length;
+      <button
+        onClick={() => { haptic('light'); setCollapsed(prev => !prev); }}
+        className="w-full flex items-center justify-between"
+      >
+        <h3 className="type-label text-[var(--text-secondary)] flex items-center gap-1.5">
+          <Clock size={14} className="text-[var(--accent-primary)]" />
+          Session History
+          <span className="type-caption text-[var(--text-tertiary)]">({sorted.length})</span>
+        </h3>
+        {collapsed ? (
+          <ChevronRight size={14} className="text-[var(--text-tertiary)]" />
+        ) : (
+          <ChevronDown size={14} className="text-[var(--text-tertiary)]" />
+        )}
+      </button>
 
-          return (
-            <div
-              key={session.id}
-              className="bg-[var(--surface-inset)] rounded-[var(--radius-md)] overflow-hidden"
-            >
-              {/* Session header - tap to expand */}
-              <button
-                onClick={() => toggle(session.id)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 text-left"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="type-body text-sm font-medium text-[var(--text-primary)]">
-                      {format(parseISO(session.date), 'MMM d, yyyy')}
-                    </span>
-                    <MoodBadge mood={session.moodAfter} />
-                  </div>
-                  <p className="type-caption text-[var(--text-secondary)] line-clamp-1 mt-0.5">
-                    {session.summary}
-                  </p>
-                </div>
-                {isExpanded ? (
-                  <ChevronDown size={14} className="text-[var(--text-tertiary)] flex-shrink-0" />
-                ) : (
-                  <ChevronRight size={14} className="text-[var(--text-tertiary)] flex-shrink-0" />
-                )}
-              </button>
+      {!collapsed && (
+        <>
+          <SessionFrequencyInsight sessions={sessions} />
+          <div className="space-y-2">
+            {sorted.map(session => {
+              const isExpanded = expandedId === session.id;
+              const completedActions = session.actionItems.filter(a => a.completed).length;
+              const totalActions = session.actionItems.length;
 
-              {/* Expanded detail */}
-              {isExpanded && (
-                <div className="px-3 pb-3 space-y-3 border-t border-[var(--border-subtle)]">
-                  {/* Summary */}
-                  <div className="pt-2">
-                    <span className="type-caption text-[var(--text-tertiary)] block mb-0.5">Summary</span>
-                    <p className="type-body text-sm text-[var(--text-primary)] whitespace-pre-wrap">
-                      {session.summary}
-                    </p>
-                  </div>
-
+              return (
+                <div
+                  key={session.id}
+                  className="bg-[var(--surface-inset)] rounded-[var(--radius-md)] overflow-hidden"
+                >
                   <button
-                    onClick={() => handleEmailToSelf(session)}
-                    className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-[var(--surface-card)] px-3 py-2 text-sm font-medium text-[var(--accent-primary)] hover:bg-[var(--accent-muted)]"
+                    onClick={() => toggle(session.id)}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 text-left"
                   >
-                    <BookOpen size={14} />
-                    Email to self
-                  </button>
-
-                  {/* Emotions */}
-                  {session.emotions && session.emotions.length > 0 && (
-                    <div>
-                      <span className="type-caption text-[var(--text-tertiary)] block mb-1">Feeling after</span>
-                      <EmotionTags emotions={session.emotions} />
-                    </div>
-                  )}
-
-                  {/* Takeaways */}
-                  {session.takeaways && (
-                    <div>
-                      <span className="type-caption text-[var(--text-tertiary)] block mb-0.5">Key Takeaways</span>
-                      <p className="type-body text-sm text-[var(--text-primary)] whitespace-pre-wrap">
-                        {session.takeaways}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="type-body text-sm font-medium text-[var(--text-primary)]">
+                          {format(parseISO(session.date), 'MMM d, yyyy')}
+                        </span>
+                        <MoodBadge mood={session.moodAfter} />
+                      </div>
+                      <p className="type-caption text-[var(--text-secondary)] line-clamp-1 mt-0.5">
+                        {session.summary}
                       </p>
                     </div>
-                  )}
+                    {isExpanded ? (
+                      <ChevronDown size={14} className="text-[var(--text-tertiary)] flex-shrink-0" />
+                    ) : (
+                      <ChevronRight size={14} className="text-[var(--text-tertiary)] flex-shrink-0" />
+                    )}
+                  </button>
 
-                  {session.prepNotesSnapshot && session.prepNotesSnapshot.length > 0 && (
-                    <div>
-                      <span className="type-caption text-[var(--text-tertiary)] block mb-1">
-                        Prep Notes From That Session
-                      </span>
-                      <div className="space-y-1.5">
-                        {session.prepNotesSnapshot.map(note => (
-                          <div key={note.id} className="flex items-start gap-2">
-                            <span className={`mt-1 h-1.5 w-1.5 rounded-full ${note.discussed ? 'bg-[var(--status-success)]' : 'bg-[var(--accent-primary)]'}`} />
-                            <span
-                              className={`type-body text-sm ${
-                                note.discussed
-                                  ? 'line-through text-[var(--text-tertiary)]'
-                                  : 'text-[var(--text-primary)]'
-                              }`}
-                            >
-                              {note.text}
-                            </span>
-                          </div>
-                        ))}
+                  {isExpanded && (
+                    <div className="px-3 pb-3 space-y-3 border-t border-[var(--border-subtle)]">
+                      <div className="pt-2">
+                        <span className="type-caption text-[var(--text-tertiary)] block mb-0.5">Summary</span>
+                        <p className="type-body text-sm text-[var(--text-primary)] whitespace-pre-wrap">
+                          {session.summary}
+                        </p>
                       </div>
-                    </div>
-                  )}
 
-                  {/* Action Items */}
-                  {totalActions > 0 && (
-                    <div>
-                      <span className="type-caption text-[var(--text-tertiary)] block mb-1">
-                        Action Items ({completedActions}/{totalActions})
-                      </span>
-                      <div className="space-y-1.5">
-                        {session.actionItems.map(item => (
-                          <div key={item.id} className="flex items-start gap-2">
-                            <button
-                              onClick={() => {
-                                haptic('light');
-                                onToggleAction(session.id, item.id);
-                              }}
-                              className="flex-shrink-0 mt-0.5 active:scale-90 transition-transform"
-                            >
-                              {item.completed ? (
-                                <Check size={16} className="text-[var(--status-success)]" />
-                              ) : (
-                                <div className="w-4 h-4 rounded border border-[var(--border-subtle)]" />
-                              )}
-                            </button>
-                            <span
-                              className={`type-body text-sm ${
-                                item.completed
-                                  ? 'line-through text-[var(--text-tertiary)]'
-                                  : 'text-[var(--text-primary)]'
-                              }`}
-                            >
-                              {item.text}
-                            </span>
+                      <button
+                        onClick={() => handleEmailToSelf(session)}
+                        className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-[var(--surface-card)] px-3 py-2 text-sm font-medium text-[var(--accent-primary)] hover:bg-[var(--accent-muted)]"
+                      >
+                        <Mail size={14} />
+                        Email to self
+                      </button>
+
+                      {session.emotions && session.emotions.length > 0 && (
+                        <div>
+                          <span className="type-caption text-[var(--text-tertiary)] block mb-1">Feeling after</span>
+                          <EmotionTags emotions={session.emotions} />
+                        </div>
+                      )}
+
+                      {session.takeaways && (
+                        <div>
+                          <span className="type-caption text-[var(--text-tertiary)] block mb-0.5">Key Takeaways</span>
+                          <p className="type-body text-sm text-[var(--text-primary)] whitespace-pre-wrap">
+                            {session.takeaways}
+                          </p>
+                        </div>
+                      )}
+
+                      {session.prepNotesSnapshot && session.prepNotesSnapshot.length > 0 && (
+                        <div>
+                          <span className="type-caption text-[var(--text-tertiary)] block mb-1">
+                            Prep Notes
+                          </span>
+                          <div className="space-y-1.5">
+                            {session.prepNotesSnapshot.map(note => (
+                              <div key={note.id} className="flex items-start gap-2">
+                                <span className={`mt-1 h-1.5 w-1.5 rounded-full ${note.discussed ? 'bg-[var(--status-success)]' : 'bg-[var(--accent-primary)]'}`} />
+                                <span
+                                  className={`type-body text-sm ${
+                                    note.discussed
+                                      ? 'line-through text-[var(--text-tertiary)]'
+                                      : 'text-[var(--text-primary)]'
+                                  }`}
+                                >
+                                  {note.text}
+                                </span>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      )}
+
+                      {totalActions > 0 && (
+                        <div>
+                          <span className="type-caption text-[var(--text-tertiary)] block mb-1">
+                            Action Items ({completedActions}/{totalActions})
+                          </span>
+                          <div className="space-y-1.5">
+                            {session.actionItems.map(item => (
+                              <div key={item.id} className="flex items-start gap-2">
+                                <button
+                                  onClick={() => {
+                                    haptic('light');
+                                    onToggleAction(session.id, item.id);
+                                  }}
+                                  className="flex-shrink-0 mt-0.5 active:scale-90 transition-transform"
+                                >
+                                  {item.completed ? (
+                                    <Check size={16} className="text-[var(--status-success)]" />
+                                  ) : (
+                                    <div className="w-4 h-4 rounded border border-[var(--border-subtle)]" />
+                                  )}
+                                </button>
+                                <span
+                                  className={`type-body text-sm ${
+                                    item.completed
+                                      ? 'line-through text-[var(--text-tertiary)]'
+                                      : 'text-[var(--text-primary)]'
+                                  }`}
+                                >
+                                  {item.text}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
 // ─── Main Component ─────────────────────────────────────────────
 
-// Detect therapy-related calendar events
-const THERAPY_KEYWORDS = ['therapy', 'therapist', 'brian mandel', 'brian m', 'betterhelp', 'counseling'];
-
-function isTherapyEvent(event: CalendarEvent): boolean {
-  const text = `${event.title} ${event.description || ''}`.toLowerCase();
-  return THERAPY_KEYWORDS.some(kw => text.includes(kw));
-}
-
-function CalendarTherapySuggestion({
-  event,
-  onAccept,
-}: {
-  event: CalendarEvent;
-  onAccept: () => void;
-}) {
-  return (
-    <div className="bg-[var(--accent-muted)] border border-[var(--accent-primary)]/20 rounded-[var(--radius-md)] p-3 space-y-2">
-      <p className="type-caption text-[var(--text-secondary)]">
-        Found a therapy event on your calendar:
-      </p>
-      <p className="type-body text-sm text-[var(--text-primary)] font-medium">
-        {event.title} — {format(parseISO(event.date), 'EEE, MMM d')}{event.startTime ? ` at ${event.startTime}` : ''}
-      </p>
-      <button
-        onClick={() => { haptic('light'); onAccept(); }}
-        className="text-xs font-medium text-[var(--accent-primary)] hover:underline"
-      >
-        Set as next session
-      </button>
-    </div>
-  );
-}
-
 export function TherapistTracker({ data, onUpdate, journalEntries, calendarEvents }: TherapistTrackerProps) {
-  const [showNewSession, setShowNewSession] = useState(false);
-  const [draftSessionDate, setDraftSessionDate] = useState<string | undefined>(undefined);
-  const [recentlyLoggedSessionDate, setRecentlyLoggedSessionDate] = useState<string | null>(null);
+  const [wrappingUp, setWrappingUp] = useState(false);
+  const [justLoggedDate, setJustLoggedDate] = useState<string | null>(null);
   const [dismissedCalEventIds, setDismissedCalEventIds] = useState<string[]>([]);
-  const prepInputRef = useRef<HTMLInputElement | null>(null);
 
-  const lastSession = (data.sessions || [])
-    .slice()
-    .sort((a, b) => safeTime(b.date) - safeTime(a.date))[0];
+  const phase = deriveSessionPhase(data.nextSession, wrappingUp, justLoggedDate !== null);
 
-  const scheduledSessionIsDue = (() => {
-    if (!data.nextSession?.date) return false;
-    return data.nextSession.date <= format(new Date(), 'yyyy-MM-dd');
-  })();
-
-  // Find upcoming therapy events from calendar that aren't already linked to nextSession
+  // Find upcoming therapy events from calendar
   const upcomingTherapyEvent = (calendarEvents || [])
     .filter(e => {
       if (!isTherapyEvent(e)) return false;
-      // Must be in the future
       if (e.date < format(new Date(), 'yyyy-MM-dd')) return false;
-      // Not already linked as next session
       if (data.nextSession?.googleCalendarEventId === e.googleCalendarEventId) return false;
       if (data.nextSession?.date === e.date && data.nextSession?.time === e.startTime) return false;
-      // Not dismissed
       if (dismissedCalEventIds.includes(e.id)) return false;
       return true;
     })
@@ -1225,21 +1382,6 @@ export function TherapistTracker({ data, onUpdate, journalEntries, calendarEvent
         googleCalendarEventId: event.googleCalendarEventId,
       },
     });
-  };
-
-  const handleNextSessionUpdate = (next: TherapistData['nextSession']) => {
-    if (next) {
-      setRecentlyLoggedSessionDate(null);
-    }
-    onUpdate({ nextSession: next });
-  };
-
-  const handlePrepNotesUpdate = (prepNotes: TherapistPrepNote[]) => {
-    onUpdate({ prepNotes });
-  };
-
-  const handleAddPrepNote = () => {
-    prepInputRef.current?.focus();
   };
 
   const handleSaveSession = (session: TherapistSession) => {
@@ -1260,15 +1402,8 @@ export function TherapistTracker({ data, onUpdate, journalEntries, calendarEvent
       prepNotes: carryForwardPrepNotes,
       nextSession: undefined,
     });
-    setShowNewSession(false);
-    setDraftSessionDate(undefined);
-    setRecentlyLoggedSessionDate(session.date);
-  };
-
-  const handleOpenLogSession = (date?: string) => {
-    haptic('light');
-    setDraftSessionDate(date || data.nextSession?.date || format(new Date(), 'yyyy-MM-dd'));
-    setShowNewSession(true);
+    setWrappingUp(false);
+    setJustLoggedDate(session.date);
   };
 
   const handleToggleAction = (sessionId: string, actionId: string) => {
@@ -1286,98 +1421,24 @@ export function TherapistTracker({ data, onUpdate, journalEntries, calendarEvent
 
   return (
     <div className="space-y-5">
-      {/* A. Open Action Items Banner */}
       <OpenActionItemsBanner
         sessions={data.sessions || []}
         onToggleAction={handleToggleAction}
       />
 
-      {/* Calendar → Therapy suggestion */}
-      {upcomingTherapyEvent && !data.nextSession && (
-        <CalendarTherapySuggestion
-          event={upcomingTherapyEvent}
-          onAccept={() => handleAcceptCalendarEvent(upcomingTherapyEvent)}
-        />
-      )}
-
-      {/* B. Next Session */}
-      {recentlyLoggedSessionDate && !data.nextSession && (
-        <div className="rounded-[var(--radius-md)] border border-[var(--accent-primary)]/20 bg-[var(--accent-muted)] p-3">
-          <p className="type-body text-sm font-medium text-[var(--text-primary)]">
-            Session logged for {format(parseISO(recentlyLoggedSessionDate), 'MMM d')}.
-          </p>
-          <p className="type-caption mt-1 text-[var(--text-secondary)]">
-            Schedule the next session when you&apos;re ready so this cycle stays current.
-          </p>
-        </div>
-      )}
-      <NextSessionSection
-        nextSession={data.nextSession}
-        onUpdate={handleNextSessionUpdate}
-        onAddPrepNote={handleAddPrepNote}
-        onLogSession={handleOpenLogSession}
-      />
-
-      {/* C. Prep Notes */}
-      <PrepNotesSection
-        prepNotes={data.prepNotes || []}
-        onUpdate={handlePrepNotesUpdate}
-        inputRef={prepInputRef}
+      <SessionLifecycleCard
+        data={data}
+        onUpdate={onUpdate}
         journalEntries={journalEntries}
+        upcomingTherapyEvent={phase === 'no-session' ? upcomingTherapyEvent : undefined}
+        onAcceptCalendarEvent={handleAcceptCalendarEvent}
+        onSaveSession={handleSaveSession}
+        phase={phase}
+        setWrappingUp={setWrappingUp}
+        justLoggedDate={justLoggedDate}
+        setJustLoggedDate={setJustLoggedDate}
       />
 
-      {/* D. Log Session */}
-      <div className="space-y-2">
-        <h3 className="type-label text-[var(--text-secondary)] flex items-center gap-1.5">
-          <Plus size={14} className="text-[var(--accent-primary)]" />
-          Log Session
-        </h3>
-        {data.nextSession && (
-          <div className={`rounded-[var(--radius-md)] border p-3 ${
-            scheduledSessionIsDue
-              ? 'border-[var(--accent-primary)] bg-[var(--accent-muted)]'
-              : 'border-[var(--border-subtle)] bg-[var(--surface-card)]'
-          }`}>
-            <p className="type-body text-sm text-[var(--text-primary)] font-medium">
-              {scheduledSessionIsDue ? 'This session is ready to log.' : 'A session is scheduled.'}
-            </p>
-            <p className="type-caption text-[var(--text-secondary)] mt-1">
-              Logging it will move it into history, clear the next-session slot, and carry forward any undiscussed prep notes.
-            </p>
-            <button
-              onClick={() => handleOpenLogSession(data.nextSession?.date)}
-              className={`mt-3 w-full rounded-[var(--radius-sm)] px-3 py-2 text-sm font-medium transition-colors ${
-                scheduledSessionIsDue
-                  ? 'bg-[var(--accent-primary)] text-white hover:opacity-90'
-                  : 'bg-[var(--surface-inset)] text-[var(--accent-primary)] hover:bg-[var(--accent-muted)]'
-              }`}
-            >
-              Log this session
-            </button>
-          </div>
-        )}
-        {showNewSession ? (
-          <NewSessionForm
-            onSave={handleSaveSession}
-            onCancel={() => {
-              setShowNewSession(false);
-              setDraftSessionDate(undefined);
-            }}
-            initialDate={draftSessionDate}
-            lastSessionPrepNotes={lastSession?.prepNotesSnapshot}
-          />
-        ) : (
-          <button
-            onClick={() => handleOpenLogSession()}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-[var(--radius-md)] border border-dashed border-[var(--border-subtle)] text-sm text-[var(--text-tertiary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] transition-colors"
-          >
-            <Plus size={14} />
-            Log a session
-          </button>
-        )}
-      </div>
-
-      {/* E. Session History */}
       <SessionHistory
         sessions={data.sessions || []}
         onToggleAction={handleToggleAction}
