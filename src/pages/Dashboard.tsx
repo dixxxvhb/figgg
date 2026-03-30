@@ -414,13 +414,16 @@ export function Dashboard() {
     })
   ), [rawTodayClasses, todayEventsRaw, data.classes, data.calendarEvents, data.competitionDances, data.studios]);
 
-  const activeTodayClasses = useMemo(() => {
+  const { activeTodayClasses, cancelledTodayCount } = useMemo(() => {
     const weekOf = formatWeekOf(getWeekStart());
     const wn = data.weekNotes.find(w => w.weekOf === weekOf);
-    return todayClasses.filter(c => {
+    let cancelled = 0;
+    const active = todayClasses.filter(c => {
       const exc = wn?.classNotes[c.id]?.exception;
+      if (exc?.type === 'cancelled') cancelled++;
       return !exc || exc.type === 'time-change';
     });
+    return { activeTodayClasses: active, cancelledTodayCount: cancelled };
   }, [todayClasses, data.weekNotes]);
 
   const todayCalendarEvents = useMemo(() => {
@@ -586,9 +589,12 @@ export function Dashboard() {
       if (remaining > 0) return { greeting: base, greetingSub: `${remaining} class${remaining > 1 ? 'es' : ''} left today` };
     }
     if (todayMood && moodSubs[todayMood]) return { greeting: base, greetingSub: moodSubs[todayMood] };
+    if (cancelledTodayCount > 0 && activeTodayClasses.length === 0) {
+      return { greeting: base, greetingSub: cancelledTodayCount === 1 ? 'Class cancelled today' : `All ${cancelledTodayCount} classes cancelled today` };
+    }
     if (activeTodayClasses.length === 0 && todayCalendarEvents.length === 0) return { greeting: base, greetingSub: 'No classes today' };
     return { greeting: base, greetingSub: undefined as string | undefined };
-  }, [hour, activeTodayClasses, todayCalendarEvents, classInfo, selfCareStatus, currentMinute, recentlyEndedClass, data.selfCare?.skippedDoseDate, todayStr2, todayMood]);
+  }, [hour, activeTodayClasses, todayCalendarEvents, classInfo, selfCareStatus, currentMinute, recentlyEndedClass, data.selfCare?.skippedDoseDate, todayStr2, todayMood, cancelledTodayCount]);
 
   // ── Render ──
   return (
@@ -857,6 +863,7 @@ export function Dashboard() {
               allClasses={data.classes}
               allCalendarEvents={data.calendarEvents || []}
               currentMinute={currentMinute}
+              cancelledTodayCount={cancelledTodayCount}
             />
             {todayPlan && todayPlan.items.some(i => !i.completed) && (
               <DayPlanWidget
@@ -932,6 +939,7 @@ export function Dashboard() {
               allClasses={data.classes}
               allCalendarEvents={data.calendarEvents || []}
               currentMinute={currentMinute}
+              cancelledTodayCount={cancelledTodayCount}
             />
           </>
         )}
@@ -996,6 +1004,7 @@ export function Dashboard() {
               allClasses={data.classes}
               allCalendarEvents={data.calendarEvents || []}
               currentMinute={currentMinute}
+              cancelledTodayCount={cancelledTodayCount}
             />
             {/* Wellness link */}
             <Link
@@ -1027,6 +1036,7 @@ export function Dashboard() {
               allClasses={data.classes}
               allCalendarEvents={data.calendarEvents || []}
               currentMinute={currentMinute}
+              cancelledTodayCount={cancelledTodayCount}
             />
             {todayPlan && todayPlan.items.some(i => !i.completed) && (
               <DayPlanWidget

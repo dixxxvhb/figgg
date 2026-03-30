@@ -386,10 +386,10 @@ export function Schedule() {
                   />
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
-                      <div className={`type-h2 ${hasException ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-primary)]'}`}>{cls.name}</div>
+                      <div className={`type-h2 ${hasException ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-primary)]'} ${exception?.type === 'cancelled' ? 'line-through' : ''}`}>{cls.name}</div>
                       <div className="flex items-center gap-1.5">
                         {exception?.type === 'cancelled' && (
-                          <span className="text-xs text-[var(--text-tertiary)] bg-[var(--surface-inset)] px-2 py-0.5 rounded-full">
+                          <span className="text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-full font-medium">
                             Cancelled
                           </span>
                         )}

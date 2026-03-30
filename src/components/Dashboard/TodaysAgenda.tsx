@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   FileText,
   Calendar,
+  CalendarOff,
 } from 'lucide-react';
 import type { Class, Studio, Competition, CompetitionDance, CalendarEvent, SelfCareData, WeekNotes, DayOfWeek, MedConfig } from '../../types';
 import { getClassesByDay } from '../../data/classes';
@@ -33,6 +34,7 @@ interface TodaysAgendaProps {
   allClasses?: Class[];
   allCalendarEvents?: CalendarEvent[];
   currentMinute: number;
+  cancelledTodayCount?: number;
 }
 
 type ItemStatus = 'past' | 'current' | 'next' | 'upcoming';
@@ -82,6 +84,7 @@ export function TodaysAgenda({
   allClasses,
   allCalendarEvents,
   currentMinute,
+  cancelledTodayCount = 0,
 }: TodaysAgendaProps) {
   const today = format(new Date(), 'yyyy-MM-dd');
   const weekOf = formatWeekOf(getWeekStart());
@@ -260,6 +263,16 @@ export function TodaysAgenda({
         </Link>
       </div>
 
+      {/* All-cancelled banner */}
+      {cancelledTodayCount > 0 && agendaItems.filter(i => i.type === 'class').every(i => i.exception?.type === 'cancelled') && (
+        <div className="px-4 py-3 bg-red-50 dark:bg-red-900/15 border-b border-red-200 dark:border-red-800/30 flex items-center gap-2">
+          <CalendarOff size={16} className="text-red-500 dark:text-red-400 flex-shrink-0" />
+          <span className="text-sm font-medium text-red-600 dark:text-red-400">
+            {cancelledTodayCount === 1 ? '1 class cancelled today' : `All ${cancelledTodayCount} classes cancelled today`}
+          </span>
+        </div>
+      )}
+
       <div className="divide-y divide-[var(--border-subtle)]">
         {displayItems.map(item => {
           const isPast = item.status === 'past';
@@ -375,7 +388,7 @@ export function TodaysAgenda({
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <div className="font-medium text-[var(--text-primary)] flex items-center gap-2">
+                <div className={`font-medium flex items-center gap-2 ${hasException && item.exception?.type === 'cancelled' ? 'text-[var(--text-tertiary)] line-through' : 'text-[var(--text-primary)]'}`}>
                   <span className="truncate">{item.name}</span>
                   {!hasException && isCurrent && (
                     <span className="type-label text-[var(--text-on-accent)] bg-[var(--accent-primary)] px-1.5 py-0.5 rounded-full flex-shrink-0">
@@ -389,7 +402,7 @@ export function TodaysAgenda({
                   )}
                   {!hasException && isActive && !isCurrent && <span className="w-2 h-2 bg-[var(--accent-primary)] rounded-full flex-shrink-0" />}
                   {hasException && item.exception?.type === 'cancelled' && (
-                    <span className="type-label text-[var(--text-tertiary)] bg-[var(--surface-inset)] px-1.5 py-0.5 rounded-full flex-shrink-0">
+                    <span className="type-label text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded-full flex-shrink-0">
                       Cancelled
                     </span>
                   )}
