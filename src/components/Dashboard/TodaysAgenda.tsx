@@ -120,9 +120,12 @@ export function TodaysAgenda({
         const energy = skippedToday ? 'none' as const : statusToEnergy(medStatus.projectedStatus(minutesFromNow));
         const calNotes = currentWeekNotes?.classNotes[e.id];
         // Cross-reference: if no direct exception, check matching internal class by name+time
+        // Use allClasses (not filtered `classes`) so we find matches even when internal classes
+        // were hidden by shouldPreferCalendarEventOverClass
         let exception = calNotes?.exception;
         if (!exception && currentWeekNotes) {
-          for (const cls of classes) {
+          const searchClasses = allClasses || classes;
+          for (const cls of searchClasses) {
             const sameName = cls.name.toLowerCase() === e.title.toLowerCase();
             const sameTime = Math.abs(timeToMinutes(cls.startTime) - eventStartMinutes) <= 10;
             if ((sameName || sameTime) && currentWeekNotes.classNotes[cls.id]?.exception) {
@@ -130,14 +133,12 @@ export function TodaysAgenda({
               break;
             }
           }
-          // Also check non-displayed internal class IDs in weekNotes (orphaned entries)
+          // Also check orphaned weekNotes entries by time+studio hint in classId
           if (!exception) {
             const normTitle = e.title.toLowerCase();
             for (const [, cn] of Object.entries(currentWeekNotes.classNotes)) {
               if (cn.exception && cn.classId) {
-                const normId = cn.classId.toLowerCase();
-                // Match by keywords in classId (e.g. "class-ladc-mon-1730" vs "LADC Beg lyrical" at 17:30)
-                const idParts = normId.split('-');
+                const idParts = cn.classId.toLowerCase().split('-');
                 const studioHint = idParts.find(p => p.length > 2 && normTitle.includes(p));
                 const timeHint = idParts.find(p => /^\d{4}$/.test(p));
                 if (studioHint && timeHint) {
