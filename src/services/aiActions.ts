@@ -1,7 +1,7 @@
 import { format, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import { getClassesByDay } from '../data/classes';
-import { formatWeekOf, getWeekStart, getCurrentDayOfWeek } from '../utils/time';
+import { formatWeekOf, getWeekStart, getCurrentDayOfWeek, timeToMinutes } from '../utils/time';
 import { classifyCalendarEvent } from '../utils/calendarEventType';
 import type { AIAction } from './ai';
 import type {
@@ -265,12 +265,29 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           return classification.isClassLike;
         });
 
-        if (action.scope !== 'specific') {
-          // Add calendar class event IDs that aren't already covered by internal class IDs
+        // Always add calendar class event IDs — even for 'specific' scope,
+        // because the AI may only send internal class IDs but the UI renders calendar events
+        {
           const existingIds = new Set(targetIds);
           for (const e of todayCalEvents) {
             if (!existingIds.has(e.id)) {
               targetIds.push(e.id);
+            }
+          }
+          // Also match calendar events to specific internal class IDs by name/time
+          if (action.scope === 'specific' && action.classIds?.length) {
+            for (const e of (appData.calendarEvents || []).filter(ev => ev.date === todayStr && ev.startTime && ev.startTime !== '00:00')) {
+              if (existingIds.has(e.id)) continue;
+              const matchesById = action.classIds.some(cid => {
+                const cls = appData.classes.find(c => c.id === cid);
+                if (!cls) return false;
+                return cls.name.toLowerCase() === e.title.toLowerCase() ||
+                  Math.abs(timeToMinutes(cls.startTime) - timeToMinutes(e.startTime)) <= 10;
+              });
+              if (matchesById) {
+                targetIds.push(e.id);
+                existingIds.add(e.id);
+              }
             }
           }
         }
