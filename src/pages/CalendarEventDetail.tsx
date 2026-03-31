@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Clock, MapPin, Play, Calendar, Trash2, FileText, Edit2, Save, Users, UserCheck, UserX, Clock3, ChevronDown, ChevronUp, Music, History, EyeOff } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
@@ -17,6 +17,9 @@ import { getEventRosterStudentIds } from '../utils/attendanceRoster';
 
 export function CalendarEventDetail() {
   const { eventId } = useParams<{ eventId: string }>();
+  const [searchParams] = useSearchParams();
+  const weekOffset = parseInt(searchParams.get('week') || '0', 10);
+  const scheduleLink = `/schedule${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`;
   const { data, getCurrentWeekNotes, saveWeekNotes, updateCalendarEvent, hideCalendarEvent, addClass } = useAppData();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const navigate = useNavigate();
@@ -180,7 +183,7 @@ export function CalendarEventDetail() {
     return (
       <div className="page-w px-4 py-6">
         <p>Event not found</p>
-        <Link to="/schedule" className="text-[var(--accent-primary)]">Back to schedule</Link>
+        <Link to={scheduleLink} className="text-[var(--accent-primary)]">Back to schedule</Link>
       </div>
     );
   }
@@ -261,7 +264,7 @@ export function CalendarEventDetail() {
       {confirmDialog}
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <Link to="/schedule" className="p-2 hover:bg-[var(--surface-card-hover)] rounded-lg text-[var(--text-primary)]">
+        <Link to={scheduleLink} className="p-2 hover:bg-[var(--surface-card-hover)] rounded-lg text-[var(--text-primary)]">
           <ArrowLeft size={20} />
         </Link>
         <div className="flex-1">

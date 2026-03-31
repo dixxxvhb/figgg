@@ -495,7 +495,7 @@ export function Schedule() {
               return (
                 <Link
                   key={event.id}
-                  to={`/event/${event.id}`}
+                  to={`/event/${event.id}${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`}
                   className={`block bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-card-hover)] transition-all ${isCancelled ? 'opacity-60' : ''}`}
                 >
                   <div className="flex items-start gap-3">

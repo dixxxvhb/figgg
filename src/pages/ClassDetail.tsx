@@ -423,7 +423,7 @@ export function ClassDetail() {
     return (
       <div className="page-w px-4 py-6">
         <p>Class not found</p>
-        <Link to="/schedule" className="text-[var(--accent-primary)]">Back to schedule</Link>
+        <Link to={`/schedule${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`} className="text-[var(--accent-primary)]">Back to schedule</Link>
       </div>
     );
   }
