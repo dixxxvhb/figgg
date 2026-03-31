@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Clock, CheckCircle, X, FileText, ChevronDown, ChevronUp, ClipboardList, RotateCcw, Bell, Flag, Mail } from 'lucide-react';
 import { format, parseISO, addWeeks } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
@@ -20,6 +20,8 @@ import { findNextRehearsalEvent } from '../utils/nextRehearsal';
 
 export function EventNotes() {
   const { eventId } = useParams<{ eventId: string }>();
+  const [searchParams] = useSearchParams();
+  const weekOffset = parseInt(searchParams.get('week') || '0', 10);
   const navigate = useNavigate();
   const { data, getCurrentWeekNotes, saveWeekNotes, updateSelfCare, addReminder } = useAppData();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
@@ -248,7 +250,7 @@ export function EventNotes() {
     return (
       <div className="page-w px-4 py-6">
         <p>Event not found</p>
-        <Link to="/schedule" className="text-[var(--accent-primary)]">Back to schedule</Link>
+        <Link to={`/schedule${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`} className="text-[var(--accent-primary)]">Back to schedule</Link>
       </div>
     );
   }
@@ -575,7 +577,7 @@ export function EventNotes() {
       <div className="px-4 py-3 bg-[var(--accent-primary)] text-[var(--text-on-accent)]">
         <div className="flex items-center justify-between page-w">
           <div className="flex items-center gap-3">
-            <Link to={`/event/${eventId}`} className="p-1 hover:bg-[var(--accent-primary-hover)] rounded-lg transition-colors">
+            <Link to={`/event/${eventId}${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`} className="p-1 hover:bg-[var(--accent-primary-hover)] rounded-lg transition-colors">
               <ArrowLeft size={20} />
             </Link>
             <div>
@@ -700,7 +702,7 @@ export function EventNotes() {
           </Link>
         ) : linkedDanceIds.length > 0 ? (
           <Link
-            to="/schedule"
+            to={`/schedule${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`}
             className="mb-3 flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2"
           >
             <Clock size={14} className="text-[var(--text-tertiary)]" />

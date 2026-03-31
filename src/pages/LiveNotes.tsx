@@ -289,7 +289,7 @@ export function LiveNotes() {
     return (
       <div className="page-w px-4 py-6">
         <p className="text-[var(--text-primary)]">Class not found</p>
-        <Link to="/schedule" className="text-[var(--accent-primary)] hover:text-[var(--accent-primary-hover)]">Back to schedule</Link>
+        <Link to={`/schedule${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`} className="text-[var(--accent-primary)] hover:text-[var(--accent-primary-hover)]">Back to schedule</Link>
       </div>
     );
   }
@@ -1023,7 +1023,7 @@ export function LiveNotes() {
       <div className="px-4 py-3 bg-[var(--accent-primary)] text-[var(--text-on-accent)]">
         <div className="flex items-center justify-between page-w">
           <div className="flex items-center gap-3">
-            <Link to={`/class/${classId}`} className="p-1 hover:bg-[var(--accent-secondary)] rounded-lg transition-colors">
+            <Link to={`/class/${classId}${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`} className="p-1 hover:bg-[var(--accent-secondary)] rounded-lg transition-colors">
               <ArrowLeft size={20} />
             </Link>
             <div>
@@ -1215,7 +1215,7 @@ export function LiveNotes() {
           </Link>
         ) : linkedDanceIds.length > 0 ? (
           <Link
-            to="/schedule"
+            to={`/schedule${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`}
             className="mb-3 flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2"
           >
             <Clock size={14} className="text-[var(--text-tertiary)]" />
@@ -1636,7 +1636,7 @@ export function LiveNotes() {
                 Class saved — AI is generating next week's plan
               </div>
               <button
-                onClick={() => navigate('/schedule')}
+                onClick={() => navigate(`/schedule${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`)}
                 className="w-full py-3 rounded-xl border border-[var(--border-subtle)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] transition-colors"
               >
                 Back to Schedule
