@@ -2,9 +2,9 @@
   "name": "Figgg",
   "short_name": "Figgg",
   "description": "Your daily command center — teaching, wellness, planning, and AI assistant",
-  "start_url": "/",
-  "id": "/",
-  "scope": "/",
+  "start_url": "./",
+  "id": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#0f1117",
@@ -40,19 +40,19 @@
     {
       "name": "Today's Schedule",
       "short_name": "Schedule",
-      "url": "/schedule",
+      "url": "./schedule",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Meds & Self-Care",
       "short_name": "Meds",
-      "url": "/me",
+      "url": "./me",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "AI Chat",
       "short_name": "AI",
-      "url": "/ai",
+      "url": "./ai",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]
