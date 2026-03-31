@@ -29,21 +29,30 @@ export function Schedule() {
   const { data } = useAppData();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialWeek = parseInt(searchParams.get('week') || '0', 10);
+  const initialDay = (searchParams.get('day') as DayOfWeek) || getCurrentDayOfWeek();
   const [weekOffset, setWeekOffset] = useState(initialWeek);
-  const [selectedDay, setSelectedDay] = useState<DayOfWeek>(getCurrentDayOfWeek());
+  const [selectedDay, setSelectedDay] = useState<DayOfWeek>(initialDay);
 
-  // Update URL when week changes
+  // Update URL when week or day changes
   useEffect(() => {
-    if (weekOffset !== 0) {
-      setSearchParams({ week: weekOffset.toString() }, { replace: true });
-    } else {
-      setSearchParams({}, { replace: true });
-    }
-  }, [weekOffset, setSearchParams]);
+    const params: Record<string, string> = {};
+    if (weekOffset !== 0) params.week = weekOffset.toString();
+    if (selectedDay !== getCurrentDayOfWeek() || weekOffset !== 0) params.day = selectedDay;
+    setSearchParams(params, { replace: true });
+  }, [weekOffset, selectedDay, setSearchParams]);
 
   const weekStart = addWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), weekOffset);
   const weekLabel = format(weekStart, "'Week of' MMM d");
   const weekOf = formatWeekOf(weekStart);
+
+  // Build query string preserving week + day for outgoing links
+  const scheduleQuery = (() => {
+    const params = new URLSearchParams();
+    if (weekOffset !== 0) params.set('week', weekOffset.toString());
+    if (selectedDay !== getCurrentDayOfWeek() || weekOffset !== 0) params.set('day', selectedDay);
+    const str = params.toString();
+    return str ? `?${str}` : '';
+  })();
 
   const stats = useTeachingStats(data);
 
@@ -474,7 +483,7 @@ export function Schedule() {
               return (
                 <Link
                   key={cls.id}
-                  to={`/class/${cls.id}${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`}
+                  to={`/class/${cls.id}${scheduleQuery}`}
                   className="block bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-card-hover)] transition-all"
                 >
                   {classCard}
@@ -495,7 +504,7 @@ export function Schedule() {
               return (
                 <Link
                   key={event.id}
-                  to={`/event/${event.id}${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`}
+                  to={`/event/${event.id}${scheduleQuery}`}
                   className={`block bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-card-hover)] transition-all ${isCancelled ? 'opacity-60' : ''}`}
                 >
                   <div className="flex items-start gap-3">

@@ -19,7 +19,9 @@ export function CalendarEventDetail() {
   const { eventId } = useParams<{ eventId: string }>();
   const [searchParams] = useSearchParams();
   const weekOffset = parseInt(searchParams.get('week') || '0', 10);
-  const scheduleLink = `/schedule${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`;
+  const dayParam = searchParams.get('day') || '';
+  const scheduleLink = (() => { const p = new URLSearchParams(); if (weekOffset !== 0) p.set('week', weekOffset.toString()); if (dayParam) p.set('day', dayParam); const s = p.toString(); return `/schedule${s ? `?${s}` : ''}`; })();
+  const detailQuery = (() => { const p = new URLSearchParams(); if (weekOffset !== 0) p.set('week', weekOffset.toString()); if (dayParam) p.set('day', dayParam); const s = p.toString(); return s ? `?${s}` : ''; })();
   const { data, getCurrentWeekNotes, saveWeekNotes, updateCalendarEvent, hideCalendarEvent, addClass } = useAppData();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const navigate = useNavigate();
@@ -52,7 +54,7 @@ export function CalendarEventDetail() {
   const handleStartClassNotes = () => {
     if (!event || !eventDayOfWeek) return;
     if (matchingClass) {
-      navigate(`/class/${matchingClass.id}/notes`);
+      navigate(`/class/${matchingClass.id}/notes${detailQuery}`);
       return;
     }
     // Derive studioId from location
@@ -69,7 +71,7 @@ export function CalendarEventDetail() {
       recitalSong: '',
       choreographyNotes: '',
     });
-    navigate(`/class/${newClass.id}/notes`);
+    navigate(`/class/${newClass.id}/notes${detailQuery}`);
   };
 
   const [showRoster, setShowRoster] = useState(false);
@@ -170,7 +172,7 @@ export function CalendarEventDetail() {
     if (!eventId) return;
     if (!await confirm('Hide this event? It won\'t appear in your schedule anymore, even after calendar sync. You can unhide events in Settings.')) return;
     hideCalendarEvent(eventId);
-    navigate('/schedule');
+    navigate(scheduleLink);
   };
 
   // Smart Notes: find matching past sessions by event title
@@ -369,7 +371,7 @@ export function CalendarEventDetail() {
           )}
         </div>
       ) : (
-        <Link to={`/event/${event.id}/notes`} className="block mb-6">
+        <Link to={`/event/${event.id}/notes${detailQuery}`} className="block mb-6">
           <Button className="w-full" size="lg">
             <Play size={18} className="mr-2" />
             {isWorkEvent ? 'Start Rehearsal Notes' : 'Start Event Notes'}

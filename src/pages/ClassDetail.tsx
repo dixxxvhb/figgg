@@ -23,6 +23,9 @@ export function ClassDetail() {
   const { classId } = useParams<{ classId: string }>();
   const [searchParams] = useSearchParams();
   const weekOffset = parseInt(searchParams.get('week') || '0', 10);
+  const dayParam = searchParams.get('day') || '';
+  const scheduleBack = `/schedule${(() => { const p = new URLSearchParams(); if (weekOffset !== 0) p.set('week', weekOffset.toString()); if (dayParam) p.set('day', dayParam); const s = p.toString(); return s ? `?${s}` : ''; })()}`;
+  const detailQuery = (() => { const p = new URLSearchParams(); if (weekOffset !== 0) p.set('week', weekOffset.toString()); if (dayParam) p.set('day', dayParam); const s = p.toString(); return s ? `?${s}` : ''; })();
   const { data, updateClass, getCurrentWeekNotes, saveWeekNotes, getWeekNotes, updateStudent } = useAppData();
   const [isEditing, setIsEditing] = useState(false);
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
@@ -423,7 +426,7 @@ export function ClassDetail() {
     return (
       <div className="page-w px-4 py-6">
         <p>Class not found</p>
-        <Link to={`/schedule${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`} className="text-[var(--accent-primary)]">Back to schedule</Link>
+        <Link to={scheduleBack} className="text-[var(--accent-primary)]">Back to schedule</Link>
       </div>
     );
   }
@@ -476,7 +479,7 @@ export function ClassDetail() {
       {confirmDialog}
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <Link to={`/schedule${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`} className="p-2 hover:bg-[var(--surface-card-hover)] rounded-lg text-[var(--text-primary)]">
+        <Link to={scheduleBack} className="p-2 hover:bg-[var(--surface-card-hover)] rounded-lg text-[var(--text-primary)]">
           <ArrowLeft size={20} />
         </Link>
         <div className="flex-1">
@@ -741,7 +744,7 @@ export function ClassDetail() {
             <CheckCircle size={18} />
             <span className="font-medium">Class Notes Saved</span>
           </div>
-          <Link to={`/class/${cls.id}/notes${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`} className="block">
+          <Link to={`/class/${cls.id}/notes${detailQuery}`} className="block">
             <Button variant="secondary" className="w-full" size="sm">
               <BookOpen size={16} className="mr-2" />
               Review / Add More Notes
@@ -749,7 +752,7 @@ export function ClassDetail() {
           </Link>
         </div>
       ) : (
-        <Link to={`/class/${cls.id}/notes${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`} className="block mb-4">
+        <Link to={`/class/${cls.id}/notes${detailQuery}`} className="block mb-4">
           <Button className="w-full" size="lg">
             <Play size={18} className="mr-2" />
             {classNotes?.liveNotes?.length ? 'Continue Class Notes' : 'Start Class Notes'}

@@ -22,6 +22,9 @@ export function EventNotes() {
   const { eventId } = useParams<{ eventId: string }>();
   const [searchParams] = useSearchParams();
   const weekOffset = parseInt(searchParams.get('week') || '0', 10);
+  const dayParam = searchParams.get('day') || '';
+  const scheduleBack = (() => { const p = new URLSearchParams(); if (weekOffset !== 0) p.set('week', weekOffset.toString()); if (dayParam) p.set('day', dayParam); const s = p.toString(); return `/schedule${s ? `?${s}` : ''}`; })();
+  const eventDetailBack = (() => { const p = new URLSearchParams(); if (weekOffset !== 0) p.set('week', weekOffset.toString()); if (dayParam) p.set('day', dayParam); const s = p.toString(); return `/event/${eventId}${s ? `?${s}` : ''}`; })();
   const navigate = useNavigate();
   const { data, getCurrentWeekNotes, saveWeekNotes, updateSelfCare, addReminder } = useAppData();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
@@ -250,7 +253,7 @@ export function EventNotes() {
     return (
       <div className="page-w px-4 py-6">
         <p>Event not found</p>
-        <Link to={`/schedule${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`} className="text-[var(--accent-primary)]">Back to schedule</Link>
+        <Link to={scheduleBack} className="text-[var(--accent-primary)]">Back to schedule</Link>
       </div>
     );
   }
@@ -577,7 +580,7 @@ export function EventNotes() {
       <div className="px-4 py-3 bg-[var(--accent-primary)] text-[var(--text-on-accent)]">
         <div className="flex items-center justify-between page-w">
           <div className="flex items-center gap-3">
-            <Link to={`/event/${eventId}${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`} className="p-1 hover:bg-[var(--accent-primary-hover)] rounded-lg transition-colors">
+            <Link to={eventDetailBack} className="p-1 hover:bg-[var(--accent-primary-hover)] rounded-lg transition-colors">
               <ArrowLeft size={20} />
             </Link>
             <div>
@@ -702,7 +705,7 @@ export function EventNotes() {
           </Link>
         ) : linkedDanceIds.length > 0 ? (
           <Link
-            to={`/schedule${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`}
+            to={scheduleBack}
             className="mb-3 flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2"
           >
             <Clock size={14} className="text-[var(--text-tertiary)]" />

@@ -48,6 +48,9 @@ export function LiveNotes() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const weekOffset = parseInt(searchParams.get('week') || '0', 10);
+  const dayParam = searchParams.get('day') || '';
+  const scheduleBack = (() => { const p = new URLSearchParams(); if (weekOffset !== 0) p.set('week', weekOffset.toString()); if (dayParam) p.set('day', dayParam); const s = p.toString(); return `/schedule${s ? `?${s}` : ''}`; })();
+  const classDetailBack = (() => { const p = new URLSearchParams(); if (weekOffset !== 0) p.set('week', weekOffset.toString()); if (dayParam) p.set('day', dayParam); const s = p.toString(); return `/class/${classId}${s ? `?${s}` : ''}`; })();
   const { data, getCurrentWeekNotes, saveWeekNotes, getWeekNotes, updateSelfCare, updateStudent, addStudent, addReminder } = useAppData();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   // Keep a ref to latest selfCare for use in async callbacks (avoid stale closures)
@@ -292,7 +295,7 @@ export function LiveNotes() {
     return (
       <div className="page-w px-4 py-6">
         <p className="text-[var(--text-primary)]">Class not found</p>
-        <Link to={`/schedule${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`} className="text-[var(--accent-primary)] hover:text-[var(--accent-primary-hover)]">Back to schedule</Link>
+        <Link to={scheduleBack} className="text-[var(--accent-primary)] hover:text-[var(--accent-primary-hover)]">Back to schedule</Link>
       </div>
     );
   }
@@ -1026,7 +1029,7 @@ export function LiveNotes() {
       <div className="px-4 py-3 bg-[var(--accent-primary)] text-[var(--text-on-accent)]">
         <div className="flex items-center justify-between page-w">
           <div className="flex items-center gap-3">
-            <Link to={`/class/${classId}${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`} className="p-1 hover:bg-[var(--accent-secondary)] rounded-lg transition-colors">
+            <Link to={classDetailBack} className="p-1 hover:bg-[var(--accent-secondary)] rounded-lg transition-colors">
               <ArrowLeft size={20} />
             </Link>
             <div>
@@ -1218,7 +1221,7 @@ export function LiveNotes() {
           </Link>
         ) : linkedDanceIds.length > 0 ? (
           <Link
-            to={`/schedule${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`}
+            to={scheduleBack}
             className="mb-3 flex items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2"
           >
             <Clock size={14} className="text-[var(--text-tertiary)]" />
@@ -1639,7 +1642,7 @@ export function LiveNotes() {
                 Class saved — AI is generating next week's plan
               </div>
               <button
-                onClick={() => navigate(`/schedule${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`)}
+                onClick={() => navigate(scheduleBack)}
                 className="w-full py-3 rounded-xl border border-[var(--border-subtle)] text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-inset)] transition-colors"
               >
                 Back to Schedule
