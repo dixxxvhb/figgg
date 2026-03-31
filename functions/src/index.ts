@@ -23,3 +23,4 @@ export {
 
 // Scheduled functions
 export { generateDailyBriefing, triggerDailyBriefing } from "./generateDailyBriefing";
+export { nightlySweep } from "./nightlySweep";
