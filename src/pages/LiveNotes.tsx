@@ -117,8 +117,11 @@ export function LiveNotes() {
   const [nextWeekGoalSaved, setNextWeekGoalSaved] = useState(false);
   const endClassLockRef = useRef(false);
   const [alreadySaved, setAlreadySaved] = useState(() => {
-    // Check if this class was already ended/saved this week
-    const notes = getCurrentWeekNotes().classNotes[classId || ''];
+    // Check if this class was already ended/saved for the VIEWED week
+    const wn = weekOffset === 0
+      ? getCurrentWeekNotes()
+      : (getWeekNotes(formatWeekOf(viewingWeekStart)) || { classNotes: {} as Record<string, ClassWeekNotes> });
+    const notes = wn.classNotes[classId || ''];
     return notes?.isOrganized === true;
   });
 
@@ -677,10 +680,10 @@ export function LiveNotes() {
       const allNoteTexts = notesToProcess.map(n => n.text);
       const progressionHints = getProgressionSuggestions(allNoteTexts);
 
-      // 2. Repetition detection — look back 2 weeks
+      // 2. Repetition detection — look back 2 weeks from viewed week
       const pastWeeksNotes: string[][] = [];
       for (let i = 1; i <= 2; i++) {
-        const pastWeekStart = addWeeks(getWeekStart(), -i);
+        const pastWeekStart = addWeeks(viewingWeekStart, -i);
         const pastWeekOf = formatWeekOf(pastWeekStart);
         const pastWeek = getWeekNotesFromStorage(pastWeekOf);
         const pastClassNotes = pastWeek?.classNotes[classId!];
@@ -742,7 +745,7 @@ export function LiveNotes() {
         attendanceNote,
         context: aiContext,
       }).then(plan => {
-        const nextWeekStart = addWeeks(getWeekStart(), 1);
+        const nextWeekStart = addWeeks(viewingWeekStart, 1);
         const nextWeekOf = formatWeekOf(nextWeekStart);
 
         const nextWeekNotes = getWeekNotesFromStorage(nextWeekOf) || {
@@ -786,7 +789,7 @@ export function LiveNotes() {
           needsWork.forEach(n => fallbackLines.push('- ' + n.text));
         }
 
-        const nextWeekStart = addWeeks(getWeekStart(), 1);
+        const nextWeekStart = addWeeks(viewingWeekStart, 1);
         const nextWeekOf = formatWeekOf(nextWeekStart);
         const nextWeekNotes = getWeekNotesFromStorage(nextWeekOf) || {
           id: uuid(),
@@ -920,7 +923,7 @@ export function LiveNotes() {
 
       const pastWeeksNotes: string[][] = [];
       for (let i = 1; i <= 2; i++) {
-        const pastWeekStart = addWeeks(getWeekStart(), -i);
+        const pastWeekStart = addWeeks(viewingWeekStart, -i);
         const pastWeekOf = formatWeekOf(pastWeekStart);
         const pastWeek = getWeekNotesFromStorage(pastWeekOf);
         const pastClassNotes = pastWeek?.classNotes[classId!];
@@ -964,8 +967,8 @@ export function LiveNotes() {
         context: aiContext,
       });
 
-      // Save the AI plan to next week (replaces any existing plan)
-      const nextWeekStart = addWeeks(getWeekStart(), 1);
+      // Save the AI plan to next week relative to viewed week
+      const nextWeekStart = addWeeks(viewingWeekStart, 1);
       const nextWeekOf = formatWeekOf(nextWeekStart);
       const nextWeekNotes = getWeekNotesFromStorage(nextWeekOf) || {
         id: uuid(),
