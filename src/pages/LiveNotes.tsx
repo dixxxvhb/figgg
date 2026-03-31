@@ -776,11 +776,13 @@ export function LiveNotes() {
         };
 
         saveWeekNotes(updatedNextWeek);
-          }).catch(() => {
-        // AI plan failed — fall back to a simple carry-forward of flagged notes
+          }).catch((err) => {
+        // AI plan failed — always carry forward notes as fallback plan
+        console.warn('AI plan generation failed, using fallback:', err);
         const nextWeek = notesToProcess.filter(n => normalizeNoteCategory(n.category) === 'next-week');
         const needsWork = notesToProcess.filter(n => normalizeNoteCategory(n.category) === 'needs-work');
-        if (nextWeek.length === 0 && needsWork.length === 0) return;
+        const workedOn = notesToProcess.filter(n => normalizeNoteCategory(n.category) === 'worked-on');
+        const other = notesToProcess.filter(n => !n.category || !['next-week', 'needs-work', 'worked-on'].includes(normalizeNoteCategory(n.category) || ''));
 
         const fallbackLines: string[] = [];
         if (nextWeek.length > 0) {
@@ -790,6 +792,17 @@ export function LiveNotes() {
         if (needsWork.length > 0) {
           fallbackLines.push('NEEDS WORK');
           needsWork.forEach(n => fallbackLines.push('- ' + n.text));
+        }
+        if (workedOn.length > 0) {
+          fallbackLines.push('LAST WEEK');
+          workedOn.forEach(n => fallbackLines.push('- ' + n.text));
+        }
+        if (other.length > 0 && fallbackLines.length === 0) {
+          fallbackLines.push('FROM LAST CLASS');
+          other.forEach(n => fallbackLines.push('- ' + n.text));
+        }
+        if (fallbackLines.length === 0) {
+          fallbackLines.push('(AI plan generation failed — review last week\'s notes)');
         }
 
         const nextWeekStart = addWeeks(viewingWeekStart, 1);
