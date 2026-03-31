@@ -26,7 +26,15 @@ export function EventNotes() {
   const scheduleBack = (() => { const p = new URLSearchParams(); if (weekOffset !== 0) p.set('week', weekOffset.toString()); if (dayParam) p.set('day', dayParam); const s = p.toString(); return `/schedule${s ? `?${s}` : ''}`; })();
   const eventDetailBack = (() => { const p = new URLSearchParams(); if (weekOffset !== 0) p.set('week', weekOffset.toString()); if (dayParam) p.set('day', dayParam); const s = p.toString(); return `/event/${eventId}${s ? `?${s}` : ''}`; })();
   const navigate = useNavigate();
-  const { data, getCurrentWeekNotes, saveWeekNotes, updateSelfCare, addReminder } = useAppData();
+  const { data, getCurrentWeekNotes, saveWeekNotes, getWeekNotes, updateSelfCare, addReminder } = useAppData();
+  const viewingWeekStart = addWeeks(getWeekStart(), weekOffset);
+  const viewingWeekOf = formatWeekOf(viewingWeekStart);
+  const getViewingWeekNotes = () => {
+    if (weekOffset === 0) return getCurrentWeekNotes();
+    const existing = getWeekNotes(viewingWeekOf);
+    if (existing) return existing;
+    return { id: `week-${viewingWeekOf}`, weekOf: viewingWeekOf, classNotes: {} as Record<string, ClassWeekNotes> };
+  };
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const event = data.calendarEvents?.find(e => e.id === eventId);
 
@@ -43,7 +51,7 @@ export function EventNotes() {
   ]);
 
   const [selectedTag, setSelectedTag] = useState<string | undefined>();
-  const [weekNotes, setWeekNotes] = useState(() => getCurrentWeekNotes());
+  const [weekNotes, setWeekNotes] = useState(() => getViewingWeekNotes());
   const [showPlan, setShowPlan] = useState(true);
 
   // AI reminder detection
@@ -54,7 +62,7 @@ export function EventNotes() {
   const [flaggedStudentId, setFlaggedStudentId] = useState('');
   const [flagReminderCreated, setFlagReminderCreated] = useState(false);
   const [alreadySaved, setAlreadySaved] = useState(() => {
-    const notes = getCurrentWeekNotes().classNotes[eventId || ''];
+    const notes = getViewingWeekNotes().classNotes[eventId || ''];
     return notes?.isOrganized === true;
   });
   const REMINDER_KEYWORDS = /\b(bring|get|buy|email|print|order|download|pick up|find|grab|need to get|need to bring|remember to)\b/i;
@@ -120,8 +128,8 @@ export function EventNotes() {
 
   // Sync weekNotes when data changes (e.g., from cloud sync)
   useEffect(() => {
-    setWeekNotes(getCurrentWeekNotes());
-  }, [data.weekNotes]);
+    setWeekNotes(getViewingWeekNotes());
+  }, [data.weekNotes, weekOffset]);
 
   const existingNotes = weekNotes.classNotes[eventId || ''];
   const eventNotes: ClassWeekNotes = existingNotes
@@ -570,7 +578,7 @@ export function EventNotes() {
     }
 
     setAlreadySaved(true);
-    navigate(`/event/${eventId}`);
+    navigate(eventDetailBack);
   };
 
   return (
@@ -662,7 +670,7 @@ export function EventNotes() {
                   {eventNotes.plan}
                 </div>
                 <Link
-                  to={`/event/${eventId}`}
+                  to={eventDetailBack}
                   className="inline-flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400 mt-2 hover:text-purple-700"
                 >
                   <FileText size={12} />
@@ -678,7 +686,7 @@ export function EventNotes() {
       {!eventNotes.plan && (
         <div className="px-4 py-2 border-b border-[var(--border-subtle)]">
           <Link
-            to={`/event/${eventId}`}
+            to={eventDetailBack}
             className="flex items-center justify-between page-w bg-purple-50/50 dark:bg-purple-900/20 rounded-xl border border-dashed border-purple-200 dark:border-purple-800 p-3 hover:border-purple-300 transition-colors"
           >
             <div className="flex items-center gap-2">

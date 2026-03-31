@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Clock, MapPin, Play, Calendar, Trash2, FileText, Edit2, Save, Users, UserCheck, UserX, Clock3, ChevronDown, ChevronUp, Music, History, EyeOff } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, addWeeks } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
-import { formatTimeDisplay, safeDate, safeFormat } from '../utils/time';
+import { formatTimeDisplay, safeDate, safeFormat, formatWeekOf, getWeekStart } from '../utils/time';
 import { Button } from '../components/common/Button';
 import { DropdownMenu } from '../components/common/DropdownMenu';
 import { ClassWeekNotes, CalendarEvent, AppData, CompetitionDance, Student, WeekNotes } from '../types';
@@ -22,7 +22,15 @@ export function CalendarEventDetail() {
   const dayParam = searchParams.get('day') || '';
   const scheduleLink = (() => { const p = new URLSearchParams(); if (weekOffset !== 0) p.set('week', weekOffset.toString()); if (dayParam) p.set('day', dayParam); const s = p.toString(); return `/schedule${s ? `?${s}` : ''}`; })();
   const detailQuery = (() => { const p = new URLSearchParams(); if (weekOffset !== 0) p.set('week', weekOffset.toString()); if (dayParam) p.set('day', dayParam); const s = p.toString(); return s ? `?${s}` : ''; })();
-  const { data, getCurrentWeekNotes, saveWeekNotes, updateCalendarEvent, hideCalendarEvent, addClass } = useAppData();
+  const { data, getCurrentWeekNotes, saveWeekNotes, getWeekNotes, updateCalendarEvent, hideCalendarEvent, addClass } = useAppData();
+  const viewingWeekStart = addWeeks(getWeekStart(), weekOffset);
+  const viewingWeekOf = formatWeekOf(viewingWeekStart);
+  const getViewingWeekNotes = () => {
+    if (weekOffset === 0) return getCurrentWeekNotes();
+    const existing = getWeekNotes(viewingWeekOf);
+    if (existing) return existing;
+    return { id: `week-${viewingWeekOf}`, weekOf: viewingWeekOf, classNotes: {} as Record<string, ClassWeekNotes> };
+  };
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   const navigate = useNavigate();
 
@@ -97,17 +105,17 @@ export function CalendarEventDetail() {
   }, [autoLinkAttempted, data.competitionDances, event, updateCalendarEvent]); // Run when event ID changes
 
   // Get initial week notes and keep in local state
-  const [weekNotes, setWeekNotes] = useState(() => getCurrentWeekNotes());
-  const [localPlan, setLocalPlan] = useState(() => getCurrentWeekNotes().classNotes[eventId || '']?.plan || '');
+  const [weekNotes, setWeekNotes] = useState(() => getViewingWeekNotes());
+  const [localPlan, setLocalPlan] = useState(() => getViewingWeekNotes().classNotes[eventId || '']?.plan || '');
 
   // Sync weekNotes when data changes (e.g., from cloud sync)
   useEffect(() => {
-    const fresh = getCurrentWeekNotes();
+    const fresh = getViewingWeekNotes();
     queueMicrotask(() => {
       setWeekNotes(fresh);
       setLocalPlan(fresh.classNotes[eventId || '']?.plan || '');
     });
-  }, [data.weekNotes, eventId, getCurrentWeekNotes]);
+  }, [data.weekNotes, eventId, weekOffset]);
 
   const eventNotes: ClassWeekNotes | undefined = weekNotes.classNotes[eventId || ''];
 

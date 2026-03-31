@@ -101,7 +101,7 @@ export function WeekReview() {
     <div className="pb-24">
       {/* Header */}
       <div className="px-4 pt-6 pb-3 flex items-center gap-3">
-        <Link to="/schedule" className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--surface-inset)]">
+        <Link to={`/schedule${weekOffset !== 0 ? `?week=${weekOffset}` : ''}`} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--surface-inset)]">
           <ArrowLeft size={20} />
         </Link>
         <h1 className="text-lg font-bold text-[var(--text-primary)]">Week Review</h1>

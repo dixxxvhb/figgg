@@ -567,7 +567,7 @@ export function ClassDetail() {
       {sameDayClasses.length > 1 && (
         <div className="flex items-center justify-between mb-4 bg-[var(--surface-inset)] rounded-xl p-2">
           <Link
-            to={prevClass ? `/class/${prevClass.id}${weekOffset !== 0 ? `?week=${weekOffset}` : ''}` : '#'}
+            to={prevClass ? `/class/${prevClass.id}${detailQuery}` : '#'}
             className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-colors ${
               prevClass
                 ? 'text-[var(--accent-primary)] hover:bg-[var(--surface-card)]'
@@ -584,7 +584,7 @@ export function ClassDetail() {
             {currentClassIndex + 1} of {sameDayClasses.length} classes
           </div>
           <Link
-            to={nextClass ? `/class/${nextClass.id}${weekOffset !== 0 ? `?week=${weekOffset}` : ''}` : '#'}
+            to={nextClass ? `/class/${nextClass.id}${detailQuery}` : '#'}
             className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-colors ${
               nextClass
                 ? 'text-[var(--accent-primary)] hover:bg-[var(--surface-card)]'
