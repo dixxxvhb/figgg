@@ -5,14 +5,14 @@ import { format, parseISO, addWeeks } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
 import { DropdownMenu } from '../components/common/DropdownMenu';
 import { NotesList, InputBar } from '../components/common/NoteInput';
-import { LiveNote, ClassWeekNotes, normalizeNoteCategory, Reminder, ReminderList } from '../types';
+import { LiveNote, ClassWeekNotes, Reminder, ReminderList } from '../types';
 import { formatTimeDisplay, formatWeekOf, getWeekStart, safeTime } from '../utils/time';
 import { v4 as uuid } from 'uuid';
 import { findMatchingPastSessions, getCarryForwardText } from '../utils/smartNotes';
 import { PreviousSessionsPanel } from '../components/events/PreviousSessionsPanel';
-import { generatePlan as aiGeneratePlan, detectReminders as aiDetectReminders } from '../services/ai';
+import { detectReminders as aiDetectReminders } from '../services/ai';
+import { generateAndSavePlan, nextWeekHasPlan } from '../utils/planCarryForward';
 import { buildAIContext } from '../services/aiContext';
-import { getWeekNotes as getWeekNotesFromStorage } from '../services/storage';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
 import { detectLinkedDances } from '../utils/danceLinker';
 import { getEventRosterStudentIds } from '../utils/attendanceRoster';
@@ -58,6 +58,7 @@ export function EventNotes() {
   const [reminderNoteIds, setReminderNoteIds] = useState<Set<string>>(new Set());
   const [reminderCount, setReminderCount] = useState(0);
   const [isEndingEvent, setIsEndingEvent] = useState(false);
+  const planGenerationFiredRef = useRef(false);
   const [showFlagDancerPicker, setShowFlagDancerPicker] = useState(false);
   const [flaggedStudentId, setFlaggedStudentId] = useState('');
   const [flagReminderCreated, setFlagReminderCreated] = useState(false);
@@ -142,6 +143,61 @@ export function EventNotes() {
         media: [],
         eventTitle: event?.title,
       };
+
+  const eventNotesRef = useRef(eventNotes);
+  eventNotesRef.current = eventNotes;
+  const aiContextRef = useRef(aiContext);
+  aiContextRef.current = aiContext;
+
+  // Auto-trigger plan generation when navigating away without ending event
+  useEffect(() => {
+    return () => {
+      const currentEventNotes = eventNotesRef.current;
+      const currentWeekStart = getWeekStart();
+
+      if (
+        !event ||
+        !eventId ||
+        currentEventNotes.liveNotes.length === 0 ||
+        currentEventNotes.isOrganized ||
+        planGenerationFiredRef.current ||
+        nextWeekHasPlan(eventId, currentWeekStart)
+      ) return;
+
+      planGenerationFiredRef.current = true;
+
+      const previousPlans: string[] = [];
+      const sorted = [...(data.weekNotes || [])].sort((a, b) =>
+        new Date(b.weekOf).getTime() - new Date(a.weekOf).getTime()
+      );
+      for (const week of sorted) {
+        const n = week.classNotes[event.id];
+        if (n?.plan?.trim()) {
+          previousPlans.push(n.plan);
+          break;
+        }
+      }
+
+      generateAndSavePlan({
+        classId: eventId,
+        classInfo: {
+          id: event.id,
+          name: event.title,
+          day: event.date ? new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() : 'event',
+          startTime: event.startTime || '00:00',
+          endTime: event.endTime || '00:00',
+        },
+        notes: currentEventNotes.liveNotes,
+        viewingWeekStart: currentWeekStart,
+        saveWeekNotes,
+        aiContext: aiContextRef.current,
+        previousPlans: previousPlans.length > 0 ? previousPlans : undefined,
+        eventTitle: event.title,
+        nextWeekGoal: currentEventNotes.nextWeekGoal,
+      });
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const linkedDanceIds = useMemo(() => {
     if (!event) return [];
@@ -429,6 +485,8 @@ export function EventNotes() {
 
     // AI: generate plan for next session — fire and forget
     if (notesToProcess.length > 0 && !eventNotes.isOrganized && event) {
+      planGenerationFiredRef.current = true;
+
       const classInfoForAI = {
         id: event.id,
         name: event.title,
@@ -450,82 +508,16 @@ export function EventNotes() {
         }
       }
 
-      aiGeneratePlan({
+      generateAndSavePlan({
+        classId: eventId!,
         classInfo: classInfoForAI,
         notes: notesToProcess,
+        viewingWeekStart: getWeekStart(),
+        saveWeekNotes,
+        aiContext,
         previousPlans: previousPlans.length > 0 ? previousPlans : undefined,
-        context: aiContext,
-      }).then(plan => {
-        const nextWeekStart = addWeeks(getWeekStart(), 1);
-        const nextWeekOf = formatWeekOf(nextWeekStart);
-
-        const nextWeekNotes = getWeekNotesFromStorage(nextWeekOf) || {
-          id: uuid(),
-          weekOf: nextWeekOf,
-          classNotes: {},
-        };
-        const nextEventNotes = nextWeekNotes.classNotes[eventId!] || {
-          classId: eventId!,
-          plan: '',
-          liveNotes: [],
-          isOrganized: false,
-          eventTitle: event.title,
-        };
-
-        saveWeekNotes({
-          ...nextWeekNotes,
-          classNotes: {
-            ...nextWeekNotes.classNotes,
-            [eventId!]: {
-              ...nextEventNotes,
-              plan,
-              eventTitle: event.title,
-              ...(eventNotes.nextWeekGoal ? { weekIdea: eventNotes.nextWeekGoal } : {}),
-            },
-          },
-        });
-      }).catch(() => {
-        // AI failed — fall back to carry-forward of flagged notes
-        const nextWeek = notesToProcess.filter(n => normalizeNoteCategory(n.category) === 'next-week');
-        const needsWork = notesToProcess.filter(n => normalizeNoteCategory(n.category) === 'needs-work');
-        if (nextWeek.length === 0 && needsWork.length === 0) return;
-
-        const fallbackLines: string[] = [];
-        if (nextWeek.length > 0) {
-          fallbackLines.push('PRIORITY');
-          nextWeek.forEach(n => fallbackLines.push('- ' + n.text));
-        }
-        if (needsWork.length > 0) {
-          fallbackLines.push('NEEDS WORK');
-          needsWork.forEach(n => fallbackLines.push('- ' + n.text));
-        }
-
-        const nextWeekStart = addWeeks(getWeekStart(), 1);
-        const nextWeekOf = formatWeekOf(nextWeekStart);
-        const nextWeekNotes = getWeekNotesFromStorage(nextWeekOf) || {
-          id: uuid(),
-          weekOf: nextWeekOf,
-          classNotes: {},
-        };
-        const nextEventNotes = nextWeekNotes.classNotes[eventId!] || {
-          classId: eventId!,
-          plan: '',
-          liveNotes: [],
-          isOrganized: false,
-          eventTitle: event.title,
-        };
-
-        saveWeekNotes({
-          ...nextWeekNotes,
-          classNotes: {
-            ...nextWeekNotes.classNotes,
-            [eventId!]: {
-              ...nextEventNotes,
-              plan: fallbackLines.join('\n'),
-              eventTitle: event.title,
-            },
-          },
-        });
+        eventTitle: event.title,
+        nextWeekGoal: eventNotes.nextWeekGoal,
       });
 
       // Final reminder scan for un-scanned notes
