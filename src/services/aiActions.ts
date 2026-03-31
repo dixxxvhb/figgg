@@ -266,26 +266,28 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           return classification.isClassLike;
         });
 
-        // Always add calendar class event IDs — even for 'specific' scope,
-        // because the AI may only send internal class IDs but the UI renders calendar events
+        // Match calendar events to targeted classes
         {
           const existingIds = new Set(targetIds);
-          for (const e of todayCalEvents) {
-            if (!existingIds.has(e.id)) {
-              targetIds.push(e.id);
+          if (action.scope === 'all') {
+            // Scope "all" — add all today's calendar class events
+            for (const e of todayCalEvents) {
+              if (!existingIds.has(e.id)) {
+                targetIds.push(e.id);
+                existingIds.add(e.id);
+              }
             }
-          }
-          // Also match calendar events to specific internal class IDs by name/time
-          if (action.scope === 'specific' && action.classIds?.length) {
-            for (const e of (appData.calendarEvents || []).filter(ev => ev.date === todayStr && ev.startTime && ev.startTime !== '00:00')) {
+          } else {
+            // Scope "specific" — only add calendar events that match the targeted internal classes by name or time
+            for (const e of todayCalEvents) {
               if (existingIds.has(e.id)) continue;
-              const matchesById = action.classIds.some(cid => {
+              const matchesTargeted = action.classIds?.some(cid => {
                 const cls = appData.classes.find(c => c.id === cid);
                 if (!cls) return false;
-                return cls.name.toLowerCase() === e.title.toLowerCase() ||
+                return cls.name.toLowerCase() === e.title?.toLowerCase() ||
                   Math.abs(timeToMinutes(cls.startTime) - timeToMinutes(e.startTime)) <= 10;
               });
-              if (matchesById) {
+              if (matchesTargeted) {
                 targetIds.push(e.id);
                 existingIds.add(e.id);
               }
