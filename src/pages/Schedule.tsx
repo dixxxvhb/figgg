@@ -531,14 +531,82 @@ export function Schedule() {
               const calException = getClassException(event.id, event.title, event.startTime);
               const isCancelled = calException?.type === 'cancelled';
               const isSubbed = calException?.type === 'subbed';
+              // Toggle exception for calendar events
+              const toggleCalEventException = (evId: string, evTitle: string, evStartTime?: string, hasExc?: boolean) => {
+                const wn = getWeekNotes(weekOf) || { id: `week_${weekOf}`, weekOf, classNotes: {} };
+                // Find matching internal class ID
+                const normTitle = evTitle.toLowerCase();
+                const evMins = evStartTime ? timeToMinutes(evStartTime) : -1;
+                let targetId = evId;
+                for (const cls of data.classes) {
+                  const sameName = cls.name.toLowerCase() === normTitle;
+                  const sameTime = evMins >= 0 && Math.abs(timeToMinutes(cls.startTime) - evMins) <= 10;
+                  if (sameName && sameTime) { targetId = cls.id; break; }
+                }
+                if (hasExc) {
+                  // Restore — remove exception from both IDs
+                  for (const id of [targetId, evId]) {
+                    if (wn.classNotes[id]?.exception) {
+                      const { exception: _, ...rest } = wn.classNotes[id] as typeof wn.classNotes[string] & { exception?: unknown };
+                      wn.classNotes[id] = rest as typeof wn.classNotes[string];
+                    }
+                  }
+                } else {
+                  // Cancel — set on both IDs
+                  for (const id of [targetId, evId]) {
+                    const existing = wn.classNotes[id] || { classId: id, plan: '', liveNotes: [], isOrganized: false };
+                    wn.classNotes[id] = { ...existing, exception: { type: 'cancelled' as const, reason: 'personal' as const } };
+                  }
+                }
+                saveWeekNotes(wn);
+              };
+
+              if (isCancelled || isSubbed) {
+                return (
+                  <div
+                    key={event.id}
+                    className="block bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 opacity-60"
+                  >
+                    <Link to={`/event/${event.id}${scheduleQuery}`} className="block">
+                      <div className="flex items-start gap-3">
+                        <div className="w-1.5 h-full min-h-[60px] rounded-full bg-[var(--text-tertiary)]" />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <div className="type-h2 text-[var(--text-tertiary)] line-through">{event.title}</div>
+                            <div className="flex items-center gap-1.5">
+                              {isCancelled && (
+                                <span className="text-xs text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-0.5 rounded-full font-medium">Cancelled</span>
+                              )}
+                              {isSubbed && calException?.subName && (
+                                <span className="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">Sub: {calException.subName}</span>
+                              )}
+                            </div>
+                          </div>
+                          {event.startTime && event.startTime !== '00:00' && (
+                            <div className="text-sm text-[var(--text-tertiary)] mt-1">{formatTimeDisplay(event.startTime)}{event.endTime && event.endTime !== '00:00' && <> - {formatTimeDisplay(event.endTime)}</>}</div>
+                          )}
+                        </div>
+                      </div>
+                    </Link>
+                    <button
+                      onClick={() => toggleCalEventException(event.id, event.title, event.startTime, true)}
+                      className="mt-2 flex items-center gap-1.5 text-xs text-[var(--accent-primary)] hover:opacity-80 transition-opacity ml-4"
+                    >
+                      <RotateCcw size={12} />
+                      Restore event
+                    </button>
+                  </div>
+                );
+              }
+
               return (
+                <div key={event.id} className="relative group">
                 <Link
-                  key={event.id}
                   to={`/event/${event.id}${scheduleQuery}`}
-                  className={`block bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-card-hover)] transition-all ${isCancelled ? 'opacity-60' : ''}`}
+                  className={`block bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-card-hover)] transition-all`}
                 >
                   <div className="flex items-start gap-3">
-                    <div className={`w-1.5 h-full min-h-[60px] rounded-full ${isCancelled ? 'bg-[var(--text-tertiary)]' : isWorkEvent ? 'bg-[var(--accent-primary)]' : 'bg-amber-400'}`} />
+                    <div className={`w-1.5 h-full min-h-[60px] rounded-full ${isWorkEvent ? 'bg-[var(--accent-primary)]' : 'bg-amber-400'}`} />
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
                         <div className={`type-h2 ${isCancelled ? 'text-[var(--text-tertiary)] line-through' : 'text-[var(--text-primary)]'}`}>{event.title}</div>
@@ -617,6 +685,16 @@ export function Schedule() {
                     </div>
                   </div>
                 </Link>
+                {(eventType.isClassLike || isWorkEvent) && (
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleCalEventException(event.id, event.title, event.startTime, false); }}
+                    className="absolute top-3 right-3 p-2 rounded-lg text-[var(--text-tertiary)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center opacity-0 group-hover:opacity-100 sm:opacity-100"
+                    title="Cancel event"
+                  >
+                    <XCircle size={18} />
+                  </button>
+                )}
+                </div>
               );
             }
           })

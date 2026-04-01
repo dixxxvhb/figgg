@@ -106,6 +106,7 @@ function InstallBanner() {
 const ClassDetail = lazy(() => import('./pages/ClassDetail').then(m => ({ default: m.ClassDetail })));
 const LiveNotes = lazy(() => import('./pages/LiveNotes').then(m => ({ default: m.LiveNotes })));
 const CalendarEventDetail = lazy(() => import('./pages/CalendarEventDetail').then(m => ({ default: m.CalendarEventDetail })));
+const ClassManager = lazy(() => import('./pages/ClassManager').then(m => ({ default: m.ClassManager })));
 const EventNotes = lazy(() => import('./pages/EventNotes').then(m => ({ default: m.EventNotes })));
 const WeekPlanner = lazy(() => import('./pages/WeekPlanner').then(m => ({ default: m.WeekPlanner })));
 const WeekReview = lazy(() => import('./pages/WeekReview').then(m => ({ default: m.WeekReview })));
@@ -166,6 +167,7 @@ function AnimatedRoutes() {
         <Route path="/settings/data" element={<DataSettings />} />
         <Route path="/settings/students" element={<StudentsSettings />} />
         <Route path="/settings/advanced" element={<AdvancedSettings />} />
+        <Route path="/settings/classes" element={<ClassManager />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </div>

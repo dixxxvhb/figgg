@@ -220,7 +220,33 @@ export function Dashboard() {
   }), [updateSelfCare, saveDayPlan, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance, medConfig, updateTherapist]);
 
   const executeAIActions = useCallback((actions: AIAction[]) => {
-    executeSharedAIActions(actions, actionCallbacks);
+    // Safety: confirm before executing cancellation actions
+    const cancelActions = actions.filter(a =>
+      a.type === 'markClassException' || a.type === 'markClassExceptionRange'
+    );
+    const safeActions = actions.filter(a =>
+      a.type !== 'markClassException' && a.type !== 'markClassExceptionRange'
+    );
+
+    if (safeActions.length) {
+      executeSharedAIActions(safeActions, actionCallbacks);
+    }
+
+    if (cancelActions.length) {
+      const classNames = cancelActions.flatMap(a => {
+        const action = a as unknown as { scope?: string; classIds?: string[] };
+        if (action.scope === 'all') return ['ALL classes today'];
+        const ids = action.classIds;
+        if (!ids?.length) return [];
+        return ids.map(id => {
+          const cls = dataRef.current.classes.find(c => c.id === id);
+          return cls ? `${cls.name} @ ${cls.startTime}` : id;
+        });
+      });
+      if (classNames.length && window.confirm(`Cancel ${classNames.join(', ')}?`)) {
+        executeSharedAIActions(cancelActions, actionCallbacks);
+      }
+    }
   }, [actionCallbacks]);
 
   // ── Check-In Handlers ──

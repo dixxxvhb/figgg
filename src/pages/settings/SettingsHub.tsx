@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Palette, LayoutDashboard, Heart, Sparkles,
-  Cloud, Database, Wrench, ChevronRight, ChevronDown, Users, BookOpen, Rocket,
+  Cloud, Database, Wrench, ChevronRight, ChevronDown, Users, BookOpen, Rocket, CalendarCheck,
 } from 'lucide-react';
 import { useAppData } from '../../contexts/AppDataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -77,6 +77,7 @@ export function SettingsHub() {
 
   const teachingRows: SettingRow[] = [
     { to: '/settings/students', icon: Users, label: 'Students', subtitle: `${studentCount} student${studentCount !== 1 ? 's' : ''}`, color: '#06b6d4' },
+    { to: '/settings/classes', icon: CalendarCheck, label: 'Class Manager', subtitle: 'Cancel, sub, restore classes', color: '#ef4444' },
   ];
 
   const dataRows: SettingRow[] = [

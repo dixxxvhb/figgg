@@ -189,7 +189,46 @@ export function AIChat() {
             weekNotes: dataRef.current.weekNotes,
           }));
         } catch { /* snapshot too large */ }
-        executeAIActions(result.actions, actionCallbacks);
+
+        // Safety: confirm before executing cancellation actions
+        const cancelActions = result.actions.filter((a: { type: string }) =>
+          a.type === 'markClassException' || a.type === 'markClassExceptionRange'
+        );
+        const safeActions = result.actions.filter((a: { type: string }) =>
+          a.type !== 'markClassException' && a.type !== 'markClassExceptionRange'
+        );
+
+        // Always execute non-cancellation actions immediately
+        if (safeActions.length) {
+          executeAIActions(safeActions, actionCallbacks);
+        }
+
+        // For cancellation actions, show confirmation toast
+        if (cancelActions.length) {
+          const classNames = cancelActions.flatMap((a) => {
+            const action = a as unknown as { scope?: string; classIds?: string[] };
+            if (action.scope === 'all') return ['ALL classes today'];
+            const ids = action.classIds || [];
+            return ids.map(id => {
+              const cls = dataRef.current.classes.find(c => c.id === id);
+              return cls ? `${cls.name} @ ${cls.startTime}` : id;
+            });
+          });
+          const msg = `Cancel ${classNames.join(', ')}?`;
+          // Use window.confirm for simplicity — sonner toast can't block
+          if (window.confirm(msg)) {
+            executeAIActions(cancelActions, actionCallbacks);
+          } else {
+            // Notify user we blocked it
+            const blockedMsg: AIChatMessage = {
+              id: `msg-blocked-${Date.now()}`,
+              role: 'assistant',
+              content: 'Cancellation blocked. Classes left as-is.',
+              timestamp: new Date().toISOString(),
+            };
+            setMessages(prev => [...prev, blockedMsg]);
+          }
+        }
       }
 
       // If the AI detected a context shift, persist updated briefing to Firestore + sessionStorage

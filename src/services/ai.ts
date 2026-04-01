@@ -131,7 +131,9 @@ export interface AIAction {
     // Therapist
     | 'logTherapySession'
     // One-time class time override
-    | 'overrideClassTime';
+    | 'overrideClassTime'
+    // Clear class exception (undo cancel/sub)
+    | 'clearClassException';
   id?: string;
   ids?: string[];
   dayMode?: 'light' | 'normal' | 'intense' | 'comp';

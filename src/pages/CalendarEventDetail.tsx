@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, Play, Calendar, Trash2, FileText, Edit2, Save, Users, UserCheck, UserX, Clock3, ChevronDown, ChevronUp, Music, History, EyeOff } from 'lucide-react';
+import { ArrowLeft, Clock, MapPin, Play, Calendar, Trash2, FileText, Edit2, Save, Users, UserCheck, UserX, Clock3, ChevronDown, ChevronUp, Music, History, EyeOff, XCircle, RotateCcw, UserPlus } from 'lucide-react';
 import { format, parseISO, addWeeks } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
 import { formatTimeDisplay, safeDate, safeFormat, formatWeekOf, getWeekStart } from '../utils/time';
@@ -125,6 +125,83 @@ export function CalendarEventDetail() {
   const saveNotes = (updatedNotes: typeof weekNotes) => {
     setWeekNotes(updatedNotes);
     saveWeekNotes(updatedNotes);
+  };
+
+  // ── Exception Management (cancel/sub/restore) ──
+  const currentException = (() => {
+    if (!eventId || !weekNotes) return undefined;
+    // Direct lookup
+    const direct = weekNotes.classNotes[eventId]?.exception;
+    if (direct) return direct;
+    // Cross-reference: check matching internal class
+    if (!event) return undefined;
+    const normTitle = event.title.toLowerCase();
+    const eventMinutes = event.startTime ? parseInt(event.startTime.split(':')[0]) * 60 + parseInt(event.startTime.split(':')[1]) : -1;
+    for (const cls of data.classes) {
+      const exc = weekNotes.classNotes[cls.id]?.exception;
+      if (!exc) continue;
+      const sameName = cls.name.toLowerCase() === normTitle;
+      const sameTime = eventMinutes >= 0 && Math.abs((parseInt(cls.startTime.split(':')[0]) * 60 + parseInt(cls.startTime.split(':')[1])) - eventMinutes) <= 10;
+      if (sameName || sameTime) return exc;
+    }
+    return undefined;
+  })();
+
+  // Find the right ID to set the exception on (prefer matching internal class ID)
+  const exceptionTargetId = (() => {
+    if (!event || !eventId) return eventId || '';
+    const normTitle = event.title.toLowerCase();
+    const eventMinutes = event.startTime ? parseInt(event.startTime.split(':')[0]) * 60 + parseInt(event.startTime.split(':')[1]) : -1;
+    for (const cls of data.classes) {
+      const sameName = cls.name.toLowerCase() === normTitle;
+      const sameTime = eventMinutes >= 0 && Math.abs((parseInt(cls.startTime.split(':')[0]) * 60 + parseInt(cls.startTime.split(':')[1])) - eventMinutes) <= 10;
+      if (sameName && sameTime) return cls.id;
+    }
+    return eventId;
+  })();
+
+  const handleMarkCancelled = async () => {
+    if (!await confirm(`Cancel ${event?.title || 'this event'} for this week?`)) return;
+    const targetId = exceptionTargetId;
+    const wn = { ...weekNotes, classNotes: { ...weekNotes.classNotes } };
+    const existing = wn.classNotes[targetId] || { classId: targetId, plan: '', liveNotes: [], isOrganized: false };
+    wn.classNotes[targetId] = { ...existing, exception: { type: 'cancelled' as const, reason: 'personal' as const } };
+    // Also set on the event ID if different
+    if (targetId !== eventId && eventId) {
+      const evExisting = wn.classNotes[eventId] || { classId: eventId, plan: '', liveNotes: [], isOrganized: false };
+      wn.classNotes[eventId] = { ...evExisting, exception: { type: 'cancelled' as const, reason: 'personal' as const } };
+    }
+    saveNotes(wn);
+  };
+
+  const handleMarkSubbed = async () => {
+    const subName = window.prompt('Sub name:');
+    if (!subName) return;
+    const targetId = exceptionTargetId;
+    const wn = { ...weekNotes, classNotes: { ...weekNotes.classNotes } };
+    const existing = wn.classNotes[targetId] || { classId: targetId, plan: '', liveNotes: [], isOrganized: false };
+    wn.classNotes[targetId] = { ...existing, exception: { type: 'subbed' as const, subName, reason: 'personal' as const } };
+    if (targetId !== eventId && eventId) {
+      const evExisting = wn.classNotes[eventId] || { classId: eventId, plan: '', liveNotes: [], isOrganized: false };
+      wn.classNotes[eventId] = { ...evExisting, exception: { type: 'subbed' as const, subName, reason: 'personal' as const } };
+    }
+    saveNotes(wn);
+  };
+
+  const handleClearException = () => {
+    const targetId = exceptionTargetId;
+    const wn = { ...weekNotes, classNotes: { ...weekNotes.classNotes } };
+    // Clear from target
+    if (wn.classNotes[targetId]) {
+      const { exception: _, ...rest } = wn.classNotes[targetId] as typeof wn.classNotes[string] & { exception?: unknown };
+      wn.classNotes[targetId] = rest as ClassWeekNotes;
+    }
+    // Clear from event ID too
+    if (eventId && wn.classNotes[eventId]) {
+      const { exception: _, ...rest } = wn.classNotes[eventId] as typeof wn.classNotes[string] & { exception?: unknown };
+      wn.classNotes[eventId] = rest as ClassWeekNotes;
+    }
+    saveNotes(wn);
   };
 
   const handleDeleteAllNotes = async () => {
@@ -286,6 +363,26 @@ export function CalendarEventDetail() {
         </div>
         <DropdownMenu
           items={[
+            // Exception management — only show relevant option
+            ...(!currentException ? [
+              {
+                label: 'Mark cancelled',
+                icon: <XCircle size={16} />,
+                onClick: handleMarkCancelled,
+                danger: true,
+              },
+              {
+                label: 'Mark sub',
+                icon: <UserPlus size={16} />,
+                onClick: handleMarkSubbed,
+              },
+            ] : [
+              {
+                label: 'Restore (clear exception)',
+                icon: <RotateCcw size={16} />,
+                onClick: handleClearException,
+              },
+            ]),
             {
               label: 'Delete all notes',
               icon: <FileText size={16} />,
@@ -307,6 +404,39 @@ export function CalendarEventDetail() {
           ]}
         />
       </div>
+
+      {/* Exception Banner */}
+      {currentException && (
+        <div className={`rounded-xl p-4 mb-4 flex items-center justify-between ${
+          currentException.type === 'cancelled'
+            ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+            : currentException.type === 'subbed'
+            ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+            : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
+        }`}>
+          <div>
+            <span className={`text-sm font-semibold ${
+              currentException.type === 'cancelled' ? 'text-red-600 dark:text-red-400' :
+              currentException.type === 'subbed' ? 'text-green-600 dark:text-green-400' :
+              'text-blue-600 dark:text-blue-400'
+            }`}>
+              {currentException.type === 'cancelled' ? 'Cancelled' :
+               currentException.type === 'subbed' ? `Sub: ${currentException.subName || 'TBD'}` :
+               `Moved to ${currentException.timeOverride?.startTime || '?'}`}
+            </span>
+            {currentException.reason && (
+              <span className="text-xs text-[var(--text-tertiary)] ml-2">({currentException.reason})</span>
+            )}
+          </div>
+          <button
+            onClick={handleClearException}
+            className="flex items-center gap-1.5 text-xs font-medium text-[var(--accent-primary)] hover:opacity-80"
+          >
+            <RotateCcw size={14} />
+            Restore
+          </button>
+        </div>
+      )}
 
       {/* Event Info */}
       <div className="bg-[var(--surface-card)] rounded-xl p-4 mb-6 border border-[var(--border-subtle)]">

@@ -343,6 +343,21 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
         break;
       }
 
+      // ── Clear Class Exception (undo cancel/sub) ────────────────────────
+      case 'clearClassException': {
+        if (!action.classIds?.length) break;
+        const clearWeekNotes = callbacks.getCurrentWeekNotes();
+        for (const classId of action.classIds) {
+          const existing = clearWeekNotes.classNotes[classId];
+          if (existing?.exception) {
+            const { exception: _, ...rest } = existing as typeof existing & { exception?: unknown };
+            clearWeekNotes.classNotes[classId] = rest as ClassWeekNotes;
+          }
+        }
+        callbacks.saveWeekNotes(clearWeekNotes);
+        break;
+      }
+
       // ── Class Notes ─────────────────────────────────────────────────────
       case 'addClassNote': {
         if (!action.classId || !action.text) break;
