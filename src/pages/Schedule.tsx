@@ -278,7 +278,7 @@ export function Schedule() {
           <StreakCard
             selfCare={data.selfCare}
             learningData={data.learningData}
-            notesThisWeek={stats.notesThisWeek}
+            notesThisWeek={stats.classesThisWeek.completed}
             totalClassesThisWeek={stats.classesThisWeek.total}
           />
           <div className="sm:col-span-2 lg:col-span-1">
