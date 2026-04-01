@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Calendar, MapPin, Clock, Trophy, Users, Car, CalendarOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, MapPin, Clock, Trophy, Users, Car, CalendarOff, XCircle, RotateCcw } from 'lucide-react';
 import { format, addWeeks, startOfWeek, addDays, isWithinInterval, parseISO } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
 import { DayOfWeek, CalendarEvent } from '../types';
@@ -26,7 +26,7 @@ const DAYS: { key: DayOfWeek; label: string; short: string }[] = [
 ];
 
 export function Schedule() {
-  const { data } = useAppData();
+  const { data, getWeekNotes, saveWeekNotes } = useAppData();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialWeek = parseInt(searchParams.get('week') || '0', 10);
   const initialDay = (searchParams.get('day') as DayOfWeek) || getCurrentDayOfWeek();
@@ -57,6 +57,21 @@ export function Schedule() {
   const stats = useTeachingStats(data);
 
   const getStudio = (studioId: string) => data.studios.find(s => s.id === studioId);
+
+  // Manual cancel/restore toggle for classes
+  const toggleClassException = (classId: string, currentException?: { type: string }) => {
+    const wn = getWeekNotes(weekOf) || { id: `week_${weekOf}`, weekOf, classNotes: {} };
+    const existing = wn.classNotes[classId] || { classId, plan: '', liveNotes: [], isOrganized: false };
+    if (currentException) {
+      // Restore — remove exception
+      const { exception: _, ...rest } = existing as typeof existing & { exception?: unknown };
+      wn.classNotes[classId] = rest;
+    } else {
+      // Cancel
+      wn.classNotes[classId] = { ...existing, exception: { type: 'cancelled' as const, reason: 'personal' as const } };
+    }
+    saveWeekNotes(wn);
+  };
 
   // Look up weekNotes for exception status (cancelled/subbed classes)
   const currentWeekNotes = data.weekNotes.find(w => w.weekOf === weekOf);
@@ -476,18 +491,33 @@ export function Schedule() {
                     className="block bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 opacity-60"
                   >
                     {classCard}
+                    <button
+                      onClick={() => toggleClassException(cls.id, exception)}
+                      className="mt-2 flex items-center gap-1.5 text-xs text-[var(--accent-primary)] hover:opacity-80 transition-opacity ml-4"
+                    >
+                      <RotateCcw size={12} />
+                      Restore class
+                    </button>
                   </div>
                 );
               }
 
               return (
-                <Link
-                  key={cls.id}
-                  to={`/class/${cls.id}${scheduleQuery}`}
-                  className="block bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-card-hover)] transition-all"
-                >
-                  {classCard}
-                </Link>
+                <div key={cls.id} className="relative group">
+                  <Link
+                    to={`/class/${cls.id}${scheduleQuery}`}
+                    className="block bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-card-hover)] transition-all"
+                  >
+                    {classCard}
+                  </Link>
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleClassException(cls.id); }}
+                    className="absolute top-3 right-3 p-2 rounded-lg text-[var(--text-tertiary)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
+                    title="Cancel class"
+                  >
+                    <XCircle size={18} />
+                  </button>
+                </div>
               );
             } else {
               const event = item.data;
