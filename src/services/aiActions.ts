@@ -246,10 +246,19 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
         const dayName = getCurrentDayOfWeek();
         const todayClasses = getClassesByDay(callbacks.getData().classes, dayName);
 
-        // Build target IDs from internal classes
-        let targetIds = action.scope === 'specific' && action.classIds?.length
-          ? action.classIds
-          : todayClasses.map(c => c.id);
+        // Build target IDs — SAFE: only cancel ALL when explicitly scope='all'
+        let targetIds: string[];
+        if (action.scope === 'all') {
+          targetIds = todayClasses.map(c => c.id);
+          console.warn('[markClassException] scope=all — cancelling ALL today\'s classes:', targetIds);
+        } else if (action.classIds?.length) {
+          targetIds = action.classIds;
+          console.warn('[markClassException] scope=specific — cancelling:', targetIds);
+        } else {
+          // No scope=all AND no classIds — refuse to cancel blindly
+          console.warn('[markClassException] BLOCKED: scope is not "all" and no classIds provided. Refusing to cancel all classes.');
+          break;
+        }
 
         // Also include calendar events that are class-like for today
         const todayStr = new Date().toISOString().split('T')[0];
@@ -278,14 +287,14 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
               }
             }
           } else {
-            // Scope "specific" — only add calendar events that match the targeted internal classes by name or time
+            // Scope "specific" — only add calendar events that match targeted classes by NAME (not just time)
             for (const e of todayCalEvents) {
               if (existingIds.has(e.id)) continue;
               const matchesTargeted = action.classIds?.some(cid => {
                 const cls = appData.classes.find(c => c.id === cid);
                 if (!cls) return false;
-                return cls.name.toLowerCase() === e.title?.toLowerCase() ||
-                  Math.abs(timeToMinutes(cls.startTime) - timeToMinutes(e.startTime)) <= 10;
+                // Require name match — time-only matching is too loose and pulls in neighboring classes
+                return cls.name.toLowerCase() === e.title?.toLowerCase();
               });
               if (matchesTargeted) {
                 targetIds.push(e.id);
@@ -450,6 +459,8 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
       case 'markClassExceptionRange': {
         if (!action.startDate || !action.endDate || !action.exceptionType) break;
         const days: string[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const rangeClassFilter = action.classIds?.length ? new Set(action.classIds) : null;
+        console.warn(`[markClassExceptionRange] ${action.startDate} → ${action.endDate}, type=${action.exceptionType}, filter=${rangeClassFilter ? [...rangeClassFilter].join(',') : 'ALL'}`);
         let current = new Date(action.startDate + 'T00:00:00');
         const end = new Date(action.endDate + 'T00:00:00');
         while (current <= end) {
@@ -461,6 +472,8 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
             : { id: `week_${weekOf}`, weekOf, classNotes: {} };
           const dayClasses = getClassesByDay(callbacks.getData().classes, dayName as DayOfWeek);
           for (const cls of dayClasses) {
+            // If classIds filter provided, only cancel those specific classes
+            if (rangeClassFilter && !rangeClassFilter.has(cls.id)) continue;
             const existing = weekNote.classNotes[cls.id] || { classId: cls.id, plan: '', liveNotes: [], isOrganized: false };
             weekNote.classNotes[cls.id] = {
               ...existing,
