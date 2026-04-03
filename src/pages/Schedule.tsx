@@ -582,7 +582,7 @@ export function Schedule() {
                 <div key={event.id} className="relative group">
                 <Link
                   to={`/event/${event.id}${scheduleQuery}`}
-                  className={`block bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-card-hover)] transition-all`}
+                  className={`block bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 pr-14 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-card-hover)] transition-all`}
                 >
                   <div className="flex items-start gap-3">
                     <div className={`w-1.5 h-full min-h-[60px] rounded-full ${isWorkEvent ? 'bg-[var(--accent-primary)]' : 'bg-amber-400'}`} />
