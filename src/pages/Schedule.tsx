@@ -68,7 +68,7 @@ export function Schedule() {
       wn.classNotes[classId] = rest;
     } else {
       // Cancel
-      wn.classNotes[classId] = { ...existing, exception: { type: 'cancelled' as const, reason: 'personal' as const } };
+      wn.classNotes[classId] = { ...existing, exception: { type: 'cancelled' as const } };
     }
     saveWeekNotes(wn);
   };
@@ -90,7 +90,7 @@ export function Schedule() {
       if (!exc) continue;
       const sameName = cls.name.toLowerCase() === normTitle;
       const sameTime = eventMinutes >= 0 && Math.abs(timeToMinutes(cls.startTime) - eventMinutes) <= 10;
-      if (sameName || sameTime) return exc;
+      if (sameName && sameTime) return exc;
     }
     // Check orphaned classNotes entries (IDs not in data.classes)
     for (const [, cn] of Object.entries(currentWeekNotes.classNotes)) {

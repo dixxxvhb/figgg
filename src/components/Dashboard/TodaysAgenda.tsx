@@ -130,7 +130,7 @@ export function TodaysAgenda({
           for (const cls of searchClasses) {
             const sameName = cls.name.toLowerCase() === e.title.toLowerCase();
             const sameTime = Math.abs(timeToMinutes(cls.startTime) - eventStartMinutes) <= 10;
-            if ((sameName || sameTime) && currentWeekNotes.classNotes[cls.id]?.exception) {
+            if ((sameName && sameTime) && currentWeekNotes.classNotes[cls.id]?.exception) {
               exception = currentWeekNotes.classNotes[cls.id].exception;
               break;
             }

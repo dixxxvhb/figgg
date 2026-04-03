@@ -179,7 +179,7 @@ export function shouldPreferCalendarEventOverClass(
   const matchingEvent = calendarEvents.find(event => {
     const sameName = normalize(event.title) === normalize(cls.name);
     const sameTime = Math.abs(timeToMinutes(event.startTime || '00:00') - timeToMinutes(cls.startTime)) <= 10;
-    return sameName || sameTime;
+    return sameName && sameTime;
   });
 
   if (!matchingEvent) return false;

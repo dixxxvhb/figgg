@@ -693,10 +693,10 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           owWeekNotes.classNotes[classId] = {
             ...existing,
             exception: {
-              ...(existing.exception || { type: 'time-change' as const }),
+              type: 'time-change' as const,
               timeOverride: {
                 startTime: action.timeOverrideStart,
-                endTime: action.timeOverrideEnd,
+                ...(action.timeOverrideEnd ? { endTime: action.timeOverrideEnd } : {}),
               },
             },
           };

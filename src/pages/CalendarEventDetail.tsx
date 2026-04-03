@@ -14,6 +14,7 @@ import { getCategoryStyle, getCategoryLabel } from '../constants/noteCategories'
 import { normalizeNoteCategory } from '../types';
 import { classifyCalendarEvent } from '../utils/calendarEventType';
 import { getEventRosterStudentIds } from '../utils/attendanceRoster';
+import { getClassException } from '../utils/classException';
 
 export function CalendarEventDetail() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -128,24 +129,9 @@ export function CalendarEventDetail() {
   };
 
   // ── Exception Management (cancel/sub/restore) ──
-  const currentException = (() => {
-    if (!eventId || !weekNotes) return undefined;
-    // Direct lookup
-    const direct = weekNotes.classNotes[eventId]?.exception;
-    if (direct) return direct;
-    // Cross-reference: check matching internal class
-    if (!event) return undefined;
-    const normTitle = event.title.toLowerCase();
-    const eventMinutes = event.startTime ? parseInt(event.startTime.split(':')[0]) * 60 + parseInt(event.startTime.split(':')[1]) : -1;
-    for (const cls of data.classes) {
-      const exc = weekNotes.classNotes[cls.id]?.exception;
-      if (!exc) continue;
-      const sameName = cls.name.toLowerCase() === normTitle;
-      const sameTime = eventMinutes >= 0 && Math.abs((parseInt(cls.startTime.split(':')[0]) * 60 + parseInt(cls.startTime.split(':')[1])) - eventMinutes) <= 10;
-      if (sameName || sameTime) return exc;
-    }
-    return undefined;
-  })();
+  const currentException = eventId
+    ? getClassException(eventId, weekNotes, data.classes, event?.title, event?.startTime)
+    : undefined;
 
   // Find the right ID to set the exception on (prefer matching internal class ID)
   const exceptionTargetId = (() => {
@@ -165,12 +151,7 @@ export function CalendarEventDetail() {
     const targetId = exceptionTargetId;
     const wn = { ...weekNotes, classNotes: { ...weekNotes.classNotes } };
     const existing = wn.classNotes[targetId] || { classId: targetId, plan: '', liveNotes: [], isOrganized: false };
-    wn.classNotes[targetId] = { ...existing, exception: { type: 'cancelled' as const, reason: 'personal' as const } };
-    // Also set on the event ID if different
-    if (targetId !== eventId && eventId) {
-      const evExisting = wn.classNotes[eventId] || { classId: eventId, plan: '', liveNotes: [], isOrganized: false };
-      wn.classNotes[eventId] = { ...evExisting, exception: { type: 'cancelled' as const, reason: 'personal' as const } };
-    }
+    wn.classNotes[targetId] = { ...existing, exception: { type: 'cancelled' as const } };
     saveNotes(wn);
   };
 
@@ -180,11 +161,7 @@ export function CalendarEventDetail() {
     const targetId = exceptionTargetId;
     const wn = { ...weekNotes, classNotes: { ...weekNotes.classNotes } };
     const existing = wn.classNotes[targetId] || { classId: targetId, plan: '', liveNotes: [], isOrganized: false };
-    wn.classNotes[targetId] = { ...existing, exception: { type: 'subbed' as const, subName, reason: 'personal' as const } };
-    if (targetId !== eventId && eventId) {
-      const evExisting = wn.classNotes[eventId] || { classId: eventId, plan: '', liveNotes: [], isOrganized: false };
-      wn.classNotes[eventId] = { ...evExisting, exception: { type: 'subbed' as const, subName, reason: 'personal' as const } };
-    }
+    wn.classNotes[targetId] = { ...existing, exception: { type: 'subbed' as const, subName } };
     saveNotes(wn);
   };
 
@@ -196,8 +173,8 @@ export function CalendarEventDetail() {
       const { exception: _, ...rest } = wn.classNotes[targetId] as typeof wn.classNotes[string] & { exception?: unknown };
       wn.classNotes[targetId] = rest as ClassWeekNotes;
     }
-    // Clear from event ID too
-    if (eventId && wn.classNotes[eventId]) {
+    // Backwards compat: clear from event ID too if it has an orphaned exception
+    if (eventId && eventId !== targetId && wn.classNotes[eventId]?.exception) {
       const { exception: _, ...rest } = wn.classNotes[eventId] as typeof wn.classNotes[string] & { exception?: unknown };
       wn.classNotes[eventId] = rest as ClassWeekNotes;
     }

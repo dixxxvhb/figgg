@@ -465,7 +465,7 @@ export function Dashboard() {
           if (countedIds.has(cls.id)) continue;
           const sameName = cls.name.toLowerCase() === e.title.toLowerCase();
           const sameTime = Math.abs(timeToMinutes(cls.startTime) - timeToMinutes(e.startTime)) <= 10;
-          if ((sameName || sameTime) && wn.classNotes[cls.id]?.exception) {
+          if ((sameName && sameTime) && wn.classNotes[cls.id]?.exception) {
             exc = wn.classNotes[cls.id].exception;
             countedIds.add(cls.id);
             break;

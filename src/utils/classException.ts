@@ -52,7 +52,7 @@ export function getClassException(
     if (!exc) continue;
     const sameName = cls.name.toLowerCase() === normTitle;
     const sameTime = eventMinutes >= 0 && Math.abs(timeToMinutes(cls.startTime) - eventMinutes) <= 10;
-    if (sameName || sameTime) return exc;
+    if (sameName && sameTime) return exc;
   }
 
   // 3. Orphaned classNotes entries (IDs not in classes array)
