@@ -1,6 +1,7 @@
 import type { CalendarEvent, Class, CompetitionDance, DayOfWeek, Studio, Student } from '../types';
 import { detectLinkedDances } from './danceLinker';
 import { timeToMinutes } from './time';
+import { dateToDayOfWeek } from './classException';
 
 export type CalendarEventKind = 'class' | 'rehearsal' | 'work' | 'event';
 
@@ -179,7 +180,8 @@ export function shouldPreferCalendarEventOverClass(
   const matchingEvent = calendarEvents.find(event => {
     const sameName = normalize(event.title) === normalize(cls.name);
     const sameTime = Math.abs(timeToMinutes(event.startTime || '00:00') - timeToMinutes(cls.startTime)) <= 10;
-    return sameName && sameTime;
+    const sameDay = !event.date || cls.day === dateToDayOfWeek(event.date);
+    return sameName && sameTime && sameDay;
   });
 
   if (!matchingEvent) return false;

@@ -14,7 +14,7 @@ import { getCategoryStyle, getCategoryLabel } from '../constants/noteCategories'
 import { normalizeNoteCategory } from '../types';
 import { classifyCalendarEvent } from '../utils/calendarEventType';
 import { getEventRosterStudentIds } from '../utils/attendanceRoster';
-import { getClassException } from '../utils/classException';
+import { getClassException, resolveExceptionTargetId, dateToDayOfWeek } from '../utils/classException';
 
 export function CalendarEventDetail() {
   const { eventId } = useParams<{ eventId: string }>();
@@ -129,22 +129,16 @@ export function CalendarEventDetail() {
   };
 
   // ── Exception Management (cancel/sub/restore) ──
+  const eventDay = event?.date ? dateToDayOfWeek(event.date) : undefined;
+
   const currentException = eventId
-    ? getClassException(eventId, weekNotes, data.classes, event?.title, event?.startTime)
+    ? getClassException(eventId, weekNotes, data.classes, event?.title, event?.startTime, eventDay)
     : undefined;
 
   // Find the right ID to set the exception on (prefer matching internal class ID)
-  const exceptionTargetId = (() => {
-    if (!event || !eventId) return eventId || '';
-    const normTitle = event.title.toLowerCase();
-    const eventMinutes = event.startTime ? parseInt(event.startTime.split(':')[0]) * 60 + parseInt(event.startTime.split(':')[1]) : -1;
-    for (const cls of data.classes) {
-      const sameName = cls.name.toLowerCase() === normTitle;
-      const sameTime = eventMinutes >= 0 && Math.abs((parseInt(cls.startTime.split(':')[0]) * 60 + parseInt(cls.startTime.split(':')[1])) - eventMinutes) <= 10;
-      if (sameName && sameTime) return cls.id;
-    }
-    return eventId;
-  })();
+  const exceptionTargetId = event && eventId
+    ? resolveExceptionTargetId(eventId, event.title, event.startTime, data.classes, eventDay)
+    : eventId || '';
 
   const handleMarkCancelled = async () => {
     if (!await confirm(`Cancel ${event?.title || 'this event'} for this week?`)) return;

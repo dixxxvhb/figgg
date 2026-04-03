@@ -16,6 +16,7 @@ import {
 import type { Class, Studio, Competition, CompetitionDance, CalendarEvent, SelfCareData, WeekNotes, DayOfWeek, MedConfig } from '../../types';
 import { getClassesByDay } from '../../data/classes';
 import { formatTimeDisplay, timeToMinutes, formatWeekOf, getWeekStart } from '../../utils/time';
+import { dateToDayOfWeek } from '../../utils/classException';
 import { estimateTravelTime, formatTravelTime } from '../../services/location';
 import { useSelfCareStatus } from '../../hooks/useSelfCareStatus';
 import { classifyCalendarEvent } from '../../utils/calendarEventType';
@@ -130,7 +131,8 @@ export function TodaysAgenda({
           for (const cls of searchClasses) {
             const sameName = cls.name.toLowerCase() === e.title.toLowerCase();
             const sameTime = Math.abs(timeToMinutes(cls.startTime) - eventStartMinutes) <= 10;
-            if ((sameName && sameTime) && currentWeekNotes.classNotes[cls.id]?.exception) {
+            const sameDay = !e.date || cls.day === dateToDayOfWeek(e.date);
+            if ((sameName && sameTime && sameDay) && currentWeekNotes.classNotes[cls.id]?.exception) {
               exception = currentWeekNotes.classNotes[cls.id].exception;
               break;
             }

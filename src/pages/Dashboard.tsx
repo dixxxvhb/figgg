@@ -44,6 +44,7 @@ import type { ActionCallbacks } from '../services/aiActions';
 import { applyMoodLayer } from '../styles/moodLayer';
 import type { MoodSignal, ActivityState } from '../styles/moodLayer';
 import { classifyCalendarEvent, shouldPreferCalendarEventOverClass } from '../utils/calendarEventType';
+import { dateToDayOfWeek } from '../utils/classException';
 
 // ── Constants ──
 
@@ -465,7 +466,8 @@ export function Dashboard() {
           if (countedIds.has(cls.id)) continue;
           const sameName = cls.name.toLowerCase() === e.title.toLowerCase();
           const sameTime = Math.abs(timeToMinutes(cls.startTime) - timeToMinutes(e.startTime)) <= 10;
-          if ((sameName && sameTime) && wn.classNotes[cls.id]?.exception) {
+          const sameDay = !e.date || cls.day === dateToDayOfWeek(e.date);
+          if ((sameName && sameTime && sameDay) && wn.classNotes[cls.id]?.exception) {
             exc = wn.classNotes[cls.id].exception;
             countedIds.add(cls.id);
             break;

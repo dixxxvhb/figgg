@@ -14,6 +14,7 @@ import { WeekMomentumBar } from '../components/Dashboard/WeekMomentumBar';
 import { StreakCard } from '../components/Dashboard/StreakCard';
 import { EventCountdown } from '../components/Dashboard/EventCountdown';
 import { classifyCalendarEvent, shouldPreferCalendarEventOverClass } from '../utils/calendarEventType';
+import { getClassException as getClassExceptionShared, resolveExceptionTargetId, dateToDayOfWeek } from '../utils/classException';
 
 const DAYS: { key: DayOfWeek; label: string; short: string }[] = [
   { key: 'monday', label: 'Monday', short: 'Mon' },
@@ -76,34 +77,9 @@ export function Schedule() {
   // Look up weekNotes for exception status (cancelled/subbed classes)
   const currentWeekNotes = data.weekNotes.find(w => w.weekOf === weekOf);
 
-  const getClassException = (classId: string, eventTitle?: string, eventStartTime?: string) => {
-    // Direct ID lookup first
-    const direct = currentWeekNotes?.classNotes[classId]?.exception;
-    if (direct) return direct;
-    // Cross-reference: calendar event → matching internal class by name+time
-    if (!currentWeekNotes || !eventTitle) return undefined;
-    const normTitle = eventTitle.toLowerCase();
-    const eventMinutes = eventStartTime ? timeToMinutes(eventStartTime) : -1;
-    // Check internal classes with exceptions
-    for (const cls of data.classes) {
-      const exc = currentWeekNotes.classNotes[cls.id]?.exception;
-      if (!exc) continue;
-      const sameName = cls.name.toLowerCase() === normTitle;
-      const sameTime = eventMinutes >= 0 && Math.abs(timeToMinutes(cls.startTime) - eventMinutes) <= 10;
-      if (sameName && sameTime) return exc;
-    }
-    // Check orphaned classNotes entries (IDs not in data.classes)
-    for (const [, cn] of Object.entries(currentWeekNotes.classNotes)) {
-      if (!cn.exception || !cn.classId) continue;
-      const idParts = cn.classId.toLowerCase().split('-');
-      const studioHint = idParts.find(p => p.length > 2 && normTitle.includes(p));
-      const timeHint = idParts.find(p => /^\d{4}$/.test(p));
-      if (studioHint && timeHint && eventMinutes >= 0) {
-        const hintMinutes = parseInt(timeHint.slice(0, 2)) * 60 + parseInt(timeHint.slice(2));
-        if (Math.abs(hintMinutes - eventMinutes) <= 10) return cn.exception;
-      }
-    }
-    return undefined;
+  const getClassException = (classId: string, eventTitle?: string, eventStartTime?: string, eventDate?: string) => {
+    const day = eventDate ? dateToDayOfWeek(eventDate) : undefined;
+    return getClassExceptionShared(classId, currentWeekNotes, data.classes, eventTitle, eventStartTime, day);
   };
 
   const selectedDayDate = addDays(weekStart, DAYS.findIndex(d => d.key === selectedDay));
@@ -507,23 +483,16 @@ export function Schedule() {
                 students: data.students || [],
               });
               const isWorkEvent = eventType.isWork;
-              const calException = getClassException(event.id, event.title, event.startTime);
+              const calException = getClassException(event.id, event.title, event.startTime, event.date);
               const isCancelled = calException?.type === 'cancelled';
               const isSubbed = calException?.type === 'subbed';
               // Toggle exception for calendar events
               const toggleCalEventException = (evId: string, evTitle: string, evStartTime?: string, hasExc?: boolean) => {
                 const wn = getWeekNotes(weekOf) || { id: `week_${weekOf}`, weekOf, classNotes: {} };
-                // Find matching internal class ID
-                const normTitle = evTitle.toLowerCase();
-                const evMins = evStartTime ? timeToMinutes(evStartTime) : -1;
-                let targetId = evId;
-                for (const cls of data.classes) {
-                  const sameName = cls.name.toLowerCase() === normTitle;
-                  const sameTime = evMins >= 0 && Math.abs(timeToMinutes(cls.startTime) - evMins) <= 10;
-                  if (sameName && sameTime) { targetId = cls.id; break; }
-                }
+                const evDay = event.date ? dateToDayOfWeek(event.date) : undefined;
+                const targetId = resolveExceptionTargetId(evId, evTitle, evStartTime, data.classes, evDay);
                 if (hasExc) {
-                  // Restore — remove exception from both IDs
+                  // Restore — remove exception from target (+ event ID for backwards compat)
                   for (const id of [targetId, evId]) {
                     if (wn.classNotes[id]?.exception) {
                       const { exception: _, ...rest } = wn.classNotes[id] as typeof wn.classNotes[string] & { exception?: unknown };
@@ -531,11 +500,9 @@ export function Schedule() {
                     }
                   }
                 } else {
-                  // Cancel — set on both IDs
-                  for (const id of [targetId, evId]) {
-                    const existing = wn.classNotes[id] || { classId: id, plan: '', liveNotes: [], isOrganized: false };
-                    wn.classNotes[id] = { ...existing, exception: { type: 'cancelled' as const, reason: 'personal' as const } };
-                  }
+                  // Cancel — write to target ID only
+                  const existing = wn.classNotes[targetId] || { classId: targetId, plan: '', liveNotes: [], isOrganized: false };
+                  wn.classNotes[targetId] = { ...existing, exception: { type: 'cancelled' as const } };
                 }
                 saveWeekNotes(wn);
               };
