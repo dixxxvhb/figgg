@@ -612,6 +612,28 @@ export function Dashboard() {
     return data.dayPlan?.date === ts ? data.dayPlan : null;
   }, [data.dayPlan]);
 
+  // Auto-complete Day Plan med items when the corresponding dose is logged
+  useEffect(() => {
+    if (!todayPlan) return;
+    const doseMap: Record<string, boolean> = {
+      '1': selfCareStatus.dose1Active,
+      '2': selfCareStatus.dose2Active,
+      '3': selfCareStatus.dose3Active,
+    };
+    const toComplete = todayPlan.items.filter(
+      i => i.category === 'med' && !i.completed &&
+        Object.entries(doseMap).some(([num, active]) => active && /dose/i.test(i.title) && i.title.includes(num))
+    );
+    if (toComplete.length > 0) {
+      saveDayPlan({
+        ...todayPlan,
+        items: todayPlan.items.map(i =>
+          toComplete.some(tc => tc.id === i.id) ? { ...i, completed: true } : i
+        ),
+      });
+    }
+  }, [selfCareStatus.dose1Active, selfCareStatus.dose2Active, selfCareStatus.dose3Active, todayPlan, saveDayPlan]);
+
   const dayName = format(currentTime, 'EEEE');
   const dateStr = format(currentTime, 'MMMM d');
   const hour = currentTime.getHours();
@@ -689,7 +711,10 @@ export function Dashboard() {
             {greetingSub && (
               <p className="text-sm text-[var(--text-tertiary)] mt-1">{greetingSub}</p>
             )}
-            {data.dailyBriefing?.loginRoast && (
+            {data.dailyBriefing?.loginRoast && !(
+              /no class/i.test(data.dailyBriefing.loginRoast) &&
+              (activeTodayClasses.length > 0 || todayCalendarEvents.length > 0)
+            ) && (
               <p className="text-xs text-[var(--text-tertiary)] mt-2 italic opacity-70 max-w-[300px]">
                 {data.dailyBriefing.loginRoast}
               </p>
