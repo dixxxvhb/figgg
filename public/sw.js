@@ -1,7 +1,7 @@
 // Bump this version on each deploy to bust the SW cache.
 // Static assets are already content-hashed by Vite; this controls
 // the navigation/HTML cache and precached shell files.
-const CACHE_VERSION = 10;
+const CACHE_VERSION = 11;
 const CACHE_NAME = `figgg-v${CACHE_VERSION}`;
 
 // App shell files to precache (NOT index.html — navigation is network-first)
