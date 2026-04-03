@@ -120,7 +120,7 @@ export function Library() {
 
   return (
     <div className="page-w px-4 py-6 pb-24">
-      <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-6">Library</h1>
+      <h1 className="type-h1 text-[var(--accent-primary)] mb-6">Library</h1>
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6">
@@ -157,8 +157,9 @@ export function Library() {
           </div>
 
           {/* Category Filter */}
-          <div className="mb-4">
-            <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+          <div className="mb-4 relative">
+            <div className="absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-[var(--surface-primary)] to-transparent pointer-events-none z-10" />
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 pr-8 scrollbar-hide">
               <button
                 onClick={() => setSelectedCategory('all')}
                 className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-150 active:scale-95 whitespace-nowrap min-h-[36px] ${

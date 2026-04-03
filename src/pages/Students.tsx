@@ -198,8 +198,9 @@ export function Students() {
           </div>
 
           {/* Class Filter */}
-          <div className="mb-6">
-            <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4">
+          <div className="mb-6 relative">
+            <div className="absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-[var(--surface-primary)] to-transparent pointer-events-none z-10" />
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 pr-8">
               <button
                 onClick={() => setSelectedClass('all')}
                 className={`flex-shrink-0 px-3 py-1.5 rounded-[var(--radius-full)] text-sm font-medium transition-all duration-[var(--duration-fast)] active:scale-95 ${

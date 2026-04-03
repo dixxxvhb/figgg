@@ -265,28 +265,7 @@ export function Schedule() {
         </Link>
       </div>
 
-      {/* Week Overview */}
-      <div className="space-y-3 mb-4">
-        <WeekMomentumBar stats={stats} />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <WeekStats
-            stats={stats}
-            classes={data.classes}
-            competitions={data.competitions}
-            weekNotes={data.weekNotes}
-          />
-          <StreakCard
-            selfCare={data.selfCare}
-            learningData={data.learningData}
-            notesThisWeek={stats.classesThisWeek.completed}
-            totalClassesThisWeek={stats.classesThisWeek.total}
-          />
-          <div className="sm:col-span-2 lg:col-span-1">
-            <EventCountdown competitions={data.competitions || []} />
-          </div>
-        </div>
-      </div>
-
+      {/* Day Tabs — shown first so today's classes are above the fold */}
       {/* Day Tabs */}
       <div className="flex gap-1 mb-6 overflow-x-auto pb-2 md:grid md:grid-cols-7 md:overflow-visible">
         {DAYS.map(({ key, short }) => {
@@ -506,13 +485,13 @@ export function Schedule() {
                 <div key={cls.id} className="relative group">
                   <Link
                     to={`/class/${cls.id}${scheduleQuery}`}
-                    className="block bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-card-hover)] transition-all"
+                    className="block bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] p-4 pr-14 hover:border-[var(--border-strong)] hover:shadow-[var(--shadow-card-hover)] transition-all"
                   >
                     {classCard}
                   </Link>
                   <button
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleClassException(cls.id); }}
-                    className="absolute top-3 right-3 p-2 rounded-lg text-[var(--text-tertiary)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
+                    className="absolute top-3 right-3 p-2 rounded-lg text-[var(--text-tertiary)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
                     title="Cancel class"
                   >
                     <XCircle size={18} />
@@ -699,6 +678,28 @@ export function Schedule() {
             }
           })
         )}
+      </div>
+
+      {/* Week Overview — below day content so classes stay above the fold */}
+      <div className="space-y-3 mt-6 mb-4">
+        <WeekMomentumBar stats={stats} />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <WeekStats
+            stats={stats}
+            classes={data.classes}
+            competitions={data.competitions}
+            weekNotes={data.weekNotes}
+          />
+          <StreakCard
+            selfCare={data.selfCare}
+            learningData={data.learningData}
+            notesThisWeek={stats.classesThisWeek.completed}
+            totalClassesThisWeek={stats.classesThisWeek.total}
+          />
+          <div className="sm:col-span-2 lg:col-span-1">
+            <EventCountdown competitions={data.competitions || []} />
+          </div>
+        </div>
       </div>
     </div>
   );

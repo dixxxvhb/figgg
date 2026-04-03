@@ -673,7 +673,7 @@ export function Dashboard() {
 
   // ── Render ──
   return (
-    <div className="pb-24 bg-[var(--surface-primary)] min-h-screen">
+    <div className="pb-20 bg-[var(--surface-primary)] min-h-screen">
       {/* ── Greeting ── */}
       <div className="page-container pt-8 pb-2">
         <div className="flex items-start justify-between gap-4 xl:items-end">
@@ -693,7 +693,7 @@ export function Dashboard() {
               </p>
             )}
           </div>
-          <span className="mt-2 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--accent-muted)] text-[var(--accent-primary)] shrink-0">
+          <span className="mt-2 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--accent-muted)] text-[var(--accent-primary)] shrink-0 mr-1">
             {CONTEXT_LABELS[ctx.context]}
           </span>
         </div>
