@@ -54,6 +54,7 @@ function parseICS(icsText: string): CalendarEvent[] {
   const rawEvents: RawEvent[] = [];
 
   let currentEvent: RawEvent | null = null;
+  let nestedDepth = 0; // Track nested components (VALARM, etc.) to avoid field overwrites
 
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i];
@@ -65,12 +66,17 @@ function parseICS(icsText: string): CalendarEvent[] {
 
     if (line.startsWith('BEGIN:VEVENT')) {
       currentEvent = { exdates: [] };
+      nestedDepth = 0;
+    } else if (line.startsWith('BEGIN:') && currentEvent) {
+      nestedDepth++;
+    } else if (line.startsWith('END:') && currentEvent && !line.startsWith('END:VEVENT')) {
+      nestedDepth = Math.max(0, nestedDepth - 1);
     } else if (line.startsWith('END:VEVENT') && currentEvent) {
       if (currentEvent.title && currentEvent.date) {
         rawEvents.push(currentEvent);
       }
       currentEvent = null;
-    } else if (currentEvent) {
+    } else if (currentEvent && nestedDepth === 0) {
       const [key, ...valueParts] = line.split(':');
       const value = valueParts.join(':');
 
@@ -94,9 +100,11 @@ function parseICS(icsText: string): CalendarEvent[] {
       } else if (key.startsWith('RRULE')) {
         currentEvent.rrule = value;
       } else if (key.startsWith('EXDATE')) {
-        // Parse excluded dates (canceled occurrences)
-        const { date: exDate } = parseDTValue(key, value);
-        currentEvent.exdates!.push(exDate);
+        // Parse excluded dates — may be comma-separated on one line
+        for (const exVal of value.split(',')) {
+          const { date: exDate } = parseDTValue(key, exVal.trim());
+          currentEvent.exdates!.push(exDate);
+        }
       } else if (key.startsWith('LOCATION')) {
         currentEvent.location = value.replace(/\\n/g, '\n').replace(/\\,/g, ',').replace(/\\;/g, ';');
       } else if (key.startsWith('DESCRIPTION')) {
@@ -194,15 +202,30 @@ function expandRRule(raw: RawEvent, windowStart: string, windowEnd: string): Par
     }
   } else if (rrule.freq === 'WEEKLY') {
     const interval = rrule.interval || 1;
-    const current = new Date(startDate);
-    while (current <= windowEndDate && occurrences < count) {
-      if (untilDate && current > untilDate) break;
-      const dateStr = formatDateStr(current);
-      if (dateStr >= windowStart && !exdateSet.has(dateStr)) {
-        results.push(makeOccurrence(raw, dateStr));
-        occurrences++;
+    // BYDAY specifies which days of the week (e.g., MO,WE,FR)
+    // If absent, default to the start date's day
+    const bydays = rrule.byday
+      ? rrule.byday.split(',').map(d => dayNameToNum(d.trim()))
+      : [startDate.getDay()];
+
+    // Walk week-by-week from the start date's week
+    const weekStart = new Date(startDate);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // rewind to Sunday of start week
+    while (weekStart <= windowEndDate && occurrences < count) {
+      for (const dayNum of bydays) {
+        if (occurrences >= count) break;
+        const current = new Date(weekStart);
+        current.setDate(current.getDate() + dayNum);
+        if (current < startDate) continue; // don't expand before DTSTART
+        if (untilDate && current > untilDate) break;
+        if (current > windowEndDate) break;
+        const dateStr = formatDateStr(current);
+        if (dateStr >= windowStart && !exdateSet.has(dateStr)) {
+          results.push(makeOccurrence(raw, dateStr));
+          occurrences++;
+        }
       }
-      current.setDate(current.getDate() + 7 * interval);
+      weekStart.setDate(weekStart.getDate() + 7 * interval);
     }
   } else if (rrule.freq === 'MONTHLY') {
     // Handle BYDAY+BYSETPOS (e.g., first Thursday of month)

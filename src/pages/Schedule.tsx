@@ -148,12 +148,15 @@ export function Schedule() {
       items.push({ type: 'class', data: cls, time: timeToMinutes(cls.startTime) });
     });
 
-    // Only add calendar events that don't overlap with a class (by time within 10 min OR matching name)
+    // Only dedup calendar events when BOTH name and time match an internal class
     calendarEventsForDay.forEach(event => {
       const eventTime = timeToMinutes(event.startTime || '00:00');
-      const isDuplicateByTime = Array.from(classTimeSet).some(ct => Math.abs(ct - eventTime) <= 10);
-      const isDuplicateByName = classNameSet.has(event.title.toLowerCase());
-      if (!isDuplicateByTime && !isDuplicateByName) {
+      const normTitle = event.title.toLowerCase();
+      const isDuplicate = visibleDayClasses.some(cls =>
+        cls.name.toLowerCase() === normTitle &&
+        Math.abs(timeToMinutes(cls.startTime) - eventTime) <= 10
+      );
+      if (!isDuplicate) {
         items.push({ type: 'event', data: event, time: eventTime });
       }
     });

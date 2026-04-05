@@ -501,11 +501,15 @@ export function Dashboard() {
   }, [todayClasses, todayEventsRaw, data.weekNotes, data.classes]);
 
   const todayCalendarEvents = useMemo(() => {
-    const classTimes = todayClasses.map(c => timeToMinutes(c.startTime));
     return todayEventsRaw
       .filter((e: CalendarEvent) => {
         const et = timeToMinutes(e.startTime);
-        return !classTimes.some(ct => Math.abs(ct - et) <= 10);
+        const normTitle = e.title.toLowerCase();
+        // Only dedup when BOTH name and time match an internal class
+        return !todayClasses.some(c =>
+          c.name.toLowerCase() === normTitle &&
+          Math.abs(timeToMinutes(c.startTime) - et) <= 10
+        );
       })
       .sort((a: CalendarEvent, b: CalendarEvent) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
   }, [todayEventsRaw, todayClasses]);
