@@ -81,9 +81,16 @@ export function useCurrentClass(
       })
       .map(calEventToClass);
 
-    // Dedup: skip calendar events that match an internal class by name+day
-    const internalKeys = new Set(internalClasses.map(c => `${c.name.toLowerCase().trim()}|${c.day}`));
-    const uniqueCalClasses = calClassEvents.filter(c => !internalKeys.has(`${c.name.toLowerCase().trim()}|${c.day}`));
+    // Dedup: skip calendar events that match an internal class by name+day+time
+    const uniqueCalClasses = calClassEvents.filter(c => {
+      const normName = c.name.toLowerCase().trim();
+      const calTime = timeToMinutes(c.startTime);
+      return !internalClasses.some(ic =>
+        ic.name.toLowerCase().trim() === normName &&
+        ic.day === c.day &&
+        Math.abs(timeToMinutes(ic.startTime) - calTime) <= 10
+      );
+    });
 
     // Merge and sort
     const todayClasses = [...internalClasses, ...uniqueCalClasses]

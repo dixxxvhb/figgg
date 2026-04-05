@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { format, startOfWeek, addDays } from 'date-fns';
 import { AppData, WeekNotes, Class, CalendarEvent, DayOfWeek } from '../types';
-import { getWeekStart, formatWeekOf, getCurrentDayOfWeek } from '../utils/time';
+import { getWeekStart, formatWeekOf, getCurrentDayOfWeek, timeToMinutes } from '../utils/time';
 import { classifyCalendarEvent } from '../utils/calendarEventType';
 
 export interface TeachingStats {
@@ -50,22 +50,23 @@ function countCalendarClassEvents(
   }
   const dateSet = new Set(dates);
 
-  // Build a set of internal class identifiers (name+day) for dedup
-  const internalClassKeys = new Set(
-    classes.map(c => `${c.name.toLowerCase().trim()}|${c.day}`)
-  );
-
   // Filter calendar events to this week up to today, classify them,
-  // skip ones that match an internal class definition
+  // skip ones that match an internal class definition by name+day+time
   return calendarEvents.filter(e => {
     if (!dateSet.has(e.date)) return false;
     if (!e.startTime || e.startTime === '00:00') return false;
 
-    // Check if this calendar event overlaps with an internal class
+    // Dedup: only skip if name AND day AND time (±10 min) match an internal class
     const eventDate = new Date(`${e.date}T12:00:00`);
     const eventDay = dayNames[eventDate.getDay()];
-    const eventKey = `${(e.title || '').toLowerCase().trim()}|${eventDay}`;
-    if (internalClassKeys.has(eventKey)) return false; // already counted as internal class
+    const normTitle = (e.title || '').toLowerCase().trim();
+    const eventTime = timeToMinutes(e.startTime);
+    const matchesInternal = classes.some(c =>
+      c.name.toLowerCase().trim() === normTitle &&
+      c.day === eventDay &&
+      Math.abs(timeToMinutes(c.startTime) - eventTime) <= 10
+    );
+    if (matchesInternal) return false;
 
     const classification = classifyCalendarEvent(e, {
       classes,
