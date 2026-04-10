@@ -125,6 +125,7 @@ const AdvancedSettings = lazy(() => import('./pages/settings/AdvancedSettings').
 const StudentsSettings = lazy(() => import('./pages/settings/StudentsSettings').then(m => ({ default: m.StudentsSettings })));
 const LaunchPlan = lazy(() => import('./pages/LaunchPlan').then(m => ({ default: m.LaunchPlan })));
 const AIChat = lazy(() => import('./pages/AIChat').then(m => ({ default: m.AIChat })));
+const MoreHub = lazy(() => import('./pages/MoreHub').then(m => ({ default: m.MoreHub })));
 
 function NotFound() {
   return (
@@ -168,6 +169,7 @@ function AnimatedRoutes() {
         <Route path="/settings/students" element={<StudentsSettings />} />
         <Route path="/settings/advanced" element={<AdvancedSettings />} />
         <Route path="/settings/classes" element={<ClassManager />} />
+        <Route path="/more" element={<MoreHub />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </div>
