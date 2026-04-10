@@ -126,6 +126,7 @@ const StudentsSettings = lazy(() => import('./pages/settings/StudentsSettings').
 const LaunchPlan = lazy(() => import('./pages/LaunchPlan').then(m => ({ default: m.LaunchPlan })));
 const AIChat = lazy(() => import('./pages/AIChat').then(m => ({ default: m.AIChat })));
 const MoreHub = lazy(() => import('./pages/MoreHub').then(m => ({ default: m.MoreHub })));
+const Tasks = lazy(() => import('./pages/Tasks').then(m => ({ default: m.Tasks })));
 
 function NotFound() {
   return (
@@ -155,7 +156,7 @@ function AnimatedRoutes() {
         <Route path="/library" element={<Library />} />
         <Route path="/choreography" element={<Navigate to="/library?tab=competitions" replace />} />
         <Route path="/choreography/:itemId" element={<Navigate to="/library?tab=competitions" replace />} />
-        <Route path="/tasks" element={<Me initialTab="reminders" />} />
+        <Route path="/tasks" element={<Tasks />} />
         <Route path="/me" element={<Me />} />
         <Route path="/launch" element={<LaunchPlan />} />
         <Route path="/ai" element={<AIChat />} />
