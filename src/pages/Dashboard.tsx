@@ -17,19 +17,12 @@ import {
 } from 'lucide-react';
 import { useAppData } from '../contexts/AppDataContext';
 import { useSelfCareStatus } from '../hooks/useSelfCareStatus';
-import { useDashboardContext, type DashboardContextType } from '../hooks/useDashboardContext';
+import { useDashboardContext } from '../hooks/useDashboardContext';
 import { getCurrentDayOfWeek, formatTimeDisplay, formatWeekOf, getWeekStart, timeToMinutes, safeTime } from '../utils/time';
 import { getClassesByDay } from '../data/classes';
 import { TodaysAgenda } from '../components/Dashboard/TodaysAgenda';
-import { MorningBriefing } from '../components/Dashboard/MorningBriefing';
+import { MedsStatusBar } from '../components/Dashboard/MedsStatusBar';
 import { RemindersWidget } from '../components/Dashboard/RemindersWidget';
-import { ScratchpadWidget } from '../components/Dashboard/ScratchpadWidget';
-import { NudgeCards } from '../components/Dashboard/NudgeCards';
-import { PrepCard } from '../components/Dashboard/PrepCard';
-import { PostClassCapture } from '../components/Dashboard/PostClassCapture';
-import { QuickNoteCapture } from '../components/Dashboard/QuickNoteCapture';
-import { useNudges } from '../hooks/useNudges';
-import { useClassTiming } from '../hooks/useClassTiming';
 import { CalendarEvent, DEFAULT_MED_CONFIG, DEFAULT_AI_CONFIG } from '../types';
 import type { AICheckIn, DayPlan, DayPlanItem, RecurringSchedule } from '../types';
 import { AICheckInWidget } from '../components/Dashboard/AICheckInWidget';
@@ -51,14 +44,6 @@ import { dateToDayOfWeek } from '../utils/classException';
 const VALID_CATEGORIES = new Set(['task', 'wellness', 'class', 'launch', 'break', 'med']);
 const VALID_PRIORITIES = new Set(['high', 'medium', 'low']);
 
-const CONTEXT_LABELS: Record<DashboardContextType, string> = {
-  'morning': 'Morning',
-  'pre-class': 'Prep',
-  'during-class': 'In Class',
-  'post-class': 'Capture',
-  'evening': 'Wind Down',
-  'default': 'Today',
-};
 
 // ── Helpers ──
 
@@ -87,12 +72,9 @@ const isActionItem = (text: string) => ACTION_KEYWORDS.test(text) || text.starts
 // ── Component ──
 
 export function Dashboard() {
-  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes, updateTherapist, updateNudgeState } = useAppData();
+  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes, updateTherapist } = useAppData();
   const medConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
   const selfCareStatus = useSelfCareStatus(data.selfCare, medConfig);
-
-  // Nudges (synced across devices via Firestore)
-  const { nudges, dismissNudge, snoozeNudge } = useNudges(data, updateNudgeState);
 
   // Minute-level clock — drives timers, check-in status, etc.
   const [currentMinute, setCurrentMinute] = useState(() => {
@@ -119,9 +101,6 @@ export function Dashboard() {
 
   // ── Context-aware dashboard mode ──
   const ctx = useDashboardContext(data, currentMinute);
-
-  // Class timing for prep/capture
-  const classTiming = useClassTiming(data, currentMinute);
 
   // AI check-in
   const aiConfig = { ...DEFAULT_AI_CONFIG, ...(data.settings?.aiConfig || {}) };
@@ -390,11 +369,6 @@ export function Dashboard() {
     updateSelfCare({ reminders: updated });
   }, [data.selfCare, updateSelfCare]);
 
-  // ── Scratchpad ──
-  const handleScratchpadChange = useCallback((text: string) => {
-    updateSelfCare({ scratchpad: text });
-  }, [updateSelfCare]);
-
   // ── Dose Logging ──
   const canLogDose = useMemo(() => {
     const sc = data.selfCare;
@@ -522,33 +496,7 @@ export function Dashboard() {
     }) || null;
   }, [todayCalendarEvents, currentMinute]);
 
-  const nextCalendarEvent = useMemo(() => {
-    return todayCalendarEvents.find((e: CalendarEvent) => timeToMinutes(e.startTime) > currentMinute) || null;
-  }, [todayCalendarEvents, currentMinute]);
-
   const classInfo = ctx.currentClassInfo;
-
-  const nextUpInfo = useMemo(() => {
-    const totalItems = activeTodayClasses.length + todayCalendarEvents.length;
-    if (totalItems === 0) return null;
-    if (classInfo.status === 'during' && classInfo.class) {
-      return { type: 'during' as const, name: classInfo.class.name, timeRemaining: classInfo.timeRemaining };
-    }
-    if (currentCalendarEvent && !(classInfo.status === 'before' && classInfo.class)) {
-      const start = timeToMinutes(currentCalendarEvent.startTime);
-      const end = currentCalendarEvent.endTime && currentCalendarEvent.endTime !== '00:00'
-        ? timeToMinutes(currentCalendarEvent.endTime) : start + 60;
-      return { type: 'during' as const, name: currentCalendarEvent.title, timeRemaining: end - currentMinute };
-    }
-    const classNext = classInfo.status === 'before' && classInfo.class
-      ? { type: 'class' as const, name: classInfo.class.name, startMinutes: timeToMinutes(classInfo.class.startTime), timeUntilStart: classInfo.timeUntilStart }
-      : null;
-    const eventNext = nextCalendarEvent
-      ? { type: 'event' as const, name: nextCalendarEvent.title, startMinutes: timeToMinutes(nextCalendarEvent.startTime) }
-      : null;
-    if (classNext && eventNext) return classNext.startMinutes <= eventNext.startMinutes ? classNext : eventNext;
-    return classNext || eventNext || null;
-  }, [classInfo, currentCalendarEvent, nextCalendarEvent, currentMinute, activeTodayClasses.length, todayCalendarEvents.length]);
 
   const nextComp = useMemo(() => {
     const today = new Date();
@@ -652,10 +600,10 @@ export function Dashboard() {
   // Activity state for mood layer
   const activityState: ActivityState = useMemo(() =>
     classInfo.status === 'during' ? 'teaching' :
-    classTiming.upcomingClass ? 'prepping' :
+    (classInfo.status === 'before' && classInfo.class) ? 'prepping' :
     activeTodayClasses.length > 0 && activeTodayClasses.every(c => timeToMinutes(c.endTime) < currentMinute) ? 'done' :
     activeTodayClasses.length === 0 ? 'off' : 'idle',
-  [classInfo.status, classTiming.upcomingClass, activeTodayClasses, currentMinute]);
+  [classInfo.status, classInfo.class, activeTodayClasses, currentMinute]);
 
   // ── Mood-responsive theming layer ──
   useEffect(() => {
@@ -715,20 +663,17 @@ export function Dashboard() {
             {greetingSub && (
               <p className="text-sm text-[var(--text-tertiary)] mt-1">{greetingSub}</p>
             )}
-            {data.dailyBriefing?.loginRoast && !(
-              /no class/i.test(data.dailyBriefing.loginRoast) &&
-              (activeTodayClasses.length > 0 || todayCalendarEvents.length > 0)
-            ) && (
-              <p className="text-xs text-[var(--text-tertiary)] mt-2 italic opacity-70 max-w-[300px]">
-                {data.dailyBriefing.loginRoast}
-              </p>
-            )}
           </div>
-          <span className="mt-2 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--accent-muted)] text-[var(--accent-primary)] shrink-0 mr-1">
-            {CONTEXT_LABELS[ctx.context]}
-          </span>
         </div>
       </div>
+
+      {/* ── Meds Status ── */}
+      <MedsStatusBar
+        selfCare={data.selfCare}
+        medConfig={medConfig}
+        onLogDose={handleLogDose}
+        canLogDose={canLogDose}
+      />
 
       {/* ── Competition Banner ── */}
       {nextComp && daysUntilComp !== null && daysUntilComp <= 14 && (
@@ -937,230 +882,55 @@ export function Dashboard() {
           />
         )}
 
-        {/* ── Context-Specific Sections ── */}
+        {/* ── Main Content (single layout, no context modes) ── */}
+        <TodaysAgenda
+          classes={todayClasses}
+          studios={data.studios}
+          students={data.students || []}
+          weekNotes={data.weekNotes}
+          competitions={data.competitions}
+          competitionDances={data.competitionDances || []}
+          calendarEvents={todayCalendarEvents}
+          selfCare={data.selfCare}
+          medConfig={medConfig}
+          currentClassId={classInfo.class?.id}
+          allClasses={data.classes}
+          allCalendarEvents={data.calendarEvents || []}
+          currentMinute={currentMinute}
+          cancelledTodayCount={cancelledTodayCount}
+          subbedTodayCount={subbedTodayCount}
+        />
 
-        {ctx.context === 'morning' && (
-          <>
-            <MorningBriefing
-              todayClasses={activeTodayClasses}
-              todayCalendarEvents={todayCalendarEvents}
-              selfCareStatus={selfCareStatus}
-              classInfo={classInfo}
-              nextUpInfo={nextUpInfo}
-              reminders={data.selfCare?.reminders || []}
-              skippedDoseDate={data.selfCare?.skippedDoseDate}
-              onLogDose={handleLogDose}
-              canLogDose={canLogDose}
-              dayPlanProgress={todayPlan ? {
-                done: todayPlan.items.filter(i => i.completed).length,
-                total: todayPlan.items.length,
-              } : null}
-            />
-            <TodaysAgenda
-              classes={todayClasses}
-              studios={data.studios}
-              students={data.students || []}
-              weekNotes={data.weekNotes}
-              competitions={data.competitions}
-              competitionDances={data.competitionDances || []}
-              calendarEvents={todayCalendarEvents}
-              selfCare={data.selfCare}
-              medConfig={medConfig}
-              currentClassId={classInfo.class?.id}
-              allClasses={data.classes}
-              allCalendarEvents={data.calendarEvents || []}
-              currentMinute={currentMinute}
-              cancelledTodayCount={cancelledTodayCount}
-              subbedTodayCount={subbedTodayCount}
-            />
-            {todayPlan && todayPlan.items.some(i => !i.completed) && (
-              <DayPlanWidget
-                plan={todayPlan}
-                onToggleItem={handleTogglePlanItem}
-                onReplan={() => generateDayPlan()}
-                isReplanning={isReplanning}
-              />
-            )}
-            {!todayPlan && (
-              <div className="bg-[var(--surface-card)] rounded-2xl border border-[var(--border-subtle)] p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="type-h3 text-[var(--text-primary)]">Today's Plan</h3>
-                    <p className="type-caption text-[var(--text-secondary)] mt-0.5">AI-powered schedule based on your day</p>
-                  </div>
-                  <button
-                    onClick={() => generateDayPlan()}
-                    disabled={isReplanning}
-                    className="px-4 py-2 bg-[var(--accent-primary)] text-[var(--text-on-accent)] rounded-xl text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
-                  >
-                    {isReplanning ? (
-                      <><Loader2 size={14} className="animate-spin" /> Generating...</>
-                    ) : (
-                      'Generate Plan'
-                    )}
-                  </button>
-                </div>
+        {todayPlan && todayPlan.items.some(i => !i.completed) ? (
+          <DayPlanWidget
+            plan={todayPlan}
+            onToggleItem={handleTogglePlanItem}
+            onReplan={() => generateDayPlan()}
+            isReplanning={isReplanning}
+          />
+        ) : !todayPlan ? (
+          <div className="bg-[var(--surface-card)] rounded-2xl border border-[var(--border-subtle)] p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="type-h3 text-[var(--text-primary)]">Today's Plan</h3>
+                <p className="type-caption text-[var(--text-secondary)] mt-0.5">AI-powered schedule based on your day</p>
               </div>
-            )}
-            <NudgeCards nudges={nudges} onDismiss={dismissNudge} onSnooze={snoozeNudge} />
-            <RemindersWidget reminders={data.selfCare?.reminders || []} onToggle={handleToggleReminder} />
-          </>
-        )}
-
-        {ctx.context === 'pre-class' && (
-          <>
-            {classTiming.upcomingClass && (
-              <PrepCard
-                classContext={classTiming.upcomingClass}
-                minutesUntil={classTiming.minutesUntilNext || 0}
-                data={data}
-                autoPrep
-              />
-            )}
-            {canLogDose && (
-              <div className="bg-[var(--surface-card)] rounded-2xl border border-[var(--border-subtle)] p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Pill size={16} className="text-[var(--accent-primary)]" />
-                    <span className="text-sm font-semibold text-[var(--text-primary)]">Meds before class?</span>
-                  </div>
-                  <button
-                    onClick={handleLogDose}
-                    className="px-3 py-1.5 text-xs font-semibold bg-[var(--accent-primary)] text-[var(--text-on-accent)] rounded-full active:scale-90 transition-all duration-150"
-                  >
-                    Log Dose
-                  </button>
-                </div>
-              </div>
-            )}
-            <TodaysAgenda
-              classes={todayClasses}
-              studios={data.studios}
-              students={data.students || []}
-              weekNotes={data.weekNotes}
-              competitions={data.competitions}
-              competitionDances={data.competitionDances || []}
-              calendarEvents={todayCalendarEvents}
-              selfCare={data.selfCare}
-              medConfig={medConfig}
-              currentClassId={classInfo.class?.id}
-              allClasses={data.classes}
-              allCalendarEvents={data.calendarEvents || []}
-              currentMinute={currentMinute}
-              cancelledTodayCount={cancelledTodayCount}
-              subbedTodayCount={subbedTodayCount}
-            />
-          </>
-        )}
-
-        {ctx.context === 'during-class' && (
-          <>
-            {/* Hero card already rendered above for during-class */}
-          </>
-        )}
-
-        {ctx.context === 'post-class' && (
-          <>
-            {classTiming.justEndedClass && (
-              <PostClassCapture
-                classContext={classTiming.justEndedClass}
-                data={data}
-                onSaveNotes={saveWeekNotes}
-                getCurrentWeekNotes={getCurrentWeekNotes}
-              />
-            )}
-            {/* Show next class prep if another is coming */}
-            {classTiming.upcomingClass && (
-              <PrepCard
-                classContext={classTiming.upcomingClass}
-                minutesUntil={classTiming.minutesUntilNext || 0}
-                data={data}
-                autoPrep
-              />
-            )}
-          </>
-        )}
-
-        {ctx.context === 'evening' && (
-          <>
-            {/* Day summary */}
-            <div className="bg-[var(--surface-card)] rounded-2xl border border-[var(--border-subtle)] p-4">
-              <h3 className="type-h3 text-[var(--text-primary)] mb-2">Today's Wrap-Up</h3>
-              <div className="flex gap-4 text-sm text-[var(--text-secondary)]">
-                {activeTodayClasses.length > 0 && (
-                  <span>{activeTodayClasses.length} class{activeTodayClasses.length !== 1 ? 'es' : ''} taught</span>
+              <button
+                onClick={() => generateDayPlan()}
+                disabled={isReplanning}
+                className="px-4 py-2 bg-[var(--accent-primary)] text-[var(--text-on-accent)] rounded-xl text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
+              >
+                {isReplanning ? (
+                  <><Loader2 size={14} className="animate-spin" /> Generating...</>
+                ) : (
+                  'Generate Plan'
                 )}
-                {todayPlan && (
-                  <span>{todayPlan.items.filter(i => i.completed).length}/{todayPlan.items.length} tasks done</span>
-                )}
-              </div>
-              {activeTodayClasses.length === 0 && !todayPlan && (
-                <p className="text-sm text-[var(--text-tertiary)]">Rest day — nice.</p>
-              )}
+              </button>
             </div>
-            {/* Tomorrow preview */}
-            <TodaysAgenda
-              classes={todayClasses}
-              studios={data.studios}
-              students={data.students || []}
-              weekNotes={data.weekNotes}
-              competitions={data.competitions}
-              competitionDances={data.competitionDances || []}
-              calendarEvents={todayCalendarEvents}
-              selfCare={data.selfCare}
-              medConfig={medConfig}
-              currentClassId={classInfo.class?.id}
-              allClasses={data.classes}
-              allCalendarEvents={data.calendarEvents || []}
-              currentMinute={currentMinute}
-              cancelledTodayCount={cancelledTodayCount}
-              subbedTodayCount={subbedTodayCount}
-            />
-            {/* Wellness link */}
-            <Link
-              to="/me"
-              className="block bg-[var(--surface-card)] rounded-2xl border border-[var(--border-subtle)] p-4"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-[var(--text-primary)]">Wellness Check</span>
-                <ChevronRight size={16} className="text-[var(--text-tertiary)]" />
-              </div>
-            </Link>
-            <RemindersWidget reminders={data.selfCare?.reminders || []} onToggle={handleToggleReminder} />
-          </>
-        )}
+          </div>
+        ) : null}
 
-        {ctx.context === 'default' && (
-          <>
-            <TodaysAgenda
-              classes={todayClasses}
-              studios={data.studios}
-              students={data.students || []}
-              weekNotes={data.weekNotes}
-              competitions={data.competitions}
-              competitionDances={data.competitionDances || []}
-              calendarEvents={todayCalendarEvents}
-              selfCare={data.selfCare}
-              medConfig={medConfig}
-              currentClassId={classInfo.class?.id}
-              allClasses={data.classes}
-              allCalendarEvents={data.calendarEvents || []}
-              currentMinute={currentMinute}
-              cancelledTodayCount={cancelledTodayCount}
-              subbedTodayCount={subbedTodayCount}
-            />
-            {todayPlan && todayPlan.items.some(i => !i.completed) && (
-              <DayPlanWidget
-                plan={todayPlan}
-                onToggleItem={handleTogglePlanItem}
-                onReplan={() => generateDayPlan()}
-                isReplanning={isReplanning}
-              />
-            )}
-            <RemindersWidget reminders={data.selfCare?.reminders || []} onToggle={handleToggleReminder} />
-            <NudgeCards nudges={nudges} onDismiss={dismissNudge} onSnooze={snoozeNudge} />
-          </>
-        )}
+        <RemindersWidget reminders={data.selfCare?.reminders || []} onToggle={handleToggleReminder} />
 
         {/* ── Next Action Badge (always, when plan exists) ── */}
         {todayPlan && (() => {
@@ -1183,26 +953,7 @@ export function Dashboard() {
           );
         })()}
 
-        {/* ── Always: Scratchpad (collapsed) ── */}
-        <ScratchpadWidget value={data.selfCare?.scratchpad || ''} onChange={handleScratchpadChange} />
       </div>
-
-      {/* Quick Note FAB — always available on teaching days */}
-      <QuickNoteCapture
-        todayClasses={activeTodayClasses}
-        currentClassId={classInfo.status === 'during' ? classInfo.class?.id : undefined}
-        onSaveNote={(classId, note) => {
-          const weekNote = getCurrentWeekNotes();
-          const existing = weekNote.classNotes[classId] || {
-            classId, plan: '', liveNotes: [], isOrganized: false,
-          };
-          weekNote.classNotes[classId] = {
-            ...existing,
-            liveNotes: [...existing.liveNotes, note],
-          };
-          saveWeekNotes(weekNote);
-        }}
-      />
     </div>
   );
 }
