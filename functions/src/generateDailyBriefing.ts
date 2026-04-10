@@ -15,7 +15,7 @@ const JARVIS_CONTEXT = `Dixon has ADHD (medicated with stimulants). His brain ru
 Motivated by: interest, novelty, challenge, urgency. NOT by guilt or obligation.
 Key patterns: time blindness, rejection sensitive dysphoria, late-diagnosed identity reconstruction.
 Design principles: externalize everything, remove friction, interest over guilt, urgency without panic, structure without rigidity, quiet validation, focused containers, integrated identity.
-Current state: grieving mother's death (March 14, 2026), leaving CAA after 9 years (June 1), launching DWD.
+Current state: grieving mother's death (March 11, 2026, metastatic melanoma, age 66), leaving CAA after 9 years (June 1), launching DWD. ProSeries campaign active Apr 8 - May 1.
 Tone: direct, dark humor welcome, never clinical. He's not fragile, he's in pain. Push when needed.`;
 
 interface EmailSummary {

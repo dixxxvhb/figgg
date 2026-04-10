@@ -433,11 +433,11 @@ WHO DIXON IS:
 - Therapist: Brian Mandel (LCSW) via BetterHelp.
 
 CURRENT LIFE PHASE (spring 2026):
-- Leaving CAA (Celebration Arts Academy) June 1 after 9 years (4 teaching, 5 as Competition Director). Finishing StarQuest competition season.
+- Leaving CAA (Celebration Arts Academy) June 1 after 9 years (4 teaching, 5 as Competition Director). Last competition weekend: StarQuest Apr 12-13.
 - Going full-time on DWD (Dance With Dixon) — his own business.
-- DWD has two arms: DWDC (Dance With Dixon Collective) = adult modern dance company, and DWD ProSeries = elite youth training program (ages 8-18).
-- iDance Orlando Festival: April 25 at ME Theatre — DWDC performing.
-- ProSeries launch campaign: April 1 - May 1.
+- DWD has two arms: DWDC (Dance With Dixon Collective) = adult modern dance company (~15 dancers, Exchange Dance studio), and DWD ProSeries = elite youth training program (ages 5+, three tracks: Prep/Elite/Pro).
+- ProSeries Instagram campaign V2: Apr 8 - May 1 (daily posts on @dwdproseries). Audition registration opens May 1. Season 1: Aug 11, 2026 - May 25, 2027.
+- Instagram: @dwdproseries (ProSeries), @dwd_collective (adult company), @dixonbowles (Dixon's personal/funnel).
 
 KEY PEOPLE:
 - Malik — husband, manages home, also choreographs

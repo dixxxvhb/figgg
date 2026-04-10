@@ -3,10 +3,9 @@
   "configurations": [
     {
       "name": "figgg-dev",
-      "runtimeExecutable": "/usr/local/bin/npm",
+      "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 5173,
-      "cwd": "/Users/dixxx/figgg"
+      "port": 5173
     }
   ]
 }
