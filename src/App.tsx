@@ -11,7 +11,9 @@ import { SaveStatus } from './components/common/SaveStatus';
 import { PageSkeleton } from './components/common/PageSkeleton';
 import { SyncProvider } from './contexts/SyncContext';
 import { AppDataProvider, useAppData } from './contexts/AppDataContext';
+import { AIPanelProvider } from './contexts/AIPanelContext';
 import { AuthProvider } from './contexts/AuthContext';
+import { AIPanel } from './components/common/AIPanel';
 import { loadData } from './services/storage';
 import { applyVisualSettings } from './styles/applyTheme';
 import { restoreMoodLayer } from './styles/moodLayer';
@@ -222,6 +224,7 @@ function App() {
         <SyncProvider>
           <BrowserRouter>
             <AppDataProvider>
+            <AIPanelProvider>
             <SettingsWatcher />
             <InstallBanner />
             <div className="min-h-screen bg-[var(--surface-primary)] transition-colors">
@@ -239,6 +242,7 @@ function App() {
                 </PullToRefresh>
               </main>
               <MobileNav />
+              <AIPanel />
               <SaveStatus />
               <Toaster
                 position="top-center"
@@ -254,6 +258,7 @@ function App() {
                 }}
               />
             </div>
+            </AIPanelProvider>
             </AppDataProvider>
           </BrowserRouter>
         </SyncProvider>
