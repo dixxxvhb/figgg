@@ -63,6 +63,8 @@ export function MedsStatusBar({ selfCare, medConfig, onLogDose, canLogDose }: Me
       <div
         className="flex items-center gap-3 px-4 py-2.5 bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] cursor-pointer active:opacity-80 transition-opacity"
         onClick={() => navigate('/me')}
+        role="button"
+        aria-label="Medication status — tap for details"
       >
         <Pill size={16} className={display.color} />
         <div className="flex-1 min-w-0">
@@ -77,6 +79,7 @@ export function MedsStatusBar({ selfCare, medConfig, onLogDose, canLogDose }: Me
           <button
             onClick={(e) => { e.stopPropagation(); onLogDose(); }}
             className="px-3 py-1.5 text-xs font-semibold bg-[var(--accent-primary)] text-[var(--text-on-accent)] rounded-full active:scale-90 transition-all duration-150 flex-shrink-0"
+            aria-label="Log medication dose"
           >
             Log Dose
           </button>

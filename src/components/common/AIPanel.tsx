@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { MessageCircle, X, Maximize2, Minimize2 } from 'lucide-react';
 import { useAIPanel } from '../../contexts/AIPanelContext';
@@ -10,7 +10,6 @@ export function AIPanel() {
   const { isOpen, open, close } = useAIPanel();
   const [isExpanded, setIsExpanded] = useState(false);
   const location = useLocation();
-  const panelRef = useRef<HTMLDivElement>(null);
 
   // Hide FAB on the /ai route (already has full-page chat)
   const hideOnAIPage = location.pathname === '/ai';
@@ -21,7 +20,7 @@ export function AIPanel() {
       close();
       setIsExpanded(false);
     });
-  }, [location.pathname]);
+  }, [location.pathname, close]);
 
   // Handle escape key
   useEffect(() => {
@@ -61,7 +60,6 @@ export function AIPanel() {
       {/* Panel */}
       {isOpen && (
         <div
-          ref={panelRef}
           className={`fixed left-0 right-0 z-50 bg-[var(--surface-primary)] rounded-t-2xl shadow-2xl flex flex-col transition-all duration-300 ${
             isExpanded ? 'top-0 rounded-t-none' : ''
           }`}

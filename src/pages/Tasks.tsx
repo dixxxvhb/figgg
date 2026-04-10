@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
-  Clock, Circle, CheckCircle2, Flag, ChevronRight, Calendar, Bell,
-  CalendarDays, Inbox, AlertCircle, Repeat, Plus, Check, Pencil, Trash2, Phone,
+  Circle, CheckCircle2, Flag, ChevronRight, Calendar, Bell,
+  CalendarDays, Inbox, Repeat, Plus, Check, Pencil, Trash2, Phone,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppData } from '../contexts/AppDataContext';
@@ -13,7 +13,7 @@ import {
   format, isToday as isDateToday, isTomorrow, isPast, parseISO, startOfDay,
   addDays, isAfter,
 } from 'date-fns';
-import type { Reminder, ReminderList, Subtask, RecurringSchedule } from '../types';
+import type { Reminder, ReminderList, RecurringSchedule } from '../types';
 import { ReminderDetailView } from '../components/tasks/ReminderDetailView';
 
 const LIST_COLORS = [

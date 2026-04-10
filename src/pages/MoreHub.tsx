@@ -68,6 +68,7 @@ export function MoreHub() {
     <div className="page-container px-4 pb-24">
       <h1 className="type-display text-[var(--text-primary)] mb-2">More</h1>
 
+      <nav aria-label="More navigation">
       <SectionHeader title="Wellness" />
       {wellnessRows.map(row => <HubItem key={row.to} row={row} />)}
 
@@ -79,6 +80,7 @@ export function MoreHub() {
 
       <SectionHeader title="App" />
       {appRows.map(row => <HubItem key={row.to} row={row} />)}
+      </nav>
     </div>
   );
 }
