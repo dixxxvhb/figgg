@@ -20,7 +20,7 @@ cd functions && npm run build        # Verify Cloud Functions compile
 - `src/main.tsx` > `src/App.tsx`
 - Provider hierarchy: `AuthProvider` > `SyncProvider` > `BrowserRouter` > `AppDataProvider`
 - 20 routes, most lazy-loaded via `React.lazy()`
-- Layout: Header (top) + MobileNav (bottom 6-tab bar: Home, Schedule, Tasks, Wellness, AI, More)
+- Layout: Header (top) + MobileNav (bottom 5-tab bar: Home, Schedule, Tasks, Wellness, More)
 
 ### Routes
 | Path | Page | Lazy |
