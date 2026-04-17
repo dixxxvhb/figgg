@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Palette, LayoutDashboard, Heart, Sparkles,
+  Palette, Heart, Sparkles,
   Cloud, Database, Wrench, ChevronRight, ChevronDown, Users, BookOpen, Rocket, CalendarCheck,
 } from 'lucide-react';
 import { useAppData } from '../../contexts/AppDataContext';
@@ -48,9 +48,6 @@ export function SettingsHub() {
   const darkLabel = settings.darkMode ? 'Dark' : 'Light';
   const fontLabel = settings.fontSize === 'extra-large' ? 'XL text' : settings.fontSize === 'large' ? 'Large text' : 'Normal text';
 
-  const hiddenCount = (settings.hiddenWidgets || []).length;
-  const nudgeLabel = settings.nudgesEnabled === false ? 'Nudges off' : `Nudges ${settings.nudgeSensitivity || 'balanced'}`;
-
   const medLabel = `${medConfig.medType || 'IR'}, ${medConfig.maxDoses || 2} doses`;
   const wellnessCount = (settings.wellnessItems || DEFAULT_WELLNESS_ITEMS).filter(w => w.enabled).length;
 
@@ -65,7 +62,6 @@ export function SettingsHub() {
 
   const appRows: SettingRow[] = [
     { to: '/settings/display', icon: Palette, label: 'Display', subtitle: `${themeName}, ${darkLabel}, ${fontLabel}`, color: 'var(--accent-primary)' },
-    { to: '/settings/dashboard', icon: LayoutDashboard, label: 'Dashboard', subtitle: `${hiddenCount > 0 ? `${hiddenCount} hidden` : 'All visible'}, ${nudgeLabel}`, color: '#7c3aed' },
   ];
 
   const youRows: SettingRow[] = [

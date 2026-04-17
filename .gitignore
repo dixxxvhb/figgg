@@ -36,3 +36,6 @@ service-account.json
 
 # Deno
 deno.lock
+
+# Session memory buffer
+.remember/

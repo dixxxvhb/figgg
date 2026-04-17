@@ -118,7 +118,6 @@ const Library = lazy(() => import('./pages/Library').then(m => ({ default: m.Lib
 const Me = lazy(() => import('./pages/Me').then(m => ({ default: m.Me })));
 const Settings = lazy(() => import('./pages/settings/SettingsHub').then(m => ({ default: m.SettingsHub })));
 const DisplaySettings = lazy(() => import('./pages/settings/DisplaySettings').then(m => ({ default: m.DisplaySettings })));
-const DashboardSettings = lazy(() => import('./pages/settings/DashboardSettings').then(m => ({ default: m.DashboardSettings })));
 const WellnessSettings = lazy(() => import('./pages/settings/WellnessSettings').then(m => ({ default: m.WellnessSettings })));
 const AISettings = lazy(() => import('./pages/settings/AISettings').then(m => ({ default: m.AISettings })));
 const SyncSettings = lazy(() => import('./pages/settings/SyncSettings').then(m => ({ default: m.SyncSettings })));
@@ -164,7 +163,6 @@ function AnimatedRoutes() {
         <Route path="/ai" element={<AIChat />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/settings/display" element={<DisplaySettings />} />
-        <Route path="/settings/dashboard" element={<DashboardSettings />} />
         <Route path="/settings/wellness" element={<WellnessSettings />} />
         <Route path="/settings/ai" element={<AISettings />} />
         <Route path="/settings/sync" element={<SyncSettings />} />
