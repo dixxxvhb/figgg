@@ -22,7 +22,6 @@ import type {
   CalendarEvent,
   Student,
   SelfCareData,
-  LaunchPlanData,
   LearningData,
   AICheckIn,
   AIChatThread,
@@ -386,18 +385,6 @@ export async function updateDayPlanDoc(userId: string, plan: DayPlan): Promise<v
 }
 
 // ============================================================
-// SINGLE DOCUMENT: LAUNCH PLAN
-// ============================================================
-export async function getLaunchPlan(userId: string): Promise<LaunchPlanData | undefined> {
-  const snap = await getDoc(userDoc(userId, 'singletons', 'launchPlan'));
-  return snap.exists() ? (snap.data() as LaunchPlanData) : undefined;
-}
-
-export async function updateLaunchPlanDoc(userId: string, updates: Partial<LaunchPlanData>): Promise<void> {
-  await setDoc(userDoc(userId, 'singletons', 'launchPlan'), stripUndefined(updates), { merge: true });
-}
-
-// ============================================================
 // SINGLE DOCUMENT: LEARNING DATA
 // ============================================================
 export async function getLearningData(userId: string): Promise<LearningData | undefined> {
@@ -530,15 +517,6 @@ export function onDayPlanSnapshot(
   }, (error) => { console.error('dayPlan snapshot error:', error); });
 }
 
-export function onLaunchPlanSnapshot(
-  userId: string,
-  callback: (data: LaunchPlanData | undefined) => void
-): Unsubscribe {
-  return onSnapshot(userDoc(userId, 'singletons', 'launchPlan'), (snap) => {
-    callback(snap.exists() ? (snap.data() as LaunchPlanData) : undefined);
-  }, (error) => { console.error('launchPlan snapshot error:', error); });
-}
-
 // ============================================================
 // AI CHAT THREADS (conversation memory)
 // ============================================================
@@ -663,7 +641,6 @@ export async function loadAllDataWithMeta(userId: string): Promise<{
     aiCheckIns,
     selfCare,
     dayPlan,
-    launchPlan,
     learningData,
     profile,
     therapist,
@@ -682,7 +659,6 @@ export async function loadAllDataWithMeta(userId: string): Promise<{
     getAICheckIns(userId),
     getSelfCare(userId),
     getDayPlan(userId),
-    getLaunchPlan(userId),
     getLearningData(userId),
     getProfile(userId),
     getTherapist(userId),
@@ -703,7 +679,6 @@ export async function loadAllDataWithMeta(userId: string): Promise<{
     lastModified: profile?.lastModified,
     students,
     selfCare,
-    launchPlan,
     learningData,
     aiCheckIns,
     dayPlan,
@@ -717,7 +692,6 @@ export async function loadAllDataWithMeta(userId: string): Promise<{
     profile ||
     selfCare ||
     dayPlan ||
-    launchPlan ||
     learningData ||
     therapist ||
     meditation ||
@@ -817,11 +791,6 @@ export async function migrateDataToFirestore(data: AppData, userId: string): Pro
   // Day Plan (singleton)
   if (data.dayPlan) {
     addOp(b => b.set(userDoc(userId, 'singletons', 'dayPlan'), stripUndefined(data.dayPlan!)));
-  }
-
-  // Launch Plan (singleton)
-  if (data.launchPlan) {
-    addOp(b => b.set(userDoc(userId, 'singletons', 'launchPlan'), stripUndefined(data.launchPlan!)));
   }
 
   // Learning Data (singleton)

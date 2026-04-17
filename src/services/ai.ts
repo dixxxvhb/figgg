@@ -106,10 +106,6 @@ export interface AIAction {
     | 'addClassNote'
     | 'setClassPlan'
     | 'setNextWeekGoal'
-    | 'completeLaunchTask'
-    | 'skipLaunchTask'
-    | 'addLaunchNote'
-    | 'deferLaunchTask'
     | 'addRehearsalNote'
     | 'markClassExceptionRange'
     | 'batchRescheduleTasks'
@@ -165,7 +161,7 @@ export interface AIAction {
   goal?: string;
   taskId?: string;
   note?: string;
-  deferUntil?: string; // ISO date for deferLaunchTask
+  deferUntil?: string; // ISO date
   danceId?: string;
   notes?: string;
   workOn?: string[];

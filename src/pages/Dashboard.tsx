@@ -41,7 +41,7 @@ import { dateToDayOfWeek } from '../utils/classException';
 
 // ── Constants ──
 
-const VALID_CATEGORIES = new Set(['task', 'wellness', 'class', 'launch', 'break', 'med']);
+const VALID_CATEGORIES = new Set(['task', 'wellness', 'class', 'break', 'med']);
 const VALID_PRIORITIES = new Set(['high', 'medium', 'low']);
 
 
@@ -72,7 +72,7 @@ const isActionItem = (text: string) => ACTION_KEYWORDS.test(text) || text.starts
 // ── Component ──
 
 export function Dashboard() {
-  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, updateLaunchPlan, updateCompetitionDance, getCurrentWeekNotes, updateTherapist } = useAppData();
+  const { data, updateSelfCare, saveAICheckIn, saveDayPlan, saveWeekNotes, updateCompetitionDance, getCurrentWeekNotes, updateTherapist } = useAppData();
   const medConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
   const selfCareStatus = useSelfCareStatus(data.selfCare, medConfig);
 
@@ -193,11 +193,10 @@ export function Dashboard() {
     saveDayPlan,
     saveWeekNotes,
     getCurrentWeekNotes,
-    updateLaunchPlan,
     updateCompetitionDance,
     getMedConfig: () => medConfig,
     updateTherapist,
-  }), [updateSelfCare, saveDayPlan, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance, medConfig, updateTherapist]);
+  }), [updateSelfCare, saveDayPlan, saveWeekNotes, getCurrentWeekNotes, updateCompetitionDance, medConfig, updateTherapist]);
 
   const executeAIActions = useCallback((actions: AIAction[]) => {
     // Safety: confirm before executing cancellation actions
@@ -306,17 +305,6 @@ export function Dashboard() {
       });
     }
 
-    if (item.category === 'launch' && item.sourceId && data.launchPlan) {
-      const tasks = data.launchPlan.tasks.map(t =>
-        t.id === item.sourceId
-          ? newCompleted
-            ? { ...t, completed: true, completedAt: new Date().toISOString() }
-            : { ...t, completed: false, completedAt: undefined }
-          : t
-      );
-      updateLaunchPlan({ tasks });
-    }
-
     const updated: DayPlan = {
       ...data.dayPlan,
       items: data.dayPlan.items.map(i =>
@@ -324,7 +312,7 @@ export function Dashboard() {
       ),
     };
     saveDayPlan(updated);
-  }, [data.dayPlan, saveDayPlan, data.selfCare, updateSelfCare, data.launchPlan, updateLaunchPlan]);
+  }, [data.dayPlan, saveDayPlan, data.selfCare, updateSelfCare]);
 
   // ── Reminder Toggle ──
   const handleToggleReminder = useCallback((id: string) => {

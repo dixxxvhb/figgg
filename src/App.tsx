@@ -124,7 +124,6 @@ const SyncSettings = lazy(() => import('./pages/settings/SyncSettings').then(m =
 const DataSettings = lazy(() => import('./pages/settings/DataSettings').then(m => ({ default: m.DataSettings })));
 const AdvancedSettings = lazy(() => import('./pages/settings/AdvancedSettings').then(m => ({ default: m.AdvancedSettings })));
 const StudentsSettings = lazy(() => import('./pages/settings/StudentsSettings').then(m => ({ default: m.StudentsSettings })));
-const LaunchPlan = lazy(() => import('./pages/LaunchPlan').then(m => ({ default: m.LaunchPlan })));
 const AIChat = lazy(() => import('./pages/AIChat').then(m => ({ default: m.AIChat })));
 const MoreHub = lazy(() => import('./pages/MoreHub').then(m => ({ default: m.MoreHub })));
 const Tasks = lazy(() => import('./pages/Tasks').then(m => ({ default: m.Tasks })));
@@ -159,7 +158,6 @@ function AnimatedRoutes() {
         <Route path="/choreography/:itemId" element={<Navigate to="/library?tab=competitions" replace />} />
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/me" element={<Me />} />
-        <Route path="/launch" element={<LaunchPlan />} />
         <Route path="/ai" element={<AIChat />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/settings/display" element={<DisplaySettings />} />

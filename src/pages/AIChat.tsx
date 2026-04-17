@@ -26,7 +26,6 @@ export function AIChat() {
     saveDayPlan,
     saveWeekNotes,
     getCurrentWeekNotes,
-    updateLaunchPlan,
     updateCompetitionDance,
     updateClass,
     updateStudent,
@@ -136,14 +135,13 @@ export function AIChat() {
     saveDayPlan,
     saveWeekNotes,
     getCurrentWeekNotes,
-    updateLaunchPlan,
     updateCompetitionDance,
     getMedConfig: () => medConfig,
     updateClass,
     updateSettings: handleUpdateSettings,
     updateStudent,
     updateTherapist,
-  }), [updateSelfCare, saveDayPlan, saveWeekNotes, getCurrentWeekNotes, updateLaunchPlan, updateCompetitionDance, medConfig, updateClass, handleUpdateSettings, updateStudent, updateTherapist]);
+  }), [updateSelfCare, saveDayPlan, saveWeekNotes, getCurrentWeekNotes, updateCompetitionDance, medConfig, updateClass, handleUpdateSettings, updateStudent, updateTherapist]);
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || isLoading) return;
@@ -180,7 +178,6 @@ export function AIChat() {
           setLastActionSnapshot(JSON.stringify({
             selfCare: dataRef.current.selfCare,
             dayPlan: dataRef.current.dayPlan,
-            launchPlan: dataRef.current.launchPlan,
             settings: dataRef.current.settings,
             therapist: dataRef.current.therapist,
             classes: dataRef.current.classes,
@@ -321,7 +318,6 @@ export function AIChat() {
       const snapshot = JSON.parse(lastActionSnapshot);
       if (snapshot.selfCare) updateSelfCare(snapshot.selfCare);
       if (snapshot.dayPlan) saveDayPlan(snapshot.dayPlan);
-      if (snapshot.launchPlan) updateLaunchPlan(snapshot.launchPlan);
       if (snapshot.settings) {
         updateSettings(snapshot.settings);
         applyVisualSettings(snapshot.settings);
@@ -352,7 +348,7 @@ export function AIChat() {
     } catch {
       console.warn('Failed to undo actions');
     }
-  }, [lastActionSnapshot, updateSelfCare, saveDayPlan, updateLaunchPlan, updateSettings, updateTherapist, updateClass, updateStudent, updateCompetitionDance, saveWeekNotes, refreshData]);
+  }, [lastActionSnapshot, updateSelfCare, saveDayPlan, updateSettings, updateTherapist, updateClass, updateStudent, updateCompetitionDance, saveWeekNotes, refreshData]);
 
   // ── History View ──
   if (view === 'history') {

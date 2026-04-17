@@ -7,7 +7,6 @@ import type { AIAction } from './ai';
 import type {
   AppData,
   SelfCareData,
-  LaunchPlanData,
   DayOfWeek,
   DayPlan,
   DayPlanItem,
@@ -19,7 +18,7 @@ import type {
   CompetitionDance,
 } from '../types';
 
-const VALID_CATEGORIES = new Set(['task', 'wellness', 'class', 'launch', 'break', 'med', 'selfcare']);
+const VALID_CATEGORIES = new Set(['task', 'wellness', 'class', 'break', 'med', 'selfcare']);
 const VALID_PRIORITIES = new Set(['high', 'medium', 'low']);
 
 export interface ActionCallbacks {
@@ -28,7 +27,6 @@ export interface ActionCallbacks {
   saveDayPlan: (plan: DayPlan) => void;
   saveWeekNotes: (weekNote: WeekNotes) => void;
   getCurrentWeekNotes: () => WeekNotes;
-  updateLaunchPlan: (updates: Partial<LaunchPlanData>) => void;
   updateCompetitionDance: (dance: CompetitionDance) => void;
   getMedConfig: () => { medType: string; maxDoses: number };
   // Extended callbacks for full app access
@@ -396,58 +394,6 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
         };
         ngWeekNotes.classNotes[action.classId] = { ...ngExisting, nextWeekGoal: action.goal };
         callbacks.saveWeekNotes(ngWeekNotes);
-        break;
-      }
-
-      // ── Launch Plan ─────────────────────────────────────────────────────
-      case 'completeLaunchTask': {
-        if (!action.taskId || !callbacks.getData().launchPlan) break;
-        const tasks = callbacks.getData().launchPlan!.tasks.map(t =>
-          t.id === action.taskId
-            ? { ...t, completed: true, completedAt: new Date().toISOString() }
-            : t
-        );
-        // Also mark matching day plan item done
-        if (currentPlan) {
-          const planIdx = currentPlan.items.findIndex(i => i.sourceId === action.taskId && i.category === 'launch');
-          if (planIdx >= 0) {
-            const updatedItems = [...currentPlan.items];
-            updatedItems[planIdx] = { ...updatedItems[planIdx], completed: true };
-            currentPlan = { ...currentPlan, items: updatedItems };
-            planUpdated = true;
-          }
-        }
-        callbacks.updateLaunchPlan({ tasks });
-        break;
-      }
-      case 'skipLaunchTask': {
-        if (!action.taskId || !callbacks.getData().launchPlan) break;
-        const skipTasks = callbacks.getData().launchPlan!.tasks.map(t =>
-          t.id === action.taskId
-            ? { ...t, skipped: true, skippedAt: new Date().toISOString() }
-            : t
-        );
-        callbacks.updateLaunchPlan({ tasks: skipTasks });
-        break;
-      }
-      case 'addLaunchNote': {
-        if (!action.taskId || !action.note || !callbacks.getData().launchPlan) break;
-        const noteTasks = callbacks.getData().launchPlan!.tasks.map(t =>
-          t.id === action.taskId ? { ...t, notes: action.note } : t
-        );
-        callbacks.updateLaunchPlan({ tasks: noteTasks });
-        break;
-      }
-      case 'deferLaunchTask': {
-        if (!action.taskId || !callbacks.getData().launchPlan) break;
-        const deferUntil = action.deferUntil || (() => {
-          const d = new Date(); d.setDate(d.getDate() + 1);
-          return d.toISOString().split('T')[0];
-        })();
-        const deferTasks = callbacks.getData().launchPlan!.tasks.map(t =>
-          t.id === action.taskId ? { ...t, suggestedAfter: deferUntil } : t
-        );
-        callbacks.updateLaunchPlan({ tasks: deferTasks });
         break;
       }
 

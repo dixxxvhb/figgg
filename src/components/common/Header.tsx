@@ -149,7 +149,6 @@ export function MobileNav() {
       return location.pathname.startsWith('/more') ||
              location.pathname.startsWith('/settings') ||
              location.pathname.startsWith('/library') ||
-             location.pathname.startsWith('/launch') ||
              location.pathname.startsWith('/dance') ||
              location.pathname.startsWith('/students') ||
              location.pathname === '/week-review';

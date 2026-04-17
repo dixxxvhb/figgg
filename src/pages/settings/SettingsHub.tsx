@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Palette, Heart, Sparkles,
-  Cloud, Database, Wrench, ChevronRight, ChevronDown, Users, BookOpen, Rocket, CalendarCheck,
+  Cloud, Database, Wrench, ChevronRight, ChevronDown, Users, BookOpen, CalendarCheck,
 } from 'lucide-react';
 import { useAppData } from '../../contexts/AppDataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -87,7 +87,6 @@ export function SettingsHub() {
 
   const quickAccessRows: SettingRow[] = [
     { to: '/library', icon: BookOpen, label: 'Library', subtitle: 'Terminology, competitions, songs', color: '#8b5cf6' },
-    { to: '/launch', icon: Rocket, label: 'Launch Plan', subtitle: 'DWD launch tracker', color: '#f97316' },
   ];
 
   return (

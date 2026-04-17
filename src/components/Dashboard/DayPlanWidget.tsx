@@ -9,7 +9,6 @@ const CATEGORY_COLORS: Record<DayPlanItem['category'], string> = {
   wellness: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400',
   task: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
   class: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
-  launch: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400',
   break: 'bg-[var(--surface-inset)] text-[var(--text-secondary)]',
   med: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400',
   selfcare: 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400',
@@ -23,7 +22,6 @@ const CATEGORY_LINK: Record<DayPlanItem['category'], string | null> = {
   wellness: '/me',
   task: '/tasks',
   class: null, // needs sourceId
-  launch: '/launch',
   break: null,
   med: '/me',
   selfcare: '/me?tab=breathing',

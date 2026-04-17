@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import {
-  Heart, Users, BookOpen, Rocket, Settings, MessageCircle,
+  Heart, Users, BookOpen, Settings, MessageCircle,
   CalendarCheck, ChevronRight,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -56,7 +56,6 @@ export function MoreHub() {
 
   const planningRows: HubRow[] = [
     { to: '/week-review', icon: CalendarCheck, label: 'Week Review', color: '#10b981' },
-    { to: '/launch', icon: Rocket, label: 'Launch Plan', color: '#f97316' },
   ];
 
   const appRows: HubRow[] = [

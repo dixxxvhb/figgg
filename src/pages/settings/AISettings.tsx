@@ -17,20 +17,10 @@ const TONE_OPTIONS: { value: 'supportive' | 'direct' | 'minimal'; label: string 
   { value: 'minimal', label: 'Minimal' },
 ];
 
-const FOCUS_SIZES = [2, 3, 5] as const;
-
-const LAUNCH_VIEWS: { value: 'today' | 'roadmap' | 'pulse'; label: string }[] = [
-  { value: 'today', label: 'Today' },
-  { value: 'roadmap', label: 'Roadmap' },
-  { value: 'pulse', label: 'Pulse' },
-];
-
 export function AISettings() {
   const { data, updateSettings } = useAppData();
   const settings = data.settings || {};
   const aiConfig = settings.aiConfig || DEFAULT_AI_CONFIG;
-  const focusStackSize = settings.focusStackSize ?? 3;
-  const launchDefaultView = settings.launchDefaultView || 'today';
 
   const updateAI = (patch: Partial<typeof aiConfig>) => {
     updateSettings({ aiConfig: { ...aiConfig, ...patch } });
@@ -127,46 +117,6 @@ export function AISettings() {
         </button>
       </section>
 
-      {/* Focus Stack Size */}
-      <section className="mb-6">
-        <h2 className="type-caption font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3 px-1">Focus Stack Size</h2>
-        <p className="text-xs text-[var(--text-tertiary)] mb-2 px-1">Tasks shown in Launch focus</p>
-        <div className="flex gap-2">
-          {FOCUS_SIZES.map(size => (
-            <button
-              key={size}
-              onClick={() => updateSettings({ focusStackSize: size })}
-              className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-colors ${
-                focusStackSize === size
-                  ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)]'
-                  : 'bg-[var(--surface-card)] text-[var(--text-secondary)] border border-[var(--border-subtle)]'
-              }`}
-            >
-              {size}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* Launch Plan Default View */}
-      <section className="mb-6">
-        <h2 className="type-caption font-semibold text-[var(--text-muted)] uppercase tracking-wide mb-3 px-1">Launch Plan Default View</h2>
-        <div className="flex gap-2">
-          {LAUNCH_VIEWS.map(view => (
-            <button
-              key={view.value}
-              onClick={() => updateSettings({ launchDefaultView: view.value })}
-              className={`flex-1 py-2.5 px-3 rounded-xl text-sm font-medium transition-colors ${
-                launchDefaultView === view.value
-                  ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)]'
-                  : 'bg-[var(--surface-card)] text-[var(--text-secondary)] border border-[var(--border-subtle)]'
-              }`}
-            >
-              {view.label}
-            </button>
-          ))}
-        </div>
-      </section>
     </div>
   );
 }

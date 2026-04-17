@@ -329,8 +329,6 @@ export interface AppSettings {
   hiddenCalendarEventIds?: string[]; // Event IDs hidden by user (persists across syncs)
   appIconId?: string; // Selected app icon variant (default: 'ink-gold')
   // Behavior settings
-  focusStackSize?: number; // 2, 3, or 5 (default 3)
-  launchDefaultView?: 'today' | 'roadmap' | 'pulse';
   calendarSyncMinutes?: number; // 5, 10, 15, 30 (default 15)
   imageQuality?: number; // 0.5, 0.7, 0.9 (default 0.7)
   customAccentColor?: string; // hex color, e.g. '#ec4899'
@@ -410,7 +408,7 @@ export interface DayPlanItem {
   id: string;
   time?: string;                   // suggested time "09:00"
   title: string;
-  category: 'task' | 'wellness' | 'class' | 'launch' | 'break' | 'med' | 'selfcare';
+  category: 'task' | 'wellness' | 'class' | 'break' | 'med' | 'selfcare';
   sourceId?: string;               // links to reminder.id, class.id, etc.
   completed: boolean;
   priority: 'high' | 'medium' | 'low';
@@ -568,8 +566,6 @@ export interface AppData {
   students?: Student[];
   // Personal self-care tracking
   selfCare?: SelfCareData;
-  // DWD Launch Plan
-  launchPlan?: LaunchPlanData;
   // Learning engine — pattern tracking
   learningData?: LearningData;
   // Ambient AI
@@ -602,78 +598,6 @@ export interface FixItem {
 export interface NudgeDismissState {
   dismissed: Record<string, string>;  // nudgeId -> ISO date
   snoozed: Record<string, string>;    // nudgeId -> ISO date (snooze expires after 24h)
-}
-
-// ===== DWD LAUNCH PLAN =====
-
-export type LaunchCategory = 'BIZ' | 'CONTENT' | 'ADULT' | 'PRO' | 'DECIDE' | 'SPACE';
-export type LaunchEffort = 'quick' | 'medium' | 'deep';
-
-export interface LaunchTask {
-  id: string;
-  title: string;
-  instructions: string;
-  category: LaunchCategory;
-  // Backlog fields (new)
-  effort: LaunchEffort;            // quick (<15m), medium (15-60m), deep (1h+)
-  priority: number;                // 1=highest, lower = more important. AI-adjustable, user-overridable
-  targetMilestone?: string;        // milestone task ID this contributes toward
-  blockedBy?: string[];            // task IDs that must complete first
-  suggestedAfter?: string;         // date — "don't surface before this date"
-  phase?: 1 | 2 | 3 | 4 | 5 | 6;  // which launch phase this task belongs to
-  // Legacy scheduling (kept for backward compat with existing Firestore data)
-  scheduledDate?: string;
-  weekNumber?: number;
-  weekLabel?: string;
-  // Status
-  completed: boolean;
-  completedAt?: string;
-  notes?: string;
-  actionUrl?: string;
-  actionLabel?: string;
-  milestone?: boolean;
-  milestoneLabel?: string;
-  skipped?: boolean;
-  skippedAt?: string;
-}
-
-export interface LaunchDecision {
-  id: string;
-  question: string;
-  context?: string;
-  status: 'pending' | 'decided';
-  decision?: string;
-  decidedAt?: string;
-  month: 'february' | 'march' | 'april' | 'may' | 'june';
-  category: LaunchCategory;
-}
-
-export interface LaunchContact {
-  id: string;
-  name: string;
-  role: string;
-  phone?: string;
-  email?: string;
-  notes?: string;
-  nextStep?: string;
-}
-
-export interface LaunchPhase {
-  id: number;
-  name: string;
-  startDate: string;
-  endDate: string;
-}
-
-export interface LaunchPlanData {
-  tasks: LaunchTask[];
-  decisions: LaunchDecision[];
-  contacts: LaunchContact[];
-  phases?: LaunchPhase[];
-  planStartDate: string;
-  planEndDate: string;
-  lastModified: string;
-  version: number;
 }
 
 // ===== ADHD TIMELINE TRACKING =====

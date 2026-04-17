@@ -1,4 +1,4 @@
-import { AppData, Class, WeekNotes, AppSettings, LaunchPlanData } from '../types';
+import { AppData, Class, WeekNotes, AppSettings } from '../types';
 import { studios } from '../data/studios';
 import { initialClasses } from '../data/classes';
 import { terminology } from '../data/terminology';
@@ -156,20 +156,6 @@ export function saveSelfCareToStorage(updates: Partial<import('../types').SelfCa
   const updatedData = {
     ...data,
     selfCare: { ...data.selfCare, ...updates, selfCareModified: now },
-  };
-  saveDataLocalOnly(updatedData);
-  saveEvents.emit('saving');
-}
-
-// Save launch plan data to localStorage (Firestore sync handled by useAppData)
-export function saveLaunchPlanToStorage(updates: Partial<LaunchPlanData>): void {
-  const data = loadData();
-  const now = new Date().toISOString();
-  const currentPlan = data.launchPlan || { tasks: [], decisions: [], contacts: [], planStartDate: '', planEndDate: '', lastModified: now, version: 1 };
-  const updatedPlan = { ...currentPlan, ...updates, lastModified: now };
-  const updatedData = {
-    ...data,
-    launchPlan: updatedPlan,
   };
   saveDataLocalOnly(updatedData);
   saveEvents.emit('saving');

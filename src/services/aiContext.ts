@@ -46,10 +46,6 @@ export interface AIContextPayload {
       recurring: boolean;
     }>;
   };
-  // Launch
-  launchTasks: string[];      // max 5 titles (legacy, kept for compat)
-  launchTaskList: Array<{ id: string; title: string; category: string; milestone: boolean; effort?: string }>;  // with IDs for actions
-  launchPhaseContext?: { currentPhase: string; nextMilestone: string | null; pendingDecisions: number };
   // Wellness
   wellnessProgress: { done: number; total: number };
   wellnessItems?: Array<{ id: string; label: string; done: boolean }>;  // for day plan sourceId matching
@@ -233,46 +229,6 @@ export function buildAIContext(
     recurring: !!r.recurring,
   }));
 
-  // Launch tasks — prioritized backlog, ready tasks first
-  const allLaunchTasks = data.launchPlan?.tasks || [];
-  const activeLaunchTasks = allLaunchTasks
-    .filter(t => !t.completed && !t.skipped)
-    .filter(t => {
-      // Filter out blocked tasks
-      if (t.blockedBy && t.blockedBy.length > 0) {
-        const isBlocked = t.blockedBy.some(depId => {
-          const dep = allLaunchTasks.find(d => d.id === depId);
-          return dep && !dep.completed && !dep.skipped;
-        });
-        if (isBlocked) return false;
-      }
-      // Filter out too-early tasks
-      if (t.suggestedAfter && t.suggestedAfter > todayStr) return false;
-      return true;
-    })
-    .sort((a, b) => a.priority - b.priority)
-    .slice(0, 5);
-  const launchTasks = activeLaunchTasks.map(t => t.title);
-  const launchTaskList = activeLaunchTasks.map(t => ({
-    id: t.id,
-    title: t.title,
-    category: t.category,
-    milestone: !!t.milestone,
-    effort: t.effort,
-  }));
-
-  // Launch phase context
-  const launchPhases = data.launchPlan?.phases || [];
-  const currentPhases = launchPhases.filter(p => todayStr >= p.startDate && todayStr <= p.endDate);
-  const currentPhaseName = currentPhases.length > 0 ? currentPhases.map(p => p.name).join(' + ') : 'pre-launch';
-  const nextMilestoneTask = allLaunchTasks.find(t => t.milestone && !t.completed && !t.skipped);
-  const pendingDecisionCount = (data.launchPlan?.decisions || []).filter(d => d.status === 'pending').length;
-  const launchPhaseContext = {
-    currentPhase: currentPhaseName,
-    nextMilestone: nextMilestoneTask?.milestoneLabel || nextMilestoneTask?.title || null,
-    pendingDecisions: pendingDecisionCount,
-  };
-
   // Wellness progress — if today's states haven't been initialized yet, report configured item count
   const wellnessStates = (sc?.unifiedTaskDate === todayStr) ? (sc?.unifiedTaskStates || {}) : {};
   const done = Object.values(wellnessStates).filter(Boolean).length;
@@ -433,9 +389,6 @@ export function buildAIContext(
     medStatus,
     schedule,
     tasks: { overdueCount, todayDueCount, tomorrowDueCount, topTitles, taskDetails },
-    launchTasks,
-    launchTaskList,
-    launchPhaseContext,
     todayClassList,
     weekClassList,
     competitionDanceList,
