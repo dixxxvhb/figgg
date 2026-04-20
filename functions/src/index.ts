@@ -5,10 +5,10 @@ admin.initializeApp();
 
 // AI callable functions
 export { aiChat } from "./aiChat";
-export { expandNotes } from "./expandNotes";
+// generatePlan kept as standalone for WeekPlanner which doesn't pass aiContext.
+// expandNotes, organizeNotes, detectReminders removed Apr 2026 — superseded by
+// aiChat modes; client always passes context and routes through the dispatcher.
 export { generatePlan } from "./generatePlan";
-export { organizeNotes } from "./organizeNotes";
-export { detectReminders } from "./detectReminders";
 
 // HTTP functions
 export { calendarProxy } from "./calendarProxy";

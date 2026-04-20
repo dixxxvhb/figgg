@@ -642,36 +642,156 @@ COMING UP (next 7 days):
 NUDGE:
 [One thing being avoided. Direct but not guilt-trippy. Interest over guilt.]
 
-RETURN JSON with this exact shape:
-{
-  "summary": "The full briefing text above",
-  "nudge": "The nudge as a standalone string (or null if nothing to nudge about)",
-  "yesterdayYou": ["list", "of", "yesterday", "actions"],
-  "wellness": {
-    "medsStatus": { "onTrack": boolean, "missedRecently": boolean },
-    "moodTrend": "improving" | "stable" | "declining" | null
-  },
-  "deadlines": [{ "description": "string", "dueDate": "YYYY-MM-DD", "daysLeft": number }],
-  "email": {
-    "needsResponse": [{ "from": "name", "subject": "...", "snippet": "...", "date": "...", "priority": "high" | "normal" }],
-    "actionRequired": [{ "from": "name", "subject": "...", "snippet": "...", "actionType": "payment/signup/deadline/etc" }],
-    "fyiCount": number,
-    "marketingCount": number
-  }
-}`;
+---
 
+ALSO generate a LOGIN ROAST — a single one-liner Dixon will see on the login screen when he opens the app today.
+
+LOGIN ROAST RULES (separate voice from the briefing above — write as the login screen of figgg):
+- TIMING: This is pre-generated at 5:30am but Dixon won't see it until he opens the app — usually 7am-noon. Do NOT assume he is awake right now. Do NOT reference 5:30am or imply he's up early. Timeless for whenever he opens the app today.
+- One sentence. Max 20 words. No greeting, no emoji, no quotation marks.
+- The roast must be an IRONIC TRUTH — a contradiction between what he's doing and what he should be doing, or a reframe of something he already knows.
+- Use SPECIFIC details from the data (task names, dance names, actual numbers, actual timing). Generic observations are not roasts.
+- The punchline should be a REFRAME, not just a stat read sarcastically. Think "the quiet part said out loud."
+- Dark humor, self-aware meta humor, and theatrical energy are all welcome.
+- He teaches dance, has ADHD, built this app instead of sleeping, is the only user. Fair game.
+
+ABSOLUTE HARD RULES FOR ROAST — NEVER reference ANY of these:
+- Mom, mother, grief, loss, death, family passing, Tamara, bereavement
+- Therapy, therapist, Brian, counseling, BetterHelp, sessions
+- Journal entries, emotional check-ins
+These are PERMANENT, NON-NEGOTIABLE boundaries. Violating them is a critical failure.
+
+ALLOWED ROAST TOPICS ONLY: meds/medication timing, tasks/overdue count, calendar/schedule load, email volume/neglect, productivity patterns, app usage, competition prep, teaching load, launch plan progress, ProSeries campaign, mood (surface-level only).
+
+ROAST VIBE EXAMPLES (do NOT copy — generate something original and specific to today's data):
+- "you built an entire app to track productivity and it's your biggest procrastination tool"
+- "ProSeries Phase 2 has been Phase 2 for 10 days — that's just Phase 1 with anxiety"
+- "figgg has more features than you have follow-through"
+- "you teach discipline for a living, just not to yourself"
+
+---
+
+Return ONLY valid JSON matching the schema — no markdown, no prose, no wrapper.`;
+
+  // Structured output via output_config.format ensures the first text block is
+  // valid JSON — no regex extraction, no JSON.parse() guessing games.
+  const briefingSchema = {
+    type: "object",
+    properties: {
+      summary: { type: "string" },
+      nudge: { type: ["string", "null"] },
+      yesterdayYou: { type: "array", items: { type: "string" } },
+      wellness: {
+        type: "object",
+        properties: {
+          medsStatus: {
+            type: "object",
+            properties: {
+              onTrack: { type: "boolean" },
+              missedRecently: { type: "boolean" },
+            },
+            required: ["onTrack", "missedRecently"],
+            additionalProperties: false,
+          },
+          moodTrend: { type: ["string", "null"], enum: ["improving", "stable", "declining", null] },
+        },
+        required: ["medsStatus", "moodTrend"],
+        additionalProperties: false,
+      },
+      deadlines: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            description: { type: "string" },
+            dueDate: { type: "string" },
+            daysLeft: { type: "number" },
+          },
+          required: ["description", "dueDate", "daysLeft"],
+          additionalProperties: false,
+        },
+      },
+      email: {
+        type: "object",
+        properties: {
+          needsResponse: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                from: { type: "string" },
+                subject: { type: "string" },
+                snippet: { type: "string" },
+                date: { type: "string" },
+                priority: { type: "string", enum: ["high", "normal"] },
+              },
+              required: ["from", "subject", "snippet", "date", "priority"],
+              additionalProperties: false,
+            },
+          },
+          actionRequired: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                from: { type: "string" },
+                subject: { type: "string" },
+                snippet: { type: "string" },
+                actionType: { type: "string" },
+              },
+              required: ["from", "subject", "snippet", "actionType"],
+              additionalProperties: false,
+            },
+          },
+          fyiCount: { type: "number" },
+          marketingCount: { type: "number" },
+        },
+        required: ["needsResponse", "actionRequired", "fyiCount", "marketingCount"],
+        additionalProperties: false,
+      },
+      loginRoast: {
+        type: ["string", "null"],
+        description: "Single-line login-screen roast (max 20 words) following the ROAST RULES. null if genuinely nothing roastable.",
+      },
+    },
+    required: ["summary", "nudge", "yesterdayYou", "wellness", "deadlines", "email", "loginRoast"],
+    additionalProperties: false,
+  };
+
+  // Single call — produces both briefing + roast. Replaces the previous
+  // 2-round-trip pattern (Sonnet briefing + separate Opus roast).
   const msg = await client.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 1500,
+    max_tokens: 1600,
     system: systemPrompt,
     messages: [{ role: "user", content: contextString }],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    output_config: { format: { type: "json_schema", schema: briefingSchema } } as any,
   });
 
+  interface ParsedBriefing {
+    summary?: string;
+    nudge?: string | null;
+    yesterdayYou?: string[];
+    wellness?: {
+      medsStatus?: { onTrack: boolean; missedRecently: boolean };
+      moodTrend?: "improving" | "stable" | "declining" | null;
+    };
+    deadlines?: Array<{ description: string; dueDate: string; daysLeft: number }>;
+    email?: {
+      needsResponse: Array<{ from: string; subject: string; snippet: string; date: string; priority: "high" | "normal" }>;
+      actionRequired: Array<{ from: string; subject: string; snippet: string; actionType: string }>;
+      fyiCount: number;
+      marketingCount: number;
+    } | null;
+    loginRoast?: string | null;
+  }
+
   const text = msg.content[0].type === "text" ? msg.content[0].text : "";
-  let parsed;
+  let parsed: ParsedBriefing | null;
   try {
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+    // With output_config.format, the first text block IS valid JSON — no regex needed.
+    parsed = JSON.parse(text);
   } catch {
     console.error("Failed to parse briefing response:", text.slice(0, 200));
     parsed = null;
@@ -684,51 +804,19 @@ RETURN JSON with this exact shape:
       yesterdayYou: [],
       wellness: { medsStatus: { onTrack: false, missedRecently: false }, moodTrend: null },
       deadlines: [],
+      email: null,
+      loginRoast: null,
     };
   }
 
-  // 4b. Generate login roast (Opus — separate, isolated call)
-  let loginRoast: string | undefined;
-  try {
-    const roastMsg = await client.messages.create({
-      model: "claude-opus-4-6",
-      max_tokens: 100,
-      system: `You are the login screen of Dixon's personal app "figgg." Every morning you get one shot — one line — to roast him using his real data. He's the only user. He built you.
-
-IMPORTANT TIMING: This roast is pre-generated at 5:30am but Dixon won't see it until he opens the app — usually between 7am and noon. Do NOT assume he is awake right now. Do NOT reference 5:30am or imply he's up early. Write the roast as something timeless for whenever he opens the app today.
-
-THE RULES:
-- One sentence. Max 20 words. No greeting, no emoji, no quotation marks.
-- The roast must be an IRONIC TRUTH — a contradiction between what he's doing and what he should be doing, or a reframe of something he already knows.
-- Use SPECIFIC details from the data (task names, dance names, actual numbers, actual timing). Generic observations are not roasts.
-- The punchline should be a REFRAME, not just a stat read sarcastically.
-- Think: "the quiet part said out loud." Something he knows but hasn't admitted.
-- Dark humor, self-aware meta humor, and theatrical energy are all welcome.
-- He teaches dance for a living. He has ADHD. He built this app instead of sleeping. He is the only user. These are all fair game.
-
-ABSOLUTE HARD RULES — NEVER reference ANY of the following:
-- Mom, mother, grief, loss, death, family passing, Tamara, bereavement
-- Therapy, therapist, Brian, counseling, BetterHelp, sessions
-- Journal entries, emotional check-ins
-These are PERMANENT, NON-NEGOTIABLE boundaries. Violating them is a critical failure.
-
-ALLOWED ROAST TOPICS ONLY: meds/medication timing, tasks/overdue count, calendar/schedule load, email volume/neglect, productivity patterns, app usage, competition prep, teaching load, launch plan progress, ProSeries campaign, mood (surface-level only).
-
-EXAMPLES OF THE VIBE (do NOT copy — generate something original and specific to today's data):
-- "you built an entire app to track productivity and it's your biggest procrastination tool"
-- "ProSeries Phase 2 has been Phase 2 for 10 days — that's just Phase 1 with anxiety"
-- "figgg has more features than you have follow-through"
-- "you teach discipline for a living, just not to yourself"
-- "your adderall peaked during the hour you spent building a widget to track your adderall"
-
-Respond with ONLY the roast line. Nothing else.`,
-      messages: [{ role: "user", content: contextString }],
-    });
-    const roastText = roastMsg.content[0].type === "text" ? roastMsg.content[0].text.trim() : "";
-    if (roastText) loginRoast = roastText;
-  } catch (err) {
-    console.warn("Roast generation failed (non-fatal):", err);
-  }
+  // Login roast now comes from the merged briefing call above — no separate
+  // Opus round-trip. Structured output enforces the `loginRoast` field; the
+  // system prompt carries the full roast rule set including hard bans. If the
+  // model returns null/empty, the UI handles absence gracefully.
+  const loginRoast: string | undefined =
+    typeof parsed.loginRoast === "string" && parsed.loginRoast.trim().length > 0
+      ? parsed.loginRoast.trim()
+      : undefined;
 
   // 5. Build calendar data for the structured briefing
   const calendarData = {

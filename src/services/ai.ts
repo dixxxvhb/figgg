@@ -123,23 +123,17 @@ export async function detectReminders(
   context?: AIContextPayload,
 ): Promise<Array<{ noteId: string; title: string }>> {
   try {
-    if (context) {
-      const contextWithClass = {
-        ...context,
-        classData: {
-          classInfo: { id: '', name: className, day: '', startTime: '', endTime: '' },
-          notes,
-        },
-      };
-      const fn = httpsCallable(requireFunctions(), 'aiChat');
-      const result = await fn({ mode: 'detect-reminders', context: contextWithClass });
-      const data = result.data as { reminders?: Array<{ noteId: string; title: string }> };
-      return data.reminders || [];
-    }
-    // Fallback: standalone function (backward compat)
-    const fn = httpsCallable<{ className: string; notes: LiveNote[] }, { reminders: Array<{ noteId: string; title: string }> }>(requireFunctions(), 'detectReminders');
-    const result = await fn({ className, notes });
-    return result.data.reminders || [];
+    const contextWithClass = {
+      ...(context ?? {}),
+      classData: {
+        classInfo: { id: '', name: className, day: '', startTime: '', endTime: '' },
+        notes,
+      },
+    };
+    const fn = httpsCallable(requireFunctions(), 'aiChat');
+    const result = await fn({ mode: 'detect-reminders', context: contextWithClass });
+    const data = result.data as { reminders?: Array<{ noteId: string; title: string }> };
+    return data.reminders || [];
   } catch {
     return []; // Silently fail — reminders are a bonus
   }
@@ -260,24 +254,18 @@ export async function expandNotes(
   context?: AIContextPayload,
 ): Promise<string> {
   try {
-    if (context) {
-      const contextWithClass = {
-        ...context,
-        classData: {
-          classInfo: { id: '', name: className, day: '', startTime: '', endTime: '' },
-          notes,
-          date,
-        },
-      };
-      const fn = httpsCallable(requireFunctions(), 'aiChat');
-      const result = await fn({ mode: 'expand-notes', context: contextWithClass });
-      const data = result.data as { expanded?: string };
-      return data.expanded || '';
-    }
-    // Fallback: standalone function (backward compat)
-    const fn = httpsCallable<{ className: string; date: string; notes: LiveNote[] }, { expanded: string }>(requireFunctions(), 'expandNotes');
-    const result = await fn({ className, date, notes });
-    return result.data.expanded;
+    const contextWithClass = {
+      ...(context ?? {}),
+      classData: {
+        classInfo: { id: '', name: className, day: '', startTime: '', endTime: '' },
+        notes,
+        date,
+      },
+    };
+    const fn = httpsCallable(requireFunctions(), 'aiChat');
+    const result = await fn({ mode: 'expand-notes', context: contextWithClass });
+    const data = result.data as { expanded?: string };
+    return data.expanded || '';
   } catch (error) {
     console.error('expandNotes failed:', error);
     throw new Error('Failed to expand notes. Please try again.');

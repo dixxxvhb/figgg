@@ -136,10 +136,22 @@ export const aiChat = onCall(
       }
 
       const client = new Anthropic({ apiKey });
+      // System prompt is stable per-mode (DIXON_CONTEXT + mode-specific prompt)
+      // and a good candidate for prefix caching. The wrapped array form with
+      // cache_control marks the last system block as cacheable — each mode
+      // gets its own cache entry that hits on subsequent calls (especially
+      // chat/check-in multi-turn). Below the ~2048-token Sonnet 4.6 minimum
+      // caching is silently skipped, so this is zero-cost future-proofing.
       const msg = await client.messages.create({
-        model: "claude-sonnet-4-5-20250929",
+        model: "claude-sonnet-4-6",
         max_tokens: getMaxTokens(mode),
-        system: systemPrompt,
+        system: [
+          {
+            type: "text",
+            text: systemPrompt,
+            cache_control: { type: "ephemeral" },
+          },
+        ],
         messages,
       });
 
