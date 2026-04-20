@@ -78,16 +78,45 @@ export interface MediaItem {
   name: string;
 }
 
+/**
+ * AI-generated 3-part briefing that carries a class forward from one week to the next.
+ * Written to next-week's `ClassWeekNotes.briefing` when the user ends a class.
+ * Legacy `plan` string on `ClassWeekNotes` is kept for backwards-compat rendering.
+ */
+export interface Briefing {
+  /** "What we did" — 2-3 sentence AI prose recap of last week's notes. */
+  recap: string;
+  /** "How it went" — 2-3 sentence AI prose assessment of wins/struggles. May be empty on fallback. */
+  assessment: string;
+  /** "For today" — bullets (≤5). Flagged notes verbatim first; AI-inferred actionables after. */
+  forToday: string[];
+  /** ISO timestamp when the briefing was generated. */
+  generatedAt: string;
+}
+
 export interface ClassWeekNotes {
   classId: string;
+  /**
+   * @deprecated Replaced by `briefing`. Kept for backwards-compat rendering
+   * of pre-redesign weeks. New carry-forward writes go to `briefing` only.
+   */
   plan: string;
+  /**
+   * Structured 3-part briefing carried forward from the previous week's class.
+   * Absent on legacy weeks (use `plan` fallback).
+   */
+  briefing?: Briefing;
   liveNotes: LiveNote[];
   organizedNotes?: OrganizedNotes;
   isOrganized: boolean;
   media?: MediaItem[];
   weekIdea?: string; // Overall idea/theme for class this week
-  nextWeekGoal?: string; // Goal to remember for next week
-  // Attendance for this class this week
+  /** @deprecated Rolled into `flaggedForNextWeek` on individual notes. */
+  nextWeekGoal?: string;
+  /**
+   * @deprecated Attendance UI removed from LiveNotes in Apr 2026 redesign.
+   * Legacy data preserved, not written on new records.
+   */
   attendance?: {
     present: string[]; // Student IDs
     absent: string[];
