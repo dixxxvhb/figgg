@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Clock, CheckCircle, AlertCircle, X, FileText, ChevronDown, ChevronUp, ClipboardList, BookOpen, Wand2, Loader2, Check, Flag } from 'lucide-react';
 import { format, addWeeks, addDays } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
-import { PlanDisplay } from '../components/common/PlanDisplay';
+import { BriefingDisplay } from '../components/common/BriefingDisplay';
 import { DropdownMenu } from '../components/common/DropdownMenu';
 import { NotesList, InputBar, type AutocompleteConfig } from '../components/common/NoteInput';
 import { LiveNote, ClassWeekNotes, Reminder, ReminderList } from '../types';
@@ -83,7 +83,6 @@ export function LiveNotes() {
     return { id: uuid(), weekOf, classNotes: {} };
   });
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
-  const [showPlan, setShowPlan] = useState(true); // Show plan until Task 8 removes this
   const [showSavedNotes, setShowSavedNotes] = useState(false); // Collapsed by default when session is complete
   const [isEndingClass, setIsEndingClass] = useState(false);
   const endClassLockRef = useRef(false);
@@ -986,55 +985,16 @@ export function LiveNotes() {
         </div>
       </div>
 
-      {/* Plan - always visible as reference */}
-      {classNotes.plan && (
-        <div className="border-b border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-900/20">
-          <button
-            onClick={() => setShowPlan(!showPlan)}
-            className="flex items-center justify-between w-full px-4 py-2 page-w"
-          >
-            <div className="flex items-center gap-2">
-              <ClipboardList size={16} className="text-purple-600 dark:text-purple-400" />
-              <span className="text-sm font-medium text-purple-700 dark:text-purple-300">This Week's Prep</span>
-            </div>
-            {showPlan ? (
-              <ChevronUp size={16} className="text-purple-500" />
-            ) : (
-              <ChevronDown size={16} className="text-purple-500" />
-            )}
-          </button>
-          {showPlan && (
-            <div className="px-4 pb-3 page-w max-h-[40vh] overflow-y-auto">
-              <div className="bg-[var(--surface-card)] rounded-xl border border-purple-200 dark:border-purple-800 p-3">
-                <PlanDisplay text={classNotes.plan} />
-                <Link
-                  to="/plan"
-                  className="inline-flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400 mt-2 hover:text-purple-700"
-                >
-                  <FileText size={12} />
-                  Edit in Week Planner
-                </Link>
-              </div>
-            </div>
-          )}
+      {/* Last week's briefing (or legacy plan fallback) */}
+      <div className="px-4 py-2 border-b border-[var(--border-subtle)]">
+        <div className="page-w">
+          <BriefingDisplay
+            briefing={classNotes.briefing}
+            legacyPlan={classNotes.plan}
+            initiallyCollapsed={classNotes.liveNotes.length > 0}
+          />
         </div>
-      )}
-
-      {/* No Plan - Quick link to create one (hide when class already saved — plan was generated for next week) */}
-      {!classNotes.plan && !alreadySaved && (
-        <div className="px-4 py-2 border-b border-[var(--border-subtle)]">
-          <Link
-            to="/plan"
-            className="flex items-center justify-between page-w bg-purple-50/50 dark:bg-purple-900/20 rounded-xl border border-dashed border-purple-200 dark:border-purple-800 p-3 hover:border-purple-300 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <ClipboardList size={18} className="text-purple-400" />
-              <span className="text-sm text-purple-600 dark:text-purple-400">No plan for this class yet</span>
-            </div>
-            <span className="text-xs text-purple-500">Add Plan →</span>
-          </Link>
-        </div>
-      )}
+      </div>
 
       {/* Notes List */}
       <div className="flex-1 overflow-y-auto p-4 page-w w-full">
