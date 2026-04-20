@@ -13,11 +13,15 @@ import {
   LiveNote,
   ClassWeekNotes,
   WeekNotes,
+  Briefing,
   normalizeNoteCategory,
 } from '../types';
 import { formatWeekOf } from './time';
 import { getWeekNotes as getWeekNotesFromStorage } from '../services/storage';
-import { generatePlan as aiGeneratePlan } from '../services/ai';
+import {
+  generatePlan as aiGeneratePlan,
+  generateBriefing as aiGenerateBriefing,
+} from '../services/ai';
 import type { AIContextPayload } from '../services/aiContext';
 
 // ---------------------------------------------------------------------------
@@ -213,4 +217,132 @@ export function nextWeekHasPlan(classId: string, viewingWeekStart: Date): boolea
   if (!weekNotes) return false;
   const classNotes = weekNotes.classNotes[classId];
   return !!classNotes?.plan?.trim();
+}
+
+// ===========================================================================
+// Briefing-based carry-forward (Apr 2026 redesign — replaces plan blob)
+// ===========================================================================
+
+/**
+ * Deterministic fallback briefing builder — used when `aiGenerateBriefing`
+ * throws or the backend callable isn't available.
+ *
+ * Rules:
+ *  - `recap` = bullet dump of all non-flagged notes, prefixed with a heading.
+ *  - `assessment` = "" (UI hides the section when empty).
+ *  - `forToday` = verbatim text of each flagged note (≤5 items).
+ *  - `generatedAt` = now.
+ */
+export function buildFallbackBriefing(notes: LiveNote[]): Briefing {
+  const flagged = notes.filter(n => n.flaggedForNextWeek && n.text.trim());
+  const unflagged = notes.filter(n => !n.flaggedForNextWeek && n.text.trim());
+
+  const recap = unflagged.length > 0
+    ? 'Notes from last class:\n' + unflagged.map(n => `- ${n.text.trim()}`).join('\n')
+    : 'No notes captured last class.';
+
+  const forToday = flagged.slice(0, 5).map(n => n.text.trim());
+
+  return {
+    recap,
+    assessment: '',
+    forToday,
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+export interface BriefingCarryForwardOptions {
+  classId: string;
+  classInfo: CarryForwardOptions['classInfo'];
+  notes: LiveNote[];
+  viewingWeekStart: Date;
+  saveWeekNotes: (wn: WeekNotes) => void;
+  aiContext: CarryForwardOptions['aiContext'];
+  previousBriefings?: Briefing[];
+  expandedSummary?: string;
+  eventTitle?: string;
+}
+
+/**
+ * Try AI briefing generation, fall back to buildFallbackBriefing, then write
+ * the result into next week's WeekNotes.briefing via saveWeekNotes.
+ *
+ * Mirrors generateAndSavePlan but writes the structured `briefing` field
+ * instead of the legacy `plan` string. `plan` is left untouched on next
+ * week's record — new writes do not populate it.
+ */
+export async function generateAndSaveBriefing(
+  options: BriefingCarryForwardOptions,
+): Promise<void> {
+  const {
+    classId,
+    classInfo,
+    notes,
+    viewingWeekStart,
+    saveWeekNotes,
+    aiContext,
+    previousBriefings,
+    expandedSummary,
+    eventTitle,
+  } = options;
+
+  const nextWeekMonday = addWeeks(viewingWeekStart, 1);
+  const nextWeekOf = formatWeekOf(nextWeekMonday);
+
+  let briefing: Briefing;
+  try {
+    briefing = await aiGenerateBriefing({
+      classInfo,
+      notes,
+      previousBriefings,
+      expandedSummary,
+      context: aiContext,
+    });
+  } catch {
+    briefing = buildFallbackBriefing(notes);
+  }
+
+  const existing = getWeekNotesFromStorage(nextWeekOf);
+
+  const nextWeekNotes: WeekNotes = existing ?? {
+    id: uuid(),
+    weekOf: nextWeekOf,
+    classNotes: {},
+  };
+
+  const existingClassNotes: ClassWeekNotes = nextWeekNotes.classNotes[classId] ?? {
+    classId,
+    plan: '',
+    liveNotes: [],
+    isOrganized: false,
+  };
+
+  const updatedClassNotes: ClassWeekNotes = {
+    ...existingClassNotes,
+    briefing,
+    ...(eventTitle !== undefined ? { eventTitle } : {}),
+  };
+
+  const updatedWeekNotes: WeekNotes = {
+    ...nextWeekNotes,
+    classNotes: {
+      ...nextWeekNotes.classNotes,
+      [classId]: updatedClassNotes,
+    },
+  };
+
+  saveWeekNotes(updatedWeekNotes);
+}
+
+/**
+ * Returns true if next week already has a `briefing` for the given class.
+ * Used by the auto-nav-away safety-net effect to avoid double generation.
+ */
+export function nextWeekHasBriefing(classId: string, viewingWeekStart: Date): boolean {
+  const nextWeekMonday = addWeeks(viewingWeekStart, 1);
+  const nextWeekOf = formatWeekOf(nextWeekMonday);
+  const weekNotes = getWeekNotesFromStorage(nextWeekOf);
+  if (!weekNotes) return false;
+  const classNotes = weekNotes.classNotes[classId];
+  return !!classNotes?.briefing;
 }
