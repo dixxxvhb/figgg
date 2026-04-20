@@ -871,7 +871,7 @@ export function LiveNotes() {
               <span className="font-medium text-sm">Class session complete</span>
             </div>
             <p className="text-xs text-[var(--text-secondary)]">
-              {classNotes.liveNotes.length} notes saved. Plan generated for next week. You can still add notes below.
+              {classNotes.liveNotes.length} notes saved. Briefing generated for next week. You can still add notes below.
             </p>
           </div>
         )}
