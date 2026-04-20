@@ -4,6 +4,7 @@ import { ArrowLeft, Clock, MapPin, Music, Edit2, Save, X, Trash2, Play, History,
 import { timeToMinutes } from '../utils/time';
 import { useAppData } from '../contexts/AppDataContext';
 import { PlanDisplay } from '../components/common/PlanDisplay';
+import { BriefingDisplay } from '../components/common/BriefingDisplay';
 import { formatTimeDisplay, formatWeekOf, getWeekStart } from '../utils/time';
 import { addWeeks, addDays, format } from 'date-fns';
 import { Button } from '../components/common/Button';
@@ -659,6 +660,8 @@ export function ClassDetail() {
               className="w-full text-sm text-[var(--text-primary)] bg-[var(--surface-inset)] rounded-lg p-3 border-0 focus:ring-2 focus:ring-[var(--accent-primary)] resize-none"
               autoFocus
             />
+          ) : classNotes?.briefing ? (
+            <BriefingDisplay briefing={classNotes.briefing} />
           ) : classNotes?.plan ? (
             <PlanDisplay text={classNotes.plan} className="bg-[var(--surface-inset)] rounded-lg p-3" />
           ) : (
