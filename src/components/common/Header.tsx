@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   Home,
   Pill,
-  FileText,
+  Calendar,
   Cloud,
   CloudOff,
   Loader2,
@@ -13,12 +13,11 @@ import {
 } from 'lucide-react';
 import { useSyncStatus } from '../../contexts/SyncContext';
 
-// Curtain Call 5-tab navigation: Home, Meds, Notes, Wellness, More
-// (Schedule + Tasks demoted to More — Dixon's primary workflow is meds + notes + review)
+// Primary nav: Home, Schedule, Meds, Wellness, More (Apr 2026 — Schedule restored, Notes page killed)
 const navItems = [
   { path: '/', icon: Home, label: 'Home' },
+  { path: '/schedule', icon: Calendar, label: 'Schedule' },
   { path: '/meds', icon: Pill, label: 'Meds' },
-  { path: '/notes', icon: FileText, label: 'Notes' },
   { path: '/me', icon: Heart, label: 'Wellness' },
   { path: '/more', icon: MoreHorizontal, label: 'More' },
 ];
@@ -137,9 +136,9 @@ export function MobileNav() {
     const { path } = item;
     if (path === '/') return location.pathname === '/';
     if (path === '/meds') return location.pathname.startsWith('/meds');
-    if (path === '/notes') {
-      // Notes hub owns /notes plus the capture routes (class + event notes)
-      return location.pathname === '/notes' ||
+    if (path === '/schedule') {
+      // Schedule owns /schedule plus the in-class note capture routes
+      return location.pathname.startsWith('/schedule') ||
              location.pathname.startsWith('/class') ||
              location.pathname.startsWith('/event');
     }
@@ -150,7 +149,6 @@ export function MobileNav() {
              location.pathname.startsWith('/library') ||
              location.pathname.startsWith('/dance') ||
              location.pathname.startsWith('/students') ||
-             location.pathname.startsWith('/schedule') ||
              location.pathname.startsWith('/tasks') ||
              location.pathname.startsWith('/plan') ||
              location.pathname === '/week-review';
