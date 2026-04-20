@@ -424,6 +424,9 @@ export function NoteInput({
   renderNoteExtra,
   savedMode,
   children,
+  showTags,
+  showFlag,
+  onToggleFlag,
 }: NoteInputProps) {
   const [selectedTag, setSelectedTag] = useState<string | undefined>();
 
@@ -436,6 +439,8 @@ export function NoteInput({
         onEditNote={onEditNote}
         renderNoteExtra={renderNoteExtra}
         savedMode={savedMode}
+        showFlag={showFlag}
+        onToggleFlag={onToggleFlag}
       />
 
       {/* Extra content between notes and input (e.g. next-week goal) */}
