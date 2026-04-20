@@ -607,11 +607,15 @@ export function LiveNotes() {
   };
 
   const clearAllNotes = async () => {
-    if (!(await confirm('Delete all notes for this class?'))) return;
+    if (!(await confirm('Delete all notes and reset this class session?'))) return;
 
+    // Clear notes AND reset isOrganized so End Class becomes available again.
+    // Keeps last-week's carry-forward (briefing / plan) — that's reference context,
+    // not something this class owns.
     const updatedClassNotes: ClassWeekNotes = {
       ...classNotes,
       liveNotes: [],
+      isOrganized: false,
     };
 
     const updatedWeekNotes = {
@@ -624,6 +628,11 @@ export function LiveNotes() {
 
     setWeekNotes(updatedWeekNotes);
     saveWeekNotes(updatedWeekNotes);
+    setAlreadySaved(false);
+    setShowSavedNotes(false);
+    setExpandedSummary(null);
+    planGenerationFiredRef.current = false;
+    endClassLockRef.current = false;
   };
 
   // AI: Expand raw notes into an organized class summary
