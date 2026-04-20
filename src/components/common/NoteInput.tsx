@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Clock, CheckCircle, Lightbulb, AlertCircle, Pencil, Trash2, Check, X, StickyNote } from 'lucide-react';
+import { Send, Clock, CheckCircle, Lightbulb, AlertCircle, Pencil, Trash2, Check, X, StickyNote, Star } from 'lucide-react';
 import { LiveNote, normalizeNoteCategory } from '../../types';
 import { safeFormat } from '../../utils/time';
 import { v4 as uuid } from 'uuid';
@@ -46,6 +46,21 @@ export interface NoteInputProps {
   savedMode?: boolean;
   /** Children rendered between notes list and input (e.g. next-week goal) */
   children?: React.ReactNode;
+  /**
+   * Show the 4-category quick-tag picker in the input bar.
+   * Default: true (legacy behavior). LiveNotes passes false.
+   */
+  showTags?: boolean;
+  /**
+   * Show a star-flag toggle on each note row. Tapping flags the note
+   * for next week's briefing. Default: false. LiveNotes passes true.
+   */
+  showFlag?: boolean;
+  /**
+   * Callback when the star toggle is tapped on a note. Required when
+   * `showFlag` is true.
+   */
+  onToggleFlag?: (noteId: string) => void;
 }
 
 // ─── Notes List ────────────────────────────────────────────────────
@@ -55,7 +70,9 @@ function NotesList({
   onEditNote,
   renderNoteExtra,
   savedMode,
-}: Pick<NoteInputProps, 'notes' | 'onDeleteNote' | 'onEditNote' | 'renderNoteExtra' | 'savedMode'>) {
+  showFlag,
+  onToggleFlag,
+}: Pick<NoteInputProps, 'notes' | 'onDeleteNote' | 'onEditNote' | 'renderNoteExtra' | 'savedMode' | 'showFlag' | 'onToggleFlag'>) {
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
 
@@ -140,6 +157,24 @@ function NotesList({
                 <div className="whitespace-nowrap pt-0.5 text-[11px] text-[var(--text-tertiary)]">
                   {safeFormat(note.timestamp, 'h:mm a')}
                 </div>
+                {showFlag && onToggleFlag && !isEditing && (
+                  <button
+                    onClick={() => onToggleFlag(note.id)}
+                    className={`flex min-h-[36px] min-w-[36px] items-center justify-center rounded-lg p-2 transition-colors hover:bg-[var(--surface-card)] ${
+                      note.flaggedForNextWeek
+                        ? 'text-[var(--color-honey,var(--accent-primary))]'
+                        : 'text-[var(--text-tertiary)] hover:text-[var(--color-honey,var(--accent-primary))]'
+                    }`}
+                    title={note.flaggedForNextWeek ? 'Unflag for next week' : 'Flag for next week'}
+                    aria-label={note.flaggedForNextWeek ? 'Unflag for next week' : 'Flag for next week'}
+                    aria-pressed={!!note.flaggedForNextWeek}
+                  >
+                    <Star
+                      size={16}
+                      fill={note.flaggedForNextWeek ? 'currentColor' : 'none'}
+                    />
+                  </button>
+                )}
                 {!savedMode && (
                   isEditing && onEditNote ? (
                     <>
@@ -195,12 +230,14 @@ function InputBar({
   autocomplete,
   selectedTag,
   setSelectedTag,
+  showTags = true,
 }: {
   onSaveNote: (note: LiveNote) => void;
   placeholder?: string;
   autocomplete?: AutocompleteConfig;
   selectedTag: string | undefined;
   setSelectedTag: (tag: string | undefined) => void;
+  showTags?: boolean;
 }) {
   const [noteText, setNoteText] = useState('');
   const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([]);
@@ -288,22 +325,24 @@ function InputBar({
   return (
     <>
       {/* Quick Tags */}
-      <div className="flex gap-2 mb-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
-        {QUICK_TAGS.map(tag => (
-          <button
-            key={tag.id}
-            onClick={() => setSelectedTag(selectedTag === tag.id ? undefined : tag.id)}
-            className={`flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-sm whitespace-nowrap transition-all ${
-              selectedTag === tag.id
-                ? tag.color + ' shadow-sm'
-                : 'bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:bg-[var(--surface-highlight)]'
-            }`}
-          >
-            <tag.icon size={14} />
-            {tag.label}
-          </button>
-        ))}
-      </div>
+      {showTags && (
+        <div className="flex gap-2 mb-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
+          {QUICK_TAGS.map(tag => (
+            <button
+              key={tag.id}
+              onClick={() => setSelectedTag(selectedTag === tag.id ? undefined : tag.id)}
+              className={`flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-sm whitespace-nowrap transition-all ${
+                selectedTag === tag.id
+                  ? tag.color + ' shadow-sm'
+                  : 'bg-[var(--surface-inset)] text-[var(--text-secondary)] hover:bg-[var(--surface-highlight)]'
+              }`}
+            >
+              <tag.icon size={14} />
+              {tag.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Text Input */}
       <div className="flex gap-2">
