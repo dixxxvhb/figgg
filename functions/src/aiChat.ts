@@ -172,7 +172,10 @@ export const aiChat = onCall(
           : {}),
       });
 
-      const text = msg.content[0].type === "text" ? msg.content[0].text : "";
+      // With adaptive thinking enabled, the first content block may be a
+      // `thinking` block — find the text block explicitly, don't assume index 0.
+      const textBlock = msg.content.find((b) => b.type === "text");
+      const text = textBlock && textBlock.type === "text" ? textBlock.text : "";
       const parsed = parseJsonLike<Record<string, unknown>>(text, '{') || getFallbackResponse(mode);
 
       // Normalize arrays for modes that use them

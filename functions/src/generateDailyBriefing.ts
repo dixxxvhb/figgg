@@ -792,7 +792,10 @@ Return ONLY valid JSON matching the schema — no markdown, no prose, no wrapper
     loginRoast?: string | null;
   }
 
-  const text = msg.content[0].type === "text" ? msg.content[0].text : "";
+  // With adaptive thinking (not currently enabled here, but defensive) a
+  // thinking block can precede the text block. Find the text block explicitly.
+  const textBlock = msg.content.find((b) => b.type === "text");
+  const text = textBlock && textBlock.type === "text" ? textBlock.text : "";
   let parsed: ParsedBriefing | null;
   try {
     // With output_config.format, the first text block IS valid JSON — no regex needed.
