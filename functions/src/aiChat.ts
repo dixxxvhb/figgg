@@ -136,6 +136,16 @@ export const aiChat = onCall(
       }
 
       const client = new Anthropic({ apiKey });
+      // Conversational and judgment-heavy modes benefit from adaptive thinking
+      // (Claude decides when/how-much to think) + medium effort (sweet spot
+      // between quality and token spend). Tool-like modes (generate-plan,
+      // generate-briefing, expand-notes, detect-reminders, organize-notes) are
+      // narrow tasks — adaptive thinking adds latency for no real quality gain.
+      const CONVERSATIONAL_MODES: Mode[] = [
+        "chat", "check-in", "reflection", "day-plan", "briefing", "prep", "capture",
+      ];
+      const useAdaptiveThinking = CONVERSATIONAL_MODES.includes(mode);
+
       // System prompt is stable per-mode (DIXON_CONTEXT + mode-specific prompt)
       // and a good candidate for prefix caching. The wrapped array form with
       // cache_control marks the last system block as cacheable — each mode
@@ -153,6 +163,13 @@ export const aiChat = onCall(
           },
         ],
         messages,
+        ...(useAdaptiveThinking
+          ? {
+              thinking: { type: "adaptive" as const },
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              output_config: { effort: "medium" } as any,
+            }
+          : {}),
       });
 
       const text = msg.content[0].type === "text" ? msg.content[0].text : "";

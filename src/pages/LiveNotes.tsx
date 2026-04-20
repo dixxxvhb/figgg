@@ -516,18 +516,11 @@ export function LiveNotes() {
     if (notesToProcess.length > 0 && !classNotes.isOrganized && cls) {
       planGenerationFiredRef.current = true;
 
-      // Expand notes into a summary first (feeds the briefing if available)
-      let summary = expandedSummary;
-      if (!summary) {
-        try {
-          summary = await aiExpandNotes(cls.name, format(classDate, 'yyyy-MM-dd'), notesToProcess, aiContext);
-          setExpandedSummary(summary);
-        } catch (err) {
-          console.warn('aiExpandNotes failed, continuing without summary:', err);
-          summary = null;
-        }
-      }
-
+      // Briefing reads raw notes directly + context. Previously we awaited
+      // aiExpandNotes here to pre-summarize, but the briefing prompt doesn't
+      // need it — expanding first just cost an extra ~3-5s round-trip per
+      // End Class tap. If the user wants an expanded summary, the manual
+      // Expand button (handleExpandNotes) is still available.
       const classInfoForAI = {
         id: cls.id,
         name: cls.name,
@@ -548,7 +541,8 @@ export function LiveNotes() {
         viewingWeekStart,
         saveWeekNotes,
         aiContext,
-        expandedSummary: summary || undefined,
+        // expandedSummary kept as optional param on the helper — we just don't
+        // pay the upfront cost to generate one here anymore.
       });
 
       // AI reminder detection — keep as-is (fire and forget)
