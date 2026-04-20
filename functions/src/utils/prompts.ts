@@ -3,7 +3,7 @@
  * These are sacred — do not modify content without good reason.
  */
 
-export type Mode = "check-in" | "chat" | "briefing" | "day-plan" | "prep" | "capture" | "reflection" | "generate-plan" | "expand-notes" | "detect-reminders" | "organize-notes";
+export type Mode = "check-in" | "chat" | "briefing" | "day-plan" | "prep" | "capture" | "reflection" | "generate-plan" | "generate-briefing" | "expand-notes" | "detect-reminders" | "organize-notes";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function buildContextString(payload: any, mode: Mode): string {
@@ -407,6 +407,24 @@ export function buildContextString(payload: any, mode: Mode): string {
     if (classData.date) {
       contextLines.push(`Class date: ${classData.date}`);
     }
+    // Briefing-specific: surface flagged-for-next-week notes and prior briefings
+    if (mode === "generate-briefing" && classData.notes && classData.notes.length > 0) {
+      const flagged = classData.notes.filter((n: { flaggedForNextWeek?: boolean }) => n.flaggedForNextWeek);
+      if (flagged.length > 0) {
+        contextLines.push(`FLAGGED for next week (${flagged.length}) — surface VERBATIM in forToday:`);
+        for (const n of flagged) {
+          contextLines.push(`  - ${n.text}`);
+        }
+      }
+    }
+    if (classData.previousBriefings && classData.previousBriefings.length > 0) {
+      contextLines.push(`Prior briefings (most recent first):`);
+      for (const b of classData.previousBriefings.slice(0, 2)) {
+        contextLines.push(`  - Recap: ${b.recap?.substring(0, 150) ?? ""}`);
+        if (b.assessment) contextLines.push(`    Assessment: ${b.assessment.substring(0, 150)}`);
+        if (b.forToday?.length) contextLines.push(`    ForToday: ${b.forToday.slice(0, 3).join(" | ")}`);
+      }
+    }
   }
 
   if (ctx.eventData) {
@@ -738,6 +756,43 @@ TONE:
 Return ONLY the plan text. No JSON wrapper.`;
     }
 
+    case "generate-briefing": {
+      const classInfo2 = payload.context?.classData?.classInfo || payload.classData?.classInfo || {};
+      const hasRecitalPiece2 = !!classInfo2.recitalSong;
+      const recitalPieceRef = hasRecitalPiece2 ? ` Recital piece: "${classInfo2.recitalSong}".` : "";
+
+      return `You are Dixon's dance-teacher brain, writing a briefing that a future-Dixon will glance at as he walks into next week's class. Three parts, scannable in ten seconds, warm and specific — not corporate.${recitalPieceRef}
+
+INPUT you have:
+- Raw class notes Dixon just took during this week's class
+- A subset may be FLAGGED for next week — those are things Dixon explicitly wants to remember
+- Prior briefing(s) for continuity, if available
+- Full context about Dixon's day, meds, schedule, upcoming competitions
+
+YOUR OUTPUT (strict JSON, no markdown, no prose preamble):
+{
+  "recap": "2-3 sentence prose summary of what was covered this week — the 'what we did' section. Reference specific combos, sections, or skills worked on. Don't list everything — capture the through-line.",
+  "assessment": "2-3 sentence prose read on how it went — wins, struggles, what's tightening, what's lagging. Name specific patterns if visible (e.g. 'three dancers still hesitant on fouetté'). If notes don't support an assessment, return empty string.",
+  "forToday": [
+    "Flagged items VERBATIM from the flagged list (light typo/grammar cleanup only) — these come FIRST",
+    "Then AI-inferred actionables pulled from non-flagged notes (clearly future-facing items)",
+    "Maximum 5 items total across the whole array"
+  ]
+}
+
+TONE RULES:
+- Sound like Dixon's own shorthand — warm, direct, specific. Not an assistant voice.
+- Use "we" for class actions, not "the students" — he's in it with them.
+- If Dixon's day context shows he's having a rough week, calibrate gentler.
+- If a competition is close, weight forToday toward cleaning over new material.
+
+CRITICAL:
+- forToday caps at 5 items. Flagged verbatim first. Then inferred actionables. Drop the rest.
+- If there are no flagged notes AND no clearly actionable inferred items, return an empty forToday array.
+- If there are no non-flagged notes to summarize, recap can be brief but not empty.
+- Return ONLY valid JSON, nothing else.`;
+    }
+
     case "expand-notes": {
       const classInfo2 = payload.context?.classData?.classInfo || payload.classData?.classInfo || {};
       const isBalletClass2 = (classInfo2.name || "").toLowerCase().includes("ballet");
@@ -957,6 +1012,8 @@ export function getMaxTokens(mode: Mode): number {
       return 1200;
     case "generate-plan":
       return 800;
+    case "generate-briefing":
+      return 800;
     case "expand-notes":
       return 1024;
     case "detect-reminders":
@@ -986,6 +1043,8 @@ export function getFallbackResponse(mode: Mode): any {
       return { response: "Couldn't generate reflection.", actions: [] };
     case "generate-plan":
       return { plan: "", success: false };
+    case "generate-briefing":
+      return { briefing: { recap: "", assessment: "", forToday: [], generatedAt: new Date().toISOString() } };
     case "expand-notes":
       return { expanded: "", success: false };
     case "detect-reminders":

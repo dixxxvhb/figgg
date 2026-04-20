@@ -12,7 +12,7 @@ import {
 
 const anthropicKey = defineSecret("ANTHROPIC_API_KEY");
 
-const VALID_MODES: Mode[] = ["check-in", "chat", "briefing", "day-plan", "prep", "capture", "reflection", "generate-plan", "expand-notes", "detect-reminders", "organize-notes"];
+const VALID_MODES: Mode[] = ["check-in", "chat", "briefing", "day-plan", "prep", "capture", "reflection", "generate-plan", "generate-briefing", "expand-notes", "detect-reminders", "organize-notes"];
 
 function extractBalancedJsonBlock(text: string, openChar: '{' | '['): string | null {
   const closeChar = openChar === '{' ? '}' : ']';
@@ -114,6 +114,12 @@ export const aiChat = onCall(
           role: "user",
           content: `${contextString}\n\nProcess the class notes above and generate the requested output.`,
         });
+      } else if (mode === "generate-briefing") {
+        // Briefing mode: context + class data with flag markers, expect structured JSON
+        messages.push({
+          role: "user",
+          content: `${contextString}\n\nWrite the 3-part briefing for next week's class. Return ONLY the JSON object specified in your instructions.`,
+        });
       } else if (mode === "detect-reminders") {
         // Reminder detection: context + notes, expect JSON output
         messages.push({
@@ -178,6 +184,31 @@ export const aiChat = onCall(
       }
       if (mode === "expand-notes") {
         return { success: true, expanded: text.trim(), generatedAt: new Date().toISOString() };
+      }
+      if (mode === "generate-briefing") {
+        // Parse structured briefing JSON; validate shape, clamp forToday to 5 items.
+        const parsedBriefing = parseJsonLike<Record<string, unknown>>(text, '{');
+        if (
+          !parsedBriefing ||
+          typeof parsedBriefing.recap !== "string" ||
+          typeof parsedBriefing.assessment !== "string" ||
+          !Array.isArray(parsedBriefing.forToday)
+        ) {
+          console.error("Failed to parse generate-briefing response:", text.substring(0, 300));
+          // Return empty-shape briefing; client's buildFallbackBriefing will fire on throw.
+          throw new HttpsError("internal", "AI returned malformed briefing payload");
+        }
+        const forToday = parsedBriefing.forToday
+          .filter((x: unknown): x is string => typeof x === "string" && x.trim().length > 0)
+          .slice(0, 5);
+        return {
+          briefing: {
+            recap: parsedBriefing.recap,
+            assessment: parsedBriefing.assessment,
+            forToday,
+            generatedAt: new Date().toISOString(),
+          },
+        };
       }
       if (mode === "detect-reminders") {
         // Parse JSON array from response
