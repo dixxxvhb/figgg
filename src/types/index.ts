@@ -37,8 +37,18 @@ export interface LiveNote {
   id: string;
   timestamp: string; // ISO date string
   text: string;
+  /**
+   * When true, this note is explicitly flagged by the user to surface
+   * verbatim at the top of next week's briefing "For today" section.
+   * Set via the star toggle on note rows in LiveNotes.
+   */
+  flaggedForNextWeek?: boolean;
+  /**
+   * @deprecated Kept optional for legacy data only. New notes never set this.
+   * Old values may be: worked-on | needs-work | next-week | ideas, or legacy
+   * covered | observation | reminder | choreography.
+   */
   category?: 'worked-on' | 'needs-work' | 'next-week' | 'ideas'
-    // Legacy values (mapped on read)
     | 'covered' | 'observation' | 'reminder' | 'choreography';
 }
 
