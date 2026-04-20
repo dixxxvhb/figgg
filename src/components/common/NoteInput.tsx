@@ -414,22 +414,20 @@ function InputBar({
 }
 
 // ─── Main NoteInput component ──────────────────────────────────────
+// NOTE: This wrapper does NOT render the InputBar — parents place that in
+// their own sticky footer. Props like onSaveNote/placeholder/autocomplete/
+// showTags are on NoteInputProps because they describe the overall input
+// contract, but are consumed by callers of the named `InputBar` export.
 export function NoteInput({
   notes,
-  onSaveNote,
   onDeleteNote,
   onEditNote,
-  placeholder,
-  autocomplete,
   renderNoteExtra,
   savedMode,
   children,
-  showTags,
   showFlag,
   onToggleFlag,
 }: NoteInputProps) {
-  const [selectedTag, setSelectedTag] = useState<string | undefined>();
-
   return (
     <>
       {/* Notes list area (rendered by parent in the scrollable area) */}

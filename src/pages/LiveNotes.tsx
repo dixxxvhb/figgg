@@ -27,7 +27,7 @@ export function LiveNotes() {
   const dayParam = searchParams.get('day') || '';
   const scheduleBack = (() => { const p = new URLSearchParams(); if (weekOffset !== 0) p.set('week', weekOffset.toString()); if (dayParam) p.set('day', dayParam); const s = p.toString(); return `/schedule${s ? `?${s}` : ''}`; })();
   const classDetailBack = (() => { const p = new URLSearchParams(); if (weekOffset !== 0) p.set('week', weekOffset.toString()); if (dayParam) p.set('day', dayParam); const s = p.toString(); return `/class/${classId}${s ? `?${s}` : ''}`; })();
-  const { data, getCurrentWeekNotes, saveWeekNotes, getWeekNotes, updateSelfCare, updateStudent, addStudent, addReminder } = useAppData();
+  const { data, getCurrentWeekNotes, saveWeekNotes, getWeekNotes, updateSelfCare, addReminder } = useAppData();
   const { confirm, dialog: confirmDialog } = useConfirmDialog();
   // Keep a ref to latest selfCare for use in async callbacks (avoid stale closures)
   const selfCareRef = useRef(data.selfCare);
@@ -35,7 +35,6 @@ export function LiveNotes() {
   const planGenerationFiredRef = useRef(false);
 
   const cls = data.classes.find(c => c.id === classId);
-  const studio = cls ? data.studios.find(s => s.id === cls.studioId) : null;
 
   // Compute class date for the viewed week (respects ?week= param)
   const DAY_OFFSETS: Record<string, number> = {
