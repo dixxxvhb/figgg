@@ -419,22 +419,23 @@ export function LiveNotes() {
   };
 
   const handleToggleFlag = (noteId: string) => {
-    setWeekNotes(prev => {
-      const classKey = classId || '';
-      const currentClassNotes = prev.classNotes[classKey] ?? classNotesRef.current;
-      const nextClassNotes: ClassWeekNotes = {
-        ...currentClassNotes,
-        liveNotes: currentClassNotes.liveNotes.map(n =>
-          n.id === noteId ? { ...n, flaggedForNextWeek: !n.flaggedForNextWeek } : n
-        ),
-      };
-      const nextWeekNotes = {
-        ...prev,
-        classNotes: { ...prev.classNotes, [classKey]: nextClassNotes },
-      };
-      saveWeekNotes(nextWeekNotes);
-      return nextWeekNotes;
-    });
+    // Compute next state OUTSIDE setState updater so saveWeekNotes runs as a
+    // side-effect post-render — not during React's render phase (which would
+    // trigger "Cannot update a component while rendering a different component").
+    const classKey = classId || '';
+    const currentClassNotes = classNotesRef.current;
+    const nextClassNotes: ClassWeekNotes = {
+      ...currentClassNotes,
+      liveNotes: currentClassNotes.liveNotes.map(n =>
+        n.id === noteId ? { ...n, flaggedForNextWeek: !n.flaggedForNextWeek } : n
+      ),
+    };
+    const nextWeekNotes = {
+      ...weekNotes,
+      classNotes: { ...weekNotes.classNotes, [classKey]: nextClassNotes },
+    };
+    setWeekNotes(nextWeekNotes);
+    saveWeekNotes(nextWeekNotes);
   };
 
   const createFlagDancerReminder = () => {
