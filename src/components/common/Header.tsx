@@ -1,7 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
 import {
   Home,
-  Calendar,
+  Pill,
+  FileText,
   Cloud,
   CloudOff,
   Loader2,
@@ -9,15 +10,15 @@ import {
   Heart,
   MoreHorizontal,
   WifiOff,
-  ListChecks,
 } from 'lucide-react';
 import { useSyncStatus } from '../../contexts/SyncContext';
 
-// 5-tab navigation: Home, Schedule, Tasks, Wellness, More
+// Curtain Call 5-tab navigation: Home, Meds, Notes, Wellness, More
+// (Schedule + Tasks demoted to More — Dixon's primary workflow is meds + notes + review)
 const navItems = [
   { path: '/', icon: Home, label: 'Home' },
-  { path: '/schedule', icon: Calendar, label: 'Schedule' },
-  { path: '/tasks', icon: ListChecks, label: 'Tasks' },
+  { path: '/meds', icon: Pill, label: 'Meds' },
+  { path: '/notes', icon: FileText, label: 'Notes' },
   { path: '/me', icon: Heart, label: 'Wellness' },
   { path: '/more', icon: MoreHorizontal, label: 'More' },
 ];
@@ -135,22 +136,23 @@ export function MobileNav() {
   const isActive = (item: typeof navItems[0]) => {
     const { path } = item;
     if (path === '/') return location.pathname === '/';
-    if (path === '/schedule') {
-      return location.pathname.startsWith('/schedule') ||
+    if (path === '/meds') return location.pathname.startsWith('/meds');
+    if (path === '/notes') {
+      // Notes hub owns /notes plus the capture routes (class + event notes)
+      return location.pathname === '/notes' ||
              location.pathname.startsWith('/class') ||
-             location.pathname.startsWith('/event') ||
-             location.pathname.startsWith('/plan');
+             location.pathname.startsWith('/event');
     }
-    if (path === '/tasks') return location.pathname === '/tasks';
-    if (path === '/me') {
-      return location.pathname === '/me';
-    }
+    if (path === '/me') return location.pathname === '/me';
     if (path === '/more') {
       return location.pathname.startsWith('/more') ||
              location.pathname.startsWith('/settings') ||
              location.pathname.startsWith('/library') ||
              location.pathname.startsWith('/dance') ||
              location.pathname.startsWith('/students') ||
+             location.pathname.startsWith('/schedule') ||
+             location.pathname.startsWith('/tasks') ||
+             location.pathname.startsWith('/plan') ||
              location.pathname === '/week-review';
     }
     return location.pathname === path;

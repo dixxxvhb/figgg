@@ -101,16 +101,30 @@ function getTimeOfDayTint(hour: number): { tint: string; amount: number; glow: s
 function getActivityAdjustment(activity: ActivityState): Partial<MoodLayerConfig> {
   switch (activity) {
     case 'teaching':
-      return { shadowIntensity: 0.7, borderOpacity: 0.6, accentIntensity: 1.1 };
+      // Curtain Call: teaching intensifies the terracotta accent a bit more
+      return { shadowIntensity: 0.7, borderOpacity: 0.6, accentIntensity: 1.15 };
     case 'prepping':
       return { accentIntensity: 1.05 };
     case 'done':
-      return { accentIntensity: 0.85, shadowIntensity: 0.6, borderOpacity: 0.7 };
+      // Softer post-teaching — feels like coming offstage
+      return { accentIntensity: 0.82, shadowIntensity: 0.55, borderOpacity: 0.7 };
     case 'off':
       return { shadowIntensity: 0.7, borderOpacity: 0.7 };
     default:
       return {};
   }
+}
+
+/**
+ * Return a Curtain Call time-band for a given hour + activity. The matching
+ * CSS radial gradient lives in curtainCall.css under `body[data-cc-time=...]`.
+ */
+export function getCurtainCallTimeBand(hour: number, activity: ActivityState): 'morning' | 'teaching' | 'evening' | 'late' {
+  if (activity === 'teaching') return 'teaching';
+  if (hour >= 22 || hour < 5) return 'late';
+  if (hour >= 19) return 'evening';
+  if (hour < 11) return 'morning';
+  return 'evening';
 }
 
 const MOOD_LAYER_KEY = 'figgg-mood-layer';
@@ -167,6 +181,12 @@ export function applyMoodLayer(
   root.style.setProperty('--mood-shadow-intensity', String(base.shadowIntensity));
   root.style.setProperty('--mood-border-opacity', String(base.borderOpacity));
   root.style.setProperty('--mood-ambient-glow', base.ambientGlow);
+
+  // Curtain Call time-band attribute on body — drives radial ambient glow
+  // in curtainCall.css. Activity takes precedence over clock hour.
+  if (typeof document !== 'undefined' && document.body) {
+    document.body.dataset.ccTime = getCurtainCallTimeBand(hour, activity);
+  }
 
   const today = new Date().toISOString().slice(0, 10);
   try {

@@ -17,6 +17,10 @@ const THEME_MIGRATIONS: Record<string, string> = {
   mono: 'noir',
 };
 
+const DEFAULT_THEME_ID = 'curtain-call';
+const DEFAULT_DARK_MODE = true;
+const DEFAULT_FONT_FAMILY = 'curtain-call';
+
 export function applyTheme(themeId: string, isDark: boolean = false): void {
   const resolvedId = THEME_MIGRATIONS[themeId] || themeId;
   const theme = getTheme(resolvedId);
@@ -71,7 +75,8 @@ export function clearAccentOverride(): void {
 // ── Font family overrides ──────────────────────────────────────
 
 export const FONT_FAMILIES: Record<string, { display: string; body: string; label: string }> = {
-  editorial: { display: "'Fraunces', Georgia, serif", body: "'Inter', system-ui, sans-serif", label: 'Editorial' },
+  'curtain-call': { display: "'Fraunces', Georgia, serif", body: "'Cabinet Grotesk', -apple-system, system-ui, sans-serif", label: 'Curtain Call' },
+  editorial: { display: "'Fraunces', Georgia, serif", body: "'Inter', system-ui, sans-serif", label: 'Editorial (legacy)' },
   modern: { display: "'Outfit', system-ui, sans-serif", body: "'Inter', system-ui, sans-serif", label: 'Modern' },
   classic: { display: "'Playfair Display', Georgia, serif", body: "'Lora', Georgia, serif", label: 'Classic' },
   clean: { display: "'Inter', system-ui, sans-serif", body: "'Inter', system-ui, sans-serif", label: 'Clean' },
@@ -88,7 +93,8 @@ export function applyFontFamily(id: string): void {
 
 export function applyVisualSettings(settings?: Partial<AppSettings>): void {
   const root = document.documentElement;
-  const darkMode = settings?.darkMode ?? false;
+  // Curtain Call is dark-first — default to dark when no user preference saved
+  const darkMode = settings?.darkMode ?? DEFAULT_DARK_MODE;
 
   switch (settings?.fontSize) {
     case 'large':
@@ -102,7 +108,7 @@ export function applyVisualSettings(settings?: Partial<AppSettings>): void {
   }
 
   root.classList.toggle('dark', darkMode);
-  applyTheme(settings?.themeId || 'stone', darkMode);
+  applyTheme(settings?.themeId || DEFAULT_THEME_ID, darkMode);
 
   if (settings?.customAccentColor) {
     applyAccentOverride(settings.customAccentColor);
@@ -110,6 +116,6 @@ export function applyVisualSettings(settings?: Partial<AppSettings>): void {
     clearAccentOverride();
   }
 
-  applyFontFamily(settings?.fontFamily || 'editorial');
+  applyFontFamily(settings?.fontFamily || DEFAULT_FONT_FAMILY);
   applyAppIcon(settings?.appIconId || 'ink-gold');
 }

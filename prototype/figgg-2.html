@@ -1,0 +1,2120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0F0C0A" />
+<title>Figgg 2.0 — Curtain Call</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,400,50,1;0,9..144,700,100,1;1,9..144,400&display=swap"
+  rel="stylesheet"
+/>
+<link
+  href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,600,700&display=swap"
+  rel="stylesheet"
+/>
+
+<style>
+  /* ================================================================
+     CURTAIN CALL — FIGGG 2.0 PROTOTYPE
+     ================================================================
+     Aesthetic direction: late-night theater program editorial.
+     Dark-first. Terracotta hero, dusty rose whisper, curtain gold rare.
+     Fraunces display + numerals + drop caps. Cabinet Grotesk body.
+     Grain overlay, hairline rules, staggered page reveals.
+     ============================================================= */
+
+  :root,
+  [data-theme="evening"] {
+    --surface-primary: #0F0C0A;
+    --surface-elevated: #1A1613;
+    --surface-card: #17130F;
+    --surface-inset: #211B16;
+    --surface-highlight: #2A2420;
+
+    --text-primary: #F4EEE4;
+    --text-secondary: #9A8F80;
+    --text-tertiary: #665C4F;
+
+    --accent-primary: #E07758;
+    --accent-primary-muted: rgba(224, 119, 88, 0.18);
+    --accent-secondary: #E8B4A0;
+    --accent-rare: #F4D35E;
+    --sage: #6B8F71;
+
+    --border-subtle: #2A2420;
+    --border-hairline: #3A332D;
+
+    --status-warning: #DCB543;
+    --status-danger: #B54D3E;
+
+    --grain-opacity: 0.035;
+    --grain-blend: overlay;
+
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-editorial: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  [data-theme="matinee"] {
+    --surface-primary: #F7F0E4;
+    --surface-elevated: #FFFCF5;
+    --surface-card: #FFFFFF;
+    --surface-inset: #EFE5D1;
+    --surface-highlight: #E8DCC1;
+
+    --text-primary: #141110;
+    --text-secondary: #6B5F51;
+    --text-tertiary: #A89E8F;
+
+    --accent-primary: #C8614B;
+    --accent-primary-muted: rgba(200, 97, 75, 0.12);
+    --accent-secondary: #D89E8B;
+    --accent-rare: #DCB543;
+    --sage: #6B8F71;
+
+    --border-subtle: #EDE3D0;
+    --border-hairline: #D9CEBA;
+
+    --status-warning: #B38922;
+    --status-danger: #9E3E31;
+
+    --grain-opacity: 0.025;
+    --grain-blend: multiply;
+  }
+
+  /* Mood/time-of-day ambient tint — added on top of theme */
+  [data-time="morning"] {
+    --ambient-tint: rgba(232, 180, 160, 0.03);
+  }
+  [data-time="teaching"] {
+    --ambient-tint: rgba(224, 119, 88, 0.06);
+  }
+  [data-time="evening"] {
+    --ambient-tint: rgba(224, 119, 88, 0.04);
+  }
+  [data-time="late"] {
+    --ambient-tint: rgba(104, 115, 140, 0.04);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--surface-primary);
+    color: var(--text-primary);
+    font-family: "Cabinet Grotesk", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body {
+    background-image: radial-gradient(circle at 30% -10%, var(--ambient-tint, transparent), transparent 60%);
+    transition: background-color 800ms var(--ease-editorial), color 800ms var(--ease-editorial);
+  }
+
+  /* ── Grain Overlay — ambient tactile warmth ── */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: var(--grain-opacity);
+    mix-blend-mode: var(--grain-blend);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.9 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+
+  /* ── Curtain rise on first load ── */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 10000;
+    pointer-events: none;
+    animation: curtain-rise 900ms var(--ease-editorial) 150ms forwards;
+  }
+  @keyframes curtain-rise {
+    0%   { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  /* ================================================================
+     APP SHELL — iPhone-width container centered on desktop
+     ============================================================= */
+  .app {
+    max-width: 440px;
+    margin: 0 auto;
+    min-height: 100vh;
+    position: relative;
+    padding-bottom: 88px;
+    background: var(--surface-primary);
+    box-shadow: 0 0 80px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+  @media (max-width: 440px) {
+    .app { box-shadow: none; }
+  }
+
+  /* ── Tab bar (bottom) ── */
+  .tab-bar {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 440px;
+    padding: 8px 4px calc(8px + env(safe-area-inset-bottom, 0));
+    background: color-mix(in oklab, var(--surface-elevated) 92%, transparent);
+    backdrop-filter: blur(24px) saturate(1.2);
+    -webkit-backdrop-filter: blur(24px) saturate(1.2);
+    border-top: 1px solid var(--border-subtle);
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0;
+    z-index: 100;
+  }
+  .tab-btn {
+    background: transparent;
+    border: 0;
+    color: var(--text-tertiary);
+    font-family: inherit;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 4px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transition: color 200ms var(--ease-editorial);
+    position: relative;
+  }
+  .tab-btn svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 1.6;
+  }
+  .tab-btn[aria-selected="true"] {
+    color: var(--accent-primary);
+  }
+  .tab-btn[aria-selected="true"]::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 28px;
+    height: 2px;
+    background: var(--accent-primary);
+    border-radius: 0 0 2px 2px;
+    box-shadow: 0 0 12px var(--accent-primary);
+  }
+
+  /* ── Screen ── */
+  .screen { display: none; }
+  .screen[data-active] { display: block; }
+
+  /* ================================================================
+     TYPOGRAPHY PRIMITIVES
+     ============================================================= */
+  .t-display {
+    font-family: "Fraunces", serif;
+    font-optical-sizing: auto;
+    font-variation-settings: "opsz" 144, "wght" 600, "SOFT" 50;
+    font-size: 44px;
+    line-height: 0.92;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+  }
+  .t-display--wonk {
+    font-variation-settings: "opsz" 144, "wght" 700, "SOFT" 100, "WONK" 1;
+  }
+  .t-h1 {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 48, "wght" 600;
+    font-size: 28px;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+  }
+  .t-h2 {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 28, "wght" 500;
+    font-size: 20px;
+    line-height: 1.15;
+  }
+  .t-body {
+    font-family: "Cabinet Grotesk", sans-serif;
+    font-size: 15px;
+    line-height: 1.45;
+    color: var(--text-primary);
+  }
+  .t-sub {
+    font-family: "Cabinet Grotesk", sans-serif;
+    font-size: 13.5px;
+    color: var(--text-secondary);
+  }
+  .t-caption {
+    font-family: "Cabinet Grotesk", sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+  .t-num {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 144, "wght" 500;
+    font-variant-numeric: tabular-nums oldstyle-nums;
+  }
+  .t-num--hero {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 144, "wght" 600, "SOFT" 100, "WONK" 1;
+    font-variant-numeric: tabular-nums oldstyle-nums;
+    font-size: 72px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--accent-primary);
+  }
+
+  /* Drop cap on day openers / section starts */
+  .drop-cap::first-letter {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 144, "wght" 700, "SOFT" 100, "WONK" 1;
+    float: left;
+    font-size: 56px;
+    line-height: 0.8;
+    padding: 6px 8px 0 0;
+    color: var(--accent-primary);
+  }
+
+  /* Hairline editorial rule */
+  .rule {
+    display: block;
+    height: 1px;
+    background: var(--border-hairline);
+    border: 0;
+    margin: 16px 0;
+  }
+
+  /* ================================================================
+     STAGGERED PAGE REVEALS
+     ============================================================= */
+  .stagger > * {
+    opacity: 0;
+    transform: translateY(8px);
+    animation: reveal 700ms var(--ease-editorial) forwards;
+  }
+  .stagger > *:nth-child(1)  { animation-delay: 120ms; }
+  .stagger > *:nth-child(2)  { animation-delay: 180ms; }
+  .stagger > *:nth-child(3)  { animation-delay: 240ms; }
+  .stagger > *:nth-child(4)  { animation-delay: 300ms; }
+  .stagger > *:nth-child(5)  { animation-delay: 360ms; }
+  .stagger > *:nth-child(6)  { animation-delay: 420ms; }
+  .stagger > *:nth-child(7)  { animation-delay: 480ms; }
+  .stagger > *:nth-child(8)  { animation-delay: 540ms; }
+  .stagger > *:nth-child(9)  { animation-delay: 600ms; }
+  .stagger > *:nth-child(10) { animation-delay: 660ms; }
+  @keyframes reveal {
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .stagger > * { animation: none; opacity: 1; transform: none; }
+    body::before { display: none; }
+  }
+
+  /* ================================================================
+     LAYOUT / CARDS
+     ============================================================= */
+  .pad { padding: 24px 22px 12px; }
+  .pad-tight { padding: 0 22px; }
+
+  .card {
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+    padding: 20px;
+    position: relative;
+  }
+  .card--raised {
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.02) inset,
+      0 16px 32px -24px rgba(0,0,0,0.6);
+  }
+
+  .row { display: flex; align-items: center; gap: 12px; }
+  .row-between { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .stack-sm { display: flex; flex-direction: column; gap: 6px; }
+  .stack-lg { display: flex; flex-direction: column; gap: 20px; }
+
+  /* ================================================================
+     HOME SCREEN
+     ============================================================= */
+
+  /* Greeting — asymmetric */
+  .greeting {
+    padding: 44px 22px 24px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 16px;
+  }
+  .greeting__eyebrow { margin-bottom: 6px; }
+  .greeting__name { color: var(--accent-primary); }
+  .greeting__sub {
+    margin-top: 10px;
+    color: var(--text-secondary);
+    font-style: italic;
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 18, "wght" 400;
+    font-size: 14.5px;
+  }
+
+  /* Meds Glance */
+  .meds-glance {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 20px;
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .meds-glance::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: linear-gradient(180deg, var(--accent-primary), transparent);
+    opacity: 0.9;
+  }
+  .meds-glance__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    box-shadow: 0 0 12px var(--accent-primary);
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.15); opacity: 0.7; }
+  }
+  .meds-glance__label { flex: 1; min-width: 0; }
+  .meds-glance__status {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 36, "wght" 600;
+    font-size: 22px;
+    line-height: 1;
+    color: var(--text-primary);
+  }
+  .meds-glance__meta {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+    font-variant-numeric: tabular-nums oldstyle-nums;
+  }
+  .meds-glance__cta {
+    background: var(--accent-primary);
+    color: #0F0C0A;
+    border: 0;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 10px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: transform 200ms var(--ease-spring), background 200ms;
+  }
+  .meds-glance__cta:hover { transform: scale(1.04); }
+  .meds-glance--logged {
+    opacity: 0.92;
+  }
+  .meds-glance--wiping .meds-glance__status {
+    animation: curtain-wipe 700ms var(--ease-editorial);
+  }
+  @keyframes curtain-wipe {
+    0%   { clip-path: inset(0 0 0 0); }
+    50%  { clip-path: inset(0 100% 0 0); }
+    50.1%{ clip-path: inset(0 0 0 100%); }
+    100% { clip-path: inset(0 0 0 0); }
+  }
+
+  /* Transitions widget — CAA + ProSeries */
+  .transitions {
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+  .transitions__row {
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 14px;
+    position: relative;
+  }
+  .transitions__row + .transitions__row {
+    border-top: 1px solid var(--border-subtle);
+  }
+  .transitions__label { min-width: 0; }
+  .transitions__num {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    color: var(--accent-primary);
+  }
+  .transitions__num .n {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 72, "wght" 600, "SOFT" 100, "WONK" 1;
+    font-variant-numeric: tabular-nums oldstyle-nums;
+    font-size: 44px;
+    line-height: 1;
+  }
+  .transitions__num .unit {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* Tamara Mark — two overlapping gold circles behind the CAA numeral */
+  .tamara-mark {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 40px;
+    height: 40px;
+    opacity: 0.28;
+    pointer-events: none;
+  }
+  .tamara-mark::before,
+  .tamara-mark::after {
+    content: "";
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1.5px solid var(--accent-rare);
+  }
+  .tamara-mark::before { top: 0; left: 0; }
+  .tamara-mark::after  { top: 9px; left: 14px; }
+
+  /* Teaching Now hero */
+  .teaching-now {
+    background: linear-gradient(180deg,
+      color-mix(in oklab, var(--surface-card) 100%, transparent),
+      color-mix(in oklab, var(--surface-card) 94%, transparent));
+    border: 1px solid var(--accent-primary-muted);
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 0 0 1px var(--accent-primary-muted) inset,
+                0 20px 40px -30px rgba(224, 119, 88, 0.4);
+    position: relative;
+    overflow: hidden;
+  }
+  .teaching-now::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: 3px;
+    background: var(--accent-primary);
+    animation: pulse-border 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse-border {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+  }
+  .pill-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent-primary);
+    color: #0F0C0A;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 999px;
+  }
+  .pill-live::before {
+    content: "";
+    width: 6px; height: 6px;
+    background: #0F0C0A;
+    border-radius: 50%;
+    animation: blink 1.2s ease-in-out infinite;
+  }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  /* Agenda */
+  .agenda__item {
+    display: grid;
+    grid-template-columns: 52px 1fr auto;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .agenda__item:last-child { border-bottom: 0; }
+  .agenda__time {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 24, "wght" 500;
+    font-variant-numeric: tabular-nums oldstyle-nums;
+    font-size: 15px;
+    color: var(--text-secondary);
+    padding-top: 2px;
+  }
+  .agenda__title {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 15px;
+  }
+  .agenda__meta {
+    font-size: 12.5px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+  }
+  .agenda__cta {
+    background: var(--accent-primary-muted);
+    color: var(--accent-primary);
+    border: 0;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    align-self: center;
+  }
+
+  /* Section header */
+  .section-h {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 28px 22px 10px;
+  }
+  .section-h__link {
+    font-size: 11px;
+    color: var(--accent-primary);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  /* Reminders */
+  .reminder {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+  }
+  .reminder__check {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid var(--text-tertiary);
+    flex-shrink: 0;
+  }
+  .reminder__check--done {
+    border-color: var(--sage);
+    background: var(--sage);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .reminder__check--done::after {
+    content: "";
+    width: 8px; height: 4px;
+    border-left: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transform: rotate(-45deg) translate(1px, -1px);
+  }
+  .reminder__text {
+    flex: 1;
+    font-size: 14px;
+    color: var(--text-primary);
+  }
+  .reminder__text--done { color: var(--text-tertiary); text-decoration: line-through; }
+
+  /* Next action */
+  .next-action {
+    margin: 16px 22px;
+    padding: 14px 18px;
+    background: var(--accent-primary);
+    color: #0F0C0A;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .next-action__eyebrow {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    opacity: 0.7;
+  }
+  .next-action__title { font-weight: 700; font-size: 15px; }
+  .next-action__cta {
+    margin-left: auto;
+    width: 34px; height: 34px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    border: 0;
+    color: #0F0C0A;
+    cursor: pointer;
+  }
+
+  /* ================================================================
+     MEDS HUB
+     ============================================================= */
+
+  .hub-head {
+    padding: 44px 22px 8px;
+  }
+
+  .meds-now {
+    margin: 0 22px;
+    padding: 28px 24px;
+    background: radial-gradient(circle at 50% 20%,
+      color-mix(in oklab, var(--accent-primary) 8%, var(--surface-card)),
+      var(--surface-card) 80%);
+    border: 1px solid var(--border-subtle);
+    border-radius: 24px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .meds-now__eyebrow { margin-bottom: 12px; }
+  .meds-now__status {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 144, "wght" 600, "SOFT" 100, "WONK" 1;
+    font-size: 52px;
+    line-height: 1;
+    color: var(--accent-primary);
+    margin-bottom: 10px;
+    letter-spacing: -0.02em;
+  }
+  .meds-now__sub {
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 16, "wght" 400;
+    font-style: italic;
+  }
+  .meds-now__meta {
+    margin-top: 16px;
+    font-variant-numeric: tabular-nums oldstyle-nums;
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 36, "wght" 500;
+    font-size: 32px;
+    color: var(--text-primary);
+  }
+  .meds-now__meta-unit {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-left: 4px;
+  }
+  .meds-now__actions {
+    margin-top: 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  .meds-btn {
+    padding: 12px 8px;
+    background: var(--surface-elevated);
+    border: 1px solid var(--border-hairline);
+    color: var(--text-primary);
+    border-radius: 14px;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 200ms var(--ease-editorial);
+  }
+  .meds-btn:hover {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+  }
+  .meds-btn--primary {
+    background: var(--accent-primary);
+    color: #0F0C0A;
+    border-color: var(--accent-primary);
+  }
+  .meds-btn--primary:hover { color: #0F0C0A; }
+
+  /* Projected timeline SVG */
+  .timeline {
+    margin: 24px 22px 0;
+    padding: 20px;
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+  }
+  .timeline__title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .timeline__svg {
+    width: 100%;
+    height: 120px;
+    display: block;
+  }
+  .timeline__legend {
+    display: flex;
+    gap: 14px;
+    margin-top: 12px;
+    font-size: 11px;
+    color: var(--text-tertiary);
+    letter-spacing: 0.06em;
+  }
+  .timeline__dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+
+  /* Dose log */
+  .dose-list { margin: 24px 22px 0; }
+  .dose {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border-subtle);
+    align-items: center;
+  }
+  .dose:last-child { border: 0; }
+  .dose__num {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 48, "wght" 600;
+    font-size: 24px;
+    color: var(--text-tertiary);
+    width: 28px;
+    text-align: center;
+  }
+  .dose--active .dose__num { color: var(--accent-primary); }
+  .dose__label { font-weight: 600; }
+  .dose__meta { font-size: 12.5px; color: var(--text-secondary); }
+  .dose__time {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 24, "wght" 500;
+    font-variant-numeric: tabular-nums oldstyle-nums;
+    font-size: 15px;
+    color: var(--text-secondary);
+  }
+
+  /* History grid */
+  .history {
+    margin: 24px 22px 0;
+    padding: 20px;
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+  }
+  .history__title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .history__grid {
+    display: grid;
+    grid-template-columns: 28px repeat(7, 1fr);
+    gap: 6px;
+    font-size: 10px;
+  }
+  .history__day-label { color: var(--text-tertiary); padding: 6px 0; text-align: center; letter-spacing: 0.04em; }
+  .history__slot-label {
+    color: var(--text-tertiary);
+    padding: 8px 0;
+    text-align: right;
+    padding-right: 4px;
+    font-variant-numeric: tabular-nums oldstyle-nums;
+  }
+  .history__slot {
+    height: 32px;
+    border-radius: 6px;
+    background: var(--surface-inset);
+    position: relative;
+  }
+  .history__slot--logged { background: var(--accent-primary); opacity: 0.85; }
+  .history__slot--late { background: var(--status-warning); opacity: 0.7; }
+  .history__slot--skip { background: var(--surface-inset); border: 1px dashed var(--border-hairline); }
+
+  /* Patterns */
+  .patterns {
+    margin: 24px 22px 0;
+    padding: 20px;
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+  }
+  .patterns__title { margin-bottom: 14px; }
+  .pattern {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .pattern:last-child { border: 0; }
+  .pattern__label { font-size: 14px; color: var(--text-secondary); }
+  .pattern__value {
+    font-family: "Fraunces", serif;
+    font-variant-numeric: tabular-nums oldstyle-nums;
+    font-variation-settings: "opsz" 24, "wght" 500;
+    font-size: 16px;
+    color: var(--text-primary);
+  }
+  .pattern__value--warn { color: var(--status-warning); }
+
+  /* ================================================================
+     NOTES HUB
+     ============================================================= */
+
+  .notes-search {
+    margin: 0 22px 0;
+    padding: 14px 16px;
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .notes-search input {
+    flex: 1;
+    background: transparent;
+    border: 0;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 15px;
+    outline: none;
+  }
+  .notes-search input::placeholder {
+    color: var(--text-tertiary);
+    font-style: italic;
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 18, "wght" 400;
+  }
+  .notes-search svg { color: var(--text-tertiary); flex-shrink: 0; }
+
+  .notes-tabs {
+    display: flex;
+    gap: 8px;
+    padding: 14px 22px 0;
+    overflow-x: auto;
+  }
+  .chip {
+    background: transparent;
+    border: 1px solid var(--border-hairline);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    padding: 7px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 200ms var(--ease-editorial);
+  }
+  .chip--active {
+    background: var(--accent-primary);
+    color: #0F0C0A;
+    border-color: var(--accent-primary);
+  }
+
+  .filters {
+    padding: 12px 22px 0;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+  }
+  .filter {
+    background: var(--surface-inset);
+    border: 0;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .filter--on { background: var(--accent-primary-muted); color: var(--accent-primary); }
+
+  .day-group {
+    padding: 22px 22px 0;
+  }
+  .day-group__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .day-group__date {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 36, "wght" 500, "SOFT" 50, "WONK" 1;
+    font-size: 22px;
+    line-height: 1;
+    color: var(--text-primary);
+  }
+  .day-group__weekday {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
+  .note-item {
+    padding: 12px 0;
+    border-top: 1px solid var(--border-subtle);
+  }
+  .note-item:first-child { border-top: 0; }
+  .note-item__head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .note-item__source {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent-primary);
+  }
+  .note-item__cat {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  .note-item__cat--worked { background: rgba(107, 143, 113, 0.18); color: var(--sage); }
+  .note-item__cat--needs { background: rgba(220, 181, 67, 0.14); color: var(--status-warning); }
+  .note-item__cat--next { background: var(--accent-primary-muted); color: var(--accent-primary); }
+  .note-item__cat--idea { background: rgba(232, 180, 160, 0.12); color: var(--accent-secondary); }
+  .note-item__time {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums oldstyle-nums;
+  }
+  .note-item__text {
+    font-size: 14.5px;
+    line-height: 1.5;
+    color: var(--text-primary);
+  }
+  .note-item__text mark {
+    background: color-mix(in oklab, var(--accent-rare) 35%, transparent);
+    color: var(--text-primary);
+    padding: 0 2px;
+    border-radius: 2px;
+  }
+
+  /* ================================================================
+     NOTES CAPTURE
+     ============================================================= */
+
+  .capture-head {
+    padding: 28px 22px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--surface-primary);
+  }
+  .capture-head__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 0;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    margin-bottom: 10px;
+    padding: 4px 0;
+  }
+  .capture-head__title {
+    font-family: "Fraunces", serif;
+    font-variation-settings: "opsz" 48, "wght" 600;
+    font-size: 26px;
+    line-height: 1.1;
+  }
+  .capture-head__meta {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+
+  .ai-bar {
+    margin: 0 22px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .ai-btn {
+    padding: 14px 12px;
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    border-radius: 16px;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 200ms var(--ease-editorial);
+  }
+  .ai-btn:hover {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+  }
+  .ai-btn__icon {
+    width: 32px; height: 32px;
+    border-radius: 10px;
+    background: var(--accent-primary-muted);
+    color: var(--accent-primary);
+    display: grid; place-items: center;
+    flex-shrink: 0;
+  }
+
+  .capture-note {
+    margin: 16px 22px 0;
+    padding: 16px 18px;
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 16px;
+  }
+  .capture-note__head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .capture-note__text {
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .capture-input {
+    position: sticky;
+    bottom: 0;
+    background: var(--surface-primary);
+    padding: 14px 22px calc(14px + env(safe-area-inset-bottom, 0));
+    border-top: 1px solid var(--border-subtle);
+    margin-top: 24px;
+  }
+  .capture-input__tags {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+    overflow-x: auto;
+  }
+  .capture-input__box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    padding: 10px 12px;
+  }
+  .capture-input__box input {
+    flex: 1;
+    background: transparent;
+    border: 0;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 15px;
+    outline: none;
+  }
+  .capture-input__send {
+    background: var(--accent-primary);
+    color: #0F0C0A;
+    border: 0;
+    width: 34px; height: 34px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: grid; place-items: center;
+  }
+
+  /* ================================================================
+     WELLNESS
+     ============================================================= */
+
+  .wellness-head { padding: 44px 22px 16px; }
+
+  .sub-tabs {
+    display: flex;
+    gap: 8px;
+    padding: 0 22px;
+    overflow-x: auto;
+  }
+
+  .wellness-card {
+    margin: 16px 22px 0;
+    padding: 20px;
+    background: var(--surface-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+  }
+  .mode-switch {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin: 16px 22px 0;
+  }
+  .mode-btn {
+    padding: 12px 8px;
+    border-radius: 14px;
+    border: 1px solid var(--border-subtle);
+    background: var(--surface-card);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .mode-btn--ok.active { background: var(--sage); color: #0F0C0A; border-color: var(--sage); }
+  .mode-btn--rough.active { background: var(--status-warning); color: #0F0C0A; border-color: var(--status-warning); }
+  .mode-btn--survival.active { background: var(--status-danger); color: #F4EEE4; border-color: var(--status-danger); }
+
+  /* Grief ambient layer — subtle warm tint override when grief tab is active */
+  [data-wellness-sub="grief"] .wellness-screen {
+    background:
+      radial-gradient(circle at 50% 0%,
+        rgba(232, 180, 160, 0.06),
+        transparent 60%);
+  }
+
+  .checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+  }
+  .checklist-item + .checklist-item { border-top: 1px solid var(--border-subtle); }
+  .check-box {
+    width: 22px; height: 22px;
+    border: 1.5px solid var(--text-tertiary);
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .check-box--done {
+    background: var(--sage);
+    border-color: var(--sage);
+    display: grid; place-items: center;
+  }
+  .check-box--done::after {
+    content: "";
+    width: 10px; height: 5px;
+    border-left: 2px solid #0F0C0A;
+    border-bottom: 2px solid #0F0C0A;
+    transform: rotate(-45deg) translateY(-1px);
+  }
+
+  /* ================================================================
+     MORE
+     ============================================================= */
+
+  .more-head { padding: 44px 22px 8px; }
+  .more-section { padding: 22px 22px 0; }
+  .more-section__title { margin-bottom: 10px; }
+  .more-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border-subtle);
+    cursor: pointer;
+  }
+  .more-row:last-child { border: 0; }
+  .more-row__icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+  }
+  .more-row__label { flex: 1; font-weight: 500; }
+  .more-row__chev { color: var(--text-tertiary); }
+
+  /* ================================================================
+     DEV CONTROLS — floating, top-right
+     ============================================================= */
+  .dev {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-end;
+  }
+  .dev-row { display: flex; gap: 4px; }
+  .dev-btn {
+    background: color-mix(in oklab, var(--surface-elevated) 85%, transparent);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border-hairline);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 5px 9px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .dev-btn[aria-selected="true"] {
+    background: var(--accent-primary);
+    color: #0F0C0A;
+    border-color: var(--accent-primary);
+  }
+  .dev-label {
+    font-size: 9px;
+    color: var(--text-tertiary);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding-right: 2px;
+  }
+
+  /* ================================================================
+     UTIL
+     ============================================================= */
+  .inline-gold {
+    color: var(--accent-rare);
+  }
+  .muted { color: var(--text-secondary); }
+  .icon {
+    width: 18px; height: 18px;
+    stroke-width: 1.7;
+    stroke: currentColor;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0);
+    white-space: nowrap; border: 0;
+  }
+
+  /* Scrollbar subtle */
+  ::-webkit-scrollbar { width: 0; }
+</style>
+</head>
+<body data-theme="evening" data-time="morning">
+
+<!-- ================================================================
+     DEV CONTROLS
+     ============================================================= -->
+<div class="dev">
+  <div class="dev-label">Time</div>
+  <div class="dev-row">
+    <button class="dev-btn" data-time-btn="morning" aria-selected="true">Morning</button>
+    <button class="dev-btn" data-time-btn="teaching">Teaching</button>
+    <button class="dev-btn" data-time-btn="evening">Evening</button>
+    <button class="dev-btn" data-time-btn="late">Late</button>
+  </div>
+  <div class="dev-label" style="margin-top: 4px;">Theme</div>
+  <div class="dev-row">
+    <button class="dev-btn" data-theme-btn="evening" aria-selected="true">Evening Show</button>
+    <button class="dev-btn" data-theme-btn="matinee">Matinee</button>
+  </div>
+</div>
+
+<!-- ================================================================
+     APP
+     ============================================================= -->
+<div class="app" id="app">
+
+  <!-- ─────────────────── HOME ─────────────────── -->
+  <section class="screen" data-screen="home" data-active>
+    <div class="stagger">
+      <header class="greeting">
+        <div>
+          <p class="t-caption greeting__eyebrow">Good morning, <span class="greeting__name">Dixon</span></p>
+          <h1 class="t-display t-display--wonk">Sunday, <span style="color: var(--accent-primary);">April 19</span></h1>
+          <p class="greeting__sub">Three classes left today. Meds not taken yet.</p>
+        </div>
+      </header>
+
+      <div class="pad-tight">
+        <div class="meds-glance" id="medsGlance">
+          <div class="meds-glance__dot" id="medsDot"></div>
+          <div class="meds-glance__label">
+            <div class="meds-glance__status" id="medsStatus">Not taken</div>
+            <div class="meds-glance__meta" id="medsMeta">No dose logged yet</div>
+          </div>
+          <button class="meds-glance__cta" onclick="logDose()">Log</button>
+        </div>
+      </div>
+
+      <div class="pad-tight" style="margin-top: 12px;">
+        <div class="transitions">
+          <div class="transitions__row">
+            <div class="transitions__label">
+              <div class="t-caption">CAA</div>
+              <div style="font-weight: 600; margin-top: 4px;">The long goodbye.</div>
+              <div class="t-sub" style="margin-top: 2px;">43 days on the clock</div>
+            </div>
+            <div class="transitions__num">
+              <span class="n">43</span>
+              <span class="unit">days</span>
+            </div>
+          </div>
+          <div class="transitions__row">
+            <div class="transitions__label">
+              <div class="t-caption">ProSeries</div>
+              <div style="font-weight: 600; margin-top: 4px;">Audition registration opens</div>
+              <div class="t-sub" style="margin-top: 2px;">Fri, May 1</div>
+            </div>
+            <div class="transitions__num">
+              <span class="n">12</span>
+              <span class="unit">days</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-h">
+        <h2 class="t-caption">Today</h2>
+        <a class="section-h__link" href="#">See all</a>
+      </div>
+
+      <div class="pad-tight">
+        <div class="teaching-now">
+          <div class="row-between" style="margin-bottom: 12px;">
+            <span class="pill-live">Up next</span>
+            <div style="text-align: right;">
+              <div class="t-num" style="font-size: 18px; color: var(--accent-primary);">11:00</div>
+            </div>
+          </div>
+          <h3 class="t-h1" style="margin-bottom: 10px;">Advanced Contemporary</h3>
+          <div class="row muted" style="font-size: 13px; gap: 14px; margin-bottom: 14px;">
+            <span class="row" style="gap: 4px;">
+              <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+              11:00 – 12:15
+            </span>
+            <span class="row" style="gap: 4px;">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              CAA Studio B
+            </span>
+            <span class="row" style="gap: 4px;">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+              14
+            </span>
+          </div>
+          <button class="meds-btn meds-btn--primary" style="width: 100%;">Open Class Notes</button>
+        </div>
+      </div>
+
+      <div class="pad-tight" style="margin-top: 12px;">
+        <div class="card">
+          <div class="agenda__item">
+            <div class="agenda__time">13:30</div>
+            <div>
+              <div class="agenda__title">Int. Jazz II</div>
+              <div class="agenda__meta">CAA · Studio A · 12 dancers</div>
+            </div>
+            <button class="agenda__cta">Plan</button>
+          </div>
+          <div class="agenda__item">
+            <div class="agenda__time">15:00</div>
+            <div>
+              <div class="agenda__title">Pre-Pro Composition</div>
+              <div class="agenda__meta">CAA · Studio C · 8 dancers</div>
+            </div>
+            <button class="agenda__cta">Plan</button>
+          </div>
+          <div class="agenda__item">
+            <div class="agenda__time">19:00</div>
+            <div>
+              <div class="agenda__title">ProSeries space tour</div>
+              <div class="agenda__meta">3-room studio · with Aleaha</div>
+            </div>
+            <button class="agenda__cta">Open</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-h">
+        <h2 class="t-caption">Reminders</h2>
+        <a class="section-h__link" href="#">All tasks</a>
+      </div>
+
+      <div class="pad-tight stack-sm">
+        <div class="reminder">
+          <div class="reminder__check"></div>
+          <div class="reminder__text">File LLC annual report (sunbiz.org)</div>
+        </div>
+        <div class="reminder">
+          <div class="reminder__check"></div>
+          <div class="reminder__text">Confirm Malik's rotation schedule</div>
+        </div>
+        <div class="reminder">
+          <div class="reminder__check reminder__check--done"></div>
+          <div class="reminder__text reminder__text--done">Post DWDPS campaign Day 12</div>
+        </div>
+      </div>
+
+      <div class="next-action">
+        <div>
+          <div class="next-action__eyebrow">Next up</div>
+          <div class="next-action__title">Review yesterday's class notes</div>
+        </div>
+        <button class="next-action__cta" aria-label="Complete">
+          <svg class="icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── MEDS ─────────────────── -->
+  <section class="screen" data-screen="meds">
+    <div class="stagger">
+      <header class="hub-head">
+        <p class="t-caption">The med tab</p>
+        <h1 class="t-display">Meds</h1>
+      </header>
+
+      <div class="meds-now">
+        <p class="t-caption meds-now__eyebrow">Right now</p>
+        <div class="meds-now__status">Peak</div>
+        <div class="meds-now__sub">Focused window. Ride it.</div>
+        <div class="meds-now__meta">
+          <span>1:42</span>
+          <span class="meds-now__meta-unit">since dose 1</span>
+        </div>
+        <div class="meds-now__actions">
+          <button class="meds-btn" onclick="logDose()">Log D2</button>
+          <button class="meds-btn">Skip</button>
+          <button class="meds-btn">Edit</button>
+        </div>
+      </div>
+
+      <div class="timeline">
+        <div class="timeline__title">
+          <h3 class="t-caption">Next 6 hours</h3>
+          <span class="t-sub">3 classes ahead</span>
+        </div>
+        <svg class="timeline__svg" viewBox="0 0 400 120" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="tlGrad" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stop-color="#E07758" stop-opacity="0.35"/>
+              <stop offset="100%" stop-color="#E07758" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <!-- Status curve: peak → tapering → wearing off → needs D2 rise -->
+          <path d="M0,40 C60,30 100,28 140,36 C180,44 210,60 240,78 C260,90 280,95 300,90 C320,85 340,60 400,40"
+                stroke="#E07758" stroke-width="2" fill="none"/>
+          <path d="M0,40 C60,30 100,28 140,36 C180,44 210,60 240,78 C260,90 280,95 300,90 C320,85 340,60 400,40 L400,120 L0,120 Z"
+                fill="url(#tlGrad)"/>
+          <!-- Class markers -->
+          <line x1="72"  y1="0" x2="72"  y2="120" stroke="#3A332D" stroke-dasharray="2 4"/>
+          <line x1="186" y1="0" x2="186" y2="120" stroke="#3A332D" stroke-dasharray="2 4"/>
+          <line x1="268" y1="0" x2="268" y2="120" stroke="#3A332D" stroke-dasharray="2 4"/>
+          <circle cx="72"  cy="33" r="3" fill="#F4EEE4"/>
+          <circle cx="186" cy="50" r="3" fill="#F4EEE4"/>
+          <circle cx="268" cy="85" r="3" fill="#DCB543"/>
+          <text x="72"  y="113" font-size="9" font-family="Cabinet Grotesk" fill="#9A8F80" text-anchor="middle">11a</text>
+          <text x="186" y="113" font-size="9" font-family="Cabinet Grotesk" fill="#9A8F80" text-anchor="middle">1:30</text>
+          <text x="268" y="113" font-size="9" font-family="Cabinet Grotesk" fill="#DCB543" text-anchor="middle">3p ⚠</text>
+        </svg>
+        <div class="timeline__legend">
+          <span><span class="timeline__dot" style="background: var(--accent-primary);"></span>Status</span>
+          <span><span class="timeline__dot" style="background: var(--text-primary);"></span>Class</span>
+          <span><span class="timeline__dot" style="background: var(--status-warning);"></span>Collision</span>
+        </div>
+      </div>
+
+      <div class="card" style="margin: 24px 22px 0;">
+        <h3 class="t-caption" style="margin-bottom: 10px;">Today's doses</h3>
+        <div class="dose-list" style="margin: 0;">
+          <div class="dose dose--active">
+            <div class="dose__num">1</div>
+            <div>
+              <div class="dose__label">Dose 1</div>
+              <div class="dose__meta">IR · logged 9:18 AM</div>
+            </div>
+            <div class="dose__time">9:18</div>
+          </div>
+          <div class="dose">
+            <div class="dose__num">2</div>
+            <div>
+              <div class="dose__label">Dose 2</div>
+              <div class="dose__meta">Window opens 1:18 PM</div>
+            </div>
+            <div class="dose__time muted">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="history">
+        <div class="history__title">
+          <h3 class="t-caption">Last 7 days</h3>
+          <span class="t-sub">Dose times</span>
+        </div>
+        <div class="history__grid">
+          <div></div>
+          <div class="history__day-label">Mon</div>
+          <div class="history__day-label">Tue</div>
+          <div class="history__day-label">Wed</div>
+          <div class="history__day-label">Thu</div>
+          <div class="history__day-label">Fri</div>
+          <div class="history__day-label">Sat</div>
+          <div class="history__day-label">Sun</div>
+
+          <div class="history__slot-label">D1</div>
+          <div class="history__slot history__slot--logged" title="8:42"></div>
+          <div class="history__slot history__slot--logged" title="8:30"></div>
+          <div class="history__slot history__slot--logged" title="9:15"></div>
+          <div class="history__slot history__slot--late" title="10:04"></div>
+          <div class="history__slot history__slot--logged" title="8:55"></div>
+          <div class="history__slot history__slot--skip" title="skipped"></div>
+          <div class="history__slot history__slot--logged" title="9:18"></div>
+
+          <div class="history__slot-label">D2</div>
+          <div class="history__slot history__slot--logged"></div>
+          <div class="history__slot history__slot--logged"></div>
+          <div class="history__slot history__slot--logged"></div>
+          <div class="history__slot history__slot--late"></div>
+          <div class="history__slot history__slot--logged"></div>
+          <div class="history__slot history__slot--skip"></div>
+          <div class="history__slot" style="opacity: 0.3;"></div>
+        </div>
+      </div>
+
+      <div class="patterns">
+        <h3 class="patterns__title t-caption">Patterns</h3>
+        <div class="pattern">
+          <span class="pattern__label">Dose 1 avg this week</span>
+          <span class="pattern__value">9:06</span>
+        </div>
+        <div class="pattern">
+          <span class="pattern__label">Drift vs last week</span>
+          <span class="pattern__value pattern__value--warn">+18 min later</span>
+        </div>
+        <div class="pattern">
+          <span class="pattern__label">Skipped days</span>
+          <span class="pattern__value">1 of 7</span>
+        </div>
+        <div class="pattern">
+          <span class="pattern__label">Avg wake → dose 1</span>
+          <span class="pattern__value">42 min</span>
+        </div>
+      </div>
+
+      <div style="padding: 24px 22px 8px;"><hr class="rule"/></div>
+
+      <details class="card" style="margin: 0 22px 0;">
+        <summary style="cursor: pointer; font-weight: 600; padding: 4px 0;">Schedule config</summary>
+        <div style="padding-top: 14px; color: var(--text-secondary); font-size: 14px;">
+          IR · 2 doses max · dose 2 window 4–7h after dose 1 · peak 3h · duration 5h.
+          <a href="#" style="color: var(--accent-primary); text-decoration: none; margin-left: 4px;">Edit inline</a>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ─────────────────── NOTES HUB ─────────────────── -->
+  <section class="screen" data-screen="notes">
+    <div class="stagger">
+      <header class="hub-head">
+        <p class="t-caption">Across every class, every event</p>
+        <h1 class="t-display">Notes</h1>
+      </header>
+
+      <div class="notes-search">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="search" placeholder="Search every note you've ever taken…" id="notesSearch"/>
+      </div>
+
+      <div class="notes-tabs">
+        <button class="chip chip--active">Timeline</button>
+        <button class="chip">By class</button>
+        <button class="chip">Media</button>
+      </div>
+
+      <div class="filters">
+        <button class="filter filter--on">All</button>
+        <button class="filter">Worked</button>
+        <button class="filter">Needs</button>
+        <button class="filter">Next week</button>
+        <button class="filter">Ideas</button>
+      </div>
+
+      <div class="day-group">
+        <div class="day-group__head">
+          <div class="day-group__date">Sat · Apr 18</div>
+          <div class="day-group__weekday">Yesterday · 6 notes</div>
+        </div>
+        <div class="note-item">
+          <div class="note-item__head">
+            <span class="note-item__source">Advanced Contemporary</span>
+            <span class="note-item__cat note-item__cat--needs">needs work</span>
+            <span class="note-item__time">11:42a</span>
+          </div>
+          <div class="note-item__text">Group 3 still losing the <mark>count</mark> at the bridge. Maybe split them off and drill in half-tempo next week.</div>
+        </div>
+        <div class="note-item">
+          <div class="note-item__head">
+            <span class="note-item__source">Advanced Contemporary</span>
+            <span class="note-item__cat note-item__cat--idea">idea</span>
+            <span class="note-item__time">11:58a</span>
+          </div>
+          <div class="note-item__text">What if the closing phrase goes unison instead of canon? Feels more grounded.</div>
+        </div>
+        <div class="note-item">
+          <div class="note-item__head">
+            <span class="note-item__source">Int. Jazz II</span>
+            <span class="note-item__cat note-item__cat--worked">worked</span>
+            <span class="note-item__time">1:47p</span>
+          </div>
+          <div class="note-item__text">Leaps finally landing. Kamora absolutely ate.</div>
+        </div>
+        <div class="note-item">
+          <div class="note-item__head">
+            <span class="note-item__source">Pre-Pro Composition</span>
+            <span class="note-item__cat note-item__cat--next">next week</span>
+            <span class="note-item__time">3:12p</span>
+          </div>
+          <div class="note-item__text">Bring in the Jonsi track. Try building from silence.</div>
+        </div>
+      </div>
+
+      <div class="day-group">
+        <div class="day-group__head">
+          <div class="day-group__date">Fri · Apr 17</div>
+          <div class="day-group__weekday">3 notes</div>
+        </div>
+        <div class="note-item">
+          <div class="note-item__head">
+            <span class="note-item__source">ProSeries space tour</span>
+            <span class="note-item__cat note-item__cat--idea">idea</span>
+            <span class="note-item__time">6:04p</span>
+          </div>
+          <div class="note-item__text">3-room studio has that mirror wall — would be perfect for Pro Rotation block. Ask Tony about Thursday availability.</div>
+        </div>
+        <div class="note-item">
+          <div class="note-item__head">
+            <span class="note-item__source">Advanced Contemporary</span>
+            <span class="note-item__cat note-item__cat--worked">worked</span>
+            <span class="note-item__time">11:20a</span>
+          </div>
+          <div class="note-item__text">Whole second section clean for the first time. Worth recording.</div>
+        </div>
+      </div>
+
+      <div class="day-group" style="padding-bottom: 24px;">
+        <div class="day-group__head">
+          <div class="day-group__date">Thu · Apr 16</div>
+          <div class="day-group__weekday">4 notes</div>
+        </div>
+        <div class="note-item">
+          <div class="note-item__head">
+            <span class="note-item__source">Int. Jazz II</span>
+            <span class="note-item__cat note-item__cat--needs">needs work</span>
+            <span class="note-item__time">1:30p</span>
+          </div>
+          <div class="note-item__text">Formation change at <mark>count</mark> 32 still sloppy. Mark it on the floor next time.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── NOTES CAPTURE ─────────────────── -->
+  <section class="screen" data-screen="capture">
+    <header class="capture-head">
+      <button class="capture-head__back" onclick="showScreen('notes')">
+        <svg class="icon" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        Notes
+      </button>
+      <h1 class="capture-head__title">Advanced Contemporary</h1>
+      <p class="capture-head__meta">Sunday · 11:00 – 12:15 · CAA Studio B · 14 dancers</p>
+    </header>
+
+    <div class="ai-bar">
+      <button class="ai-btn">
+        <span class="ai-btn__icon">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12 2l2 7 7 2-7 2-2 7-2-7-7-2 7-2z"/></svg>
+        </span>
+        Expand Notes
+      </button>
+      <button class="ai-btn">
+        <span class="ai-btn__icon">
+          <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </span>
+        Generate Plan
+      </button>
+    </div>
+
+    <div class="capture-note">
+      <div class="capture-note__head">
+        <span class="note-item__cat note-item__cat--worked">worked</span>
+        <span class="note-item__time" style="margin-left: auto;">11:04a</span>
+      </div>
+      <div class="capture-note__text">Opening phrase clean first try. Whole group breathing together.</div>
+    </div>
+
+    <div class="capture-note">
+      <div class="capture-note__head">
+        <span class="note-item__cat note-item__cat--needs">needs work</span>
+        <span class="note-item__time" style="margin-left: auto;">11:22a</span>
+      </div>
+      <div class="capture-note__text">Tempo drops in the second 8-count. Count it out next pass.</div>
+    </div>
+
+    <div class="capture-note">
+      <div class="capture-note__head">
+        <span class="note-item__cat note-item__cat--idea">idea</span>
+        <span class="note-item__time" style="margin-left: auto;">11:41a</span>
+      </div>
+      <div class="capture-note__text">Could cut the lift and let the moment breathe — feels crowded.</div>
+    </div>
+
+    <div class="capture-input">
+      <div class="capture-input__tags">
+        <button class="chip chip--active">worked</button>
+        <button class="chip">needs</button>
+        <button class="chip">next week</button>
+        <button class="chip">idea</button>
+      </div>
+      <div class="capture-input__box">
+        <input type="text" placeholder="Note for this class…"/>
+        <button class="capture-input__send" aria-label="Save">
+          <svg class="icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── WELLNESS ─────────────────── -->
+  <section class="screen" data-screen="wellness">
+    <div class="stagger">
+      <header class="wellness-head">
+        <p class="t-caption">Sunday, April 19</p>
+        <h1 class="t-display">Wellness</h1>
+      </header>
+
+      <div class="sub-tabs">
+        <button class="chip chip--active">Check-in</button>
+        <button class="chip">Therapy</button>
+        <button class="chip">Journal</button>
+        <button class="chip">Breathing</button>
+        <button class="chip" onclick="setWellnessGrief()">Grief</button>
+      </div>
+
+      <div class="mode-switch">
+        <button class="mode-btn mode-btn--ok active">I'm okay</button>
+        <button class="mode-btn mode-btn--rough">Rough day</button>
+        <button class="mode-btn mode-btn--survival">Survival</button>
+      </div>
+
+      <div class="wellness-card">
+        <h3 class="t-caption" style="margin-bottom: 12px;">Today's checklist</h3>
+        <div class="checklist-item">
+          <div class="check-box check-box--done"></div>
+          <div style="flex: 1;">Water before coffee</div>
+        </div>
+        <div class="checklist-item">
+          <div class="check-box check-box--done"></div>
+          <div style="flex: 1;">Take meds</div>
+        </div>
+        <div class="checklist-item">
+          <div class="check-box"></div>
+          <div style="flex: 1;">Move body (not teaching)</div>
+        </div>
+        <div class="checklist-item">
+          <div class="check-box"></div>
+          <div style="flex: 1;">10 min sit with grief</div>
+        </div>
+        <div class="checklist-item">
+          <div class="check-box"></div>
+          <div style="flex: 1;">Text Dad</div>
+        </div>
+      </div>
+
+      <div class="wellness-card">
+        <h3 class="t-caption" style="margin-bottom: 10px;">Therapy</h3>
+        <p class="t-body" style="color: var(--text-secondary);">Brian Mandel · next session Wed 4 PM.</p>
+        <div style="margin-top: 14px;">
+          <button class="meds-btn" style="width: 100%;">Prep notes</button>
+        </div>
+      </div>
+
+      <div class="wellness-card">
+        <p class="t-caption" style="margin-bottom: 10px;">Fix it later</p>
+        <div class="t-sub" style="color: var(--text-tertiary);">App thing bothering you? Dump it here.</div>
+        <div style="margin-top: 10px; display: flex; gap: 8px;">
+          <input type="text" placeholder="e.g. The calendar reloads weirdly" style="flex: 1; background: var(--surface-inset); border: 1px solid var(--border-subtle); color: var(--text-primary); padding: 8px 12px; border-radius: 10px; font-family: inherit; font-size: 13px;"/>
+          <button class="meds-btn meds-btn--primary">+</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── MORE ─────────────────── -->
+  <section class="screen" data-screen="more">
+    <div class="stagger">
+      <header class="more-head">
+        <p class="t-caption">Everything else</p>
+        <h1 class="t-display">More</h1>
+      </header>
+
+      <div class="more-section">
+        <h3 class="t-caption more-section__title">Tasks</h3>
+        <div class="more-row">
+          <div class="more-row__icon" style="background: var(--accent-primary-muted); color: var(--accent-primary);">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          </div>
+          <div class="more-row__label">Tasks & Reminders</div>
+          <svg class="icon more-row__chev" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <div class="more-section">
+        <h3 class="t-caption more-section__title">Schedule & Planning</h3>
+        <div class="more-row">
+          <div class="more-row__icon" style="background: rgba(107, 143, 113, 0.14); color: var(--sage);">
+            <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <div class="more-row__label">Schedule</div>
+          <svg class="icon more-row__chev" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="more-row">
+          <div class="more-row__icon" style="background: rgba(232, 180, 160, 0.14); color: var(--accent-secondary);">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          </div>
+          <div class="more-row__label">Week Review</div>
+          <svg class="icon more-row__chev" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="more-row">
+          <div class="more-row__icon" style="background: rgba(244, 211, 94, 0.14); color: var(--accent-rare);">
+            <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <div class="more-row__label">Week Planner</div>
+          <svg class="icon more-row__chev" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <div class="more-section">
+        <h3 class="t-caption more-section__title">Teaching tools</h3>
+        <div class="more-row">
+          <div class="more-row__icon" style="background: rgba(107, 143, 113, 0.14); color: var(--sage);">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <div class="more-row__label">Students</div>
+          <svg class="icon more-row__chev" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="more-row">
+          <div class="more-row__icon" style="background: rgba(232, 180, 160, 0.14); color: var(--accent-secondary);">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          </div>
+          <div class="more-row__label">Library</div>
+          <svg class="icon more-row__chev" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+
+      <div class="more-section" style="padding-bottom: 40px;">
+        <h3 class="t-caption more-section__title">App</h3>
+        <div class="more-row">
+          <div class="more-row__icon" style="background: rgba(244, 211, 94, 0.14); color: var(--accent-rare);">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div class="more-row__label">AI Chat</div>
+          <svg class="icon more-row__chev" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="more-row">
+          <div class="more-row__icon" style="background: var(--surface-inset); color: var(--text-secondary);">
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </div>
+          <div class="more-row__label">Settings</div>
+          <svg class="icon more-row__chev" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────────────── TAB BAR ─────────────────── -->
+  <nav class="tab-bar" role="tablist">
+    <button class="tab-btn" role="tab" data-tab="home" aria-selected="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Home
+    </button>
+    <button class="tab-btn" role="tab" data-tab="meds">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 20.5a7 7 0 1 1 9.9-9.9l-9.9 9.9z"/><path d="M8.5 8.5l7 7"/></svg>
+      Meds
+    </button>
+    <button class="tab-btn" role="tab" data-tab="notes">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+      Notes
+    </button>
+    <button class="tab-btn" role="tab" data-tab="wellness">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      Wellness
+    </button>
+    <button class="tab-btn" role="tab" data-tab="more">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
+      More
+    </button>
+  </nav>
+
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  const state = {
+    screen: 'home',
+    time: 'morning',
+    theme: 'evening',
+    medsLogged: false,
+  };
+
+  const hasVT = typeof document.startViewTransition === 'function';
+
+  function setScreen(name) {
+    if (name === state.screen) return;
+    const apply = () => {
+      document.querySelectorAll('.screen').forEach(s => {
+        if (s.dataset.screen === name) s.setAttribute('data-active', '');
+        else s.removeAttribute('data-active');
+      });
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.setAttribute('aria-selected', b.dataset.tab === name ? 'true' : 'false');
+      });
+      // re-trigger stagger by reflowing animations
+      const active = document.querySelector('.screen[data-active] .stagger');
+      if (active) {
+        active.classList.remove('stagger');
+        void active.offsetWidth;
+        active.classList.add('stagger');
+      }
+      state.screen = name;
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    };
+    if (hasVT) document.startViewTransition(apply);
+    else apply();
+  }
+  // expose for inline onclick
+  window.showScreen = setScreen;
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => setScreen(btn.dataset.tab));
+  });
+
+  document.querySelectorAll('[data-time-btn]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const t = btn.dataset.timeBtn;
+      document.body.dataset.time = t;
+      document.querySelectorAll('[data-time-btn]').forEach(b => {
+        b.setAttribute('aria-selected', b.dataset.timeBtn === t ? 'true' : 'false');
+      });
+      state.time = t;
+    });
+  });
+
+  document.querySelectorAll('[data-theme-btn]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const th = btn.dataset.themeBtn;
+      document.body.dataset.theme = th;
+      document.querySelectorAll('[data-theme-btn]').forEach(b => {
+        b.setAttribute('aria-selected', b.dataset.themeBtn === th ? 'true' : 'false');
+      });
+      state.theme = th;
+    });
+  });
+
+  window.logDose = function() {
+    const glance = document.getElementById('medsGlance');
+    const status = document.getElementById('medsStatus');
+    const meta = document.getElementById('medsMeta');
+    glance.classList.add('meds-glance--wiping');
+    setTimeout(() => {
+      if (state.medsLogged) {
+        status.textContent = 'Peak window';
+        meta.textContent = 'Dose 1 · 9:18 AM · 1h 42m ago';
+      } else {
+        status.textContent = 'Building';
+        meta.textContent = 'Dose 1 just now';
+        state.medsLogged = true;
+      }
+    }, 350);
+    setTimeout(() => glance.classList.remove('meds-glance--wiping'), 700);
+    if (window.navigator && 'vibrate' in window.navigator) {
+      window.navigator.vibrate([8, 30, 12]);
+    }
+  };
+
+  // Hide Tamara Mark when CAA days > 30 — prototype: always show since it's 43,
+  // but conceptually the rule is days <= 30. Adding a stylized "hidden" reveal for dev clarity.
+  const caaDays = 43;
+  if (caaDays <= 30) {
+    document.querySelectorAll('.transitions__row').forEach((row, i) => {
+      if (i === 0) {
+        const mark = document.createElement('span');
+        mark.className = 'tamara-mark';
+        row.appendChild(mark);
+      }
+    });
+  } else {
+    // For prototype visibility, add a ghosted version as preview
+    const first = document.querySelector('.transitions__row');
+    if (first) {
+      const mark = document.createElement('span');
+      mark.className = 'tamara-mark';
+      mark.style.opacity = '0.18';
+      mark.title = 'Tamara Mark — activates at ≤30 days';
+      first.appendChild(mark);
+    }
+  }
+
+  window.setWellnessGrief = function() {
+    document.body.dataset.wellnessSub = 'grief';
+  };
+
+})();
+</script>
+</body>
+</html>

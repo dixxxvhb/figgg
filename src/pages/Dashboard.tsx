@@ -23,6 +23,7 @@ import { getClassesByDay } from '../data/classes';
 import { TodaysAgenda } from '../components/Dashboard/TodaysAgenda';
 import { MedsStatusBar } from '../components/Dashboard/MedsStatusBar';
 import { RemindersWidget } from '../components/Dashboard/RemindersWidget';
+import { TransitionsWidget } from '../components/Dashboard/TransitionsWidget';
 import { CalendarEvent, DEFAULT_MED_CONFIG, DEFAULT_AI_CONFIG } from '../types';
 import type { AICheckIn, DayPlan, DayPlanItem, RecurringSchedule } from '../types';
 import { AICheckInWidget } from '../components/Dashboard/AICheckInWidget';
@@ -637,7 +638,7 @@ export function Dashboard() {
 
   // ── Render ──
   return (
-    <div className="pb-20 bg-[var(--surface-primary)] min-h-screen">
+    <div className="pb-20 bg-[var(--surface-primary)] min-h-screen stagger">
       {/* ── Greeting ── */}
       <div className="page-container pt-8 pb-2">
         <div className="flex items-start justify-between gap-4 xl:items-end">
@@ -662,6 +663,11 @@ export function Dashboard() {
         onLogDose={handleLogDose}
         canLogDose={canLogDose}
       />
+
+      {/* ── Transitions: CAA countdown + ProSeries runway ── */}
+      <div className="page-container pt-2">
+        <TransitionsWidget />
+      </div>
 
       {/* ── Competition Banner ── */}
       {nextComp && daysUntilComp !== null && daysUntilComp <= 14 && (

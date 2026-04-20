@@ -50,8 +50,89 @@ export interface ThemePalette {
 }
 
 export const themes: ThemePalette[] = [
-  // ── Ink & Gold (default) ───────────────────────────────────────
-  // Burnished gold primary, cool ivory neutrals, deep ink accent
+  // ── Curtain Call (default, Apr 2026) ───────────────────────────
+  // Late-night theater-program editorial. Terracotta hero, dusty rose
+  // whisper, curtain gold rare. Dark-first (Evening Show) with a warm
+  // bone-cream light variant (Matinee). Replaces Ink & Gold as default.
+  {
+    id: 'curtain-call',
+    name: 'Curtain Call',
+    preview: { primary: '#E07758', neutral: '#9A8F80', accent: '#E8B4A0' },
+    colors: {
+      // `forest` scale repurposed for terracotta (hero accent)
+      forest: {
+        '50':  '#fbeee8', '100': '#f6d6ca', '200': '#edad95', '300': '#e68b6e',
+        '400': '#e07758', '500': '#c8614b', '600': '#a84e3c', '700': '#833c2e',
+        '800': '#5e2b20', '900': '#3c1c15',
+      },
+      // `blush` scale — warm bone → stage ink
+      blush: {
+        '50':  '#f7f0e4', '100': '#efe5d1', '200': '#d9ceba', '300': '#a89e8f',
+        '400': '#9a8f80', '500': '#6b5f51', '600': '#453d34', '700': '#2a2420',
+        '800': '#1a1613', '900': '#0f0c0a',
+      },
+      // `pop` scale — dusty rose secondary
+      pop: {
+        '50':  '#faefe9', '100': '#f2d9ce', '200': '#e8b4a0', '300': '#d89e8b',
+        '400': '#c48879', '500': '#a67264', '600': '#855a4f', '700': '#62413a',
+        '800': '#3d2925', '900': '#221714',
+      },
+    },
+    semantics: {
+      // Matinee — warm bone-cream daylight
+      light: {
+        '--surface-primary':   '#f7f0e4',
+        '--surface-card':      '#fffcf5',
+        '--surface-card-hover':'#efe5d1',
+        '--surface-inset':     '#efe5d1',
+        '--surface-elevated':  '#ffffff',
+        '--surface-highlight': '#e8dcc1',
+        '--text-primary':      '#141110',
+        '--text-secondary':    '#6b5f51',
+        '--text-tertiary':     '#a89e8f',
+        '--text-on-accent':    '#fffcf5',
+        '--accent-primary':    '#c8614b',
+        '--accent-primary-hover': '#a84e3c',
+        '--accent-secondary':  '#d89e8b',
+        '--accent-muted':      'rgba(200,97,75,0.12)',
+        '--border-subtle':     '#ede3d0',
+        '--border-strong':     '#c8614b',
+        '--status-success':    '#6b8f71',
+        '--status-warning':    '#b38922',
+        '--status-danger':     '#9e3e31',
+        '--shadow-card':       '0 1px 3px rgba(69,61,52,0.08), 0 1px 2px rgba(69,61,52,0.06)',
+        '--shadow-elevated':   '0 12px 32px -16px rgba(69,61,52,0.24), 0 4px 8px rgba(69,61,52,0.08)',
+        '--shadow-card-hover': '0 3px 8px rgba(69,61,52,0.12), 0 2px 4px rgba(69,61,52,0.08)',
+      },
+      // Evening Show — default dark, stage ink + warm bone text
+      dark: {
+        '--surface-primary':   '#0f0c0a',
+        '--surface-card':      '#17130f',
+        '--surface-card-hover':'#1a1613',
+        '--surface-inset':     '#211b16',
+        '--surface-elevated':  '#1a1613',
+        '--surface-highlight': 'rgba(224,119,88,0.10)',
+        '--text-primary':      '#f4eee4',
+        '--text-secondary':    '#9a8f80',
+        '--text-tertiary':     '#665c4f',
+        '--text-on-accent':    '#0f0c0a',
+        '--accent-primary':    '#e07758',
+        '--accent-primary-hover': '#e88f73',
+        '--accent-secondary':  '#e8b4a0',
+        '--accent-muted':      'rgba(224,119,88,0.18)',
+        '--border-subtle':     '#2a2420',
+        '--border-strong':     '#e07758',
+        '--status-success':    '#6b8f71',
+        '--status-warning':    '#dcb543',
+        '--status-danger':     '#b54d3e',
+        '--shadow-card':       '0 1px 0 rgba(255,255,255,0.02) inset, 0 8px 20px -12px rgba(0,0,0,0.6)',
+        '--shadow-elevated':   '0 0 0 1px rgba(224,119,88,0.12) inset, 0 24px 48px -24px rgba(0,0,0,0.8)',
+        '--shadow-card-hover': '0 1px 0 rgba(255,255,255,0.03) inset, 0 12px 24px -14px rgba(0,0,0,0.7)',
+      },
+    },
+  },
+
+  // ── Ink & Gold (legacy default — kept as theme alt) ────────────
   {
     id: 'stone',
     name: 'Ink & Gold',

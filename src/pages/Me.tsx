@@ -1,4 +1,4 @@
-import { useState, useMemo, lazy, Suspense } from 'react';
+import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import {
   CheckSquare, Brain, Wind, BookHeart, Heart, type LucideIcon,
 } from 'lucide-react';
@@ -81,6 +81,20 @@ export function Me() {
   const { data, updateSelfCare, updateTherapist, updateMeditation, updateGrief, addFixItem, deleteFixItem } = useAppData();
   const [wellnessSubTab, setWellnessSubTab] = useState<WellnessSubTab>('checkin');
 
+  // Curtain Call: Grief tab gets a warmer ambient body tint (wired in curtainCall.css).
+  // Cleared on unmount so the tint doesn't bleed into other pages.
+  useEffect(() => {
+    if (typeof document === 'undefined' || !document.body) return;
+    if (wellnessSubTab === 'grief') {
+      document.body.dataset.wellnessSub = 'grief';
+    } else {
+      delete document.body.dataset.wellnessSub;
+    }
+    return () => {
+      if (document.body) delete document.body.dataset.wellnessSub;
+    };
+  }, [wellnessSubTab]);
+
   const medConfig: MedConfig = data.settings?.medConfig || DEFAULT_MED_CONFIG;
   const [currentTime] = useState(new Date());
 
@@ -135,17 +149,19 @@ export function Me() {
           {/* Wellness Sub-Tab Bar */}
           <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
             {WELLNESS_SUB_TABS.map(tab => {
-                const isActive = wellnessSubTab === tab.key;
+              const isActive = wellnessSubTab === tab.key;
+              const Icon = tab.icon;
               return (
                 <button
                   key={tab.key}
                   onClick={() => { setWellnessSubTab(tab.key); haptic('light'); }}
-                  className={`whitespace-nowrap px-3 py-2 rounded-[var(--radius-full)] text-xs font-semibold transition-colors ${
+                  className={`whitespace-nowrap inline-flex items-center gap-1.5 px-3 py-2 rounded-[var(--radius-full)] text-xs font-semibold transition-colors ${
                     isActive
                       ? 'bg-[var(--accent-primary)] text-[var(--text-on-accent)] shadow-sm'
                       : 'bg-[var(--surface-card)] text-[var(--text-secondary)] border border-[var(--border-subtle)]'
                   }`}
                 >
+                  <Icon size={13} aria-hidden="true" />
                   {tab.label}
                 </button>
               );

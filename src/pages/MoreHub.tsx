@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import {
-  Heart, Users, BookOpen, Settings, MessageCircle,
-  CalendarCheck, ChevronRight,
+  Users, BookOpen, Settings, MessageCircle,
+  CalendarCheck, ChevronRight, Calendar, ListChecks, ClipboardList,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -45,22 +45,24 @@ function SectionHeader({ title }: { title: string }) {
 }
 
 export function MoreHub() {
-  const wellnessRows: HubRow[] = [
-    { to: '/me', icon: Heart, label: 'Wellness', color: '#ec4899' },
+  const quickRows: HubRow[] = [
+    { to: '/tasks', icon: ListChecks, label: 'Tasks & Reminders', color: 'var(--accent-primary)' },
+  ];
+
+  const scheduleRows: HubRow[] = [
+    { to: '/schedule', icon: Calendar, label: 'Schedule', color: 'var(--color-sage)' },
+    { to: '/plan', icon: ClipboardList, label: 'Week Planner', color: 'var(--accent-secondary)' },
+    { to: '/week-review', icon: CalendarCheck, label: 'Week Review', color: 'var(--color-honey)' },
   ];
 
   const teachingRows: HubRow[] = [
-    { to: '/students', icon: Users, label: 'Students', color: '#06b6d4' },
-    { to: '/library', icon: BookOpen, label: 'Library', color: '#8b5cf6' },
-  ];
-
-  const planningRows: HubRow[] = [
-    { to: '/week-review', icon: CalendarCheck, label: 'Week Review', color: '#10b981' },
+    { to: '/students', icon: Users, label: 'Students', color: 'var(--color-sage)' },
+    { to: '/library', icon: BookOpen, label: 'Library', color: 'var(--color-rose-accent)' },
   ];
 
   const appRows: HubRow[] = [
     { to: '/settings', icon: Settings, label: 'Settings', color: 'var(--text-secondary)' },
-    { to: '/ai', icon: MessageCircle, label: 'AI Chat', color: '#f59e0b' },
+    { to: '/ai', icon: MessageCircle, label: 'AI Chat', color: 'var(--color-starbound)' },
   ];
 
   return (
@@ -68,14 +70,13 @@ export function MoreHub() {
       <h1 className="type-display text-[var(--text-primary)] mb-2">More</h1>
 
       <nav aria-label="More navigation">
-      <SectionHeader title="Wellness" />
-      {wellnessRows.map(row => <HubItem key={row.to} row={row} />)}
+      {quickRows.map(row => <HubItem key={row.to} row={row} />)}
+
+      <SectionHeader title="Schedule & Planning" />
+      {scheduleRows.map(row => <HubItem key={row.to} row={row} />)}
 
       <SectionHeader title="Teaching Tools" />
       {teachingRows.map(row => <HubItem key={row.to} row={row} />)}
-
-      <SectionHeader title="Planning" />
-      {planningRows.map(row => <HubItem key={row.to} row={row} />)}
 
       <SectionHeader title="App" />
       {appRows.map(row => <HubItem key={row.to} row={row} />)}
