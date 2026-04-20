@@ -589,7 +589,20 @@ export function LiveNotes() {
     saveWeekNotes(updatedWeekNotes);
   };
 
-
+  const handleToggleFlag = (noteId: string) => {
+    const next: ClassWeekNotes = {
+      ...classNotesRef.current,
+      liveNotes: classNotesRef.current.liveNotes.map(n =>
+        n.id === noteId ? { ...n, flaggedForNextWeek: !n.flaggedForNextWeek } : n
+      ),
+    };
+    const updatedWeekNotes = {
+      ...weekNotes,
+      classNotes: { ...weekNotes.classNotes, [classId || '']: next },
+    };
+    setWeekNotes(updatedWeekNotes);
+    saveWeekNotes(updatedWeekNotes);
+  };
 
   const createFlagDancerReminder = () => {
     const student = rehearsalReminderTargetStudents.find(item => item.id === flaggedStudentId);
@@ -1162,6 +1175,8 @@ export function LiveNotes() {
             notes={classNotes.liveNotes}
             onDeleteNote={deleteNote}
             onEditNote={handleEditNote}
+            showFlag
+            onToggleFlag={handleToggleFlag}
           />
         )}
 
