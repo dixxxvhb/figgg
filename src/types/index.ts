@@ -487,6 +487,13 @@ export interface AIChatMessage {
   timestamp: string;
 }
 
+/**
+ * Chat-thread modes for the AI assistant UI. This union does NOT cover
+ * callable-dispatch modes used by fire-and-forget AI utilities like
+ * `generatePlan` ('generate-plan'), `generateBriefing` ('generate-briefing'),
+ * `detectReminders` ('detect-reminders'), `expandNotes` ('expand-notes').
+ * Those modes are passed as plain string literals at the call site.
+ */
 export type AIChatMode = 'check-in' | 'chat' | 'briefing' | 'day-plan' | 'prep' | 'capture' | 'reflection';
 
 export interface AIChatThread {

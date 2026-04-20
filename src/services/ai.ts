@@ -79,6 +79,7 @@ interface GenerateBriefingOptions {
 export async function generateBriefing(
   options: GenerateBriefingOptions,
 ): Promise<Briefing> {
+  let data: { briefing?: Partial<Briefing> };
   try {
     const contextWithClass = {
       ...(options.context ?? {}),
@@ -91,28 +92,29 @@ export async function generateBriefing(
     };
     const fn = httpsCallable(requireFunctions(), 'aiChat');
     const result = await fn({ mode: 'generate-briefing', context: contextWithClass });
-    const data = result.data as { briefing?: Partial<Briefing> };
-    const b = data.briefing;
-
-    if (
-      !b ||
-      typeof b.recap !== 'string' ||
-      typeof b.assessment !== 'string' ||
-      !Array.isArray(b.forToday)
-    ) {
-      throw new Error('generateBriefing returned malformed payload');
-    }
-
-    return {
-      recap: b.recap,
-      assessment: b.assessment,
-      forToday: b.forToday.filter((x): x is string => typeof x === 'string').slice(0, 5),
-      generatedAt: new Date().toISOString(),
-    };
+    data = result.data as { briefing?: Partial<Briefing> };
   } catch (error) {
-    console.error('generateBriefing failed:', error);
-    throw new Error('Failed to generate briefing.');
+    console.error('generateBriefing: network/callable error:', error);
+    throw new Error('Failed to generate briefing (network).');
   }
+
+  const b = data.briefing;
+  if (
+    !b ||
+    typeof b.recap !== 'string' ||
+    typeof b.assessment !== 'string' ||
+    !Array.isArray(b.forToday)
+  ) {
+    console.error('generateBriefing: malformed payload:', data);
+    throw new Error('Failed to generate briefing (malformed payload).');
+  }
+
+  return {
+    recap: b.recap,
+    assessment: b.assessment,
+    forToday: b.forToday.filter((x): x is string => typeof x === 'string').slice(0, 5),
+    generatedAt: new Date().toISOString(),
+  };
 }
 
 export async function detectReminders(
