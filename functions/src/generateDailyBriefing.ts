@@ -679,7 +679,7 @@ Return ONLY valid JSON matching the schema — no markdown, no prose, no wrapper
     type: "object",
     properties: {
       summary: { type: "string" },
-      nudge: { type: ["string", "null"] },
+      nudge: { anyOf: [{ type: "string" }, { type: "null" }] },
       yesterdayYou: { type: "array", items: { type: "string" } },
       wellness: {
         type: "object",
@@ -693,7 +693,12 @@ Return ONLY valid JSON matching the schema — no markdown, no prose, no wrapper
             required: ["onTrack", "missedRecently"],
             additionalProperties: false,
           },
-          moodTrend: { type: ["string", "null"], enum: ["improving", "stable", "declining", null] },
+          moodTrend: {
+            anyOf: [
+              { type: "string", enum: ["improving", "stable", "declining"] },
+              { type: "null" },
+            ],
+          },
         },
         required: ["medsStatus", "moodTrend"],
         additionalProperties: false,
@@ -750,7 +755,7 @@ Return ONLY valid JSON matching the schema — no markdown, no prose, no wrapper
         additionalProperties: false,
       },
       loginRoast: {
-        type: ["string", "null"],
+        anyOf: [{ type: "string" }, { type: "null" }],
         description: "Single-line login-screen roast (max 20 words) following the ROAST RULES. null if genuinely nothing roastable.",
       },
     },
