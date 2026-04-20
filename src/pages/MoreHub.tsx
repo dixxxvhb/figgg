@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import {
   Users, BookOpen, Settings, MessageCircle,
-  CalendarCheck, ChevronRight, Calendar, ListChecks, ClipboardList,
+  CalendarCheck, ChevronRight, ListChecks, ClipboardList,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -50,7 +50,6 @@ export function MoreHub() {
   ];
 
   const scheduleRows: HubRow[] = [
-    { to: '/schedule', icon: Calendar, label: 'Schedule', color: 'var(--color-sage)' },
     { to: '/plan', icon: ClipboardList, label: 'Week Planner', color: 'var(--accent-secondary)' },
     { to: '/week-review', icon: CalendarCheck, label: 'Week Review', color: 'var(--color-honey)' },
   ];
