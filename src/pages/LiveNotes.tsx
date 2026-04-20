@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Clock, CheckCircle, AlertCircle, X, FileText, ChevronDown, ChevronUp, ClipboardList, BookOpen, Wand2, Loader2, Check, Flag } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle, AlertCircle, X, FileText, ChevronDown, ChevronUp, BookOpen, Wand2, Loader2, Flag } from 'lucide-react';
 import { format, addWeeks, addDays } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
 import { BriefingDisplay } from '../components/common/BriefingDisplay';
@@ -399,160 +399,6 @@ export function LiveNotes() {
     tryDetectReminder(newNote);
   };
 
-  // Attendance management
-  const isRollCompleted = attendance.rollCompleted ?? false;
-
-  const markAttendance = (studentId: string, status: 'present' | 'absent' | 'late' | 'unmarked') => {
-    if (isRollCompleted) return;
-
-    // Auto-enroll student in this class if not already enrolled
-    if (classId && status !== 'unmarked') {
-      const student = (data.students || []).find(s => s.id === studentId);
-      if (student && !student.classIds.includes(classId)) {
-        updateStudent({ ...student, classIds: [...student.classIds, classId] });
-      }
-    }
-
-    // Remove from all lists first
-    const newPresent = attendance.present.filter(id => id !== studentId);
-    const newAbsent = attendance.absent.filter(id => id !== studentId);
-    const newLate = attendance.late.filter(id => id !== studentId);
-
-    // Toggle: if already in this status, leave all lists empty (unmark)
-    const currentStatus = getStudentStatus(studentId);
-    if (currentStatus !== status) {
-      if (status === 'present') newPresent.push(studentId);
-      else if (status === 'absent') newAbsent.push(studentId);
-      else if (status === 'late') newLate.push(studentId);
-    }
-
-    // Clean up absence reason if no longer absent
-    const newAbsenceReasons = { ...(attendance.absenceReasons || {}) };
-    if (status !== 'absent') {
-      delete newAbsenceReasons[studentId];
-    }
-
-    const updatedClassNotes: ClassWeekNotes = {
-      ...classNotes,
-      attendance: {
-        present: newPresent,
-        absent: newAbsent,
-        late: newLate,
-        absenceReasons: newAbsenceReasons,
-        rollCompleted: attendance.rollCompleted,
-      },
-    };
-
-    const updatedWeekNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [classId || '']: updatedClassNotes,
-      },
-    };
-
-    setWeekNotes(updatedWeekNotes);
-    saveWeekNotes(updatedWeekNotes);
-  };
-
-  const updateAbsenceReason = (studentId: string, reason: string) => {
-    if (isRollCompleted) return;
-
-    const newAbsenceReasons = { ...(attendance.absenceReasons || {}) };
-    if (reason) {
-      newAbsenceReasons[studentId] = reason;
-    } else {
-      delete newAbsenceReasons[studentId];
-    }
-
-    const updatedClassNotes: ClassWeekNotes = {
-      ...classNotes,
-      attendance: { ...attendance, absenceReasons: newAbsenceReasons },
-    };
-
-    const updatedWeekNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [classId || '']: updatedClassNotes,
-      },
-    };
-
-    setWeekNotes(updatedWeekNotes);
-    saveWeekNotes(updatedWeekNotes);
-  };
-
-  const completeRoll = () => {
-    const updatedClassNotes: ClassWeekNotes = {
-      ...classNotes,
-      attendance: { ...attendance, rollCompleted: true },
-    };
-
-    const updatedWeekNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [classId || '']: updatedClassNotes,
-      },
-    };
-
-    setWeekNotes(updatedWeekNotes);
-    saveWeekNotes(updatedWeekNotes);
-  };
-
-  const reopenRoll = () => {
-    const updatedClassNotes: ClassWeekNotes = {
-      ...classNotes,
-      attendance: { ...attendance, rollCompleted: false },
-    };
-
-    const updatedWeekNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [classId || '']: updatedClassNotes,
-      },
-    };
-
-    setWeekNotes(updatedWeekNotes);
-    saveWeekNotes(updatedWeekNotes);
-  };
-
-  const getStudentStatus = (studentId: string): 'present' | 'absent' | 'late' | null => {
-    if (attendance.present.includes(studentId)) return 'present';
-    if (attendance.absent.includes(studentId)) return 'absent';
-    if (attendance.late.includes(studentId)) return 'late';
-    return null;
-  };
-
-  const markAllPresent = () => {
-    if (isRollCompleted) return;
-
-    const allIds = enrolledStudents.map(s => s.id);
-    const updatedClassNotes: ClassWeekNotes = {
-      ...classNotes,
-      attendance: {
-        present: allIds,
-        absent: [],
-        late: [],
-        absenceReasons: {},
-        rollCompleted: attendance.rollCompleted,
-      },
-    };
-
-    const updatedWeekNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [classId || '']: updatedClassNotes,
-      },
-    };
-
-    setWeekNotes(updatedWeekNotes);
-    saveWeekNotes(updatedWeekNotes);
-  };
-
-
   const handleEditNote = (noteId: string, newText: string) => {
     const updatedClassNotes: ClassWeekNotes = {
       ...classNotes,
@@ -574,18 +420,22 @@ export function LiveNotes() {
   };
 
   const handleToggleFlag = (noteId: string) => {
-    const next: ClassWeekNotes = {
-      ...classNotesRef.current,
-      liveNotes: classNotesRef.current.liveNotes.map(n =>
-        n.id === noteId ? { ...n, flaggedForNextWeek: !n.flaggedForNextWeek } : n
-      ),
-    };
-    const updatedWeekNotes = {
-      ...weekNotes,
-      classNotes: { ...weekNotes.classNotes, [classId || '']: next },
-    };
-    setWeekNotes(updatedWeekNotes);
-    saveWeekNotes(updatedWeekNotes);
+    setWeekNotes(prev => {
+      const classKey = classId || '';
+      const currentClassNotes = prev.classNotes[classKey] ?? classNotesRef.current;
+      const nextClassNotes: ClassWeekNotes = {
+        ...currentClassNotes,
+        liveNotes: currentClassNotes.liveNotes.map(n =>
+          n.id === noteId ? { ...n, flaggedForNextWeek: !n.flaggedForNextWeek } : n
+        ),
+      };
+      const nextWeekNotes = {
+        ...prev,
+        classNotes: { ...prev.classNotes, [classKey]: nextClassNotes },
+      };
+      saveWeekNotes(nextWeekNotes);
+      return nextWeekNotes;
+    });
   };
 
   const createFlagDancerReminder = () => {
