@@ -7,14 +7,12 @@ import { BriefingDisplay } from '../components/common/BriefingDisplay';
 import { DropdownMenu } from '../components/common/DropdownMenu';
 import { NotesList, InputBar, type AutocompleteConfig } from '../components/common/NoteInput';
 import { LiveNote, ClassWeekNotes, Reminder, ReminderList } from '../types';
-import { formatTimeDisplay, getCurrentTimeMinutes, getMinutesRemaining, formatWeekOf, getWeekStart, safeTime } from '../utils/time';
-import { getWeekNotes as getWeekNotesFromStorage } from '../services/storage';
+import { formatTimeDisplay, getCurrentTimeMinutes, getMinutesRemaining, formatWeekOf, getWeekStart } from '../utils/time';
 import { v4 as uuid } from 'uuid';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
 import { searchTerminology } from '../data/terminology';
-import { getProgressionSuggestions, getRepetitionFlags } from '../data/progressions';
-import { generatePlan as aiGeneratePlan, detectReminders as aiDetectReminders, expandNotes as aiExpandNotes } from '../services/ai';
-import { generateAndSavePlan, nextWeekHasPlan } from '../utils/planCarryForward';
+import { detectReminders as aiDetectReminders, expandNotes as aiExpandNotes } from '../services/ai';
+import { generateAndSaveBriefing, nextWeekHasBriefing } from '../utils/planCarryForward';
 import { buildAIContext } from '../services/aiContext';
 import { detectLinkedDances } from '../utils/danceLinker';
 import { getClassRosterStudentIds } from '../utils/attendanceRoster';
@@ -133,37 +131,24 @@ export function LiveNotes() {
   // Initialize attendance from classNotes or default
   const attendance = classNotes.attendance || { present: [], absent: [], late: [] };
 
-  // Auto-trigger plan generation when user navigates away without pressing "End Class"
+  // Auto-trigger briefing generation when user navigates away without pressing "End Class"
   useEffect(() => {
     return () => {
       const currentClassNotes = classNotesRef.current;
       const currentViewingWeekStart = viewingWeekStartRef.current;
 
-      // Guards
       if (
         !cls ||
         !classId ||
         currentClassNotes.liveNotes.length === 0 ||
         currentClassNotes.isOrganized ||
         planGenerationFiredRef.current ||
-        nextWeekHasPlan(classId, currentViewingWeekStart)
+        nextWeekHasBriefing(classId, currentViewingWeekStart)
       ) return;
 
       planGenerationFiredRef.current = true;
 
-      const previousPlans: string[] = [];
-      const sorted = [...(data.weekNotes || [])].sort((a, b) =>
-        new Date(b.weekOf).getTime() - new Date(a.weekOf).getTime()
-      );
-      for (const week of sorted) {
-        const notes = week.classNotes[cls.id];
-        if (notes?.plan?.trim()) {
-          previousPlans.push(notes.plan);
-          break;
-        }
-      }
-
-      generateAndSavePlan({
+      generateAndSaveBriefing({
         classId,
         classInfo: {
           id: cls.id, name: cls.name, day: cls.day,
@@ -175,7 +160,6 @@ export function LiveNotes() {
         viewingWeekStart: currentViewingWeekStart,
         saveWeekNotes,
         aiContext: aiContextRef.current,
-        previousPlans: previousPlans.length > 0 ? previousPlans : undefined,
       });
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -678,60 +662,22 @@ export function LiveNotes() {
     // Save current week (localStorage + Firestore)
     saveWeekNotes(updatedWeekNotes);
 
-    // Generate unified AI plan for next week (replaces old dual client+AI system)
-    // Guard: skip if already organized (prevents duplicate plan generation on re-save)
+    // Generate briefing for next week — skip if already organized (prevent duplicates)
     if (notesToProcess.length > 0 && !classNotes.isOrganized && cls) {
       planGenerationFiredRef.current = true;
 
-      // ── Gather intelligence for the AI ──
-
-      // 1. Progression suggestions from local engine (sent as context, not displayed directly)
-      const allNoteTexts = notesToProcess.map(n => n.text);
-      const progressionHints = getProgressionSuggestions(allNoteTexts);
-
-      // 2. Repetition detection — look back 2 weeks from viewed week
-      const pastWeeksNotes: string[][] = [];
-      for (let i = 1; i <= 2; i++) {
-        const pastWeekStart = addWeeks(viewingWeekStart, -i);
-        const pastWeekOf = formatWeekOf(pastWeekStart);
-        const pastWeek = getWeekNotesFromStorage(pastWeekOf);
-        const pastClassNotes = pastWeek?.classNotes[classId!];
-        if (pastClassNotes?.liveNotes) {
-          pastWeeksNotes.push(pastClassNotes.liveNotes.map(n => n.text));
-        } else {
-          pastWeeksNotes.push([]);
-        }
-      }
-      const repetitionFlags = getRepetitionFlags(allNoteTexts, pastWeeksNotes);
-
-      // 3. Previous plan for continuity
-      const previousPlans: string[] = [];
-      const sorted = [...(data.weekNotes || [])].sort((a, b) =>
-        safeTime(b.weekOf) - safeTime(a.weekOf)
-      );
-      for (const week of sorted) {
-        const notes = week.classNotes[cls.id];
-        if (notes?.plan && notes.plan.trim()) {
-          previousPlans.push(notes.plan);
-          if (previousPlans.length >= 1) break;
+      // Expand notes into a summary first (feeds the briefing if available)
+      let summary = expandedSummary;
+      if (!summary) {
+        try {
+          summary = await aiExpandNotes(cls.name, format(classDate, 'yyyy-MM-dd'), notesToProcess, aiContext);
+          setExpandedSummary(summary);
+        } catch (err) {
+          console.warn('aiExpandNotes failed, continuing without summary:', err);
+          summary = null;
         }
       }
 
-      // 4. Attendance context
-      const att = classNotes.attendance;
-      let attendanceNote: string | undefined;
-      if (att) {
-        const present = att.present?.length || 0;
-        const late = att.late?.length || 0;
-        const absent = att.absent?.length || 0;
-        const total = present + late + absent;
-        if (total > 0) {
-          attendanceNote = `${present + late} of ${total} present`;
-          if (late > 0) attendanceNote += ` (${late} late)`;
-        }
-      }
-
-      // 5. Build rich class info with level, recital piece, choreo notes
       const classInfoForAI = {
         id: cls.id,
         name: cls.name,
@@ -744,31 +690,24 @@ export function LiveNotes() {
         choreographyNotes: cls.choreographyNotes,
       };
 
-      // Fire AI plan generation — don't block navigation
-      generateAndSavePlan({
+      // Fire briefing generation — don't block navigation
+      generateAndSaveBriefing({
         classId: classId!,
         classInfo: classInfoForAI,
         notes: notesToProcess,
         viewingWeekStart,
         saveWeekNotes,
         aiContext,
-        previousPlans: previousPlans.length > 0 ? previousPlans : undefined,
-        progressionHints: progressionHints.length > 0 ? progressionHints : undefined,
-        repetitionFlags: repetitionFlags.length > 0 ? repetitionFlags : undefined,
-        attendanceNote,
-        expandedSummary: expandedSummary || undefined,
-        nextWeekGoal: classNotes.nextWeekGoal,
+        expandedSummary: summary || undefined,
       });
 
-      // AI-powered reminder detection — fire and forget (don't block navigation)
-      // Skip notes that already had reminders created via real-time detection
+      // AI reminder detection — keep as-is (fire and forget)
       const classNameForAI = cls.name;
       const nextClassDateForReminders = format(addWeeks(classDate, 1), 'yyyy-MM-dd');
       const notesForReminderScan = notesToProcess.filter(n => !reminderNoteIds.has(n.id));
       aiDetectReminders(classNameForAI, notesForReminderScan, aiContext).then(detectedReminders => {
         if (detectedReminders.length === 0) return;
 
-        // Use ref to get latest selfCare (avoid stale closure from render time)
         const freshSelfCare = selfCareRef.current;
         const existingReminders = freshSelfCare?.reminders || [];
         const existingLists = freshSelfCare?.reminderLists || [];
@@ -853,43 +792,14 @@ export function LiveNotes() {
     }
   };
 
-  // AI: Generate/regenerate lesson plan for next week
+  // AI: Generate/regenerate briefing for next week
   const handleGeneratePlan = async () => {
     if (!cls || classNotes.liveNotes.length === 0) return;
     setAiGenerating(true);
     setAiError(null);
     try {
-      // Gather intelligence
-      const allNoteTexts = classNotes.liveNotes.map(n => n.text);
-      const progressionHints = getProgressionSuggestions(allNoteTexts);
-
-      const pastWeeksNotes: string[][] = [];
-      for (let i = 1; i <= 2; i++) {
-        const pastWeekStart = addWeeks(viewingWeekStart, -i);
-        const pastWeekOf = formatWeekOf(pastWeekStart);
-        const pastWeek = getWeekNotesFromStorage(pastWeekOf);
-        const pastClassNotes = pastWeek?.classNotes[classId!];
-        if (pastClassNotes?.liveNotes) {
-          pastWeeksNotes.push(pastClassNotes.liveNotes.map(n => n.text));
-        } else {
-          pastWeeksNotes.push([]);
-        }
-      }
-      const repetitionFlags = getRepetitionFlags(allNoteTexts, pastWeeksNotes);
-
-      const previousPlans: string[] = [];
-      const sorted = [...(data.weekNotes || [])].sort((a, b) =>
-        safeTime(b.weekOf) - safeTime(a.weekOf)
-      );
-      for (const week of sorted) {
-        const notes = week.classNotes[cls.id];
-        if (notes?.plan && notes.plan.trim()) {
-          previousPlans.push(notes.plan);
-          if (previousPlans.length >= 1) break;
-        }
-      }
-
-      const plan = await aiGeneratePlan({
+      await generateAndSaveBriefing({
+        classId: classId!,
         classInfo: {
           id: cls.id,
           name: cls.name,
@@ -902,40 +812,15 @@ export function LiveNotes() {
           choreographyNotes: cls.choreographyNotes,
         },
         notes: classNotes.liveNotes,
-        previousPlans: previousPlans.length > 0 ? previousPlans : undefined,
-        progressionHints: progressionHints.length > 0 ? progressionHints : undefined,
-        repetitionFlags: repetitionFlags.length > 0 ? repetitionFlags : undefined,
+        viewingWeekStart,
+        saveWeekNotes,
+        aiContext,
         expandedSummary: expandedSummary || undefined,
-        context: aiContext,
       });
-
-      // Save the AI plan to next week relative to viewed week
-      const nextWeekStart = addWeeks(viewingWeekStart, 1);
-      const nextWeekOf = formatWeekOf(nextWeekStart);
-      const nextWeekNotes = getWeekNotesFromStorage(nextWeekOf) || {
-        id: uuid(),
-        weekOf: nextWeekOf,
-        classNotes: {},
-      };
-      const nextClassNotes = nextWeekNotes.classNotes[cls.id] || {
-        classId: cls.id,
-        plan: '',
-        liveNotes: [],
-        isOrganized: false,
-      };
-
-      const updatedNextWeek = {
-        ...nextWeekNotes,
-        classNotes: {
-          ...nextWeekNotes.classNotes,
-          [cls.id]: { ...nextClassNotes, plan: plan },
-        },
-      };
-      saveWeekNotes(updatedNextWeek);
       setAiError(null);
       setAiPlanSaved(true);
     } catch (err) {
-      setAiError(err instanceof Error ? err.message : 'Failed to generate plan');
+      setAiError(err instanceof Error ? err.message : 'Failed to generate briefing');
     } finally {
       setAiGenerating(false);
     }
@@ -1282,7 +1167,7 @@ export function LiveNotes() {
             <div className="w-full mt-3 space-y-2">
               <div className="py-3 text-[var(--status-success)] font-medium flex items-center justify-center gap-2 bg-[color-mix(in_srgb,var(--status-success)_10%,transparent)] rounded-xl">
                 <CheckCircle size={18} />
-                Class saved — AI is generating next week's plan
+                Class saved — AI is generating next week's briefing
               </div>
               <button
                 onClick={() => navigate(scheduleBack)}
