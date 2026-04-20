@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Clock, CheckCircle, AlertCircle, X, FileText, Users, UserCheck, UserX, UserPlus, Clock3, ChevronDown, ChevronUp, ClipboardList, BookOpen, Wand2, Loader2, Check, Flag } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle, AlertCircle, X, FileText, ChevronDown, ChevronUp, ClipboardList, BookOpen, Wand2, Loader2, Check, Flag } from 'lucide-react';
 import { format, addWeeks, addDays } from 'date-fns';
 import { useAppData } from '../contexts/AppDataContext';
 import { PlanDisplay } from '../components/common/PlanDisplay';
 import { DropdownMenu } from '../components/common/DropdownMenu';
 import { NotesList, InputBar, type AutocompleteConfig } from '../components/common/NoteInput';
-import { LiveNote, ClassWeekNotes, Reminder, ReminderList, TermCategory, normalizeNoteCategory } from '../types';
+import { LiveNote, ClassWeekNotes, Reminder, ReminderList } from '../types';
 import { formatTimeDisplay, getCurrentTimeMinutes, getMinutesRemaining, formatWeekOf, getWeekStart, safeTime } from '../utils/time';
 import { getWeekNotes as getWeekNotesFromStorage } from '../services/storage';
 import { v4 as uuid } from 'uuid';
@@ -20,29 +20,6 @@ import { detectLinkedDances } from '../utils/danceLinker';
 import { getClassRosterStudentIds } from '../utils/attendanceRoster';
 import { findNextRehearsalEvent } from '../utils/nextRehearsal';
 
-// Boost relevant terminology categories based on which note tag is selected
-const TAG_CATEGORY_BOOSTS: Record<string, TermCategory[]> = {
-  'worked-on': ['ballet-positions', 'ballet-barre', 'ballet-center', 'ballet-jumps', 'ballet-turns', 'jazz', 'modern', 'contemporary', 'tap', 'hip-hop', 'acro', 'general'],
-  'needs-work': ['ballet-positions', 'ballet-barre', 'ballet-center', 'ballet-jumps', 'ballet-turns', 'jazz', 'modern', 'contemporary', 'tap', 'hip-hop', 'acro', 'general'],
-  'ideas': ['choreographer', 'jazz', 'contemporary', 'modern'],
-  'next-week': [],
-};
-
-const SHORT_CATEGORY_LABELS: Record<string, string> = {
-  'ballet-positions': 'Ballet',
-  'ballet-barre': 'Barre',
-  'ballet-center': 'Center',
-  'ballet-jumps': 'Jumps',
-  'ballet-turns': 'Turns',
-  'jazz': 'Jazz',
-  'modern': 'Modern',
-  'contemporary': 'Contemp',
-  'tap': 'Tap',
-  'hip-hop': 'Hip-Hop',
-  'acro': 'Acro',
-  'general': 'General',
-  'choreographer': 'Choreo',
-};
 
 export function LiveNotes() {
   const { classId } = useParams<{ classId: string }>();
@@ -98,7 +75,6 @@ export function LiveNotes() {
   // Get enrolled students for this class (computed after classNotes/attendance below)
   // Placeholder — actual computation is after attendance is available
 
-  const [selectedTag, setSelectedTag] = useState<string | undefined>();
   const [weekNotes, setWeekNotes] = useState(() => {
     if (weekOffset === 0) return getCurrentWeekNotes();
     const weekOf = formatWeekOf(viewingWeekStart);
@@ -107,23 +83,9 @@ export function LiveNotes() {
     return { id: uuid(), weekOf, classNotes: {} };
   });
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
-  // Auto-expand attendance if students exist but none are marked yet
-  const [showAttendance, setShowAttendance] = useState(() => {
-    const wn = weekOffset === 0 ? getCurrentWeekNotes() : (getWeekNotes(formatWeekOf(viewingWeekStart)) || { classNotes: {} as Record<string, ClassWeekNotes> });
-    const notes = wn.classNotes[classId || ''];
-    const att = notes?.attendance;
-    const hasMarked = att && (att.present.length > 0 || att.absent.length > 0 || att.late.length > 0);
-    const hasStudents = (data.students || []).some(s => s.classIds?.includes(classId || ''));
-    return hasStudents && !hasMarked;
-  });
-  const [showPlan, setShowPlan] = useState(true); // Show plan
+  const [showPlan, setShowPlan] = useState(true); // Show plan until Task 8 removes this
   const [showSavedNotes, setShowSavedNotes] = useState(false); // Collapsed by default when session is complete
   const [isEndingClass, setIsEndingClass] = useState(false);
-  const [showQuickAddStudent, setShowQuickAddStudent] = useState(false);
-  const [quickAddName, setQuickAddName] = useState('');
-  const [showNextWeekGoal, setShowNextWeekGoal] = useState(false);
-  const [nextWeekGoalDraft, setNextWeekGoalDraft] = useState('');
-  const [nextWeekGoalSaved, setNextWeekGoalSaved] = useState(false);
   const endClassLockRef = useRef(false);
   const [alreadySaved, setAlreadySaved] = useState(() => {
     // Check if this class was already ended/saved for the VIEWED week
@@ -190,7 +152,6 @@ export function LiveNotes() {
 
       planGenerationFiredRef.current = true;
 
-      // Simplified intelligence gathering (no progression/repetition for auto-trigger)
       const previousPlans: string[] = [];
       const sorted = [...(data.weekNotes || [])].sort((a, b) =>
         new Date(b.weekOf).getTime() - new Date(a.weekOf).getTime()
@@ -200,19 +161,6 @@ export function LiveNotes() {
         if (notes?.plan?.trim()) {
           previousPlans.push(notes.plan);
           break;
-        }
-      }
-
-      const att = currentClassNotes.attendance;
-      let attendanceNote: string | undefined;
-      if (att) {
-        const present = att.present?.length || 0;
-        const late = att.late?.length || 0;
-        const absent = att.absent?.length || 0;
-        const total = present + late + absent;
-        if (total > 0) {
-          attendanceNote = `${present + late} of ${total} present`;
-          if (late > 0) attendanceNote += ` (${late} late)`;
         }
       }
 
@@ -229,18 +177,10 @@ export function LiveNotes() {
         saveWeekNotes,
         aiContext: aiContextRef.current,
         previousPlans: previousPlans.length > 0 ? previousPlans : undefined,
-        attendanceNote,
-        nextWeekGoal: currentClassNotes.nextWeekGoal,
       });
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    setNextWeekGoalDraft(classNotes.nextWeekGoal || '');
-    setShowNextWeekGoal(Boolean(classNotes.nextWeekGoal));
-    setNextWeekGoalSaved(false);
-  }, [classNotes.nextWeekGoal]);
 
   const linkedDanceIds = useMemo(() => {
     if (!cls) return [];
@@ -372,20 +312,19 @@ export function LiveNotes() {
     );
   }
 
-  // Terminology autocomplete config for NoteInput
+  // Terminology autocomplete config for NoteInput (no category boosts — tags removed)
   const terminologyAutocomplete = useMemo<AutocompleteConfig>(() => ({
-    getSuggestions: (text: string, currentTag?: string) => {
+    getSuggestions: (text: string) => {
       const words = text.split(/\s+/);
       const lastWord = words[words.length - 1] || '';
       if (lastWord.length < 3) return [];
-      const boostCats = currentTag ? TAG_CATEGORY_BOOSTS[currentTag] : undefined;
-      return searchTerminology(lastWord, boostCats?.length ? boostCats : undefined)
+      return searchTerminology(lastWord, undefined)
         .slice(0, 7)
         .map(entry => ({
           id: entry.id,
           term: entry.term,
           pronunciation: entry.pronunciation,
-          categoryLabel: SHORT_CATEGORY_LABELS[entry.category] || entry.category,
+          categoryLabel: entry.category,
         }));
     },
     debounceMs: 200,
@@ -576,7 +515,6 @@ export function LiveNotes() {
 
     setWeekNotes(updatedWeekNotes);
     saveWeekNotes(updatedWeekNotes);
-    setShowAttendance(false);
   };
 
   const reopenRoll = () => {
@@ -653,24 +591,6 @@ export function LiveNotes() {
   };
 
 
-
-  const saveNextWeekGoal = (value: string) => {
-    const updatedClassNotes: ClassWeekNotes = {
-      ...classNotes,
-      nextWeekGoal: value,
-    };
-
-    const updatedWeekNotes = {
-      ...weekNotes,
-      classNotes: {
-        ...weekNotes.classNotes,
-        [classId || '']: updatedClassNotes,
-      },
-    };
-
-    setWeekNotes(updatedWeekNotes);
-    saveWeekNotes(updatedWeekNotes);
-  };
 
   const createFlagDancerReminder = () => {
     const student = rehearsalReminderTargetStudents.find(item => item.id === flaggedStudentId);
@@ -1249,214 +1169,6 @@ export function LiveNotes() {
           </div>
         )}
 
-        {/* Attendance Section */}
-        {enrolledStudents.length > 0 && (
-          <div className="mb-4">
-            <button
-              onClick={() => setShowAttendance(!showAttendance)}
-              className="w-full flex items-center justify-between p-4 bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[var(--surface-highlight)] flex items-center justify-center">
-                  <Users size={20} className="text-[var(--accent-primary)]" />
-                </div>
-                <div className="text-left">
-                  <div className="font-medium text-[var(--text-primary)]">
-                    Attendance ({enrolledStudents.length})
-                  </div>
-                  <div className="text-sm text-[var(--text-secondary)]">
-                    {attendance.present.length} present
-                    {attendance.late.length > 0 && `, ${attendance.late.length} late`}
-                    {attendance.absent.length > 0 && `, ${attendance.absent.length} absent`}
-                  </div>
-                </div>
-              </div>
-              {showAttendance ? (
-                <ChevronUp size={20} className="text-[var(--text-secondary)]" />
-              ) : (
-                <ChevronDown size={20} className="text-[var(--text-secondary)]" />
-              )}
-            </button>
-
-            {showAttendance && (
-              <div className="mt-2 bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] overflow-hidden">
-                {/* Stats bar */}
-                <div className="flex gap-1 border-b border-[var(--border-subtle)] p-2">
-                  <div className="flex-1 text-center py-1 bg-[var(--status-success)]/10 rounded-lg">
-                    <span className="text-[var(--status-success)] font-medium text-sm">{attendance.present.length}</span>
-                    <span className="text-[var(--status-success)] ml-1 text-xs">Here</span>
-                  </div>
-                  <div className="flex-1 text-center py-1 bg-[var(--status-warning)]/10 rounded-lg">
-                    <span className="text-[var(--status-warning)] font-medium text-sm">{attendance.late.length}</span>
-                    <span className="text-[var(--status-warning)] ml-1 text-xs">Late</span>
-                  </div>
-                  <div className="flex-1 text-center py-1 bg-[var(--status-danger)]/10 rounded-lg">
-                    <span className="text-[var(--status-danger)] font-medium text-sm">{attendance.absent.length}</span>
-                    <span className="text-[var(--status-danger)] ml-1 text-xs">Out</span>
-                  </div>
-                </div>
-
-                {/* Roll action bar */}
-                <div className="border-b border-[var(--border-subtle)] p-2 flex items-center justify-between">
-                  {isRollCompleted ? (
-                    <>
-                      <div className="flex items-center gap-2 text-[var(--status-success)] text-sm font-medium">
-                        <CheckCircle size={16} />
-                        Roll Complete
-                      </div>
-                      <button
-                        onClick={reopenRoll}
-                        className="text-sm text-[var(--accent-primary)] font-medium hover:text-[var(--accent-primary-hover)] px-3 py-1 rounded-lg hover:bg-[var(--surface-highlight)] transition-colors"
-                      >
-                        Edit
-                      </button>
-                    </>
-                  ) : (
-                    <div className="flex gap-2 w-full">
-                      <button
-                        onClick={markAllPresent}
-                        className="flex-1 py-2 text-sm font-medium text-[var(--accent-primary)] hover:bg-[var(--surface-highlight)] rounded-lg transition-colors flex items-center justify-center gap-2"
-                      >
-                        <UserCheck size={16} />
-                        All Present
-                      </button>
-                      <button
-                        onClick={completeRoll}
-                        disabled={attendance.present.length === 0 && attendance.late.length === 0 && attendance.absent.length === 0}
-                        className="flex-1 py-2 text-sm font-medium text-[var(--status-success)] hover:bg-[var(--status-success)]/10 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                      >
-                        <CheckCircle size={16} />
-                        Complete Roll
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Student list */}
-                <div className="divide-y divide-[var(--border-subtle)]">
-                  {enrolledStudents.map(student => {
-                    const status = getStudentStatus(student.id);
-                    return (
-                      <div key={student.id} className="p-3">
-                        <div className="flex items-center gap-3">
-                          <span className="flex-1 font-medium text-[var(--text-primary)] truncate">
-                            {student.nickname || student.name.split(' ')[0]}
-                          </span>
-                          <div className={`flex gap-1 ${isRollCompleted ? 'opacity-50 pointer-events-none' : ''}`}>
-                            <button
-                              onClick={() => markAttendance(student.id, status === 'present' ? 'unmarked' : 'present')}
-                              className={`p-2 rounded-lg transition-colors ${
-                                status === 'present'
-                                  ? 'bg-[var(--status-success)] text-[var(--text-on-accent)]'
-                                  : 'bg-[var(--surface-inset)] text-[var(--text-tertiary)] hover:bg-[var(--status-success)]/10 hover:text-[var(--status-success)]'
-                              }`}
-                              title="Present"
-                            >
-                              <UserCheck size={18} />
-                            </button>
-                            <button
-                              onClick={() => markAttendance(student.id, status === 'late' ? 'unmarked' : 'late')}
-                              className={`p-2 rounded-lg transition-colors ${
-                                status === 'late'
-                                  ? 'bg-[var(--status-warning)] text-[var(--text-on-accent)]'
-                                  : 'bg-[var(--surface-inset)] text-[var(--text-tertiary)] hover:bg-[var(--status-warning)]/10 hover:text-[var(--status-warning)]'
-                              }`}
-                              title="Late"
-                            >
-                              <Clock3 size={18} />
-                            </button>
-                            <button
-                              onClick={() => markAttendance(student.id, status === 'absent' ? 'unmarked' : 'absent')}
-                              className={`p-2 rounded-lg transition-colors ${
-                                status === 'absent'
-                                  ? 'bg-[var(--status-danger)] text-[var(--text-on-accent)]'
-                                  : 'bg-[var(--surface-inset)] text-[var(--text-tertiary)] hover:bg-[var(--status-danger)]/10 hover:text-[var(--status-danger)]'
-                              }`}
-                              title="Absent"
-                            >
-                              <UserX size={18} />
-                            </button>
-                          </div>
-                        </div>
-                        {status === 'absent' && !isRollCompleted && (
-                          <input
-                            type="text"
-                            placeholder="Reason for absence..."
-                            value={attendance.absenceReasons?.[student.id] || ''}
-                            onChange={(e) => updateAbsenceReason(student.id, e.target.value)}
-                            className="w-full mt-2 text-xs px-3 py-1.5 bg-[var(--status-danger)]/10 border border-[var(--status-danger)]/30 rounded-lg text-[var(--status-danger)] placeholder-[var(--status-danger)]/40"
-                          />
-                        )}
-                        {status === 'absent' && isRollCompleted && attendance.absenceReasons?.[student.id] && (
-                          <div className="text-xs text-[var(--status-danger)] mt-1.5">
-                            {attendance.absenceReasons[student.id]}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Quick-add student */}
-                <div className="p-2 border-t border-[var(--border-subtle)]">
-                  {showQuickAddStudent ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        autoFocus
-                        value={quickAddName}
-                        onChange={(e) => setQuickAddName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && quickAddName.trim()) {
-                            const newStudent = addStudent({ name: quickAddName.trim(), classIds: [classId || ''], parentName: '', parentEmail: '', parentPhone: '', notes: '' });
-                            markAttendance(newStudent.id, 'present');
-                            setQuickAddName('');
-                            setShowQuickAddStudent(false);
-                          }
-                          if (e.key === 'Escape') {
-                            setQuickAddName('');
-                            setShowQuickAddStudent(false);
-                          }
-                        }}
-                        placeholder="Student name..."
-                        className="flex-1 text-sm px-3 py-2 bg-[var(--surface-inset)] border border-[var(--border-subtle)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-tertiary)]"
-                      />
-                      <button
-                        onClick={() => {
-                          if (quickAddName.trim()) {
-                            const newStudent = addStudent({ name: quickAddName.trim(), classIds: [classId || ''], parentName: '', parentEmail: '', parentPhone: '', notes: '' });
-                            markAttendance(newStudent.id, 'present');
-                            setQuickAddName('');
-                            setShowQuickAddStudent(false);
-                          }
-                        }}
-                        disabled={!quickAddName.trim()}
-                        className="p-2 rounded-lg bg-[var(--accent-primary)] text-[var(--text-on-accent)] disabled:opacity-40"
-                      >
-                        <Check size={16} />
-                      </button>
-                      <button
-                        onClick={() => { setQuickAddName(''); setShowQuickAddStudent(false); }}
-                        className="p-2 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--surface-inset)]"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setShowQuickAddStudent(true)}
-                      className="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium text-[var(--accent-primary)] hover:bg-[var(--accent-muted)] rounded-lg transition-colors"
-                    >
-                      <UserPlus size={16} />
-                      Add Student
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
         {alreadySaved && classNotes.liveNotes.length > 0 ? (
           /* Collapsible saved notes section */
           <div>
@@ -1500,10 +1212,11 @@ export function LiveNotes() {
         <div className="page-w">
           <InputBar
             onSaveNote={handleSaveNote}
-            placeholder="Add a note..."
+            placeholder="Add a note…"
             autocomplete={terminologyAutocomplete}
-            selectedTag={selectedTag}
-            setSelectedTag={setSelectedTag}
+            selectedTag={undefined}
+            setSelectedTag={() => { /* tag picker disabled */ }}
+            showTags={false}
           />
 
           {rehearsalReminderTargetStudents.length > 0 && (
@@ -1584,58 +1297,6 @@ export function LiveNotes() {
                 <div className="p-3 bg-[var(--status-danger)]/10 border border-[var(--status-danger)]/30 rounded-xl text-[var(--status-danger)] text-sm">
                   {aiError}
                   <button onClick={() => setAiError(null)} className="ml-2 text-[var(--status-danger)] hover:text-[var(--text-primary)]">Dismiss</button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {!alreadySaved && (
-            <div className="mt-3 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-inset)] p-3">
-              <button
-                onClick={() => setShowNextWeekGoal(current => !current)}
-                className="flex w-full items-center justify-between gap-3 text-left"
-              >
-                <div>
-                  <div className="text-sm font-medium text-[var(--text-primary)]">Goals for next session</div>
-                  <div className="text-xs text-[var(--text-secondary)]">
-                    Save one wrap-up focus before leaving class.
-                  </div>
-                </div>
-                {showNextWeekGoal ? (
-                  <ChevronUp size={16} className="text-[var(--text-tertiary)]" />
-                ) : (
-                  <ChevronDown size={16} className="text-[var(--text-tertiary)]" />
-                )}
-              </button>
-
-              {showNextWeekGoal && (
-                <div className="mt-3 flex gap-2">
-                  <input
-                    type="text"
-                    value={nextWeekGoalDraft}
-                    onChange={(e) => {
-                      setNextWeekGoalDraft(e.target.value);
-                      setNextWeekGoalSaved(false);
-                    }}
-                    placeholder="What's the focus for next week?"
-                    className="flex-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:border-transparent focus:ring-2 focus:ring-[var(--accent-primary)]"
-                  />
-                  <button
-                    onClick={() => {
-                      saveNextWeekGoal(nextWeekGoalDraft.trim());
-                      setNextWeekGoalSaved(true);
-                    }}
-                    className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl bg-[var(--accent-primary)] px-3 text-[var(--text-on-accent)] transition-colors hover:bg-[var(--accent-primary-hover)]"
-                    title="Save next session goal"
-                  >
-                    <Check size={16} />
-                  </button>
-                </div>
-              )}
-
-              {showNextWeekGoal && nextWeekGoalSaved && (
-                <div className="mt-2 text-xs text-[var(--accent-primary)]">
-                  Goal saved for next session.
                 </div>
               )}
             </div>
