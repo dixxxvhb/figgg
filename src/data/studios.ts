@@ -13,17 +13,6 @@ export const studios: Studio[] = [
     color: '#ec4899', // Pink
   },
   {
-    id: 'caa',
-    name: 'Celebration Arts Academy',
-    shortName: 'CAA',
-    address: '1132 Celebration Blvd, Kissimmee, FL',
-    coordinates: {
-      lat: 28.3197,
-      lng: -81.5331,
-    },
-    color: '#3b82f6', // Blue
-  },
-  {
     id: 'starbound',
     name: 'Starbound Performers',
     shortName: 'Starbound',

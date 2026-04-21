@@ -15,7 +15,7 @@ const JARVIS_CONTEXT = `Dixon has ADHD (medicated with stimulants). His brain ru
 Motivated by: interest, novelty, challenge, urgency. NOT by guilt or obligation.
 Key patterns: time blindness, rejection sensitive dysphoria, late-diagnosed identity reconstruction.
 Design principles: externalize everything, remove friction, interest over guilt, urgency without panic, structure without rigidity, quiet validation, focused containers, integrated identity.
-Current state: grieving mother's death (March 11, 2026, metastatic melanoma, age 66), leaving CAA after 9 years (June 1), launching DWD. ProSeries campaign active Apr 8 - May 1.
+Current state: grieving mother's death (March 11, 2026, metastatic melanoma, age 66). Just left CAA for good on April 21, 2026 after 9 years — DWD (Dance With Dixon) is now 100% full-time. ProSeries Instagram campaign active Apr 8 - May 1, audition registration opens May 1.
 Tone: direct, dark humor welcome, never clinical. He's not fragile, he's in pain. Push when needed.`;
 
 interface EmailSummary {
@@ -42,7 +42,6 @@ interface BriefingData {
   calendarEvents: Array<{ title: string; date: string; startTime: string; endTime?: string }>;
   selfCare: Record<string, unknown> | undefined;
   dayPlan: Record<string, unknown> | undefined;
-  launchPlan: Record<string, unknown> | undefined;
   reminders: Array<{ title: string; dueDate?: string; flagged: boolean; completed: boolean }>;
   emails: EmailSummary[];
 }
@@ -522,11 +521,10 @@ async function generateBriefingCore(): Promise<void> {
   // 2. Read Firestore data + fetch ICS
   const userRoot = `users/${userId}`;
 
-  const [classesSnap, selfCareSnap, dayPlanSnap, launchPlanSnap, profileSnap] = await Promise.all([
+  const [classesSnap, selfCareSnap, dayPlanSnap, profileSnap] = await Promise.all([
     db.collection(`${userRoot}/classes`).get(),
     db.doc(`${userRoot}/singletons/selfCare`).get(),
     db.doc(`${userRoot}/singletons/dayPlan`).get(),
-    db.doc(`${userRoot}/singletons/launchPlan`).get(),
     db.doc(`${userRoot}/singletons/profile`).get(),
   ]);
 
@@ -580,7 +578,6 @@ async function generateBriefingCore(): Promise<void> {
 
   const selfCare = selfCareSnap.exists ? selfCareSnap.data() : undefined;
   const dayPlan = dayPlanSnap.exists ? dayPlanSnap.data() : undefined;
-  const launchPlan = launchPlanSnap.exists ? launchPlanSnap.data() : undefined;
 
   // Extract reminders
   const reminders = ((selfCare?.reminders || []) as Array<Record<string, unknown>>)
@@ -602,7 +599,6 @@ async function generateBriefingCore(): Promise<void> {
     calendarEvents: todayEvents,
     selfCare,
     dayPlan,
-    launchPlan,
     reminders,
     emails,
   });
@@ -661,7 +657,7 @@ ABSOLUTE HARD RULES FOR ROAST — NEVER reference ANY of these:
 - Journal entries, emotional check-ins
 These are PERMANENT, NON-NEGOTIABLE boundaries. Violating them is a critical failure.
 
-ALLOWED ROAST TOPICS ONLY: meds/medication timing, tasks/overdue count, calendar/schedule load, email volume/neglect, productivity patterns, app usage, competition prep, teaching load, launch plan progress, ProSeries campaign, mood (surface-level only).
+ALLOWED ROAST TOPICS ONLY: meds/medication timing, tasks/overdue count, calendar/schedule load, email volume/neglect, productivity patterns, app usage, competition prep, teaching load, ProSeries campaign / audition prep, DWD operations, mood (surface-level only).
 
 ROAST VIBE EXAMPLES (do NOT copy — generate something original and specific to today's data):
 - "you built an entire app to track productivity and it's your biggest procrastination tool"
@@ -986,23 +982,6 @@ function buildBriefingContext(data: BriefingData): string {
     }
   } else {
     lines.push(`\nNo email data available.`);
-  }
-
-  // Launch plan
-  if (data.launchPlan) {
-    const lp = data.launchPlan;
-    const tasks = ((lp.tasks || []) as Array<Record<string, unknown>>)
-      .filter(t => !t.completed && !t.skipped);
-    if (tasks.length > 0) {
-      const milestones = tasks.filter(t => t.milestone);
-      lines.push(`\nLaunch plan: ${tasks.length} active tasks${milestones.length > 0 ? ` (${milestones.length} milestones)` : ""}`);
-      const upcoming = tasks
-        .filter(t => t.scheduledDate && (t.scheduledDate as string) <= data.date)
-        .slice(0, 3);
-      if (upcoming.length > 0) {
-        lines.push(`  Due/overdue: ${upcoming.map(t => t.title).join(", ")}`);
-      }
-    }
   }
 
   return lines.join("\n");

@@ -23,7 +23,6 @@ import { getClassesByDay } from '../data/classes';
 import { TodaysAgenda } from '../components/Dashboard/TodaysAgenda';
 import { MedsStatusBar } from '../components/Dashboard/MedsStatusBar';
 import { RemindersWidget } from '../components/Dashboard/RemindersWidget';
-import { TransitionsWidget } from '../components/Dashboard/TransitionsWidget';
 import { CalendarEvent, DEFAULT_MED_CONFIG, DEFAULT_AI_CONFIG } from '../types';
 import type { AICheckIn, DayPlan, DayPlanItem, RecurringSchedule } from '../types';
 import { AICheckInWidget } from '../components/Dashboard/AICheckInWidget';
@@ -663,11 +662,6 @@ export function Dashboard() {
         onLogDose={handleLogDose}
         canLogDose={canLogDose}
       />
-
-      {/* ── Transitions: CAA countdown + ProSeries runway ── */}
-      <div className="page-container pt-2">
-        <TransitionsWidget />
-      </div>
 
       {/* ── Competition Banner ── */}
       {nextComp && daysUntilComp !== null && daysUntilComp <= 14 && (

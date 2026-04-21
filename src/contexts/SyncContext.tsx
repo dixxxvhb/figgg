@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { loadData, saveCalendarEventsToStorage } from '../services/storage';
 import { fetchCalendarEvents } from '../services/calendar';
-import { fetchGoogleCalendarEvents } from '../services/googleCalendar';
 import { getCalendarEvents, batchSaveCalendarEvents } from '../services/firestore';
 import { auth } from '../services/firebase';
 import type { CalendarEvent } from '../types';
@@ -52,7 +51,7 @@ async function syncAllCalendars(force = false): Promise<string[]> {
     data.settings.calendarUrls.forEach((u: string) => urls.add(u));
   }
 
-  // Fetch ICS calendars + Google Calendar in parallel
+  // Fetch ICS calendars (Apple Calendar is the single source of truth)
   const icsPromises = Array.from(urls).map(async (url) => {
     const shortUrl = url.length > 40 ? url.slice(0, 37) + '...' : url;
     try {
@@ -66,40 +65,16 @@ async function syncAllCalendars(force = false): Promise<string[]> {
     }
   });
 
-  const googlePromise = fetchGoogleCalendarEvents().catch(err => {
-    console.warn('Google Calendar sync failed:', err);
-    return [] as Awaited<ReturnType<typeof fetchGoogleCalendarEvents>>;
-  });
-
-  const [icsResults, googleEvents] = await Promise.all([
-    Promise.all(icsPromises),
-    googlePromise,
-  ]);
-
+  const icsResults = await Promise.all(icsPromises);
   const icsEvents = icsResults.flat();
 
-  // Convert Google Calendar events to CalendarEvent format
-  const googleCalEvents: CalendarEvent[] = googleEvents.map(ge => ({
-    id: `gcal-${ge.googleCalendarEventId}`,
-    title: ge.title,
-    date: ge.date,
-    startTime: ge.startTime,
-    endTime: ge.endTime,
-    location: ge.location || undefined,
-    description: ge.description || undefined,
-    googleCalendarEventId: ge.googleCalendarEventId,
-    source: 'google' as const,
-  }));
-
   // Tag ICS events with source
-  const taggedIcsEvents: CalendarEvent[] = icsEvents.map(e => ({
+  const newFeedEvents: CalendarEvent[] = icsEvents.map(e => ({
     ...e,
     source: e.source || 'ics' as const,
   }));
 
-  const newFeedEvents = [...taggedIcsEvents, ...googleCalEvents];
-
-  if (newFeedEvents.length === 0 && icsResults.every(r => r.length === 0) && googleEvents.length === 0) {
+  if (newFeedEvents.length === 0 && icsResults.every(r => r.length === 0)) {
     syncInProgress = false;
     // No events isn't a failure — calendars may just be empty.
     // Only warn if every fetch actually failed (results contain "FAILED").

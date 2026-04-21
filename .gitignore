@@ -39,3 +39,6 @@ deno.lock
 
 # Session memory buffer
 .remember/
+
+# Local secrets (OAuth clients, SDK keys)
+.secrets/

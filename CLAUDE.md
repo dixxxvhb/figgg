@@ -1,7 +1,7 @@
 # Figgg — Architecture Guide
 
 ## Overview
-Dance teaching assistant PWA for Dixon. Tracks classes, students, competitions, choreography, self-care (ADHD/meds), reminders, AI check-ins, day planning, and DWD launch plan. Single-user app with cross-device sync via Firebase.
+Dance teaching assistant PWA for Dixon. Tracks classes (via Apple Calendar feed — single source of truth), students, competitions, choreography, self-care (ADHD/meds), reminders, AI check-ins, and day planning. Single-user app with cross-device sync via Firebase.
 
 ## Stack
 React 19, TypeScript, Vite, Tailwind CSS, React Router v7, Firebase (Auth, Firestore, Storage, Cloud Functions, Hosting). **NO Zustand** — uses React Context + hooks. AI via Anthropic Claude (claude-sonnet-4-5-20250929) running in Firebase Cloud Functions.
@@ -39,7 +39,6 @@ cd functions && npm run build        # Verify Cloud Functions compile
 | `/library` | Library | Yes |
 | `/tasks` | Me (reminders tab) | Yes |
 | `/me` | Me (self-care/meds) | Yes |
-| `/launch` | LaunchPlan | Yes |
 | `/ai` | AIChat | Yes |
 | `/settings` | Settings | Yes |
 | `*` | NotFound | No |
@@ -48,7 +47,7 @@ cd functions && npm run build        # Verify Cloud Functions compile
 - **AuthContext** (`contexts/AuthContext.tsx`) — Firebase Auth (email/password), `useAuth()` hook, LoginScreen
 - **AppDataContext** (`contexts/AppDataContext.tsx`) — thin wrapper providing useAppData to tree
 - **useAppData()** (`hooks/useAppData.ts`) — THE central hook. All data CRUD.
-  - Returns: `{ data, updateClass, addClass, deleteClass, getWeekNotes, saveWeekNotes, updateSelfCare, updateLaunchPlan, addStudent, updateStudent, ... }`
+  - Returns: `{ data, updateClass, addClass, deleteClass, getWeekNotes, saveWeekNotes, updateSelfCare, addStudent, updateStudent, ... }`
   - On mount: loads from Firestore via `loadAllData(user.uid)`, falls back to localStorage
   - Real-time listeners for selfCare, dayPlan, launchPlan via Firestore `onSnapshot`
   - Writes go to both localStorage (cache) and Firestore (persistence)
@@ -155,7 +154,7 @@ All jobs use `w9jds/firebase-action@master` with `FIREBASE_SERVICE_ACCOUNT` secr
 ### Types (`src/types/`)
 | File | Purpose |
 |------|---------|
-| `index.ts` | All types: Studio, Class, LiveNote, MediaItem, WeekNotes, Student, Competition, CalendarEvent, SelfCareData, DayPlan, LaunchPlanData, AICheckIn, AIConfig, MedConfig, LearningData, AppData shape, AppSettings |
+| `index.ts` | All types: Studio, Class, LiveNote, MediaItem, WeekNotes, Student, Competition, CalendarEvent, SelfCareData, DayPlan, AICheckIn, AIConfig, MedConfig, LearningData, AppData shape, AppSettings |
 | `choreography.ts` | Choreography domain: Section, Progression, Formation, PracticeNote |
 
 ### Components (`src/components/`)
@@ -225,16 +224,15 @@ VITE_FIREBASE_*             # All 7 client env vars above
 - Static assets: **stale-while-revalidate** (content-hashed filenames)
 
 ## Static Seed Data (`src/data/`)
-`classes.ts, studios.ts, students.ts, competitions.ts, competitionDances.ts, terminology.ts, projects.ts, progressions.ts, launchPlan.ts`
+`classes.ts (empty — Apple Calendar only), studios.ts, students.ts, competitions.ts, competitionDances.ts, terminology.ts, progressions.ts`
 
-These files are **first-run seed data only**. Once the app has stored data (localStorage cache or Firestore), the seed data is never used again. All data is fully editable in-app and persists via Firestore — no hardcoded overrides.
+These files are **first-run seed data only**. Once the app has stored data (localStorage cache or Firestore), the seed data is never used again. All data is fully editable in-app and persists via Firestore — no hardcoded overrides. `classes.ts` is intentionally empty: classes come exclusively from Dixon's Apple Calendar feed (see `VITE_CALENDAR_URLS`).
 
 ## Class Sources — Critical Rule
-Classes come from TWO sources that must be treated identically:
-1. **Internal definitions** (`data.classes`) — IDs: `class-*`. Use `getClassesByDay()`.
-2. **iCal calendar events** (`data.calendarEvents`) — IDs: `cal-*`. Use `classifyCalendarEvent()` → `isClassLike`.
+Classes come from Dixon's Apple Calendar (iCal feed) as the **single source of truth**:
+- **iCal calendar events** (`data.calendarEvents`) — IDs: `cal-*`. Use `classifyCalendarEvent()` → `isClassLike`.
 
-Any feature counting, displaying, or acting on classes MUST handle both. Dedup by title+day when counting.
+The legacy `data.classes` internal-definitions path still exists in code for backwards compatibility (IDs: `class-*`, uses `getClassesByDay()`) but the seed is intentionally empty. If Dixon has stale `class-*` records in Firestore from before the migration, they should be cleared via Data Settings.
 
 ## Gotchas
 - No test suite — verify with `npm run build` (TypeScript + Vite)
@@ -245,4 +243,3 @@ Any feature counting, displaying, or acting on classes MUST handle both. Dedup b
 - Settings "Cloud Sync" row is a read-only Firestore status indicator (not a button)
 - All data (classes, competitions, students, studios) is fully dynamic from Firestore — `src/data/` files are first-run seed only, never overwrite stored data
 - `loadData()` in `storage.ts` uses stored data as source of truth; only falls back to defaults if no data is stored yet
-- The `dwd.netlify.app` URLs in `src/data/launchPlan.ts` are for a separate DWD website, not this app

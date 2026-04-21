@@ -11,7 +11,7 @@ npm run build        # Must pass before deploy
 - React 19, TypeScript 5.9, Vite 7, Tailwind CSS v4
 - Firebase: Auth, Firestore, Storage, Cloud Functions
 - State: `useAppData()` hook (Context + hooks pattern)
-- PWA: service worker (`public/sw.js`, cache v4)
+- PWA: service worker (`public/sw.js`, cache v6)
 
 ## Architecture
 
@@ -28,7 +28,7 @@ npm run build        # Must pass before deploy
 ### Firestore Structure
 ```
 /users/{userId}/
-  singletons/   → profile, selfCare, dayPlan, launchPlan, learningData
+  singletons/   → profile, selfCare, dayPlan, learningData, therapist, meditation, grief
   studios/       → Studio docs
   classes/       → Class docs
   students/      → Student docs (photos in Storage)
@@ -70,17 +70,20 @@ Dashboard is context-aware — shows 4-5 cards based on time-of-day and teaching
 - Returns `DashboardContextType`: morning | pre-class | during-class | post-class | evening | default
 - NO widget ordering, NO drag-drop, NO DashboardSettings widget toggles
 - Widgets relocated: WeekStats/MomentumBar/StreakCard/EventCountdown → Schedule page, WeeklyInsight → WeekReview, FixItemWidget → Me wellness tab
-- Deleted components: SortableWidget, DailyBriefingWidget, EndOfDaySummary, LaunchPlanWidget, useDashboardMode
+- Deleted components: SortableWidget, DailyBriefingWidget, EndOfDaySummary, LaunchPlanWidget, TransitionsWidget (CAA countdown — removed Apr 21, 2026 when Dixon left CAA), useDashboardMode
 
 ### Cloud Functions (`functions/src/`)
 | Function | Type | Purpose |
 |----------|------|---------|
-| aiChat | Callable | Claude API chat |
+| aiChat | Callable | Multi-mode Claude chat (check-in, briefing, day-plan, prep, capture, reflection) |
 | expandNotes | Callable | AI note expansion |
 | generatePlan | Callable | Week plan generation |
 | organizeNotes | Callable | Note organization |
 | detectReminders | Callable | Reminder extraction |
-| calendarProxy | HTTP | iCal CORS proxy |
+| calendarProxy | Callable | ICS/webcal proxy (normalizes webcal://→https://, SSRF-protected) |
+| generateDailyBriefing | Scheduled + Callable | 5:30am ET briefing, also via `triggerDailyBriefing` |
+| nightlySweep | Scheduled | Nightly maintenance |
+| createGoogleCalendarEvent / updateGoogleCalendarEvent / deleteGoogleCalendarEvent / fetchGoogleCalendarEvents | Callable | Google Calendar integration (therapy session sync only — general calendar reads are Apple-only) |
 
 ## Design System — "Ink & Gold"
 - Default theme: `stone` (burnished gold + warm cream + deep ink)
@@ -88,16 +91,15 @@ Dashboard is context-aware — shows 4-5 cards based on time-of-day and teaching
 - All themes have light + dark variants
 - Font size settings: Normal (15px), Large (17px), Extra-large (19px)
 
-## Class Sources — Critical Architecture Rule
+## Class Sources — Critical Architecture Rule (updated Apr 21, 2026)
 
-Classes come from TWO sources that MUST be treated identically everywhere:
-1. **Internal definitions** (`data.classes`) — Figgg-native class records (name, day, time, studio). IDs: `class-*`.
-2. **iCal calendar events** (`data.calendarEvents`) — synced from Google Calendar. IDs: `cal-*`. Use `classifyCalendarEvent()` from `src/utils/calendarEventType.ts` — if `isClassLike === true`, treat it as a class.
+Classes come from Dixon's **Apple Calendar** (published iCloud webcal feed) as the **single source of truth**:
+1. **iCal calendar events** (`data.calendarEvents`) — IDs: `cal-*`. Use `classifyCalendarEvent()` from `src/utils/calendarEventType.ts` — if `isClassLike === true`, treat it as a class. Fed via `VITE_CALENDAR_URLS` → `calendarProxy` Cloud Function → `services/calendar.ts` parser.
+2. **Internal definitions** (`data.classes`) — legacy path, IDs: `class-*`. Seed is intentionally empty (`src/data/classes.ts`). The code path still exists for dual-source handling but new classes should NOT be added this way — everything flows through Apple Calendar now.
 
-**Any feature that counts, displays, filters, or acts on classes must handle BOTH sources.**
-- When counting: dedup by matching title+day to avoid double-counting overlapping entries.
-- When marking exceptions (cancel/sub): mark both internal class IDs AND calendar event IDs.
-- When displaying: show cancelled/subbed badges on calendar event cards, not just internal class cards.
+**Historical context:** Before Apr 21, 2026, internal `class-*` records coexisted with ICS `cal-*` events and all features had to handle both. After Dixon left CAA, hardcoded class seeds were cleared and Firestore `/users/{uid}/classes` was wiped. The Apple Calendar feed is now canonical.
+
+Features that count, display, filter, or act on classes still use `classifyCalendarEvent()` for consistency. Dedup by title+day when counting. Exceptions (cancel/sub) are marked on calendar event IDs.
 
 ## Deploy
 ```bash
