@@ -8,8 +8,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-        display: ['Fraunces', 'Georgia', 'Times New Roman', 'serif'],
+        sans: ['Monaspace Argon', 'IBM Plex Mono', 'Monaco', 'monospace'],
+        display: ['Monaspace Neon', 'IBM Plex Mono', 'Monaco', 'monospace'],
+        mono: ['Monaspace Neon', 'IBM Plex Mono', 'Monaco', 'monospace'],
+        body: ['Monaspace Argon', 'IBM Plex Mono', 'Monaco', 'monospace'],
       },
     },
   },

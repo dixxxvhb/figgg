@@ -16,7 +16,6 @@ import { AuthProvider } from './contexts/AuthContext';
 import { AIPanel } from './components/common/AIPanel';
 import { loadData } from './services/storage';
 import { applyVisualSettings } from './styles/applyTheme';
-import { restoreMoodLayer } from './styles/moodLayer';
 import { renderIconToDataUrl } from './styles/appIcons';
 
 /**
@@ -184,9 +183,6 @@ function App() {
   useEffect(() => {
     const data = loadData();
     applyVisualSettings(data?.settings);
-
-    // Restore mood layer from session (persists across navigations, resets daily)
-    restoreMoodLayer();
 
     // Global error tracking — catches errors outside React's tree
     // (e.g. async callbacks, third-party scripts, service worker issues)

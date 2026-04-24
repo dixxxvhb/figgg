@@ -50,7 +50,7 @@ function LoginScreen() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--surface-primary)] px-4 animate-[fade-in_0.4s_ease-out]">
+    <main className="min-h-screen flex items-center justify-center bg-[var(--surface-primary)] px-4 animate-[fade-in_0.4s_ease-out]" aria-label="figgg sign in">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-[var(--text-primary)] tracking-tight">figgg</h1>
@@ -65,6 +65,8 @@ function LoginScreen() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
+            aria-label="email"
+            placeholder="email"
             required
             className="w-full px-4 py-3 rounded-xl bg-[var(--surface-card)] text-[var(--text-primary)]
                        placeholder-[var(--text-tertiary)] border border-[var(--border-subtle)]
@@ -76,6 +78,7 @@ function LoginScreen() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="password"
             autoComplete="current-password"
+            aria-label="password"
             required
             className="w-full px-4 py-3 rounded-xl bg-[var(--surface-card)] text-[var(--text-primary)]
                        placeholder-[var(--text-tertiary)] border border-[var(--border-subtle)]
@@ -96,7 +99,7 @@ function LoginScreen() {
           </button>
         </form>
       </div>
-    </div>
+    </main>
   );
 }
 

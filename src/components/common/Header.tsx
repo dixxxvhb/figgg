@@ -12,14 +12,15 @@ import {
   WifiOff,
 } from 'lucide-react';
 import { useSyncStatus } from '../../contexts/SyncContext';
+import { DxSignature } from '../dx/DxSignature';
 
-// Primary nav: Home, Schedule, Meds, Wellness, More (Apr 2026 — Schedule restored, Notes page killed)
+// Primary nav (dx: lowercase labels).
 const navItems = [
-  { path: '/', icon: Home, label: 'Home' },
-  { path: '/schedule', icon: Calendar, label: 'Schedule' },
-  { path: '/meds', icon: Pill, label: 'Meds' },
-  { path: '/me', icon: Heart, label: 'Wellness' },
-  { path: '/more', icon: MoreHorizontal, label: 'More' },
+  { path: '/', icon: Home, label: 'home' },
+  { path: '/schedule', icon: Calendar, label: 'schedule' },
+  { path: '/meds', icon: Pill, label: 'meds' },
+  { path: '/me', icon: Heart, label: 'wellness' },
+  { path: '/more', icon: MoreHorizontal, label: 'more' },
 ];
 
 // Sync status indicator component — tappable for manual sync
@@ -86,8 +87,8 @@ export function Header() {
     <header className="bg-[var(--surface-primary)] border-b border-[var(--border-subtle)] sticky top-0 z-50" style={{ paddingTop: 'env(safe-area-inset-top, 0)' }}>
       <div className="max-w-4xl mx-auto px-4">
         <div className="flex items-center justify-between h-12">
-          <Link to="/" className="flex items-center gap-2" aria-label="Figgg home">
-            <span className="font-display text-xl font-bold text-[var(--accent-primary)]">Figgg</span>
+          <Link to="/" className="flex items-center gap-2" aria-label="figgg home">
+            <DxSignature prefix="figgg" />
           </Link>
 
           <div className="flex items-center gap-2">

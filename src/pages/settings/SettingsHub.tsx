@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useAppData } from '../../contexts/AppDataContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { themes } from '../../styles/themes';
+import { DX_ACCENT_LABELS, type DxAccentId } from '../../styles/dxTheme';
 import { DEFAULT_AI_CONFIG, DEFAULT_MED_CONFIG, DEFAULT_WELLNESS_ITEMS } from '../../types';
 
 interface SettingRow {
@@ -44,9 +44,10 @@ export function SettingsHub() {
   const medConfig = settings.medConfig || DEFAULT_MED_CONFIG;
 
   // Build live subtitles
-  const themeName = themes.find(t => t.id === settings.themeId)?.name || 'Ink & Gold';
-  const darkLabel = settings.darkMode ? 'Dark' : 'Light';
-  const fontLabel = settings.fontSize === 'extra-large' ? 'XL text' : settings.fontSize === 'large' ? 'Large text' : 'Normal text';
+  const accentId = (settings.accentId as DxAccentId) || 'cobalt';
+  const accentName = DX_ACCENT_LABELS[accentId] ?? 'cobalt';
+  const darkLabel = settings.darkMode === false ? 'light' : 'dark';
+  const fontLabel = settings.fontSize === 'extra-large' ? 'xl' : settings.fontSize === 'large' ? 'large' : 'normal';
 
   const medLabel = `${medConfig.medType || 'IR'}, ${medConfig.maxDoses || 2} doses`;
   const wellnessCount = (settings.wellnessItems || DEFAULT_WELLNESS_ITEMS).filter(w => w.enabled).length;
@@ -61,7 +62,7 @@ export function SettingsHub() {
   const noteCount = Object.keys(data.weekNotes || {}).length;
 
   const appRows: SettingRow[] = [
-    { to: '/settings/display', icon: Palette, label: 'Display', subtitle: `${themeName}, ${darkLabel}, ${fontLabel}`, color: 'var(--accent-primary)' },
+    { to: '/settings/display', icon: Palette, label: 'display', subtitle: `${accentName}, ${darkLabel}, ${fontLabel}`, color: 'var(--accent-primary)' },
   ];
 
   const youRows: SettingRow[] = [

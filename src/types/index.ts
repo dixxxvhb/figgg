@@ -361,17 +361,22 @@ export interface AppSettings {
   password?: string;
   fontSize?: 'normal' | 'large' | 'extra-large';
   darkMode?: boolean;
-  themeId?: string; // Color theme ID
+  themeId?: string; // Legacy — kept for migration. Replaced by accentId under dx.
+  accentId?: 'cobalt' | 'azure' | 'ultramarine' | 'periwinkle' | 'teal-cobalt'; // dx accent preset
   medConfig?: MedConfig;
   wellnessItems?: WellnessItemConfig[];
   aiConfig?: AIConfig;
   hiddenCalendarEventIds?: string[]; // Event IDs hidden by user (persists across syncs)
-  appIconId?: string; // Selected app icon variant (default: 'ink-gold')
+  appIconId?: string; // Selected app icon variant
   // Behavior settings
   calendarSyncMinutes?: number; // 5, 10, 15, 30 (default 15)
   imageQuality?: number; // 0.5, 0.7, 0.9 (default 0.7)
-  customAccentColor?: string; // hex color, e.g. '#ec4899'
-  fontFamily?: string; // 'editorial' | 'modern' | 'classic' | 'clean' | 'dramatic' | 'handwritten'
+  customAccentColor?: string; // Legacy — kept for migration
+  fontFamily?: string; // Legacy — kept for migration
+  // Energy-aware home (Phase 5)
+  energyMode?: 'low' | 'high' | 'auto';
+  // Quickcapture FAB memory (Phase 4)
+  quickcaptureDefaultMode?: 'mood' | 'thought' | 'task' | 'med' | 'blocker' | 'ai';
 }
 
 // ===== STUDENT MANAGEMENT =====

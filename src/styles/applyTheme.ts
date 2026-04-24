@@ -1,100 +1,118 @@
 import type { AppSettings } from '../types';
 import { applyAppIcon } from './appIcons';
-import { getTheme } from './themes';
+import {
+  DX_DARK,
+  DX_LIGHT,
+  DX_ACCENT_PRESETS,
+  DX_FONT_STACK,
+  ambientShift,
+  getAmbientWindow,
+  type DxAccentId,
+} from './dxTheme';
 
-const THEME_MIGRATIONS: Record<string, string> = {
-  forest: 'stone',
-  sunset: 'stone',
-  rose: 'stone',
-  clay: 'stone',
-  dusk: 'stone',
-  plum: 'vapor',
-  midnight: 'ocean',
-  neon: 'crimson',
-  solar: 'crimson',
-  arctic: 'ocean',
-  pride: 'candy',
-  mono: 'noir',
-};
-
-const DEFAULT_THEME_ID = 'curtain-call';
+const DEFAULT_ACCENT: DxAccentId = 'cobalt';
 const DEFAULT_DARK_MODE = true;
-const DEFAULT_FONT_FAMILY = 'curtain-call';
 
-export function applyTheme(themeId: string, isDark: boolean = false): void {
-  const resolvedId = THEME_MIGRATIONS[themeId] || themeId;
-  const theme = getTheme(resolvedId);
-  const root = document.documentElement;
-
-  // Apply raw palette values (forest/blush/pop scales)
-  for (const [scale, stops] of Object.entries(theme.colors)) {
-    for (const [stop, hex] of Object.entries(stops)) {
-      root.style.setProperty(`--color-${scale}-${stop}`, hex);
-    }
-  }
-
-  // Apply semantic tokens for current mode
-  const tokens = isDark ? theme.semantics.dark : theme.semantics.light;
-  for (const [key, value] of Object.entries(tokens)) {
-    root.style.setProperty(key, value);
-  }
-}
-
-// ── Custom font/accent color overrides ──────────────────────────
-
-const ACCENT_PROPS = [
-  '--text-heading',
-  '--accent-primary',
-  '--accent-primary-hover',
-  '--border-strong',
-] as const;
-
-function lighten(hex: string, percent: number): string {
-  const num = parseInt(hex.replace('#', ''), 16);
-  const r = Math.min(255, (num >> 16) + Math.round(255 * percent / 100));
-  const g = Math.min(255, ((num >> 8) & 0x00ff) + Math.round(255 * percent / 100));
-  const b = Math.min(255, (num & 0x0000ff) + Math.round(255 * percent / 100));
-  return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
-}
-
-export function applyAccentOverride(hex: string): void {
-  const root = document.documentElement;
-  root.style.setProperty('--text-heading', hex);
-  root.style.setProperty('--accent-primary', hex);
-  root.style.setProperty('--accent-primary-hover', lighten(hex, 15));
-  root.style.setProperty('--border-strong', hex);
-}
-
-export function clearAccentOverride(): void {
-  const root = document.documentElement;
-  for (const prop of ACCENT_PROPS) {
-    root.style.removeProperty(prop);
-  }
-}
-
-// ── Font family overrides ──────────────────────────────────────
-
-export const FONT_FAMILIES: Record<string, { display: string; body: string; label: string }> = {
-  'curtain-call': { display: "'Fraunces', Georgia, serif", body: "'Cabinet Grotesk', -apple-system, system-ui, sans-serif", label: 'Curtain Call' },
-  editorial: { display: "'Fraunces', Georgia, serif", body: "'Inter', system-ui, sans-serif", label: 'Editorial (legacy)' },
-  modern: { display: "'Outfit', system-ui, sans-serif", body: "'Inter', system-ui, sans-serif", label: 'Modern' },
-  classic: { display: "'Playfair Display', Georgia, serif", body: "'Lora', Georgia, serif", label: 'Classic' },
-  clean: { display: "'Inter', system-ui, sans-serif", body: "'Inter', system-ui, sans-serif", label: 'Clean' },
-  dramatic: { display: "'Bebas Neue', Impact, sans-serif", body: "'Outfit', system-ui, sans-serif", label: 'Dramatic' },
-  handwritten: { display: "'Caveat', cursive", body: "'Inter', system-ui, sans-serif", label: 'Handwritten' },
+// Map legacy AppSettings.themeId values to the dx accent system.
+const LEGACY_THEME_TO_ACCENT: Record<string, DxAccentId> = {
+  'curtain-call': 'cobalt',
+  'stone':        'cobalt',
+  'ocean':        'teal-cobalt',
+  'dwd':          'cobalt',
+  'noir':         'cobalt',
+  'candy':        'periwinkle',
+  'crimson':      'cobalt',
+  'vapor':        'ultramarine',
+  'emerald':      'teal-cobalt',
 };
 
-export function applyFontFamily(id: string): void {
-  const combo = FONT_FAMILIES[id] || FONT_FAMILIES.editorial;
+function resolveAccent(raw?: string): DxAccentId {
+  if (!raw) return DEFAULT_ACCENT;
+  if (raw in DX_ACCENT_PRESETS) return raw as DxAccentId;
+  return LEGACY_THEME_TO_ACCENT[raw] || DEFAULT_ACCENT;
+}
+
+export function applyDxTheme(mode: 'dark' | 'light', accentId: DxAccentId): void {
   const root = document.documentElement;
-  root.style.setProperty('--font-display', combo.display);
-  root.style.setProperty('--font-body', combo.body);
+  const palette = mode === 'dark' ? DX_DARK : DX_LIGHT;
+  const ambient = ambientShift(getAmbientWindow(), accentId, mode);
+  const preset = DX_ACCENT_PRESETS[accentId];
+
+  // Base dx tokens
+  root.style.setProperty('--dx-bg', ambient.bg);
+  root.style.setProperty('--dx-elevated', palette.elevated);
+  root.style.setProperty('--dx-text-1', palette.text1);
+  root.style.setProperty('--dx-text-2', palette.text2);
+  root.style.setProperty('--dx-text-3', palette.text3);
+  root.style.setProperty('--dx-text-4', palette.text4);
+  root.style.setProperty('--dx-warn', palette.warn);
+  root.style.setProperty('--dx-error', palette.error);
+  root.style.setProperty('--dx-dwd-terracotta', palette.dwdTerracotta);
+  root.style.setProperty('--dx-tamara-gold', palette.tamaraGold);
+  root.style.setProperty('--dx-border-dim', palette.borderDim);
+
+  // Accent tokens
+  root.style.setProperty('--dx-accent', ambient.accentColor);
+  root.style.setProperty('--dx-accent-base', preset.base);
+  root.style.setProperty('--dx-accent-bright', preset.bright);
+  root.style.setProperty('--dx-accent-dim', preset.dim);
+  root.style.setProperty('--dx-accent-on-light', preset.onLight);
+  root.style.setProperty('--dx-border-active', ambient.borderColor);
+
+  // Legacy-compat mappings so existing CSS referencing --surface-*, --text-*,
+  // --accent-* keeps rendering while pages are migrated to dx tokens.
+  root.style.setProperty('--surface-primary', ambient.bg);
+  root.style.setProperty('--surface-card', palette.elevated);
+  root.style.setProperty('--surface-card-hover', palette.elevated);
+  root.style.setProperty('--surface-inset', palette.bg);
+  root.style.setProperty('--surface-elevated', palette.elevated);
+  root.style.setProperty('--surface-highlight', palette.borderDim);
+  root.style.setProperty('--text-primary', palette.text1);
+  root.style.setProperty('--text-secondary', palette.text2);
+  root.style.setProperty('--text-tertiary', palette.text3);
+  root.style.setProperty('--text-on-accent', mode === 'dark' ? palette.bg : palette.text1);
+  root.style.setProperty('--accent-primary', ambient.accentColor);
+  root.style.setProperty('--accent-primary-hover', preset.bright);
+  root.style.setProperty('--accent-secondary', palette.text3);
+  root.style.setProperty('--accent-muted',
+    mode === 'dark'
+      ? `rgba(${hexToRgb(preset.base)}, 0.18)`
+      : `rgba(${hexToRgb(preset.onLight)}, 0.12)`
+  );
+  root.style.setProperty('--border-subtle', palette.borderDim);
+  root.style.setProperty('--border-strong', ambient.accentColor);
+  root.style.setProperty('--status-success', mode === 'dark' ? '#4ADE80' : '#15803D');
+  root.style.setProperty('--status-warning', palette.warn);
+  root.style.setProperty('--status-danger', palette.error);
+  root.style.setProperty('--shadow-card', 'none');
+  root.style.setProperty('--shadow-elevated', 'none');
+  root.style.setProperty('--shadow-card-hover', 'none');
+
+  // Font stack
+  root.style.setProperty('--font-display', DX_FONT_STACK.mono);
+  root.style.setProperty('--font-body', DX_FONT_STACK.body);
+
+  // Neutralize mood-layer CSS vars that lingering components may still read.
+  root.style.setProperty('--mood-surface-tint', ambient.bg);
+  root.style.setProperty('--mood-accent-intensity', '1');
+  root.style.setProperty('--mood-shadow-intensity', '1');
+  root.style.setProperty('--mood-border-opacity', '1');
+  root.style.setProperty('--mood-ambient-glow', 'transparent');
+
+  // data attribute for any CSS that wants to branch on dx mode
+  root.dataset.dxMode = mode;
+  root.dataset.dxAmbient = getAmbientWindow();
+}
+
+function hexToRgb(hex: string): string {
+  const n = parseInt(hex.replace('#', ''), 16);
+  return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`;
 }
 
 export function applyVisualSettings(settings?: Partial<AppSettings>): void {
   const root = document.documentElement;
-  // Curtain Call is dark-first — default to dark when no user preference saved
   const darkMode = settings?.darkMode ?? DEFAULT_DARK_MODE;
+  const accentId = resolveAccent((settings as { accentId?: string } | undefined)?.accentId || settings?.themeId);
 
   switch (settings?.fontSize) {
     case 'large':
@@ -108,14 +126,17 @@ export function applyVisualSettings(settings?: Partial<AppSettings>): void {
   }
 
   root.classList.toggle('dark', darkMode);
-  applyTheme(settings?.themeId || DEFAULT_THEME_ID, darkMode);
+  applyDxTheme(darkMode ? 'dark' : 'light', accentId);
 
-  if (settings?.customAccentColor) {
-    applyAccentOverride(settings.customAccentColor);
-  } else {
-    clearAccentOverride();
-  }
-
-  applyFontFamily(settings?.fontFamily || DEFAULT_FONT_FAMILY);
-  applyAppIcon(settings?.appIconId || 'ink-gold');
+  applyAppIcon(settings?.appIconId || 'dx');
 }
+
+// Legacy exports kept as no-ops so existing imports don't break mid-migration.
+// Args accepted but ignored — dx is the single theme.
+export function applyTheme(_themeId?: string, _isDark?: boolean): void { /* no-op under dx */ }
+export function applyAccentOverride(_hex?: string): void { /* no-op under dx */ }
+export function clearAccentOverride(): void { /* no-op under dx */ }
+export function applyFontFamily(_id?: string): void { /* no-op under dx */ }
+export const FONT_FAMILIES: Record<string, { display: string; body: string; label: string }> = {
+  dx: { display: DX_FONT_STACK.mono, body: DX_FONT_STACK.body, label: 'dx' },
+};

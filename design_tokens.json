@@ -1,0 +1,501 @@
+{
+  "$schema": "https://www.designtokens.org/schemas/2025.10/format.json",
+  "$description": "Dixon's personal life-OS brand. Sibling to DWD (NOT a replacement). Terminal vibe — cobalt on near-black, Monaspace Neon/Argon, dry dark-humor voice. Scoped to life-OS tools only (Figgg, Curtain Up, Apple Music MCP, personal scripts). Never applied to DWD public surfaces.",
+  "color": {
+    "$type": "color",
+    "bg": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.043,
+          0.043,
+          0.051
+        ],
+        "hex": "#0b0b0d"
+      }
+    },
+    "elevated": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.075,
+          0.075,
+          0.102
+        ],
+        "hex": "#13131a"
+      }
+    },
+    "bg-dawn": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.043,
+          0.055,
+          0.094
+        ],
+        "hex": "#0b0e18"
+      }
+    },
+    "bg-evening": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.051,
+          0.043,
+          0.055
+        ],
+        "hex": "#0d0b0e"
+      }
+    },
+    "bg-night": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.031,
+          0.031,
+          0.039
+        ],
+        "hex": "#08080a"
+      }
+    },
+    "accent": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.31,
+          0.616,
+          1
+        ],
+        "hex": "#4f9dff"
+      }
+    },
+    "accent-bright": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.498,
+          0.722,
+          1
+        ],
+        "hex": "#7fb8ff"
+      }
+    },
+    "accent-dim": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.243,
+          0.49,
+          0.8
+        ],
+        "hex": "#3e7dcc"
+      }
+    },
+    "warn": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.984,
+          0.573,
+          0.235
+        ],
+        "hex": "#fb923c"
+      }
+    },
+    "error": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.937,
+          0.267,
+          0.267
+        ],
+        "hex": "#ef4444"
+      }
+    },
+    "text-1": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.98,
+          0.98,
+          0.98
+        ],
+        "hex": "#fafafa"
+      }
+    },
+    "text-2": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.831,
+          0.831,
+          0.831
+        ],
+        "hex": "#d4d4d4"
+      }
+    },
+    "text-3": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.639,
+          0.639,
+          0.639
+        ],
+        "hex": "#a3a3a3"
+      }
+    },
+    "text-4": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.322,
+          0.322,
+          0.322
+        ],
+        "hex": "#525252"
+      }
+    },
+    "dwd-handshake": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.784,
+          0.38,
+          0.294
+        ],
+        "hex": "#c8614b"
+      }
+    },
+    "tamara-gold": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.886,
+          0.725,
+          0.333
+        ],
+        "hex": "#e2b955"
+      }
+    },
+    "primary": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.31,
+          0.616,
+          1
+        ],
+        "hex": "#4f9dff"
+      }
+    },
+    "secondary": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.639,
+          0.639,
+          0.639
+        ],
+        "hex": "#a3a3a3"
+      }
+    },
+    "tertiary": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.984,
+          0.573,
+          0.235
+        ],
+        "hex": "#fb923c"
+      }
+    },
+    "neutral": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.98,
+          0.98,
+          0.98
+        ],
+        "hex": "#fafafa"
+      }
+    },
+    "surface": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.043,
+          0.043,
+          0.051
+        ],
+        "hex": "#0b0b0d"
+      }
+    },
+    "surface-elevated": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.075,
+          0.075,
+          0.102
+        ],
+        "hex": "#13131a"
+      }
+    },
+    "on-surface": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.98,
+          0.98,
+          0.98
+        ],
+        "hex": "#fafafa"
+      }
+    },
+    "on-surface-muted": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.639,
+          0.639,
+          0.639
+        ],
+        "hex": "#a3a3a3"
+      }
+    },
+    "on-accent": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.043,
+          0.043,
+          0.051
+        ],
+        "hex": "#0b0b0d"
+      }
+    },
+    "on-error": {
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.98,
+          0.98,
+          0.98
+        ],
+        "hex": "#fafafa"
+      }
+    }
+  },
+  "spacing": {
+    "$type": "dimension",
+    "xs": {
+      "$value": {
+        "value": 4,
+        "unit": "px"
+      }
+    },
+    "sm": {
+      "$value": {
+        "value": 8,
+        "unit": "px"
+      }
+    },
+    "md": {
+      "$value": {
+        "value": 12,
+        "unit": "px"
+      }
+    },
+    "lg": {
+      "$value": {
+        "value": 20,
+        "unit": "px"
+      }
+    },
+    "xl": {
+      "$value": {
+        "value": 32,
+        "unit": "px"
+      }
+    },
+    "xxl": {
+      "$value": {
+        "value": 56,
+        "unit": "px"
+      }
+    }
+  },
+  "rounded": {
+    "$type": "dimension",
+    "none": {
+      "$value": {
+        "value": 0,
+        "unit": "px"
+      }
+    },
+    "sm": {
+      "$value": {
+        "value": 2,
+        "unit": "px"
+      }
+    },
+    "md": {
+      "$value": {
+        "value": 4,
+        "unit": "px"
+      }
+    },
+    "lg": {
+      "$value": {
+        "value": 8,
+        "unit": "px"
+      }
+    },
+    "full": {
+      "$value": {
+        "value": 9999,
+        "unit": "px"
+      }
+    }
+  },
+  "typography": {
+    "headline-lg": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Monaspace Neon",
+        "fontSize": {
+          "value": 1.5,
+          "unit": "rem"
+        },
+        "fontWeight": 600,
+        "letterSpacing": {
+          "value": 0.01,
+          "unit": "em"
+        }
+      }
+    },
+    "headline-md": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Monaspace Neon",
+        "fontSize": {
+          "value": 1.125,
+          "unit": "rem"
+        },
+        "fontWeight": 500
+      }
+    },
+    "headline-sm": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Monaspace Neon",
+        "fontSize": {
+          "value": 1,
+          "unit": "rem"
+        },
+        "fontWeight": 500,
+        "letterSpacing": {
+          "value": 0.02,
+          "unit": "em"
+        }
+      }
+    },
+    "body-md": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Monaspace Argon",
+        "fontSize": {
+          "value": 0.875,
+          "unit": "rem"
+        },
+        "fontWeight": 400
+      }
+    },
+    "body-sm": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Monaspace Argon",
+        "fontSize": {
+          "value": 0.8125,
+          "unit": "rem"
+        },
+        "fontWeight": 400
+      }
+    },
+    "label-lg": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Monaspace Neon",
+        "fontSize": {
+          "value": 0.75,
+          "unit": "rem"
+        },
+        "fontWeight": 500,
+        "letterSpacing": {
+          "value": 0.12,
+          "unit": "em"
+        }
+      }
+    },
+    "label-md": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Monaspace Neon",
+        "fontSize": {
+          "value": 0.6875,
+          "unit": "rem"
+        },
+        "fontWeight": 500,
+        "letterSpacing": {
+          "value": 0.15,
+          "unit": "em"
+        }
+      }
+    },
+    "label-sm": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Monaspace Neon",
+        "fontSize": {
+          "value": 0.625,
+          "unit": "rem"
+        },
+        "fontWeight": 500,
+        "letterSpacing": {
+          "value": 0.18,
+          "unit": "em"
+        }
+      }
+    },
+    "number": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Monaspace Neon",
+        "fontSize": {
+          "value": 1.5,
+          "unit": "rem"
+        },
+        "fontWeight": 500
+      }
+    },
+    "wordmark": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Monaspace Neon",
+        "fontSize": {
+          "value": 1.25,
+          "unit": "rem"
+        },
+        "fontWeight": 600,
+        "letterSpacing": {
+          "value": 0.02,
+          "unit": "em"
+        }
+      }
+    }
+  }
+}

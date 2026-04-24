@@ -6,24 +6,10 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="shortcut icon" href="/icon-192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0F0C0A" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="preconnect" href="https://api.fontshare.com" />
-    <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin />
-    <!-- Curtain Call defaults — Fraunces (full variable axes) + Cabinet Grotesk body -->
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,400..700,0..100,0..1;1,9..144,400..600,0..100,0..1&display=swap" rel="stylesheet" />
-    <link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,600,700&display=swap" rel="stylesheet" />
-    <!-- Alternate-theme fonts — loaded non-blocking (only needed when user switches theme away from Curtain Call) -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
-    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
-    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
-    <noscript>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&family=Lora:wght@400;500;600&family=Bebas+Neue&family=Caveat:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    </noscript>
+    <meta name="theme-color" content="#0b0b0d" />
+    <!-- dx fonts — self-hosted, preloaded. No Google/Fontshare roundtrip. -->
+    <link rel="preload" href="/fonts/MonaspaceNeon-Regular.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/MonaspaceArgon-Regular.woff2" as="font" type="font/woff2" crossorigin />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Figgg" />
@@ -31,13 +17,13 @@
     <link rel="manifest" href="/manifest.json" />
     <title>Figgg</title>
   </head>
-  <body style="margin:0;background:#0F0C0A">
+  <body style="margin:0;background:#0b0b0d;color:#FAFAFA">
     <div id="root"></div>
-    <div id="boot-error" style="display:none;min-height:100vh;justify-content:center;align-items:center;font-family:system-ui;background:#0F0C0A;color:#F4EEE4;text-align:center;padding:2rem">
+    <div id="boot-error" style="display:none;min-height:100vh;justify-content:center;align-items:center;font-family:monospace;background:#0b0b0d;color:#FAFAFA;text-align:center;padding:2rem">
       <div>
-        <h1 style="font-size:2rem;margin:0 0 .5rem">figgg</h1>
-        <p style="color:#888;margin:0 0 1rem" id="boot-error-msg">Something went wrong loading the app.</p>
-        <button onclick="location.reload()" style="padding:.75rem 1.5rem;background:#6c63ff;color:#fff;border:none;border-radius:.75rem;font-size:1rem;cursor:pointer">Reload</button>
+        <h1 style="font-size:2rem;margin:0 0 .5rem;font-family:monospace">figgg<span style="color:#4F9DFF">/</span></h1>
+        <p style="color:#A3A3A3;margin:0 0 1rem;font-family:monospace" id="boot-error-msg">something broke. reload.</p>
+        <button onclick="location.reload()" style="padding:.75rem 1.5rem;background:transparent;color:#4F9DFF;border:1px solid #4F9DFF;border-radius:2px;font-size:1rem;cursor:pointer;font-family:monospace">reload</button>
       </div>
     </div>
     <script>
