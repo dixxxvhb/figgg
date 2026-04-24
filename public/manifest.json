@@ -1,14 +1,14 @@
 {
-  "name": "Figgg",
-  "short_name": "Figgg",
-  "description": "Your daily command center — teaching, wellness, planning, and AI assistant",
-  "start_url": "./",
-  "id": "./",
-  "scope": "./",
+  "name": "figgg",
+  "short_name": "figgg",
+  "description": "dixon's personal life-OS — teaching, wellness, planning, ai.",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#0f1117",
-  "theme_color": "#0f1117",
+  "background_color": "#0b0b0d",
+  "theme_color": "#0b0b0d",
   "categories": ["education", "productivity"],
   "icons": [
     {
@@ -38,21 +38,21 @@
   ],
   "shortcuts": [
     {
-      "name": "Today's Schedule",
-      "short_name": "Schedule",
-      "url": "./schedule",
+      "name": "today",
+      "short_name": "today",
+      "url": "/schedule",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Meds & Self-Care",
-      "short_name": "Meds",
-      "url": "./me",
+      "name": "meds",
+      "short_name": "meds",
+      "url": "/meds",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "AI Chat",
-      "short_name": "AI",
-      "url": "./ai",
+      "name": "ai",
+      "short_name": "ai",
+      "url": "/ai",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]

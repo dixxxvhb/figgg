@@ -36,7 +36,8 @@ export function AIPanel() {
       setIsExpanded(false);
       setInput('');
     });
-  }, [location.pathname, close]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- close is intentionally excluded to avoid re-firing on every render
+  }, [location.pathname]);
 
   useEffect(() => {
     if (!isOpen) return;
