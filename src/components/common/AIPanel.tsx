@@ -25,7 +25,7 @@ export function AIPanel() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [mode, setMode] = useState<CaptureMode>(() => (data.settings?.quickcaptureDefaultMode as CaptureMode) || 'ai');
   const [input, setInput] = useState('');
-  const [flash, setFlash] = useState<string | null>(null);
+  const [flash, setFlash] = useState<{ msg: string; kind: 'success' | 'error' } | null>(null);
   const location = useLocation();
 
   const hideOnAIPage = location.pathname === '/ai';
@@ -55,9 +55,10 @@ export function AIPanel() {
     setFlash(null);
   };
 
-  const showFlash = (msg: string) => {
-    setFlash(msg);
-    setTimeout(() => setFlash(null), 1400);
+  const showFlash = (msg: string, kind: 'success' | 'error' = 'success') => {
+    setFlash({ msg, kind });
+    const timeoutMs = kind === 'error' ? 4000 : 1400;
+    setTimeout(() => setFlash(null), timeoutMs);
   };
 
   const submit = async () => {
@@ -77,7 +78,7 @@ export function AIPanel() {
         setInput('');
       } catch (e) {
         console.error('mood log failed', e);
-        showFlash("didn't save");
+        showFlash("didn't save", 'error');
         // Preserve input so Dixon can retry without retyping.
       }
     } else if (mode === 'thought' && value) {
@@ -251,7 +252,7 @@ export function AIPanel() {
           </div>
 
           {flash && (() => {
-            const isError = flash.startsWith("didn't") || flash.startsWith('error');
+            const isError = flash.kind === 'error';
             return (
               <div
                 role={isError ? 'alert' : 'status'}
@@ -270,7 +271,7 @@ export function AIPanel() {
                   letterSpacing: '0.18em',
                 }}
               >
-                {flash}
+                {flash.msg}
               </div>
             );
           })()}

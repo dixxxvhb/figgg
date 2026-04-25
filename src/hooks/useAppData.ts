@@ -748,16 +748,18 @@ export function useAppData() {
   }, [data.selfCare, updateSelfCare]);
 
   // AI check-ins — append and prune entries older than 30 days
-  // Firestore-first: write to cloud, then update local state. onSnapshot reconciles.
+  // Firestore-first prevents ghost entries: if the write fails,
+  // local state never reflects an entry that doesn't exist in the cloud.
   // Throws on failure so callers can show real error UI instead of silent-failing.
   const saveAICheckIn = useCallback(async (checkIn: AICheckIn) => {
     const uid = getUserId();
     if (!uid) throw new Error('not signed in — mood not saved');
 
-    // Firestore first; onSnapshot will replay into local state on success.
+    // Firestore write must succeed before we touch local state.
     await saveAICheckInDoc(uid, checkIn);
 
-    // Local update post-await keeps UI snappy until the snapshot lands.
+    // aiCheckIns has no onSnapshot listener — this setData is the only path
+    // that updates local state, so it must run AFTER the cloud write resolves.
     // The 30-day rolling cutoff filter is preserved.
     setData(prev => {
       const existing = prev.aiCheckIns || [];
