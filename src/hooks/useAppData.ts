@@ -748,7 +748,17 @@ export function useAppData() {
   }, [data.selfCare, updateSelfCare]);
 
   // AI check-ins — append and prune entries older than 30 days
-  const saveAICheckIn = useCallback((checkIn: AICheckIn) => {
+  // Firestore-first: write to cloud, then update local state. onSnapshot reconciles.
+  // Throws on failure so callers can show real error UI instead of silent-failing.
+  const saveAICheckIn = useCallback(async (checkIn: AICheckIn) => {
+    const uid = getUserId();
+    if (!uid) throw new Error('not signed in — mood not saved');
+
+    // Firestore first; onSnapshot will replay into local state on success.
+    await saveAICheckInDoc(uid, checkIn);
+
+    // Local update post-await keeps UI snappy until the snapshot lands.
+    // The 30-day rolling cutoff filter is preserved.
     setData(prev => {
       const existing = prev.aiCheckIns || [];
       const cutoff = new Date();
@@ -757,8 +767,6 @@ export function useAppData() {
       const updated = [...existing, checkIn].filter(c => c.date >= cutoffStr);
       return { ...prev, aiCheckIns: updated };
     });
-    const uid = getUserId();
-    if (uid) saveAICheckInDoc(uid, checkIn).catch(console.warn);
   }, []);
 
   // Day plan — immediate cloud sync (same pattern as selfCare)

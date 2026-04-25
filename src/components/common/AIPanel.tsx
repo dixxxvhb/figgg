@@ -63,17 +63,23 @@ export function AIPanel() {
   const submit = async () => {
     const value = input.trim();
     if (mode === 'mood' && value) {
-      await saveAICheckIn({
-        id: `qc-${Date.now()}`,
-        date: new Date().toISOString().slice(0, 10),
-        type: new Date().getHours() < 14 ? 'morning' : 'afternoon',
-        userMessage: value,
-        aiResponse: '',
-        mood: value.toLowerCase().slice(0, 40),
-        timestamp: new Date().toISOString(),
-      });
-      showFlash('logged');
-      setInput('');
+      try {
+        await saveAICheckIn({
+          id: `qc-${Date.now()}`,
+          date: new Date().toISOString().slice(0, 10),
+          type: new Date().getHours() < 14 ? 'morning' : 'afternoon',
+          userMessage: value,
+          aiResponse: '',
+          mood: value.toLowerCase().slice(0, 40),
+          timestamp: new Date().toISOString(),
+        });
+        showFlash('logged');
+        setInput('');
+      } catch (e) {
+        console.error('mood log failed', e);
+        showFlash("didn't save");
+        // Preserve input so Dixon can retry without retyping.
+      }
     } else if (mode === 'thought' && value) {
       updateSelfCare({ scratchpad: `${value}\n\n${data.selfCare?.scratchpad || ''}`.slice(0, 4000) });
       showFlash('saved');
@@ -244,26 +250,30 @@ export function AIPanel() {
             )}
           </div>
 
-          {flash && (
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '16px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                padding: '6px 10px',
-                backgroundColor: 'var(--dx-elevated)',
-                border: '1px solid var(--dx-accent)',
-                borderRadius: '2px',
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.625rem',
-                color: 'var(--dx-accent)',
-                letterSpacing: '0.18em',
-              }}
-            >
-              {flash}
-            </div>
-          )}
+          {flash && (() => {
+            const isError = flash.startsWith("didn't") || flash.startsWith('error');
+            return (
+              <div
+                role={isError ? 'alert' : 'status'}
+                style={{
+                  position: 'absolute',
+                  bottom: '16px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  padding: '6px 10px',
+                  backgroundColor: 'var(--dx-elevated)',
+                  border: `1px solid ${isError ? 'var(--dx-error)' : 'var(--dx-accent)'}`,
+                  borderRadius: '2px',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.625rem',
+                  color: isError ? 'var(--dx-error)' : 'var(--dx-accent)',
+                  letterSpacing: '0.18em',
+                }}
+              >
+                {flash}
+              </div>
+            );
+          })()}
         </div>
       )}
     </>
