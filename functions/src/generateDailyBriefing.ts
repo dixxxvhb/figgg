@@ -762,12 +762,11 @@ Return ONLY valid JSON matching the schema — no markdown, no prose, no wrapper
 
   // Single call — produces both briefing + roast. Replaces the previous
   // 2-round-trip pattern (Sonnet briefing + separate Opus roast).
-  // model: 'claude-opus-4-7' pending pre-flight check via firebase functions:shell — see plan §2.5 step 3
   // The systemPrompt is byte-stable across days (only ${JARVIS_CONTEXT}, a top-level constant,
   // is interpolated) and well over 2048 tokens — perfect ephemeral cache target. Cache hits
   // discount ~90% of input tokens; misses are no-op.
   const msg = await withRetryOn429(() => client.messages.create({
-    model: "claude-sonnet-4-6",
+    model: "claude-opus-4-7",
     max_tokens: 2000,
     system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
     messages: [{ role: "user", content: contextString }],
