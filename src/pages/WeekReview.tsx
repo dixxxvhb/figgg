@@ -7,6 +7,7 @@ import { normalizeNoteCategory } from '../types';
 import type { LiveNote, Class } from '../types';
 import { useTeachingStats } from '../hooks/useTeachingStats';
 import { WeeklyInsight } from '../components/Dashboard/WeeklyInsight';
+import { labelForOrphanClassId } from '../utils/legacyClassId';
 
 const CATEGORY_META: Record<string, { label: string; icon: typeof FileText; color: string }> = {
   'worked-on': { label: 'Worked On', icon: FileText, color: 'text-[var(--status-success)]' },
@@ -50,6 +51,7 @@ export function WeekReview() {
     const classSummaries: {
       classId: string;
       className: string;
+      isOrphan: boolean;
       day: string;
       startTime: string;
       notes: (LiveNote & { normalizedCategory: LiveNote['category'] })[];
@@ -63,7 +65,8 @@ export function WeekReview() {
         const cls = classMap.get(classId);
         classSummaries.push({
           classId,
-          className: cls?.name || classId,
+          className: cls?.name || labelForOrphanClassId(classId),
+          isOrphan: !cls,
           day: cls?.day || '',
           startTime: cls?.startTime || '',
           notes: cn.liveNotes.map(n => ({
@@ -166,19 +169,29 @@ export function WeekReview() {
       <div className="px-4 space-y-4">
         {weekData.classSummaries.map(cs => (
           <div key={cs.classId} className="bg-[var(--surface-card)] rounded-2xl border border-[var(--border-subtle)] overflow-hidden">
-            {/* Class header */}
-            <Link
-              to={`/class/${cs.classId}`}
-              className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)] hover:bg-[var(--surface-inset)]"
-            >
-              <div>
-                <h3 className="text-sm font-semibold text-[var(--text-primary)]">{cs.className}</h3>
-                <p className="text-[10px] text-[var(--text-tertiary)] capitalize">
-                  {cs.day} {cs.startTime && `· ${formatTimeDisplay(cs.startTime)}`}
-                </p>
+            {/* Class header — Link only if the class still exists; otherwise show label-only card (orphaned from pre-calendar migration). */}
+            {cs.isOrphan ? (
+              <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)]">
+                <div>
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)]">{cs.className}</h3>
+                  <p className="text-[10px] text-[var(--text-tertiary)]">archived class</p>
+                </div>
+                <span className="text-xs text-[var(--text-tertiary)]">{cs.notes.length} notes</span>
               </div>
-              <span className="text-xs text-[var(--text-tertiary)]">{cs.notes.length} notes</span>
-            </Link>
+            ) : (
+              <Link
+                to={`/class/${cs.classId}`}
+                className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-subtle)] hover:bg-[var(--surface-inset)]"
+              >
+                <div>
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)]">{cs.className}</h3>
+                  <p className="text-[10px] text-[var(--text-tertiary)] capitalize">
+                    {cs.day} {cs.startTime && `· ${formatTimeDisplay(cs.startTime)}`}
+                  </p>
+                </div>
+                <span className="text-xs text-[var(--text-tertiary)]">{cs.notes.length} notes</span>
+              </Link>
+            )}
 
             {/* Plan if present */}
             {cs.plan && (

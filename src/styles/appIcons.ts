@@ -523,17 +523,19 @@ export function applyAppIcon(iconId: string): void {
   const icon192 = favicon192;
   const icon512 = renderIconToDataUrl(iconId, 512);
 
+  // The dynamic manifest is served as a blob: URL \u2014 Chrome can't resolve
+  // site-relative paths against a blob base, so every URL field must be absolute.
+  const origin = window.location.origin;
   const manifest = {
-    name: 'FIG \u2014 Teaching Planner',
-    short_name: 'FIG',
-    description: 'Track your dance classes, take notes, and plan your teaching week',
-    start_url: '/',
-    id: '/',
-    scope: '/',
+    name: 'figgg',
+    short_name: 'figgg',
+    description: "dixon's personal life-OS \u2014 teaching, wellness, planning, ai.",
+    start_url: `${origin}/`,
+    scope: `${origin}/`,
     display: 'standalone',
     orientation: 'any',
-    background_color: '#0f1117',
-    theme_color: '#0f1117',
+    background_color: '#0b0b0d',
+    theme_color: '#0b0b0d',
     categories: ['education', 'productivity'],
     icons: [
       { src: icon192, sizes: '192x192', type: 'image/png', purpose: 'any' },
@@ -542,13 +544,13 @@ export function applyAppIcon(iconId: string): void {
       { src: icon512, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
     shortcuts: [
-      { name: "Today's Schedule", short_name: 'Schedule', url: '/schedule', icons: [{ src: icon192, sizes: '192x192' }] },
-      { name: 'Meds & Self-Care', short_name: 'Meds', url: '/me', icons: [{ src: icon192, sizes: '192x192' }] },
-      { name: 'My Students', short_name: 'Students', url: '/students', icons: [{ src: icon192, sizes: '192x192' }] },
+      { name: 'today', short_name: 'today', url: `${origin}/schedule`, icons: [{ src: icon192, sizes: '192x192' }] },
+      { name: 'meds', short_name: 'meds', url: `${origin}/meds`, icons: [{ src: icon192, sizes: '192x192' }] },
+      { name: 'ai', short_name: 'ai', url: `${origin}/ai`, icons: [{ src: icon192, sizes: '192x192' }] },
     ],
   };
 
-  const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
   const url = URL.createObjectURL(blob);
 
   const manifestLink = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');

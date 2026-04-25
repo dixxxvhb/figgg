@@ -11,6 +11,7 @@ import { EmptyState } from '../components/common/EmptyState';
 import { v4 as uuid } from 'uuid';
 import { processMediaFile } from '../utils/mediaCompression';
 import { useConfirmDialog } from '../components/common/ConfirmDialog';
+import { labelForOrphanClassId } from '../utils/legacyClassId';
 
 const AVATAR_GRADIENTS = [
   'linear-gradient(135deg, #c2785a, #d97706)',
@@ -764,7 +765,7 @@ function StudentDetailModal({
       Object.entries(week.classNotes).forEach(([classId, classNote]) => {
         if (!classNote.attendance) return;
         const cls = classes.find(c => c.id === classId);
-        const className = cls?.name || 'Unknown Class';
+        const className = cls?.name || labelForOrphanClassId(classId);
 
         if (classNote.attendance.present.includes(student.id)) {
           history.push({ weekOf: week.weekOf, classId, className, status: 'present' });

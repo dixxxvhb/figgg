@@ -223,7 +223,7 @@ export function AdvancedSettings() {
 
         {/* App Version */}
         <p className="text-center text-sm text-[var(--text-tertiary)] mt-8">
-          Figgg v3.0
+          figgg v3.0
         </p>
       </div>
     </div>

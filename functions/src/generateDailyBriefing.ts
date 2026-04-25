@@ -456,7 +456,9 @@ async function fetchRecentEmails(): Promise<EmailSummary[]> {
 
 async function fetchAndParseICS(calendarUrl: string): Promise<CalendarEvent[]> {
   try {
-    const response = await fetch(calendarUrl);
+    // undici's fetch doesn't speak webcal://; it's just https with a different scheme name
+    const url = calendarUrl.replace(/^webcal:\/\//i, 'https://');
+    const response = await fetch(url);
     if (!response.ok) {
       console.error(`Failed to fetch ICS feed: ${response.status} ${response.statusText}`);
       return [];

@@ -13,6 +13,7 @@ export interface HeroCard {
   body?: string;             // secondary line
   ctaLabel?: string;         // `↗ open`, `↗ log`
   ctaHref?: string;          // /meds, /schedule, etc.
+  ctaAction?: 'logMood';     // semantic action — Hero handles dispatch
   ruleId: number;            // 1..9, lower = higher priority
   dismissible: boolean;
 }
@@ -82,10 +83,16 @@ export function useHeroPriority(): HeroCard | null {
       };
     }
 
-    // Rule 4 — mood not logged by 10am (no check-in with mood in last 20h)
+    // Rule 4 — mood not logged by 10am. A "mood log" counts if either:
+    //   (a) there's an aiCheckIn with a mood in the last 20h (FAB or Hero CTA path), or
+    //   (b) the wellness mode on /me ("I'm okay / Rough day / Survival") was set today.
+    // Both are valid signals that Dixon checked in on how he's doing.
     const checkIns = (data.aiCheckIns || []).filter(c => !!c.mood);
     const latestMood = checkIns.length > 0 ? Date.parse(checkIns[checkIns.length - 1].timestamp) : 0;
-    const moodStale = !latestMood || (Date.now() - latestMood) > 20 * 60 * 60 * 1000;
+    const checkInStale = !latestMood || (Date.now() - latestMood) > 20 * 60 * 60 * 1000;
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const wellnessModeToday = data.selfCare?.wellnessModeDate === todayKey && !!data.selfCare?.wellnessMode;
+    const moodStale = checkInStale && !wellnessModeToday;
     if (hour >= 10 && moodStale) {
       return {
         id: 'mood-missing',
@@ -94,7 +101,7 @@ export function useHeroPriority(): HeroCard | null {
         title: 'no mood logged. were you even here.',
         body: 'tap to log.',
         ctaLabel: '↗ log',
-        ctaHref: '/me',
+        ctaAction: 'logMood',
         ruleId: 4,
         dismissible: true,
       };

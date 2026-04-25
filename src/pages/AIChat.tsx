@@ -239,10 +239,15 @@ export function AIChat() {
         }
       }
 
+      // Rare edge case: Opus occasionally returns an empty `response` when it
+      // interprets the prompt as needing no text reply. Fall back so the
+      // bubble isn't blank.
+      const responseText = (result.response || '').trim()
+        || (result.adjustments?.length ? 'Done.' : '(no reply)');
       const aiMsg: AIChatMessage = {
         id: `msg-${Date.now()}-ai`,
         role: 'assistant',
-        content: result.response,
+        content: responseText,
         actions: result.actions,
         adjustments: result.adjustments,
         timestamp: new Date().toISOString(),

@@ -150,7 +150,7 @@ export function SettingsHub() {
         )}
       </section>
 
-      <p className="type-caption text-[var(--text-tertiary)] text-center mt-8">Figgg v3.0</p>
+      <p className="type-caption text-[var(--text-tertiary)] text-center mt-8">figgg v3.0</p>
     </div>
   );
 }

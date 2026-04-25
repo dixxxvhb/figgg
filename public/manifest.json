@@ -2,9 +2,8 @@
   "name": "figgg",
   "short_name": "figgg",
   "description": "dixon's personal life-OS — teaching, wellness, planning, ai.",
-  "start_url": "/",
-  "id": "/",
-  "scope": "/",
+  "start_url": "https://figgg-c2c8f.web.app/",
+  "scope": "https://figgg-c2c8f.web.app/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#0b0b0d",
@@ -40,19 +39,19 @@
     {
       "name": "today",
       "short_name": "today",
-      "url": "/schedule",
+      "url": "https://figgg-c2c8f.web.app/schedule",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "meds",
       "short_name": "meds",
-      "url": "/meds",
+      "url": "https://figgg-c2c8f.web.app/meds",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "ai",
       "short_name": "ai",
-      "url": "/ai",
+      "url": "https://figgg-c2c8f.web.app/ai",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]

@@ -1,11 +1,32 @@
 import { Link } from 'react-router-dom';
 import { useHeroPriority } from '../../../hooks/useHeroPriority';
+import { useAIPanel } from '../../../contexts/AIPanelContext';
 import { ZoneLabel } from '../ZoneLabel';
 import { TamaraMark } from '../../common/TamaraMark';
 
 export function Hero() {
   const card = useHeroPriority();
+  const { open: openAIPanel } = useAIPanel();
   if (!card) return null;
+
+  const ctaStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '8px 12px',
+    backgroundColor: 'transparent',
+    border: '1px solid var(--dx-accent)',
+    borderRadius: '4px',
+    color: 'var(--dx-accent)',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '0.75rem',
+    fontWeight: 500,
+    letterSpacing: '0.12em',
+    textDecoration: 'none',
+    lineHeight: 1.2,
+    textTransform: 'lowercase' as const,
+    cursor: 'pointer',
+  };
 
   const kindColor = card.kind === 'alert'
     ? 'var(--dx-warn)'
@@ -70,30 +91,15 @@ export function Hero() {
         </p>
       )}
 
-      {card.ctaHref && card.ctaLabel && (
-        <Link
-          to={card.ctaHref}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '8px 12px',
-            backgroundColor: 'transparent',
-            border: '1px solid var(--dx-accent)',
-            borderRadius: '4px',
-            color: 'var(--dx-accent)',
-            fontFamily: 'var(--font-mono)',
-            fontSize: '0.75rem',
-            fontWeight: 500,
-            letterSpacing: '0.12em',
-            textDecoration: 'none',
-            lineHeight: 1.2,
-            textTransform: 'lowercase',
-          }}
-        >
+      {card.ctaLabel && card.ctaAction === 'logMood' ? (
+        <button type="button" onClick={() => openAIPanel('mood')} style={{ ...ctaStyle, background: 'transparent' }}>
+          {card.ctaLabel}
+        </button>
+      ) : card.ctaHref && card.ctaLabel ? (
+        <Link to={card.ctaHref} style={ctaStyle}>
           {card.ctaLabel}
         </Link>
-      )}
+      ) : null}
 
       <TamaraMark size={28} color="var(--dx-tamara-gold)" opacity={0.55} style={{ position: 'absolute', bottom: 10, right: 10 }} />
     </section>

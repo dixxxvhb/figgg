@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   BookOpen, Heart, RefreshCw, Plus, ChevronRight,
-  Pencil, X, ArrowLeft,
+  Pencil, X, ArrowLeft, Trash2,
 } from 'lucide-react';
 import { haptic } from '../../utils/haptics';
 import { generateId } from '../../utils/id';
@@ -165,7 +165,13 @@ const AFFIRMATIONS = [
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function todayStr(): string {
-  return new Date().toISOString().split('T')[0];
+  // Local date in YYYY-MM-DD. toISOString() gives UTC which rolls forward
+  // to the next day in the evening ET, mis-dating late-night entries.
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 function formatDate(dateStr: string): string {
@@ -353,6 +359,17 @@ function EntriesSection({ data, onUpdate }: TherapyJournalProps) {
     setView('write');
   };
 
+  const deleteEntry = useCallback((entry: GriefLetter) => {
+    if (!window.confirm('Delete this entry? This cannot be undone.')) return;
+    clearTimeout(saveTimeoutRef.current);
+    onUpdate({ letters: data.letters.filter(l => l.id !== entry.id) });
+    setActiveEntry(null);
+    setDraft('');
+    setIsEditing(false);
+    setView('list');
+    haptic('medium');
+  }, [data.letters, onUpdate]);
+
   const backToList = () => {
     clearTimeout(saveTimeoutRef.current);
     if (view === 'write' && draft.trim()) {
@@ -484,13 +501,23 @@ function EntriesSection({ data, onUpdate }: TherapyJournalProps) {
             <ArrowLeft size={16} />
             <span>Back</span>
           </button>
-          <button
-            onClick={startEditing}
-            className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors"
-          >
-            <Pencil size={14} />
-            <span>Edit</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => deleteEntry(activeEntry)}
+              className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--status-danger)] transition-colors"
+              aria-label="Delete entry"
+            >
+              <Trash2 size={14} />
+              <span>Delete</span>
+            </button>
+            <button
+              onClick={startEditing}
+              className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors"
+            >
+              <Pencil size={14} />
+              <span>Edit</span>
+            </button>
+          </div>
         </div>
 
         <div className="py-2">

@@ -1,14 +1,12 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { X, Maximize2, Minimize2 } from 'lucide-react';
-import { useAIPanel } from '../../contexts/AIPanelContext';
+import { useAIPanel, type CaptureMode } from '../../contexts/AIPanelContext';
 import { useAppData } from '../../contexts/AppDataContext';
 import { PageSkeleton } from './PageSkeleton';
 import { AccentDot } from '../dx/AccentDot';
 
 const AIChat = lazy(() => import('../../pages/AIChat').then(m => ({ default: m.AIChat })));
-
-type CaptureMode = 'mood' | 'thought' | 'task' | 'med' | 'blocker' | 'ai';
 
 const MODES: { id: CaptureMode; label: string; hint: string }[] = [
   { id: 'mood',    label: 'mood',    hint: 'how is it' },
@@ -20,7 +18,7 @@ const MODES: { id: CaptureMode; label: string; hint: string }[] = [
 ];
 
 export function AIPanel() {
-  const { isOpen, open, close } = useAIPanel();
+  const { isOpen, pendingMode, open, close } = useAIPanel();
   const { data, updateSettings, updateSelfCare, saveAICheckIn } = useAppData();
   const [isExpanded, setIsExpanded] = useState(false);
   const [mode, setMode] = useState<CaptureMode>(() => (data.settings?.quickcaptureDefaultMode as CaptureMode) || 'ai');
@@ -38,6 +36,11 @@ export function AIPanel() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- close is intentionally excluded to avoid re-firing on every render
   }, [location.pathname]);
+
+  // Honor a caller-requested mode (e.g. Hero's "log mood" CTA) when the panel opens.
+  useEffect(() => {
+    if (isOpen && pendingMode) setMode(pendingMode);
+  }, [isOpen, pendingMode]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -129,7 +132,7 @@ export function AIPanel() {
     <>
       {!isOpen && !hideOnAIPage && (
         <button
-          onClick={open}
+          onClick={() => open()}
           className="fixed z-40 flex items-center justify-center active:scale-90 transition-transform"
           style={{
             bottom: 'calc(56px + 16px + env(safe-area-inset-bottom, 0px))',
