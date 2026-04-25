@@ -241,7 +241,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
       case 'markClassException': {
         if (!action.exceptionType) break;
         const dayName = getCurrentDayOfWeek();
-        const todayClasses = getClassesFromCalendar(callbacks.getData(), { day: dayName as DayOfWeek });
+        const todayClasses = getClassesFromCalendar(callbacks.getData(), { day: dayName });
 
         // Build target IDs — SAFE: only cancel ALL when explicitly scope='all'
         let targetIds: string[];
@@ -420,7 +420,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
 
       case 'markClassExceptionRange': {
         if (!action.startDate || !action.endDate || !action.exceptionType) break;
-        const days: string[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        const days: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
         const rangeClassFilter = action.classIds?.length ? new Set(action.classIds) : null;
         console.warn(`[markClassExceptionRange] ${action.startDate} → ${action.endDate}, type=${action.exceptionType}, filter=${rangeClassFilter ? [...rangeClassFilter].join(',') : 'ALL'}`);
         let current = new Date(action.startDate + 'T00:00:00');
@@ -432,7 +432,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           const weekNote: WeekNotes = existingWeekNotes
             ? { ...existingWeekNotes, classNotes: { ...existingWeekNotes.classNotes } }
             : { id: `week_${weekOf}`, weekOf, classNotes: {} };
-          const dayClasses = getClassesFromCalendar(callbacks.getData(), { day: dayName as DayOfWeek });
+          const dayClasses = getClassesFromCalendar(callbacks.getData(), { day: dayName });
           for (const cls of dayClasses) {
             // If classIds filter provided, only cancel those specific classes
             if (rangeClassFilter && !rangeClassFilter.has(cls.id)) continue;

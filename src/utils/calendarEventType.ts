@@ -220,6 +220,12 @@ export interface ClassLikeEvent {
  * "classes" anywhere in the app post-migration. Callers should prefer this
  * over `getClassesByDay(data.classes, ...)`.
  *
+ * Filter composition: filters compose with **AND** — passing
+ * `{ day: 'monday', date: '2026-04-22' }` only returns events that match BOTH.
+ *
+ * `endTime` falls back to `startTime` when missing on the source event, so
+ * callers must NOT depend on `endTime > startTime` being strictly true.
+ *
  * Behavior:
  * - Filters out events whose IDs are in `data.settings.hiddenCalendarEventIds`
  * - Drops all-day / untimed events (matches `useDashboardContext.ts` semantics)

@@ -472,8 +472,8 @@ export function buildFullAIContext(
     startTime: c.startTime,
     endTime: c.endTime,
     studioId: c.studioId || '',
-    level: undefined as string | undefined,
-    recitalSong: undefined as string | undefined,
+    level: undefined,
+    recitalSong: undefined,
     choreographyNotes: clip(c.raw.description, 160),
   }));
 
