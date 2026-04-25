@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
-import { format, startOfWeek, addDays } from 'date-fns';
-import { AppData, WeekNotes, Class, CalendarEvent, DayOfWeek } from '../types';
-import { getWeekStart, formatWeekOf, getCurrentDayOfWeek, timeToMinutes } from '../utils/time';
-import { classifyCalendarEvent } from '../utils/calendarEventType';
+import { format, startOfWeek } from 'date-fns';
+import { AppData, WeekNotes } from '../types';
+import { getWeekStart, formatWeekOf } from '../utils/time';
+import { getClassesFromCalendar, type ClassLikeEvent } from '../utils/calendarEventType';
 
 export interface TeachingStats {
   classesThisWeek: { completed: number; total: number };
@@ -16,66 +16,22 @@ export interface TeachingStats {
   classesWithoutPlans: string[]; // names of classes with no prep plan
 }
 
-// Get classes that have already happened this week (based on day)
-function getClassesUpToToday(classes: Class[]): Class[] {
-  const dayOrder: DayOfWeek[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-  const today = getCurrentDayOfWeek();
-  const todayIndex = dayOrder.indexOf(today);
-
-  return classes.filter(cls => {
-    const classIndex = dayOrder.indexOf(cls.day);
-    return classIndex <= todayIndex;
-  });
-}
-
-// Count class-like calendar events for the week (up to today),
-// excluding events that already overlap with internal class definitions
-function countCalendarClassEvents(
-  calendarEvents: CalendarEvent[],
-  classes: Class[],
-  competitionDances: AppData['competitionDances'],
-  students: AppData['students'] = [],
-): number {
+// Get class-like calendar events from this week's Monday through today.
+// Post Apr 21, 2026 migration, calendar events are the source of truth — the
+// legacy day-based filter over `data.classes` no longer works because the seed
+// is empty. Returns calendar-derived class-like events whose date falls in
+// [weekStart, today] inclusive.
+function getCalendarClassesUpToToday(data: AppData): ClassLikeEvent[] {
   const now = new Date();
   const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // Monday
+  const weekStartStr = format(weekStart, 'yyyy-MM-dd');
   const todayStr = format(now, 'yyyy-MM-dd');
-  const dayNames: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
-  // Get dates from week start to today
-  const dates: string[] = [];
-  for (let i = 0; i < 7; i++) {
-    const d = format(addDays(weekStart, i), 'yyyy-MM-dd');
-    dates.push(d);
-    if (d === todayStr) break;
-  }
-  const dateSet = new Set(dates);
-
-  // Filter calendar events to this week up to today, classify them,
-  // skip ones that match an internal class definition by name+day+time
-  return calendarEvents.filter(e => {
-    if (!dateSet.has(e.date)) return false;
-    if (!e.startTime || e.startTime === '00:00') return false;
-
-    // Dedup: only skip if name AND day AND time (±10 min) match an internal class
-    const eventDate = new Date(`${e.date}T12:00:00`);
-    const eventDay = dayNames[eventDate.getDay()];
-    const normTitle = (e.title || '').toLowerCase().trim();
-    const eventTime = timeToMinutes(e.startTime);
-    const matchesInternal = classes.some(c =>
-      c.name.toLowerCase().trim() === normTitle &&
-      c.day === eventDay &&
-      Math.abs(timeToMinutes(c.startTime) - eventTime) <= 10
-    );
-    if (matchesInternal) return false;
-
-    const classification = classifyCalendarEvent(e, {
-      classes,
-      allEvents: calendarEvents,
-      competitionDances: competitionDances || [],
-      students: students || [],
-    });
-    return classification.isClassLike;
-  }).length;
+  // Pull all class-like events (no `week` filter — that returns today+6 forward,
+  // we want this-week-Monday through today).
+  return getClassesFromCalendar(data).filter(ev => {
+    return ev.date >= weekStartStr && ev.date <= todayStr;
+  });
 }
 
 export function useTeachingStats(data: AppData): TeachingStats {
@@ -83,9 +39,10 @@ export function useTeachingStats(data: AppData): TeachingStats {
     const weekOf = formatWeekOf(getWeekStart());
     const currentWeekNotes: WeekNotes | undefined = data.weekNotes.find(w => w.weekOf === weekOf);
 
-    // Get all classes and classes up to today
-    const allClasses = data.classes;
-    const classesUpToToday = getClassesUpToToday(allClasses);
+    // Calendar-derived class-like events from Monday through today.
+    // After Apr 21, 2026, calendar events are the single source of truth —
+    // `data.classes` is intentionally empty seed.
+    const classesUpToToday = getCalendarClassesUpToToday(data);
 
     // Count classes with notes (completed) — only count classes in classesUpToToday
     const upToTodayIds = new Set(classesUpToToday.map(c => c.id));
@@ -139,7 +96,7 @@ export function useTeachingStats(data: AppData): TeachingStats {
       ? Math.round((totalPresent / totalAttendanceRecords) * 100)
       : 0;
 
-    // Identify specific classes missing notes (up to today only)
+    // Identify specific classes missing notes / plans (up to today only)
     const classIdsWithNotes = new Set<string>();
     const classIdsWithPlans = new Set<string>();
     if (currentWeekNotes) {
@@ -157,14 +114,9 @@ export function useTeachingStats(data: AppData): TeachingStats {
       .filter(c => !classIdsWithPlans.has(c.id))
       .map(c => c.name);
 
-    // Include class-like calendar events in the total count
-    const calendarClassCount = countCalendarClassEvents(
-      data.calendarEvents || [],
-      data.classes,
-      data.competitionDances,
-      data.students,
-    );
-    const totalClasses = classesUpToToday.length + calendarClassCount;
+    // Total: just calendar-derived classes through today. No internal-class
+    // double-counting — `data.classes` is empty post-migration.
+    const totalClasses = classesUpToToday.length;
 
     return {
       classesThisWeek: {
@@ -183,5 +135,5 @@ export function useTeachingStats(data: AppData): TeachingStats {
       classesWithoutNotes,
       classesWithoutPlans,
     };
-  }, [data.weekNotes, data.classes, data.calendarEvents, data.competitionDances]);
+  }, [data.weekNotes, data.classes, data.calendarEvents, data.competitionDances, data.students, data.studios, data.settings?.hiddenCalendarEventIds]);
 }
