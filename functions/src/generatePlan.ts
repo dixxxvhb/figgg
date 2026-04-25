@@ -3,6 +3,7 @@ import { defineSecret } from "firebase-functions/params";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireAuth } from "./utils/auth";
 import { ClassInfo, LiveNote, buildPlanPrompt, stripMarkdown } from "./utils/planPrompt";
+import { withRetryOn429 } from "./utils/anthropic";
 
 const anthropicKey = defineSecret("ANTHROPIC_API_KEY");
 
@@ -43,11 +44,13 @@ export const generatePlan = onCall(
 
       const client = new Anthropic({ apiKey });
 
-      const message = await client.messages.create({
+      // Plan prompt is ~460 tokens — well below Sonnet 4's 1024-token cache minimum,
+      // so cache_control here would be a no-op. Retry only.
+      const message = await withRetryOn429(() => client.messages.create({
         model: "claude-sonnet-4-6",
         max_tokens: 800,
         messages: [{ role: "user", content: prompt }],
-      });
+      }));
 
       let planContent = message.content[0].type === "text" ? message.content[0].text : "";
 

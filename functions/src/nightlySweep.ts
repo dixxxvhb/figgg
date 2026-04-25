@@ -3,6 +3,9 @@ import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import Anthropic from "@anthropic-ai/sdk";
 import { buildPlanPrompt, stripMarkdown, type LiveNote, type ClassInfo } from "./utils/planPrompt";
+import { withRetryOn429, withTimeout } from "./utils/anthropic";
+
+const PER_CLASS_TIMEOUT_MS = 30_000;
 
 const anthropicKey = defineSecret("ANTHROPIC_API_KEY");
 const db = admin.firestore();
@@ -238,11 +241,17 @@ export const nightlySweep = onSchedule(
               previousPlans,
             });
 
-            const response = await anthropic.messages.create({
-              model: "claude-sonnet-4-6",
-              max_tokens: 800,
-              messages: [{ role: "user", content: prompt }],
-            });
+            const response = await withRetryOn429(() =>
+              withTimeout(
+                anthropic.messages.create({
+                  model: "claude-sonnet-4-6",
+                  max_tokens: 800,
+                  messages: [{ role: "user", content: prompt }],
+                }),
+                PER_CLASS_TIMEOUT_MS,
+                "per-class timeout",
+              )
+            );
 
             const textBlock = response.content.find((b) => b.type === "text");
             plan = textBlock ? stripMarkdown(textBlock.text) : buildFallbackPlan(liveNotes);
