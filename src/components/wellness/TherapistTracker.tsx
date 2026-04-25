@@ -213,14 +213,14 @@ function EmotionPicker({
       {groups.map(group => (
         <div key={group.label}>
           <span className="type-caption text-[var(--text-tertiary)] block mb-1">{group.label}</span>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5 max-w-full">
             {group.emotions.map(emotion => {
               const isSelected = selected.includes(emotion);
               return (
                 <button
                   key={emotion}
                   onClick={() => { haptic('light'); onToggle(emotion); }}
-                  className={`text-xs px-2.5 py-1.5 rounded-full border transition-all ${
+                  className={`flex-shrink-0 text-xs px-2.5 py-1.5 rounded-full border transition-all ${
                     isSelected
                       ? EMOTION_SELECTED_COLORS[emotion]
                       : EMOTION_COLORS[emotion]
@@ -1095,7 +1095,7 @@ function SessionLifecycleCard({
           </button>
           <button
             onClick={cancelWrapUp}
-            className="px-4 text-sm text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+            className="px-4 text-sm text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors whitespace-nowrap"
           >
             Cancel
           </button>
@@ -1136,7 +1136,7 @@ function SessionLifecycleCard({
             setJustLoggedDate(null);
             setEditing(true);
           }}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-[var(--radius-md)] bg-[var(--accent-primary)] text-white font-medium text-sm hover:opacity-90 transition-opacity"
+          className="w-full flex items-center justify-center gap-2 py-3 min-h-[44px] rounded-[var(--radius-md)] bg-[var(--accent-primary)] text-white font-medium text-sm hover:opacity-90 transition-opacity"
         >
           <Calendar size={16} />
           Schedule next session

@@ -147,7 +147,7 @@ export function Me() {
           />
 
           {/* Wellness Sub-Tab Bar */}
-          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
+          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
             {WELLNESS_SUB_TABS.map(tab => {
               const isActive = wellnessSubTab === tab.key;
               const Icon = tab.icon;

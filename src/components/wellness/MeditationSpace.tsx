@@ -255,12 +255,12 @@ function BreathingTimer({ exercise, rounds, onComplete, onStop }: BreathingTimer
       </p>
 
       {/* Animated breathing circle */}
-      <div className="relative flex items-center justify-center" style={{ width: 200, height: 200 }}>
+      <div className="relative flex items-center justify-center" style={{ width: 'clamp(120px, 60vw, 200px)', height: 'clamp(120px, 60vw, 200px)' }}>
         <div
           className="rounded-full flex items-center justify-center"
           style={{
-            width: 120,
-            height: 120,
+            width: 'clamp(72px, 36vw, 120px)',
+            height: 'clamp(72px, 36vw, 120px)',
             backgroundColor: 'var(--accent-secondary)',
             opacity: 0.25,
             transform: `scale(${getCircleScale()})`,
