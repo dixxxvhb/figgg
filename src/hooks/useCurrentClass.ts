@@ -1,29 +1,29 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Class, CalendarEvent, CompetitionDance, CurrentClassInfo, DayOfWeek, WeekNotes, Student } from '../types';
+import { AppData, Class, CurrentClassInfo, DayOfWeek, WeekNotes } from '../types';
 import { getCurrentDayOfWeek, getCurrentTimeMinutes, getClassStatus, getMinutesUntilClass, getMinutesRemaining, timeToMinutes, formatWeekOf, getWeekStart, toDateStr } from '../utils/time';
 import { getStudioById } from '../data/studios';
-import { classifyCalendarEvent } from '../utils/calendarEventType';
+import { getClassesFromCalendar, type ClassLikeEvent } from '../utils/calendarEventType';
 
-// Convert a class-like calendar event into a pseudo-Class for unified handling
-function calEventToClass(e: CalendarEvent): Class {
+/**
+ * Adapter — convert a calendar-derived class-like event into a `Class`-shaped
+ * object so downstream consumers (the `Class` field on `CurrentClassInfo`)
+ * keep working with familiar fields. Mirrors the adapter in `useClassTiming.ts`.
+ */
+function toClassShape(ev: ClassLikeEvent): Class {
   return {
-    id: e.id,
-    name: e.title || '',
-    day: (() => {
-      const dayNames: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-      return dayNames[new Date(`${e.date}T12:00:00`).getDay()];
-    })(),
-    startTime: e.startTime,
-    endTime: e.endTime || e.startTime,
-    studioId: '',
+    id: ev.id,
+    name: ev.name,
+    day: ev.day,
+    startTime: ev.startTime,
+    endTime: ev.endTime,
+    studioId: ev.studioId || '',
     musicLinks: [],
   };
 }
 
 export function useCurrentClass(
-  classes: Class[],
+  data: AppData,
   weekNotes?: WeekNotes[],
-  options?: { calendarEvents?: CalendarEvent[]; competitionDances?: CompetitionDance[]; students?: Student[] },
 ): CurrentClassInfo {
   const [currentTime, setCurrentTime] = useState(getCurrentTimeMinutes());
   const [currentDay, setCurrentDay] = useState<DayOfWeek>(getCurrentDayOfWeek());
@@ -52,48 +52,23 @@ export function useCurrentClass(
   }, []);
 
   const result = useMemo(() => {
-    // Get today's internal classes sorted by time, excluding cancelled/subbed exceptions
+    // Source of truth: today's class-like calendar events. `getClassesFromCalendar`
+    // already drops untimed events, applies the classifier, and resolves studios.
+    const todayStr = toDateStr(new Date());
+    const calClassEvents = getClassesFromCalendar(data, { date: todayStr });
+
+    // Filter out cancelled / subbed events via this week's exceptions
     const weekOf = formatWeekOf(getWeekStart());
     const currentWeekNotes = weekNotes?.find(w => w.weekOf === weekOf);
-
-    const internalClasses = classes
-      .filter(c => c.day === currentDay)
-      .filter(c => {
-        const exc = currentWeekNotes?.classNotes[c.id]?.exception;
-        return !exc || exc.type === 'time-change';
-      });
-
-    // Get today's class-like calendar events, excluding cancelled ones
-    const calEvents = options?.calendarEvents || [];
-    const compDances = options?.competitionDances || [];
-    const todayStr = toDateStr(new Date());
-    const calClassEvents = calEvents
-      .filter(e => {
-        if (e.date !== todayStr || !e.startTime || e.startTime === '00:00') return false;
-        const exc = currentWeekNotes?.classNotes[e.id]?.exception;
-        if (exc && exc.type !== 'time-change') return false;
-        return classifyCalendarEvent(e, {
-          classes,
-          allEvents: calEvents,
-          competitionDances: compDances,
-          students: options?.students || [],
-        }).isClassLike;
-      })
-      .map(calEventToClass);
-
-    // Dedup: skip calendar events that match an internal class by name+day+time
-    const uniqueCalClasses = calClassEvents.filter(c => {
-      const normName = c.name.toLowerCase().trim();
-      const calTime = timeToMinutes(c.startTime);
-      return !internalClasses.some(ic =>
-        ic.name.toLowerCase().trim() === normName &&
-        ic.day === c.day &&
-        Math.abs(timeToMinutes(ic.startTime) - calTime) <= 10
-      );
+    const filteredEvents = calClassEvents.filter(ev => {
+      const exc = currentWeekNotes?.classNotes[ev.id]?.exception;
+      return !exc || exc.type === 'time-change';
     });
 
-    // Merge and sort
-    const todayClasses = [...internalClasses, ...uniqueCalClasses]
+    // Convert to Class shape and sort by start time. (Already sorted by date+time
+    // inside `getClassesFromCalendar`, but date is fixed here so re-sort by time.)
+    const todayClasses: Class[] = filteredEvents
+      .map(toClassShape)
       .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
 
     if (todayClasses.length === 0) {
@@ -155,7 +130,7 @@ export function useCurrentClass(
       nextClass,
       nextStudio,
     };
-  }, [classes, weekNotes, currentDay, currentTime, options?.calendarEvents, options?.competitionDances]);
+  }, [data, weekNotes, currentDay, currentTime]);
 
   return result;
 }
