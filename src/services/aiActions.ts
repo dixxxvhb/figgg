@@ -1,8 +1,7 @@
 import { format, addDays } from 'date-fns';
 import { toast } from 'sonner';
-import { getClassesByDay } from '../data/classes';
 import { formatWeekOf, getWeekStart, getCurrentDayOfWeek, timeToMinutes } from '../utils/time';
-import { classifyCalendarEvent } from '../utils/calendarEventType';
+import { classifyCalendarEvent, getClassesFromCalendar } from '../utils/calendarEventType';
 import type { AIAction } from './ai';
 import type {
   AppData,
@@ -242,7 +241,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
       case 'markClassException': {
         if (!action.exceptionType) break;
         const dayName = getCurrentDayOfWeek();
-        const todayClasses = getClassesByDay(callbacks.getData().classes, dayName);
+        const todayClasses = getClassesFromCalendar(callbacks.getData(), { day: dayName as DayOfWeek });
 
         // Build target IDs — SAFE: only cancel ALL when explicitly scope='all'
         let targetIds: string[];
@@ -289,7 +288,9 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
             for (const e of todayCalEvents) {
               if (existingIds.has(e.id)) continue;
               const matchesTargeted = action.classIds?.some(cid => {
-                const cls = appData.classes.find(c => c.id === cid);
+                // Look up by id in legacy internal classes OR today's calendar-derived classes
+                const cls = appData.classes.find(c => c.id === cid)
+                  || todayClasses.find(c => c.id === cid);
                 if (!cls) return false;
                 // Require name match — time-only matching is too loose and pulls in neighboring classes
                 return cls.name.toLowerCase() === e.title?.toLowerCase();
@@ -431,7 +432,7 @@ export function executeAIActions(actions: AIAction[], callbacks: ActionCallbacks
           const weekNote: WeekNotes = existingWeekNotes
             ? { ...existingWeekNotes, classNotes: { ...existingWeekNotes.classNotes } }
             : { id: `week_${weekOf}`, weekOf, classNotes: {} };
-          const dayClasses = getClassesByDay(callbacks.getData().classes, dayName as DayOfWeek);
+          const dayClasses = getClassesFromCalendar(callbacks.getData(), { day: dayName as DayOfWeek });
           for (const cls of dayClasses) {
             // If classIds filter provided, only cancel those specific classes
             if (rangeClassFilter && !rangeClassFilter.has(cls.id)) continue;

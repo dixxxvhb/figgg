@@ -2,7 +2,7 @@
  * Assembles a lean context payload (~800-1000 tokens) for AI check-in and day plan functions.
  * Reads from AppData and produces a compact object for the Firebase Cloud Function.
  */
-import { getClassesByDay } from '../data/classes';
+import { getClassesFromCalendar } from '../utils/calendarEventType';
 import { timeToMinutes, formatWeekOf, getWeekStart, toDateStr, toTimeStr } from '../utils/time';
 import type { AppData, CalendarEvent, DayOfWeek } from '../types';
 import { DEFAULT_AI_CONFIG, DEFAULT_MED_CONFIG, DEFAULT_WELLNESS_ITEMS } from '../types';
@@ -178,10 +178,11 @@ export function buildAIContext(
     else medStatus.currentStatus = 'Worn off';
   }
 
-  // Schedule
-  const todayClasses = getClassesByDay(data.classes, dayName);
+  // Schedule (classes from Apple Calendar; non-class events listed separately)
+  const todayClasses = getClassesFromCalendar(data, { date: todayStr });
+  const classEventIds = new Set(todayClasses.map(c => c.id));
   const todayEvents = (data.calendarEvents || [])
-    .filter(e => e.date === todayStr && e.startTime && e.startTime !== '00:00');
+    .filter(e => e.date === todayStr && e.startTime && e.startTime !== '00:00' && !classEventIds.has(e.id));
   const schedule = [
     ...todayClasses.map(c => ({ time: c.startTime, title: c.name, type: 'class' as const, classId: c.id })),
     ...todayEvents.map(e => ({ time: e.startTime, title: e.title, type: 'event' as const })),
@@ -312,15 +313,13 @@ export function buildAIContext(
       ...(exception ? { exception: exception.type, subName: exception.subName } : {}),
     };
   });
-  const allDays: DayOfWeek[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-  const weekClassList = allDays.flatMap(d =>
-    getClassesByDay(data.classes, d).map(c => ({
-      id: c.id,
-      name: c.name,
-      day: d,
-      startTime: c.startTime,
-    }))
-  );
+  const weekClasses = getClassesFromCalendar(data, { week: true });
+  const weekClassList = weekClasses.map(c => ({
+    id: c.id,
+    name: c.name,
+    day: c.day,
+    startTime: c.startTime,
+  }));
   const competitionDanceList = (data.competitionDances || []).map(d => ({
     id: d.id,
     registrationName: d.registrationName,
@@ -334,9 +333,16 @@ export function buildAIContext(
     ? [lastReflection.aiSummary, lastReflection.nextWeekFocus ? `Focus: ${lastReflection.nextWeekFocus}` : ''].filter(Boolean).join('. ')
     : undefined;
 
-  // Teaching load awareness — helps AI gauge intensity
+  // Teaching load awareness — derived from one week-scoped fetch
   const allDaysForLoad: DayOfWeek[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-  const classCounts = allDaysForLoad.map(d => ({ day: d, count: getClassesByDay(data.classes, d).length }));
+  const dayCountMap: Record<DayOfWeek, number> = {
+    sunday: 0, monday: 0, tuesday: 0, wednesday: 0,
+    thursday: 0, friday: 0, saturday: 0,
+  };
+  for (const c of weekClasses) {
+    dayCountMap[c.day] = (dayCountMap[c.day] || 0) + 1;
+  }
+  const classCounts = allDaysForLoad.map(d => ({ day: d, count: dayCountMap[d] }));
   const totalWeekClasses = classCounts.reduce((sum, d) => sum + d.count, 0);
   const busiestDay = classCounts.reduce((max, d) => d.count > max.count ? d : max, classCounts[0]);
   const teachingLoad = {
@@ -458,17 +464,17 @@ export function buildFullAIContext(
       return { name: c.name, date: c.date, daysAway };
     });
 
-  // Full class details (for AI to reference and modify)
-  const classDetails = data.classes.slice(0, 20).map(c => ({
+  // Full class details — pulled from this-week's calendar (capped at 20)
+  const classDetails = getClassesFromCalendar(data, { week: true }).slice(0, 20).map(c => ({
     id: c.id,
     name: clip(c.name, 80) || '',
     day: c.day,
     startTime: c.startTime,
     endTime: c.endTime,
-    studioId: c.studioId,
-    level: c.level,
-    recitalSong: clip(c.recitalSong, 80),
-    choreographyNotes: clip(c.choreographyNotes, 160),
+    studioId: c.studioId || '',
+    level: undefined as string | undefined,
+    recitalSong: undefined as string | undefined,
+    choreographyNotes: clip(c.raw.description, 160),
   }));
 
   // Studios
@@ -578,7 +584,7 @@ export function buildFullAIContext(
   {
     const days: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const todayDayName = days[new Date().getDay()];
-    const todayClassesForBriefing = getClassesByDay(data.classes, todayDayName);
+    const todayClassesForBriefing = getClassesFromCalendar(data, { day: todayDayName });
     const weekOfStr = formatWeekOf(getWeekStart());
     const weekNotesForBriefing = (data.weekNotes || []).find(w => w.weekOf === weekOfStr);
     const exceptionItems: Array<{ name: string; exception: string; subName?: string }> = [];

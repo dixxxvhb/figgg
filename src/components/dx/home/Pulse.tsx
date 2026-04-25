@@ -1,3 +1,7 @@
+// NOTE: 7-day sparklines read from `data.learningData.dailySnapshots`, populated
+// by the learning engine. After the Apr 21, 2026 calendar migration, prior
+// snapshots may show 0 classes per day until forward learningEngine runs
+// accumulate fresh data sourced from calendar events.
 import { useMemo } from 'react';
 import { useAppData } from '../../../contexts/AppDataContext';
 import { ZoneLabel } from '../ZoneLabel';

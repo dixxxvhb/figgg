@@ -1,6 +1,6 @@
-import type { CalendarEvent, Class, CompetitionDance, DayOfWeek, Studio, Student } from '../types';
+import type { AppData, CalendarEvent, Class, CompetitionDance, DayOfWeek, Studio, Student } from '../types';
 import { detectLinkedDances } from './danceLinker';
-import { timeToMinutes } from './time';
+import { timeToMinutes, toDateStr } from './time';
 import { dateToDayOfWeek } from './classException';
 
 export type CalendarEventKind = 'class' | 'rehearsal' | 'work' | 'event';
@@ -194,4 +194,118 @@ export function shouldPreferCalendarEventOverClass(
   });
 
   return (!hasKnownStudio && matchingEventType.isWork) || (inferredLinkedDances.length > 0 && matchingEventType.isWork);
+}
+
+/**
+ * Class-like event derived from a calendar event, normalized to a Class-shaped
+ * structure. After the Apr 21, 2026 migration, calendar events are the single
+ * source of truth for classes — this is the canonical shape for callers that
+ * used to read `data.classes` directly.
+ */
+export interface ClassLikeEvent {
+  id: string;            // 'cal-…' — the calendar event's id
+  name: string;          // event.title
+  startTime: string;     // 'HH:MM'
+  endTime: string;
+  date: string;          // 'YYYY-MM-DD'
+  day: DayOfWeek;        // derived from date
+  studioId?: string;     // best-effort lookup; undefined if no match
+  source: 'calendar';
+  raw: CalendarEvent;
+}
+
+/**
+ * Returns class-like events from `data.calendarEvents`, normalized to a
+ * Class-shaped `ClassLikeEvent`. This is the canonical helper for reading
+ * "classes" anywhere in the app post-migration. Callers should prefer this
+ * over `getClassesByDay(data.classes, ...)`.
+ *
+ * Behavior:
+ * - Filters out events whose IDs are in `data.settings.hiddenCalendarEventIds`
+ * - Drops all-day / untimed events (matches `useDashboardContext.ts` semantics)
+ * - Runs `classifyCalendarEvent()` and keeps only `isClassLike` results
+ * - Resolves `studioId` by case-insensitive match on studio shortName, then name
+ * - Optional filters: `date` (exact), `day` (DayOfWeek), `week` (today + next 6 days)
+ * - Sorts ascending by date then startTime
+ * - Dedupes by composite `${title}+${date}+${startTime}` (recurring feeds occasionally split)
+ */
+export function getClassesFromCalendar(
+  data: AppData,
+  options?: { day?: DayOfWeek; date?: string; week?: boolean }
+): ClassLikeEvent[] {
+  const events = data.calendarEvents ?? [];
+  const hiddenIds = new Set(data.settings?.hiddenCalendarEventIds ?? []);
+  const studios = data.studios ?? [];
+
+  const ctx = {
+    classes: data.classes || [],
+    allEvents: data.calendarEvents || [],
+    competitionDances: data.competitionDances || [],
+    students: data.students || [],
+  };
+
+  // Pre-compute optional date-window bounds for week filter
+  let weekStart: string | undefined;
+  let weekEnd: string | undefined;
+  if (options?.week) {
+    const start = new Date();
+    weekStart = toDateStr(start);
+    const end = new Date();
+    end.setDate(end.getDate() + 6);
+    weekEnd = toDateStr(end);
+  }
+
+  const seen = new Set<string>();
+  const out: ClassLikeEvent[] = [];
+
+  for (const event of events) {
+    if (hiddenIds.has(event.id)) continue;
+    if (!event.startTime || event.startTime === '00:00') continue;
+
+    const classification = classifyCalendarEvent(event, ctx);
+    if (!classification.isClassLike) continue;
+
+    // Date / day / week filters
+    if (options?.date && event.date !== options.date) continue;
+
+    const day = dateToDayOfWeek(event.date);
+    if (options?.day && day !== options.day) continue;
+
+    if (weekStart && weekEnd) {
+      if (event.date < weekStart || event.date > weekEnd) continue;
+    }
+
+    // Resolve studioId by location → shortName then name (case-insensitive)
+    let studioId: string | undefined;
+    if (event.location) {
+      const loc = event.location.trim().toLowerCase();
+      const byShort = studios.find(s => s.shortName?.toLowerCase() === loc);
+      const byName = byShort ? undefined : studios.find(s => s.name?.toLowerCase() === loc);
+      studioId = byShort?.id || byName?.id;
+    }
+
+    // Dedupe by composite key — calendar feeds occasionally split events
+    const key = `${event.title}+${event.date}+${event.startTime}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    out.push({
+      id: event.id,
+      name: event.title,
+      startTime: event.startTime,
+      endTime: event.endTime || event.startTime,
+      date: event.date,
+      day,
+      studioId,
+      source: 'calendar',
+      raw: event,
+    });
+  }
+
+  out.sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    return a.startTime.localeCompare(b.startTime);
+  });
+
+  return out;
 }

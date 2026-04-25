@@ -1,6 +1,6 @@
 import { loadData, saveData } from './storage';
 import { subDays, differenceInCalendarDays } from 'date-fns';
-import { getClassesByDay } from '../data/classes';
+import { getClassesFromCalendar } from '../utils/calendarEventType';
 import { toDateStr, toTimeStr, safeDate } from '../utils/time';
 import type { DailySnapshot, WeeklySummary, LearningData, AppData, DayOfWeek } from '../types';
 
@@ -54,11 +54,11 @@ export function generateDailySnapshot(data: AppData, dateStr?: string): DailySna
     .filter(([, v]) => v === true)
     .map(([k]) => k);
 
-  // Count today's classes
+  // Count today's classes (from Apple Calendar — single source of truth)
   const targetDay = new Date(targetDate);
   const days: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const dayName = days[targetDay.getDay()];
-  const classesScheduled = getClassesByDay(data.classes, dayName).length;
+  const classesScheduled = getClassesFromCalendar(data, { day: dayName, date: targetDate }).length;
 
   // Tasks (reminders) — count tasks that were due on or before the target date
   const reminders = sc?.reminders || [];

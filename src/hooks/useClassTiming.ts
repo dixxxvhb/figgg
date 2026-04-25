@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
-import { getClassesByDay } from '../data/classes';
-import { timeToMinutes, getCurrentDayOfWeek, formatWeekOf, getWeekStart } from '../utils/time';
+import { timeToMinutes, formatWeekOf, getWeekStart, toDateStr } from '../utils/time';
 import type { AppData, Class, Studio, Student, LiveNote } from '../types';
-import { shouldPreferCalendarEventOverClass } from '../utils/calendarEventType';
+import { getClassesFromCalendar, type ClassLikeEvent } from '../utils/calendarEventType';
 
 export interface ClassWithContext {
   class: Class;
@@ -14,29 +13,33 @@ export interface ClassWithContext {
   enrolledStudents: Student[];
 }
 
+/**
+ * Adapter — convert a calendar-derived class-like event into a `Class`-shaped
+ * object so downstream consumers (`buildClassContext`, `useHeroPriority`,
+ * `Hero`) keep working with familiar fields. Post Apr 21, 2026, the source
+ * of truth is `data.calendarEvents` — there is no real `Class` record to look
+ * up, so we synthesize one with the canonical event id (`cal-…`).
+ */
+function toClassShape(ev: ClassLikeEvent): Class {
+  return {
+    id: ev.id,
+    name: ev.name,
+    day: ev.day,
+    startTime: ev.startTime,
+    endTime: ev.endTime,
+    studioId: ev.studioId || '',
+    musicLinks: [],
+  };
+}
+
 export function useClassTiming(data: AppData, currentMinute: number): {
   upcomingClass: ClassWithContext | null;   // starts within 60 min
   justEndedClass: ClassWithContext | null;  // ended within 30 min, no notes logged today
   minutesUntilNext: number | null;
 } {
   return useMemo(() => {
-    const dayName = getCurrentDayOfWeek();
-    const rawTodayClasses = getClassesByDay(data.classes, dayName);
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const hiddenEventIds = new Set(data.settings?.hiddenCalendarEventIds || []);
-    const todayCalendarEvents = (data.calendarEvents || []).filter(
-      event => event.date === todayStr && !hiddenEventIds.has(event.id)
-    );
-    const todayClasses = rawTodayClasses.filter(cls =>
-      !shouldPreferCalendarEventOverClass(cls, todayCalendarEvents, {
-        classes: data.classes,
-        allEvents: data.calendarEvents || [],
-        competitionDances: data.competitionDances || [],
-        students: data.students || [],
-        studios: data.studios,
-      })
-    );
+    const todayStr = toDateStr(new Date());
+    const todayClasses = getClassesFromCalendar(data, { date: todayStr });
 
     if (todayClasses.length === 0) {
       return { upcomingClass: null, justEndedClass: null, minutesUntilNext: null };
@@ -114,10 +117,11 @@ export function useClassTiming(data: AppData, currentMinute: number): {
   }, [data, currentMinute]);
 }
 
-function buildClassContext(data: AppData, cls: Class): ClassWithContext {
-  const studio = data.studios?.find(s => s.id === cls.studioId);
+function buildClassContext(data: AppData, ev: ClassLikeEvent): ClassWithContext {
+  const cls = toClassShape(ev);
+  const studio = ev.studioId ? data.studios?.find(s => s.id === ev.studioId) : undefined;
 
-  // Get this week's notes
+  // Get this week's notes (key may be on the calendar event id post-migration)
   const weekOf = formatWeekOf(getWeekStart());
   const weekNote = data.weekNotes.find(w => w.weekOf === weekOf);
   const thisWeekPlan = weekNote?.classNotes[cls.id]?.plan;
@@ -148,3 +152,4 @@ function buildClassContext(data: AppData, cls: Class): ClassWithContext {
     enrolledStudents,
   };
 }
+

@@ -6,6 +6,7 @@ import { ZoneLabel } from '../ZoneLabel';
 import { Tile } from '../Tile';
 import { StatusDot } from '../StatusDot';
 import { DEFAULT_MED_CONFIG } from '../../../types';
+import { getClassesFromCalendar } from '../../../utils/calendarEventType';
 
 interface TileDef {
   label: string;
@@ -104,7 +105,7 @@ export function Orbit() {
   const openReminders = (data.selfCare?.reminders || []).filter(r => !r.completed).length;
   const studentCount = (data.students || []).length;
   const studioCount = (data.studios || []).length;
-  const weekClasses = (data.classes || []).length;
+  const weekClasses = getClassesFromCalendar(data, { week: true }).length;
 
   const personal: TileDef[] = [
     { label: 'mood', value: latestMood, href: '/me', status: latestMood === '—' ? 'warn' : 'on', streak: streaks.moodLogged },

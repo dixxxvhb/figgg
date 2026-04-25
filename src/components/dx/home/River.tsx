@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { useAppData } from '../../../contexts/AppDataContext';
 import { ZoneLabel } from '../ZoneLabel';
 import { StatusDot } from '../StatusDot';
-import { getClassesByDay } from '../../../data/classes';
-import { getCurrentDayOfWeek, timeToMinutes } from '../../../utils/time';
+import { getClassesFromCalendar } from '../../../utils/calendarEventType';
+import { timeToMinutes } from '../../../utils/time';
 
 interface RiverRow {
   id: string;
@@ -26,32 +26,35 @@ export function River() {
     const todayStr = now.toISOString().slice(0, 10);
     const out: RiverRow[] = [];
 
-    // Classes today
-    const dayName = getCurrentDayOfWeek();
-    const classesToday = getClassesByDay(data.classes, dayName);
+    // Classes today (from calendar — single source of truth post Apr 21, 2026)
+    const classesToday = getClassesFromCalendar(data, { date: todayStr });
+    const classEventIds = new Set<string>();
     for (const c of classesToday) {
+      classEventIds.add(c.id);
       const startMins = timeToMinutes(c.startTime);
       const endMins = timeToMinutes(c.endTime);
       const state: RiverRow['state'] =
         nowMins < startMins ? 'future' :
         nowMins <= endMins ? 'now' :
         'done';
-      const studio = data.studios?.find(s => s.id === c.studioId);
+      const studio = c.studioId ? data.studios?.find(s => s.id === c.studioId) : undefined;
       out.push({
         id: `cls-${c.id}`,
         time: c.startTime,
         label: c.name.toLowerCase(),
-        sublabel: studio?.name.toLowerCase(),
+        sublabel: (studio?.name || c.raw.location || '').toLowerCase() || undefined,
         state,
-        href: `/class/${c.id}`,
+        href: `/event/${c.id}`,
       });
     }
 
-    // Calendar events today
+    // Other calendar events today (non-class — rehearsals, work, plain events)
     const hiddenIds = new Set(data.settings?.hiddenCalendarEventIds || []);
-    const events = (data.calendarEvents || []).filter(e => e.date === todayStr && !hiddenIds.has(e.id));
+    const events = (data.calendarEvents || []).filter(
+      e => e.date === todayStr && !hiddenIds.has(e.id) && !classEventIds.has(e.id),
+    );
     for (const e of events) {
-      if (!e.startTime) continue;
+      if (!e.startTime || e.startTime === '00:00') continue;
       const startMins = timeToMinutes(e.startTime);
       const endMins = e.endTime ? timeToMinutes(e.endTime) : startMins + 60;
       const state: RiverRow['state'] =

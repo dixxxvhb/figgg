@@ -3,9 +3,8 @@ import { useClassTiming, type ClassWithContext } from './useClassTiming';
 import { useCheckInStatus } from './useCheckInStatus';
 import { useSelfCareStatus, type SelfCareStatus } from './useSelfCareStatus';
 import { useCurrentClass } from './useCurrentClass';
-import { getCurrentDayOfWeek, timeToMinutes, toDateStr } from '../utils/time';
-import { getClassesByDay } from '../data/classes';
-import { classifyCalendarEvent } from '../utils/calendarEventType';
+import { timeToMinutes, toDateStr } from '../utils/time';
+import { getClassesFromCalendar } from '../utils/calendarEventType';
 import type { AppData, CurrentClassInfo } from '../types';
 
 export type DashboardContextType =
@@ -60,23 +59,10 @@ export function useDashboardContext(
     const hour = new Date().getHours();
     const nowMinutes = currentMinute;
 
-    // Determine if all classes for today are done (both internal + calendar)
-    const dayName = getCurrentDayOfWeek();
-    const todayInternalClasses = getClassesByDay(data.classes || [], dayName);
+    // Determine if all classes for today are done (Apple Calendar — single source of truth)
     const todayStr = toDateStr(new Date());
-    const todayCalClasses = (data.calendarEvents || []).filter(e => {
-      if (e.date !== todayStr || !e.startTime || e.startTime === '00:00') return false;
-      return classifyCalendarEvent(e, {
-        classes: data.classes || [],
-        allEvents: data.calendarEvents || [],
-        competitionDances: data.competitionDances || [],
-        students: data.students || [],
-      }).isClassLike;
-    });
-    const allEndTimes = [
-      ...todayInternalClasses.map(c => timeToMinutes(c.endTime)),
-      ...todayCalClasses.map(e => timeToMinutes(e.endTime || e.startTime)),
-    ];
+    const todayClasses = getClassesFromCalendar(data, { date: todayStr });
+    const allEndTimes = todayClasses.map(c => timeToMinutes(c.endTime));
     const allClassesDone = allEndTimes.length > 0 && allEndTimes.every(end => nowMinutes > end);
 
     // Priority order matters here
@@ -101,29 +87,16 @@ export function useDashboardContext(
     }
 
     return 'default';
-  }, [currentClassInfo.status, upcomingClass, justEndedClass, currentMinute, data.classes, data.calendarEvents, data.competitionDances]);
+  }, [currentClassInfo.status, upcomingClass, justEndedClass, currentMinute, data]);
 
   const hour = new Date().getHours();
 
   const allClassesDone = useMemo(() => {
-    const dayName = getCurrentDayOfWeek();
-    const internalClasses = getClassesByDay(data.classes || [], dayName);
     const todayStr = toDateStr(new Date());
-    const calClasses = (data.calendarEvents || []).filter(e => {
-      if (e.date !== todayStr || !e.startTime || e.startTime === '00:00') return false;
-      return classifyCalendarEvent(e, {
-        classes: data.classes || [],
-        allEvents: data.calendarEvents || [],
-        competitionDances: data.competitionDances || [],
-        students: data.students || [],
-      }).isClassLike;
-    });
-    const allEndTimes = [
-      ...internalClasses.map(c => timeToMinutes(c.endTime)),
-      ...calClasses.map(e => timeToMinutes(e.endTime || e.startTime)),
-    ];
+    const todayClasses = getClassesFromCalendar(data, { date: todayStr });
+    const allEndTimes = todayClasses.map(c => timeToMinutes(c.endTime));
     return allEndTimes.length > 0 && allEndTimes.every(end => currentMinute > end);
-  }, [data.classes, data.calendarEvents, data.competitionDances, currentMinute]);
+  }, [data, currentMinute]);
 
   return {
     context,
