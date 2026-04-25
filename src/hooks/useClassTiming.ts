@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { timeToMinutes, formatWeekOf, getWeekStart, toDateStr } from '../utils/time';
 import type { AppData, Class, Studio, Student, LiveNote } from '../types';
-import { getClassesFromCalendar, type ClassLikeEvent } from '../utils/calendarEventType';
+import { getClassesFromCalendar, classLikeEventToClass, type ClassLikeEvent } from '../utils/calendarEventType';
 
 export interface ClassWithContext {
   class: Class;
@@ -11,25 +11,6 @@ export interface ClassWithContext {
   choreographyNotes?: string[];
   studentFlags?: string[];
   enrolledStudents: Student[];
-}
-
-/**
- * Adapter — convert a calendar-derived class-like event into a `Class`-shaped
- * object so downstream consumers (`buildClassContext`, `useHeroPriority`,
- * `Hero`) keep working with familiar fields. Post Apr 21, 2026, the source
- * of truth is `data.calendarEvents` — there is no real `Class` record to look
- * up, so we synthesize one with the canonical event id (`cal-…`).
- */
-function toClassShape(ev: ClassLikeEvent): Class {
-  return {
-    id: ev.id,
-    name: ev.name,
-    day: ev.day,
-    startTime: ev.startTime,
-    endTime: ev.endTime,
-    studioId: ev.studioId || '',
-    musicLinks: [],
-  };
 }
 
 export function useClassTiming(data: AppData, currentMinute: number): {
@@ -118,7 +99,7 @@ export function useClassTiming(data: AppData, currentMinute: number): {
 }
 
 function buildClassContext(data: AppData, ev: ClassLikeEvent): ClassWithContext {
-  const cls = toClassShape(ev);
+  const cls = classLikeEventToClass(ev);
   const studio = ev.studioId ? data.studios?.find(s => s.id === ev.studioId) : undefined;
 
   // Get this week's notes (key may be on the calendar event id post-migration)

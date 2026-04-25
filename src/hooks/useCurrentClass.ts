@@ -1,30 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { AppData, Class, CurrentClassInfo, DayOfWeek, WeekNotes } from '../types';
+import { AppData, Class, CurrentClassInfo, DayOfWeek } from '../types';
 import { getCurrentDayOfWeek, getCurrentTimeMinutes, getClassStatus, getMinutesUntilClass, getMinutesRemaining, timeToMinutes, formatWeekOf, getWeekStart, toDateStr } from '../utils/time';
 import { getStudioById } from '../data/studios';
-import { getClassesFromCalendar, type ClassLikeEvent } from '../utils/calendarEventType';
+import { getClassesFromCalendar, classLikeEventToClass } from '../utils/calendarEventType';
 
-/**
- * Adapter — convert a calendar-derived class-like event into a `Class`-shaped
- * object so downstream consumers (the `Class` field on `CurrentClassInfo`)
- * keep working with familiar fields. Mirrors the adapter in `useClassTiming.ts`.
- */
-function toClassShape(ev: ClassLikeEvent): Class {
-  return {
-    id: ev.id,
-    name: ev.name,
-    day: ev.day,
-    startTime: ev.startTime,
-    endTime: ev.endTime,
-    studioId: ev.studioId || '',
-    musicLinks: [],
-  };
-}
-
-export function useCurrentClass(
-  data: AppData,
-  weekNotes?: WeekNotes[],
-): CurrentClassInfo {
+export function useCurrentClass(data: AppData): CurrentClassInfo {
   const [currentTime, setCurrentTime] = useState(getCurrentTimeMinutes());
   const [currentDay, setCurrentDay] = useState<DayOfWeek>(getCurrentDayOfWeek());
 
@@ -51,7 +31,7 @@ export function useCurrentClass(
     };
   }, []);
 
-  const result = useMemo(() => {
+  return useMemo(() => {
     // Source of truth: today's class-like calendar events. `getClassesFromCalendar`
     // already drops untimed events, applies the classifier, and resolves studios.
     const todayStr = toDateStr(new Date());
@@ -59,7 +39,7 @@ export function useCurrentClass(
 
     // Filter out cancelled / subbed events via this week's exceptions
     const weekOf = formatWeekOf(getWeekStart());
-    const currentWeekNotes = weekNotes?.find(w => w.weekOf === weekOf);
+    const currentWeekNotes = data.weekNotes?.find(w => w.weekOf === weekOf);
     const filteredEvents = calClassEvents.filter(ev => {
       const exc = currentWeekNotes?.classNotes[ev.id]?.exception;
       return !exc || exc.type === 'time-change';
@@ -68,7 +48,7 @@ export function useCurrentClass(
     // Convert to Class shape and sort by start time. (Already sorted by date+time
     // inside `getClassesFromCalendar`, but date is fixed here so re-sort by time.)
     const todayClasses: Class[] = filteredEvents
-      .map(toClassShape)
+      .map(classLikeEventToClass)
       .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
 
     if (todayClasses.length === 0) {
@@ -130,7 +110,5 @@ export function useCurrentClass(
       nextClass,
       nextStudio,
     };
-  }, [data, weekNotes, currentDay, currentTime]);
-
-  return result;
+  }, [data, currentDay, currentTime]);
 }

@@ -46,7 +46,7 @@ export function useDashboardContext(
   data: AppData,
   currentMinute: number,
 ): DashboardContextData {
-  const currentClassInfo = useCurrentClass(data, data.weekNotes);
+  const currentClassInfo = useCurrentClass(data);
   const { upcomingClass, justEndedClass, minutesUntilNext } = useClassTiming(data, currentMinute);
   const checkIn = useCheckInStatus(data.aiCheckIns, data.settings?.aiConfig, currentMinute);
   const selfCareStatus = useSelfCareStatus(data.selfCare, data.settings?.medConfig);

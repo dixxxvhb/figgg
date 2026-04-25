@@ -215,6 +215,26 @@ export interface ClassLikeEvent {
 }
 
 /**
+ * Adapter — convert a calendar-derived class-like event into a `Class`-shaped
+ * object so downstream consumers (`buildClassContext`, `useHeroPriority`,
+ * `Hero`, `useCurrentClass`) keep working with familiar fields. Post Apr 21,
+ * 2026, the source of truth is `data.calendarEvents` — there is no real
+ * `Class` record to look up, so we synthesize one with the canonical event id
+ * (`cal-…`).
+ */
+export function classLikeEventToClass(ev: ClassLikeEvent): Class {
+  return {
+    id: ev.id,
+    name: ev.name,
+    day: ev.day,
+    startTime: ev.startTime,
+    endTime: ev.endTime,
+    studioId: ev.studioId || '',
+    musicLinks: [],
+  };
+}
+
+/**
  * Returns class-like events from `data.calendarEvents`, normalized to a
  * Class-shaped `ClassLikeEvent`. This is the canonical helper for reading
  * "classes" anywhere in the app post-migration. Callers should prefer this
